@@ -5,5 +5,28 @@ Birth date + Death date OR
 Section + Lot OR
 Section, Tier and Grave position 
 */
-import React, { Component } from 'react';
-import { MapContainer, TileLayer, GeoJSON, Marker } from 'react-leaflet';
+//add a date picker for birth and death dates
+
+//output information to a data grid
+import * as React from 'react';
+import { Box, Button, TextField } from '@mui/material';
+
+export default function Selector() {
+  return (
+    <Box component="form" sx={{marginTop: '10%',
+    display: 'flex',  bgcolor: 'background.paper',
+    boxShadow: 1, zIndex: '2000 !important'}}>
+      <TextField id="outlined-basic" label="Last Name" variant="outlined" sx={{ bgcolor: 'background.paper',
+          boxShadow: 1, zIndex: '2000 !important' }} />
+      <Button sx={{
+        marginTop: '10%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        zIndex: '2000 !important',
+      }}
+      variant="contained">Hello World</Button>
+      
+    </Box>
+  );
+}

@@ -1,9 +1,12 @@
 import React from "react";
-import {MapContainer, TileLayer, GeoJSON, Popup } from "react-leaflet";
+import {MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-markercluster";
 import "./index.css";
+import Selector from "./Selector";
 //import seg from "./data/seg.json";
-import geo_burials from "./data/Geo_Burials.json";
+//import geo_burials from "./data/Geo_Burials.json";
+
+
 //geo burials is a geojson file parsed as json, is very large, so might make sense to wait to load it
 
 
@@ -18,7 +21,7 @@ export default function Map() {
   return (
     //console.log(seg), 
     //console.log(geo_burials),
-    <MapContainer  
+    <MapContainer className='map'
     center={[42.704180, -73.731980]}
     zoom={15}
     style={{ height: "100vh" }}
@@ -28,7 +31,7 @@ export default function Map() {
         attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         maxZoom={25}
       />
-    
+    <Selector></Selector>
       <MarkerClusterGroup 
                     disableClusteringAtZoom={21}
                     removeOutsideVisibleBounds={true}
@@ -36,7 +39,7 @@ export default function Map() {
                     spiderfyOnMaxZoom={false}
                     chunkedLoading={true}
                     >
-      <GeoJSON data={geo_burials} />
+     {/* <GeoJSON data={geo_burials} /> */} 
       </MarkerClusterGroup>
 
     </MapContainer>
