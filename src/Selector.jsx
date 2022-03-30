@@ -8,8 +8,11 @@ Section, Tier and Grave position
 //add a date picker for birth and death dates
 
 //output information to a data grid
+//https://mui.com/components/text-fields/
 import * as React from 'react';
 import { Box, Button, TextField } from '@mui/material';
+import DisplayOutput from './TableOutput';
+import FilterableNameTable from './components/FilterableNameTable';
 
 export default function Selector() {
   return (
@@ -26,7 +29,8 @@ export default function Selector() {
         zIndex: '2000 !important',
       }}
       variant="contained">Hello World</Button>
-      
+      <DisplayOutput/>
+      <div class='zendex'><FilterableNameTable></FilterableNameTable></div>
     </Box>
   );
 }

@@ -12,6 +12,11 @@ code {
     monospace;
 }
 
+.zendex {
+  z-index: 2000 !important;
+  background-color: white;
+}
+
 div.map.leaflet-container.leaflet-touch.leaflet-retina.leaflet-fade-anim {
   /*border: 5px solid red;*/
   z-index: 1;
