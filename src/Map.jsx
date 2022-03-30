@@ -1,13 +1,24 @@
 import React from "react";
-import {MapContainer, TileLayer, GeoJSON } from "react-leaflet";
+import {MapContainer, TileLayer, GeoJSON, Marker, Tooltip} from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-markercluster";
 import "./index.css";
 import Selector from "./Selector";
-//import seg from "./data/seg.json";
-//import geo_burials from "./data/Geo_Burials.json";
+import geo_burials from "./data/seg.json";
 
 
-//geo burials is a geojson file parsed as json, is very large, so might make sense to wait to load it
+let heavyLoadData = [];
+
+function getRandomLatLng() {
+  return [-90 + 180 * Math.random(), -180 + 360 * Math.random()];
+}
+
+for (var i = 0; i < 100000; i += 1) {
+  // 100k points
+  heavyLoadData.push({
+    id: "test",
+    geo: getRandomLatLng()
+  });
+}
 
 
 
@@ -19,8 +30,7 @@ export default function Map() {
   //add popups on graves
   //add some sort of selection mechanism -> maybe a new page? 
   return (
-    //console.log(seg), 
-    //console.log(geo_burials),
+    console.log(geo_burials),
     <MapContainer className='map'
     center={[42.704180, -73.731980]}
     zoom={15}
@@ -32,16 +42,26 @@ export default function Map() {
         maxZoom={25}
       />
     <Selector></Selector>
-      <MarkerClusterGroup 
+      {/* <MarkerClusterGroup 
                     disableClusteringAtZoom={21}
                     removeOutsideVisibleBounds={true}
                     showCoverageOnHover={ false}
                     spiderfyOnMaxZoom={false}
                     chunkedLoading={true}
                     >
-     {/* <GeoJSON data={geo_burials} /> */} 
-      </MarkerClusterGroup>
+       <GeoJSON data={geo_burials} />
+      </MarkerClusterGroup> */}
 
+    <MarkerClusterGroup>
+        {heavyLoadData.map((location) => {
+          return (
+            <Marker position={location.geo}>
+              <Tooltip direction="top">{location.id}</Tooltip>
+            </Marker>
+          );
+        })}
+      </MarkerClusterGroup>
+      
     </MapContainer>
   );
 }

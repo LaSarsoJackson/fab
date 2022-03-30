@@ -19,17 +19,10 @@ export default function Selector() {
     <Box component="form" sx={{marginTop: '10%',
     display: 'flex',  bgcolor: 'background.paper',
     boxShadow: 1, zIndex: '2000 !important'}}>
-      <TextField id="outlined-basic" label="Last Name" variant="outlined" sx={{ bgcolor: 'background.paper',
-          boxShadow: 1, zIndex: '2000 !important' }} />
-      <Button sx={{
-        marginTop: '10%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        zIndex: '2000 !important',
-      }}
-      variant="contained">Hello World</Button>
-      <DisplayOutput/>
+      {/* <TextField id="outlined-basic" label="Last Name" variant="outlined" sx={{ bgcolor: 'background.paper',
+          boxShadow: 1, zIndex: '2000 !important' }} /> */}
+   
+     {/*  <DisplayOutput/>*/}
       <div class='zendex'><FilterableNameTable></FilterableNameTable></div>
     </Box>
   );

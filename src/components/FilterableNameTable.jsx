@@ -96,7 +96,11 @@ function SearchBar({
     <form>
       <input 
         type="text" 
-        value={filterText} placeholder="Search..." 
+        value={filterText} placeholder="First Name..." 
+        onChange={(e) => onFilterTextChange(e.target.value)} />
+      <input 
+        type="text" 
+        value={filterText} placeholder="Last Name..." 
         onChange={(e) => onFilterTextChange(e.target.value)} />
       <label>
         <input 
