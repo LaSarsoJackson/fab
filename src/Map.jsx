@@ -4,6 +4,7 @@ import MarkerClusterGroup from "react-leaflet-markercluster";
 import "./index.css";
 import Selector from "./Selector";
 import geo_burials from "./data/Geo_Burials.json";
+import SearchBox from "./SearchBox";
 
 //this is the data we're going to use
 //in the map setup, we're going to have a map container, a tile layer, and a marker cluster group
@@ -12,19 +13,7 @@ import geo_burials from "./data/Geo_Burials.json";
 //add new headstones
 //add popups on graves
 //add some sort of selection mechanism -> maybe a new page? 
-/*
- function getRandomLatLng() {
-  return [-90 + 180 * Math.random(), -180 + 360 * Math.random()];
-}
 
-for (var i = 0; i < 100000; i += 1) {
-  // 100k points
-  heavyLoadData.push({
-    id: "test",
-    geo: getRandomLatLng()
-  });
-} 
-*/
 
 export default function Map() {
 
@@ -32,7 +21,7 @@ export default function Map() {
 
   return (
     <div>
-      
+      <SearchBox></SearchBox>
       <MapContainer className='map'
         center={[42.704180, -73.731980]}
         zoom={15}
@@ -59,6 +48,7 @@ export default function Map() {
       </MapContainer>
       <Selector>
       </Selector>
+
     </div>
   );
 }

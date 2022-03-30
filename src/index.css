@@ -12,6 +12,12 @@ code {
     monospace;
 }
 
+.SearchBox {
+  flex: auto;
+  padding: 20px;
+  border-radius: 10px;
+  border: 1px solid black;
+}
 .zendex {
   z-index: 2000 !important;
   background-color: white;
@@ -20,6 +26,10 @@ code {
 div.map.leaflet-container.leaflet-touch.leaflet-retina.leaflet-fade-anim {
   /*border: 5px solid red;*/
   z-index: 1;
+}
+div.leaflet-container.leaflet-touch.leaflet-retina.leaflet-fade-anim.leaflet-grab.leaflet-touch-drag.leaflet-touch-zoom {
+  /*border: 5px solid blue;*/
+  z-index: 2;
 }
 
 div.slide-pane__content {

@@ -99,14 +99,15 @@ for (let i = 0; i < geo_burials.features.length; i++) {
   };
   geo_burials_rows.push(row);
 }
-
+//copilot wrote this, but I don't understand it
 
 export default function StaticBurialTable() {
   return (
-    console.log(geo_burials_rows),
+   /* console.log(geo_burials_rows),*/
     <div style={{ display: 'flex', height: '100%' }}>
       <div style={{ flexGrow: 1 }}>
-        <DataGrid getRowId={(row) => row.OBJECTID}
+        <DataGrid 
+        getRowId={(row) => row.OBJECTID}
           rows={geo_burials_rows}
           columns={columns}
           pageSize={5}
