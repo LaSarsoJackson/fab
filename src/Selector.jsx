@@ -10,20 +10,16 @@ Section, Tier and Grave position
 //output information to a data grid
 //https://mui.com/components/text-fields/
 import * as React from 'react';
-import { Box, Button, TextField } from '@mui/material';
-import DisplayOutput from './TableOutput';
-import FilterableNameTable from './components/FilterableNameTable';
+import { Box } from '@mui/material';
+import StaticBurialTable from './StaticBurialTable';
 
 export default function Selector() {
   return (
     <Box component="form" sx={{marginTop: '10%',
     display: 'flex',  bgcolor: 'background.paper',
     boxShadow: 1, zIndex: '2000 !important'}}>
-      {/* <TextField id="outlined-basic" label="Last Name" variant="outlined" sx={{ bgcolor: 'background.paper',
-          boxShadow: 1, zIndex: '2000 !important' }} /> */}
-   
-     {/*  <DisplayOutput/>*/}
-      <div class='zendex'><FilterableNameTable></FilterableNameTable></div>
+      
+      <div className='zendex'><StaticBurialTable/></div>
     </Box>
   );
 }

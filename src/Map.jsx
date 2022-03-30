@@ -3,12 +3,17 @@ import {MapContainer, TileLayer, GeoJSON, Marker, Tooltip} from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-markercluster";
 import "./index.css";
 import Selector from "./Selector";
-import geo_burials from "./data/seg.json";
+import geo_burials from "./data/Geo_Burials.json";
 
-
-let heavyLoadData = [];
-
-function getRandomLatLng() {
+//this is the data we're going to use
+  //in the map setup, we're going to have a map container, a tile layer, and a marker cluster group
+  //change the tile layer to a tile layer from a different source -- esri 
+  //need to fix styling
+  //add new headstones
+  //add popups on graves
+  //add some sort of selection mechanism -> maybe a new page? 
+/*
+ function getRandomLatLng() {
   return [-90 + 180 * Math.random(), -180 + 360 * Math.random()];
 }
 
@@ -18,30 +23,27 @@ for (var i = 0; i < 100000; i += 1) {
     id: "test",
     geo: getRandomLatLng()
   });
-}
-
-
+} 
+*/
 
 export default function Map() {
-  //in the map setup, we're going to have a map container, a tile layer, and a marker cluster group
-  //change the tile layer to a tile layer from a different source -- esri 
-  //need to fix styling
-  //add new headstones
-  //add popups on graves
-  //add some sort of selection mechanism -> maybe a new page? 
+
+  const geoData = geo_burials;
+
   return (
-    console.log(geo_burials),
+    <div><Selector></Selector> 
     <MapContainer className='map'
     center={[42.704180, -73.731980]}
     zoom={15}
-    style={{ height: "100vh" }}
+    style={{ height: "50vh" }}
     > 
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         maxZoom={25}
       />
-    <Selector></Selector>
+     
+  
       {/* <MarkerClusterGroup 
                     disableClusteringAtZoom={21}
                     removeOutsideVisibleBounds={true}
@@ -49,19 +51,10 @@ export default function Map() {
                     spiderfyOnMaxZoom={false}
                     chunkedLoading={true}
                     >
-       <GeoJSON data={geo_burials} />
-      </MarkerClusterGroup> */}
-
-    <MarkerClusterGroup>
-        {heavyLoadData.map((location) => {
-          return (
-            <Marker position={location.geo}>
-              <Tooltip direction="top">{location.id}</Tooltip>
-            </Marker>
-          );
-        })}
+       <GeoJSON data={geoData} />
       </MarkerClusterGroup>
-      
-    </MapContainer>
+      */}
+
+    </MapContainer></div>
   );
 }

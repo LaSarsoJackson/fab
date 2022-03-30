@@ -1,19 +1,19 @@
 import { useState } from 'react';
 
-function FilterableTable({ products }) {
-  const [filterText, setFilterText] = useState('');
+function FilterableTable({ burial }) {
+  const [firstNameText, setFirstNameText] = useState('');
   const [inStockOnly, setInStockOnly] = useState(false);
 
   return (
     <div>
       <SearchBar 
-        filterText={filterText} 
+        filterText={firstNameText} 
         inStockOnly={inStockOnly} 
-        onFilterTextChange={setFilterText} 
+        onFilterTextChange={setFirstNameText} 
         onInStockOnlyChange={setInStockOnly} />
       <ProductTable 
-        products={products} 
-        filterText={filterText}
+        products={burial} 
+        filterText={firstNameText}
         inStockOnly={inStockOnly} />
     </div>
   );
@@ -124,5 +124,5 @@ const PRODUCTS = [
 ];
 
 export default function FilterableNameTable() {
-  return <FilterableTable products={PRODUCTS} />;
+  return <FilterableTable burial={PRODUCTS} />;
 }
