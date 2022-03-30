@@ -15,11 +15,6 @@ import StaticBurialTable from './StaticBurialTable';
 
 export default function Selector() {
   return (
-    <Box component="form" sx={{marginTop: '10%',
-    display: 'flex',  bgcolor: 'background.paper',
-    boxShadow: 1, zIndex: '2000 !important'}}>
-      
-      <div className='zendex'><StaticBurialTable/></div>
-    </Box>
+    <div style={{ height: 350, width: '100%' }}><StaticBurialTable /></div>
   );
 }
