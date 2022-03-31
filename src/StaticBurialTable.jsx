@@ -1,83 +1,85 @@
+import geo_burials from "./data/Geo_Burials.json"
+import ReactDataGrid from '@inovua/reactdatagrid-community'
+import '@inovua/reactdatagrid-community/index.css'
 
-import { DataGrid } from '@mui/x-data-grid';
-import geo_burials from "./data/Geo_Burials.json";
+import NumberFilter from '@inovua/reactdatagrid-community/NumberFilter'
 
 const columns = [
-  { field: 'OBJECTID', headerName: 'ID', width: 90 },
+  { name: 'OBJECTID', header: 'ID', type:'number', minWidth: 90, filterEditor: NumberFilter,},
   {
-    field: 'First_Name',
-    headerName: 'First name',
-    width: 150,
-    editable: false,
+    name: 'First_Name',
+    header: 'First name',
+    type: 'string',
+    minWidth: 150,
   },
   {
-    field: 'Last_Name',
-    headerName: 'Last name',
-    width: 150,
-    editable: false,
+    name: 'Last_Name',
+    header: 'Last name',
+    type: 'string',
+    minWidth: 150,
   },
   {
-    field: 'Section',
-    headerName: 'Section',
+    name: 'Section',
+    header: 'Section',
     type: 'number',
-    width: 110,
-    editable: false,
+    minWidth: 110,
+    filterEditor: NumberFilter,
   },
   {
-    field: 'Lot',
-    headerName: 'Lot',
+    name: 'Lot',
+    header: 'Lot',
     type: 'number',
-    width: 110,
-    editable: false,
+    minWidth: 110,
+    filterEditor: NumberFilter,
   },
   {
-    field: 'Pvt_Pub',
-    headerName: 'Pvt_Pub',
+    name: 'Pvt_Pub',
+    header: 'Pvt_Pub',
     type: 'number',
-    width: 110,
-    editable: false,
+    minWidth: 110,
+    filterEditor: NumberFilter,
+
   },
   {
-    field: 'Tier',
-    headerName: 'Tier',
+    name: 'Tier',
+    header: 'Tier',
     type: 'number',
-    width: 110,
-    editable: false,
+    minWidth: 110,
+    filterEditor: NumberFilter,
+
   },
   {
-    field: 'Grave',
-    headerName: 'Grave',
+    name: 'Grave',
+    header: 'Grave',
     type: 'number',
-    width: 110,
-    editable: false,
+    minWidth: 110,
+    filterEditor: NumberFilter,
   },
   {
-    field: 'Sec_Disp',
-    headerName: 'Sec_Disp',
+    name: 'Sec_Disp',
+    header: 'Sec_Disp',
     type: 'number',
-    width: 110,
-    editable: false,
+    minWidth: 110,
+    filterEditor: NumberFilter,
   },
   {
-    field: 'ARC_GeoID',
-    headerName: 'GEOID',
+    name: 'ARC_GeoID',
+    header: 'GEOID',
     type: 'number',
-    width: 110,
-    editable: false,
+    minWidth: 110,
+    filterEditor: NumberFilter,
   },
   {
-    field: 'Birth',
-    headerName: 'Birth',
+    name: 'Birth',
+    header: 'Birth',
     type: 'date',
-    width: 110,
-    editable: false,
+    minWidth: 110,
   },
   {
-    field: 'Death',
-    headerName: 'Death',
+    name: 'Death',
+    header: 'Death',
     type: 'date',
-    width: 110,
-    editable: false,
+    minWidth: 110,
   },
 ];
 let geo_burials_rows = [];
@@ -101,20 +103,37 @@ for (let i = 0; i < geo_burials.features.length; i++) {
 }
 //copilot wrote this, but I don't understand it
 
+const gridStyle = { minHeight: 550 };
+
+const filterValue = [
+  { name: 'First_Name', operator: 'startsWith', type: 'string', value: '' },
+  { name: 'Last_Name', operator: 'startsWith', type: 'string', value: '' },
+  { name: 'Section', operator: 'eq', type: 'number' },
+  { name: 'Lot', operator: 'eq', type: 'number' },
+  { name: 'Tier', operator: 'eq', type: 'number' },
+];
+
+
+//https://reactdatagrid.io/docs/filtering
+
 export default function StaticBurialTable() {
   return (
-   /* console.log(geo_burials_rows),*/
+    /*console.log(geo_burials_rows),*/
     <div style={{ display: 'flex', height: '100%' }}>
       <div style={{ flexGrow: 1 }}>
-        <DataGrid 
-        getRowId={(row) => row.OBJECTID}
-          rows={geo_burials_rows}
+        <ReactDataGrid
+          idProperty="OBJECTID"
           columns={columns}
-          pageSize={5}
-          rowsPerPageOptions={[5]}
-          checkboxSelection
-          disableSelectionOnClick
+          pagination
+          defaultLimit={15}
+          defaultSkip={15}
+          defaultFilterValue={filterValue}
+          pageSizes={[10, 15, 30]}
+          dataSource={geo_burials_rows}
+          style={gridStyle}
         />
+
+
       </div>
     </div>
   );

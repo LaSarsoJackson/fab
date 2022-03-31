@@ -21,7 +21,7 @@ export default function Map() {
 
   return (
     <div>
-      <SearchBox></SearchBox>
+      {/*<SearchBox></SearchBox>*/}
       <MapContainer className='map'
         center={[42.704180, -73.731980]}
         zoom={15}
