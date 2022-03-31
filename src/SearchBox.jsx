@@ -1,12 +1,13 @@
-import React, { Component } from 'react';
-import TextField from '@mui/material/TextField';
+import React from 'react';
 
-export default function SearchBox() {
+export default function SearchBox({ filterText, onFilterTextChange, }) {
   return (
     <div className='SearchBox'>
-      <TextField id="firstNameInput" label="First Name" variant="outlined" />
-      <TextField id="lastNameInput" label="Last Name" variant="outlined" />
-      <TextField id="FullNameInput" label="Full Name" variant="outlined" />
+      <input id="objectIdInput" type="text"
+        value={filterText}
+        placeholder="Search..."
+        onChange={(e) => onFilterTextChange(e.target.value)} />
+
     </div>
   );
 }

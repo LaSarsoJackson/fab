@@ -1,0 +1,60 @@
+{
+        "type": "FeatureCollection",
+        "name": "Geo_Burials",
+        "crs": {
+            "type": "name",
+            "properties": {
+                "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+            }
+        },
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {
+                    "OBJECTID": 18,
+                    "First_Name": "Thomas E",
+                    "Last_Name": "LaMont",
+                    "Section": 215.0,
+                    "Lot": 30.0,
+                    "Pvt_Pub": 1,
+                    "Tier": 0,
+                    "Grave": 0,
+                    "Sec_Disp": "215",
+                    "ARC_GeoID": 21501030,
+                    "Birth": "7/21/1951",
+                    "Death": "1/26/2011"
+                },
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                        -73.736092,
+                        42.712719
+                    ]
+                }
+            },
+            {
+                "type": "Feature",
+                "properties": {
+                    "OBJECTID": 211,
+                    "First_Name": "William G",
+                    "Last_Name": "Roe",
+                    "Section": 129.0,
+                    "Lot": 73.0,
+                    "Pvt_Pub": 1,
+                    "Tier": 0,
+                    "Grave": 0,
+                    "Sec_Disp": "129",
+                    "ARC_GeoID": 12901073,
+                    "Birth": "11/17/1917",
+                    "Death": "1/24/2011"
+                },
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [
+                        -73.740152,
+                        42.707758
+                    ]
+                }
+            }
+        ]
+    }
