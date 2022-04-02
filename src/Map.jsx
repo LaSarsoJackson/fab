@@ -1,5 +1,5 @@
-import { React, useState, useRef } from "react";
-import { MapContainer, TileLayer, Popup, Marker, GeoJSON, LayersControl, LayerGroup } from "react-leaflet";
+import { React, useState, useRef, useEffect } from "react";
+import { MapContainer, TileLayer, Popup, Marker, GeoJSON, LayersControl, LayerGroup, useMap} from "react-leaflet";
 //import MarkerClusterGroup from "react-leaflet-markercluster";
 import "./index.css";
 import geo_burials from "./data/Geo_Burials.json";
@@ -10,8 +10,6 @@ import Button from '@mui/material/Button';
 import ARC_Roads from "./data/ARC_Roads.json";
 import ARC_Boundary from "./data/ARC_Boundary.json";
 import ARC_Sections from "./data/ARC_Sections.json";
-
-
 
 
 const columns = [
@@ -102,11 +100,31 @@ export default function Map() {
 
   //what did you see John lombardi? when did you see it?
   //https://stackoverflow.com/questions/71121283/passing-data-to-leaflet-from-ag-grid-programmitically
+  
+
+  //https://codesandbox.io/s/how-to-set-the-map-to-a-geolocation-on-map-load-with-react-leaflet-v3-uvkpz?file=/src/Maps.jsx
+  function LocationMarker() {
+    const [position, setPosition] = useState(null);
+
+    const map = useMap();
+
+    useEffect(() => {
+      map.locate().on("locationfound", function (e) {
+        setPosition(e.latlng);
+        map.flyTo(e.latlng, map.getZoom());
+      });
+    }, []);
+
+    return position === null ? null : (
+      <Marker position={position}>
+        <Popup>You are here</Popup>
+      </Marker>
+    );
+  }
 
   return (
 
     <div>
-
       <MapContainer
         center={[42.704180, -73.731980]}
         zoom={14}
@@ -121,6 +139,7 @@ export default function Map() {
             attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
             maxZoom={25}
           />
+          <LocationMarker></LocationMarker>
           <LayerGroup>
             <LayersControl.Overlay name="Roads">
               <GeoJSON data={ARC_Roads}></GeoJSON>
@@ -135,7 +154,7 @@ export default function Map() {
             <LayersControl.Overlay name="Sections">
               <GeoJSON data={ARC_Sections}
                 onEachFeature={(feature, layer) => {
-                  layer.bindTooltip(`<h3>${feature.properties.Section_Di}</h3>`, {permanent: true, direction: 'center'});
+                  layer.bindTooltip(`<h3>${feature.properties.Section_Di}</h3>`, { permanent: true, direction: 'center' });
                 }}>
               </GeoJSON>
             </LayersControl.Overlay>
