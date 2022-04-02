@@ -1,11 +1,17 @@
 import { React, useState, useRef } from "react";
-import { MapContainer, TileLayer, GeoJSON, Marker } from "react-leaflet";
+import { MapContainer, TileLayer, Popup, Marker, GeoJSON, LayersControl, LayerGroup } from "react-leaflet";
 //import MarkerClusterGroup from "react-leaflet-markercluster";
 import "./index.css";
 import geo_burials from "./data/Geo_Burials.json";
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/dist/styles/ag-grid.css';
 import 'ag-grid-community/dist/styles/ag-theme-alpine.css';
+import Button from '@mui/material/Button';
+import ARC_Roads from "./data/ARC_Roads.json";
+import ARC_Boundary from "./data/ARC_Boundary.json";
+import ARC_Sections from "./data/ARC_Sections.json";
+
+
 
 
 const columns = [
@@ -78,48 +84,77 @@ export default function Map() {
   //const [coordinates, setCoordinates] = useState('');
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
+  const [fullName, setfullName] = useState('');
+
   const onButtonClick = e => {
     const selectedNodes = gridRef.current.api.getSelectedNodes()
     const selectedData = selectedNodes.map(node => node.data)
+    const selectedDataStringPresentation = selectedData.map(node => `${node.First_Name} ${node.Last_Name}`).join(' ')
     //const selectedDataStringPresentation = selectedData.map(node => `${node.Coordinates[0]} ${node.Coordinates[1]}`).join(', ')
-    setLat(selectedData[0].Coordinates[0]); 
+    setfullName(selectedDataStringPresentation);
+    setLat(selectedData[0].Coordinates[0]);
     setLng(selectedData[0].Coordinates[1]);
     console.log(lat, lng);
     //alert(`Selected nodes: ${selectedDataStringPresentation}`)
-
     //this should be refactored with the useEffect hook probably. 
     //i'm not sure how!
   }
 
-//what did you see John lombardi? when did you see it?
-//https://stackoverflow.com/questions/71121283/passing-data-to-leaflet-from-ag-grid-programmitically
+  //what did you see John lombardi? when did you see it?
+  //https://stackoverflow.com/questions/71121283/passing-data-to-leaflet-from-ag-grid-programmitically
 
   return (
+
     <div>
-      <button onClick={onButtonClick}>Get selected burial: Lat {lat} Lng {lng} </button>
-      <MapContainer className='map'
+
+      <MapContainer
         center={[42.704180, -73.731980]}
         zoom={14}
         style={{ height: "50vh" }}
       >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-          maxZoom={25}
-        />
-        {lat && lng && <Marker position={[lng, lat]}>
-            <div>
-              <h1>
-                <span role="img" aria-label="burial">
-                  💀
-                </span>
-              </h1>
-            </div>
-          </Marker>
+        <LayersControl>
+          <div className="buttonBox">
+            <Button onClick={onButtonClick} className='button' variant="contained">Get selected burial: Lat {lat} Lng {lng} </Button>
+          </div>
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+            maxZoom={25}
+          />
+          <LayerGroup>
+            <LayersControl.Overlay name="Roads">
+              <GeoJSON data={ARC_Roads}></GeoJSON>
+            </LayersControl.Overlay>
+          </LayerGroup>
+          <LayerGroup>
+            <LayersControl.Overlay name="Boundary">
+              <GeoJSON data={ARC_Boundary}></GeoJSON>
+            </LayersControl.Overlay>
+          </LayerGroup>
+          <LayerGroup>
+            <LayersControl.Overlay name="Sections">
+              <GeoJSON data={ARC_Sections}
+                onEachFeature={(feature, layer) => {
+                  layer.bindTooltip(`<h3>${feature.properties.Section_Di}</h3>`, {permanent: true, direction: 'center'});
+                }}>
+              </GeoJSON>
+            </LayersControl.Overlay>
+          </LayerGroup>
 
-        }
-
+          {lat && lng && <Marker position={[lng, lat]}>
+            <Popup>
+              <div>
+                <h1>
+                  <span role="img" aria-label="burial">
+                    {fullName}
+                  </span>
+                </h1>
+              </div>
+            </Popup>
+          </Marker>}
+        </LayersControl>
       </MapContainer>
+
       <div className="ag-theme-alpine" style={{ height: '50vh' }}>
         <AgGridReact
           ref={gridRef}

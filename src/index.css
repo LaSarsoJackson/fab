@@ -18,9 +18,13 @@ code {
   border-radius: 10px;
   border: 1px solid black;
 }
-.zendex {
+.button {
   z-index: 2000 !important;
-  background-color: white;
+  margin-top: 77%;
+}
+.buttonBox {
+  margin-top: 45vh;
+  position: relative;
 }
 
 div.map.leaflet-container.leaflet-touch.leaflet-retina.leaflet-fade-anim {
