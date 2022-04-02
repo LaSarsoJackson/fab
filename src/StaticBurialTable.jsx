@@ -118,7 +118,7 @@ const filterValue = [
 
 export default function StaticBurialTable() {
   return (
-    /*console.log(geo_burials_rows),*/
+    console.log(geo_burials_rows),
     <div style={{ display: 'flex', height: '100%' }}>
       <div style={{ flexGrow: 1 }}>
         <ReactDataGrid
