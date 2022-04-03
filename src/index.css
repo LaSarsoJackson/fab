@@ -21,10 +21,12 @@ code {
 .button {
   z-index: 2000 !important;
   margin-top: 77%;
+  
 }
 .buttonBox {
-  margin-top: 45vh;
+  margin-top: 54vh;
   position: relative;
+  margin-left: 1vh;
 }
 
 div.map.leaflet-container.leaflet-touch.leaflet-retina.leaflet-fade-anim {
