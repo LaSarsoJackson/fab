@@ -21,10 +21,18 @@ code {
 .button {
   z-index: 2000 !important;
   margin-top: 77%;
-  
+}
+.locate-button {
+  z-index: 2000 !important;
+  margin-top: 77%;
 }
 .buttonBox {
-  margin-top: 54vh;
+  margin-top: 52vh;
+  position: relative;
+  margin-left: 1vh;
+}
+.buttonBox2 {
+  margin-top: -47vh;
   position: relative;
   margin-left: 1vh;
 }
