@@ -1,6 +1,6 @@
 {
   "name": "fab",
-  "homepage": "https://www.albany.edu/arce/test-findaburial/build/",
+  "homepage": "https://www.albany.edu/arce/findaburial/build/",
   "version": "0.1.0",
   "private": true,
   "dependencies": {

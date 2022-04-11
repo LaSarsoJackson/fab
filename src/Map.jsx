@@ -117,12 +117,18 @@ export default function Map() {
       setSubsetData(selectedNodes.map(node => node.data))
     } else if (selectedNodes.length === 0) {
       alert('Please select a row')
+      setSubsetData(selectedNodes.map(node => node.data))
     }
   };
 
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
   const [status, setStatus] = useState('Find me');
+  var exteriorStyle = {
+    "color": "#ffffff",
+    "weight": 1.5,
+    "fillOpacity": .08
+};
 
   const onLocateMarker = () => {
     if (!navigator.geolocation) {
@@ -166,16 +172,12 @@ export default function Map() {
                 </Popup></Marker>}
             </Button>
           </div>
-          <BaseLayer checked name="Imagery">
+          <BaseLayer name="Imagery">
             <BasemapLayer name='Imagery' center={[42.704180, -73.731980]}
               zoom={14}></BasemapLayer>
           </BaseLayer>
-          <BaseLayer name="ImageryClarity">
+          <BaseLayer checked name="ImageryClarity">
             <BasemapLayer name='ImageryClarity' center={[42.704180, -73.731980]}
-              zoom={14}></BasemapLayer>
-          </BaseLayer>
-          <BaseLayer name="NationalGeographic">
-            <BasemapLayer name='NationalGeographic' center={[42.704180, -73.731980]}
               zoom={14}></BasemapLayer>
           </BaseLayer>
           <BaseLayer name='Streets'>
@@ -184,12 +186,12 @@ export default function Map() {
           </BaseLayer>
           <LayerGroup>
             <LayersControl.Overlay name="Roads">
-              <GeoJSON data={ARC_Roads}></GeoJSON>
+              <GeoJSON data={ARC_Roads} ></GeoJSON>
             </LayersControl.Overlay>
           </LayerGroup>
           <LayerGroup>
             <LayersControl.Overlay checked name="Boundary">
-              <GeoJSON data={ARC_Boundary}></GeoJSON>
+              <GeoJSON data={ARC_Boundary} style={exteriorStyle}></GeoJSON>
             </LayersControl.Overlay>
           </LayerGroup>
           <LayerGroup>
@@ -210,6 +212,7 @@ export default function Map() {
       <div className="ag-theme-material" style={{ height: '40vh' }}>
         <AgGridReact
           defaultColDef={defaultColDef}
+          onRowSelected={onButtonClick}
           ref={gridRef}
           pagination={true}
           paginationAutoPageSize={true}
