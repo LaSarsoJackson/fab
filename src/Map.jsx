@@ -116,7 +116,7 @@ export default function Map() {
     if (selectedNodes.length > 0) {
       setSubsetData(selectedNodes.map(node => node.data))
     } else if (selectedNodes.length === 0) {
-      alert('Please select a row')
+      //alert('Please select a row')
       setSubsetData(selectedNodes.map(node => node.data))
     }
   };
@@ -145,6 +145,12 @@ export default function Map() {
     }
   }
 
+  const clearMap = () => {
+    setSubsetData([]);
+    gridRef.api.deselectAll();
+
+  }
+
   //https://codesandbox.io/s/how-to-set-the-map-to-a-geolocation-on-map-load-with-react-leaflet-v3-uvkpz?file=/src/Maps.jsx
 
 
@@ -157,10 +163,10 @@ export default function Map() {
       >
         <LayersControl>
           <div className="buttonBox">
-            <Button onClick={onButtonClick} className='button' variant="contained">
-              Get selected burial:
-            </Button>
-          </div>
+            <Button onClick={clearMap} className='button' variant="contained">
+             Clear selected rows
+  </Button>
+  </div> 
           <div className="buttonBox2">
             <Button onClick={onLocateMarker} className='locate-button' variant='contained' color='secondary' size='small' startIcon={<PinDropIcon/>}>
               {status}
@@ -213,6 +219,8 @@ export default function Map() {
         <AgGridReact
           defaultColDef={defaultColDef}
           onRowSelected={onButtonClick}
+          headerCheckboxSelection="always"
+          rowDeselection={true}
           ref={gridRef}
           pagination={true}
           paginationAutoPageSize={true}
