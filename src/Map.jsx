@@ -147,11 +147,9 @@ export default function Map() {
 
   const clearMap = () => {
     setSubsetData([]);
-    gridRef.api.deselectAll();
-
+    //deselect all ag-grid rows
+    gridRef.current.api.deselectAll();
   }
-
-  //https://codesandbox.io/s/how-to-set-the-map-to-a-geolocation-on-map-load-with-react-leaflet-v3-uvkpz?file=/src/Maps.jsx
 
 
   return (
@@ -219,7 +217,6 @@ export default function Map() {
         <AgGridReact
           defaultColDef={defaultColDef}
           onRowSelected={onButtonClick}
-          headerCheckboxSelection="always"
           rowDeselection={true}
           ref={gridRef}
           pagination={true}
@@ -229,7 +226,6 @@ export default function Map() {
           columnHoverHighlight={true}
           rowSelection="multiple">
         </AgGridReact>
-
       </div>
     </div>
   );
