@@ -135,7 +135,7 @@ export default function Map() {
       setStatus('Geolocation is not supported by your browser');
     } else {
       setStatus('Locating...');
-      navigator.geolocation.getCurrentPosition((position) => {
+      navigator.geolocation.watchPosition((position) => {
         setStatus('Find me');
         setLat(position.coords.latitude);
         setLng(position.coords.longitude);
