@@ -20,10 +20,10 @@ import PinDropIcon from '@mui/icons-material/PinDrop';
 const columns = [
   { field: 'OBJECTID', sortable: true, hide: true },
   {
-    field: 'First_Name', sortable: true, checkboxSelection: true,
+    field: 'First_Name', sortable: true, checkboxSelection: true, headerName: 'First Name',
   },
   {
-    field: 'Last_Name', sortable: true,
+    field: 'Last_Name', sortable: true, headerName: 'Last Name',
   },
   {
     field: 'Birth', sortable: true,
@@ -50,7 +50,7 @@ const columns = [
     field: 'Sec_Disp', sortable: true, hide: true
   },
   {
-    field: 'ARC_GeoID', sortable: true,
+    field: 'ARC_GeoID', sortable: true, headerName: 'GeoID',
   },
   {
     field: 'Geotype', sortable: true, hide: true
