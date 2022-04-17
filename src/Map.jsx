@@ -92,7 +92,7 @@ for (let i = 0; i < geo_burials.features.length; i++) {
 export default function Map() {
   const gridRef = useRef(null);
   const [subsetData, setSubsetData] = useState([]); //this is the data that is selected
-  const {BaseLayer} = LayersControl;
+  const { BaseLayer } = LayersControl;
   const displaySubset = subsetData.map((data, index) => {
     return (
       <Marker key={index} position={[data.Coordinates[1], data.Coordinates[0]]}>
@@ -128,7 +128,14 @@ export default function Map() {
     "color": "#ffffff",
     "weight": 1.5,
     "fillOpacity": .08
-};
+  };
+
+  var roadStyle = {
+    color: '#000000',
+    weight: 2,
+    opacity: 1,
+    fillOpacity: 0.1
+  };
 
   const onLocateMarker = () => {
     if (!navigator.geolocation) {
@@ -162,11 +169,11 @@ export default function Map() {
         <LayersControl>
           <div className="buttonBox">
             <Button onClick={clearMap} className='button' variant="contained">
-             Clear selected rows
-  </Button>
-  </div> 
+              Clear selected rows
+            </Button>
+          </div>
           <div className="buttonBox2">
-            <Button onClick={onLocateMarker} className='locate-button' variant='contained' color='secondary' size='small' startIcon={<PinDropIcon/>}>
+            <Button onClick={onLocateMarker} className='locate-button' variant='contained' color='secondary' size='small' startIcon={<PinDropIcon />}>
               {status}
               {lat && lng && <Marker position={[lat, lng]}>
                 <Popup>
@@ -190,7 +197,7 @@ export default function Map() {
           </BaseLayer>
           <LayerGroup>
             <LayersControl.Overlay name="Roads">
-              <GeoJSON data={ARC_Roads} ></GeoJSON>
+              <GeoJSON data={ARC_Roads} style={roadStyle} ></GeoJSON>
             </LayersControl.Overlay>
           </LayerGroup>
           <LayerGroup>
