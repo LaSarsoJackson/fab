@@ -13,6 +13,7 @@ import ARC_Boundary from "./data/ARC_Boundary.json";
 import ARC_Sections from "./data/ARC_Sections.json";
 import { BasemapLayer } from "react-esri-leaflet";
 import PinDropIcon from '@mui/icons-material/PinDrop';
+import * as turf from '@turf/turf';
 
 
 <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet" />
@@ -143,9 +144,22 @@ export default function Map() {
     } else {
       setStatus('Locating...');
       navigator.geolocation.watchPosition((position) => {
-        setStatus('Find me');
-        setLat(position.coords.latitude);
-        setLng(position.coords.longitude);
+        const point = turf.point([position.coords.longitude, position.coords.latitude]);
+        // Get the first feature from the ARC_Boundary FeatureCollection
+        const boundaryPolygon = ARC_Boundary.features[0];
+        // Create a 5-mile (8.047 km) buffer around the boundary
+        const bufferedBoundary = turf.buffer(boundaryPolygon, 8, { units: 'kilometers' });
+        const isWithinBuffer = turf.booleanPointInPolygon(point, bufferedBoundary);
+        
+        if (isWithinBuffer) {
+          setStatus('Find me');
+          setLat(position.coords.latitude);
+          setLng(position.coords.longitude);
+        } else {
+          setStatus('You must be within 5 miles of Albany Rural Cemetery');
+          setLat(null);
+          setLng(null);
+        }
       }, () => {
         setStatus('Unable to retrieve your location');
       });
