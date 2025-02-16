@@ -5,6 +5,9 @@ import "./index.css";
 import 'leaflet.markercluster/dist/leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+import 'leaflet-routing-machine';
+import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
+import 'lrm-graphhopper';
 import geo_burials from "./data/Geo_Burials.json";
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/dist/styles/ag-grid.css';
@@ -246,6 +249,85 @@ const UNIQUE_SECTIONS = Array.from(new Set(geo_burials.features.map(f => f.prope
   return a - b;
 });
 
+// Add Routing Control Component
+function RoutingControl({ from, to }) {
+  const map = useMap();
+  const [routingError, setRoutingError] = useState(null);
+  
+  useEffect(() => {
+    if (!from || !to) return;
+
+    // Check if API key is available
+    const apiKey = process.env.REACT_APP_GRAPHHOPPER_API_KEY;
+    if (!apiKey) {
+      console.error('GraphHopper API key not found in environment variables');
+      setRoutingError('Configuration error: API key not found');
+      return;
+    }
+
+    const routingControl = L.Routing.control({
+      router: new L.Routing.GraphHopper(apiKey, {
+        urlParameters: {
+          vehicle: 'foot'  // Set to pedestrian routing
+        }
+      }),
+      waypoints: [
+        L.latLng(from[0], from[1]),
+        L.latLng(to[0], to[1])
+      ],
+      createMarker: function() { return null; }, // Don't create markers - we already have them
+      lineOptions: {
+        styles: [
+          {color: '#0066CC', opacity: 0.8, weight: 5},
+          {color: '#ffffff', opacity: 0.3, weight: 7}
+        ]
+      },
+      addWaypoints: false,
+      draggableWaypoints: false,
+      fitSelectedRoutes: true,
+      showAlternatives: false,
+      useZoomParameter: true,
+      show: false // Hide the instruction panel
+    }).addTo(map);
+
+    // Add error handling
+    routingControl.on('routingerror', (e) => {
+      console.error('Routing error:', e);
+      setRoutingError('Unable to calculate route. Please try again.');
+      
+      // Remove the control after error
+      map.removeControl(routingControl);
+    });
+
+    return () => {
+      map.removeControl(routingControl);
+    };
+  }, [map, from, to]);
+
+  // Show error message if there's a routing error
+  if (routingError) {
+    return (
+      <Paper
+        elevation={3}
+        sx={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          padding: '10px',
+          backgroundColor: '#f44336',
+          color: 'white',
+        }}
+      >
+        <Typography>{routingError}</Typography>
+      </Paper>
+    );
+  }
+
+  return null;
+}
+
 export default function BurialMap() {
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
@@ -256,19 +338,21 @@ export default function BurialMap() {
   const [showAllBurials, setShowAllBurials] = useState(false);
   const [sectionFilter, setSectionFilter] = useState('');
   const [lotTierFilter, setLotTierFilter] = useState('');
-  const [filterType, setFilterType] = useState('lot'); // 'lot' or 'tier'
+  const [filterType, setFilterType] = useState('lot');
   const [currentZoom, setCurrentZoom] = useState(14);
+  const [routingDestination, setRoutingDestination] = useState(null);
+  const [watchId, setWatchId] = useState(null);
   const { BaseLayer } = LayersControl;
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const markerClusterRef = useRef(null);
-  const markersRef = useRef(new Map()); // Store marker references
+  const markersRef = useRef(new Map());
   const [hoveredMarker, setHoveredMarker] = useState(null);
 
   // Adjust zoom levels
   const ZOOM_LEVELS = {
     SECTION: 16,    // Show section info
     CLUSTER: 17,    // Show clusters
-    INDIVIDUAL: 20  // Show individual markers (reduced from 25, clusters disappear earlier)
+    INDIVIDUAL: 20  // Show individual markers
   };
 
   // Create searchable options from burial data with enhanced search capabilities
@@ -323,19 +407,28 @@ export default function BurialMap() {
     fillOpacity: 0.1
   }), []);
 
+  // Update location tracking to be live
   const onLocateMarker = () => {
     if (!navigator.geolocation) {
       setStatus('Geolocation is not supported by your browser');
-    } else {
-      setStatus('Locating...');
-      navigator.geolocation.watchPosition((position) => {
+      return;
+    }
+
+    // Clear any existing watch
+    if (watchId) {
+      navigator.geolocation.clearWatch(watchId);
+    }
+
+    setStatus('Locating...');
+    const id = navigator.geolocation.watchPosition(
+      (position) => {
         const point = turf.point([position.coords.longitude, position.coords.latitude]);
         const boundaryPolygon = ARC_Boundary.features[0];
         const bufferedBoundary = turf.buffer(boundaryPolygon, 8, { units: 'kilometers' });
         const isWithinBuffer = turf.booleanPointInPolygon(point, bufferedBoundary);
         
         if (isWithinBuffer) {
-          setStatus('Find me');
+          setStatus('Location active');
           setLat(position.coords.latitude);
           setLng(position.coords.longitude);
         } else {
@@ -343,11 +436,42 @@ export default function BurialMap() {
           setLat(null);
           setLng(null);
         }
-      }, () => {
+      },
+      (error) => {
         setStatus('Unable to retrieve your location');
-      });
+        console.error('Geolocation error:', error);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 5000
+      }
+    );
+    setWatchId(id);
+  };
+
+  // Cleanup geolocation watch on unmount
+  useEffect(() => {
+    return () => {
+      if (watchId) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [watchId]);
+
+  // Function to start routing to a burial
+  const startRouting = (burial) => {
+    if (!lat || !lng) {
+      setStatus('Please enable location tracking first');
+      return;
     }
-  }
+    setRoutingDestination([burial.coordinates[1], burial.coordinates[0]]);
+  };
+
+  // Function to stop routing
+  const stopRouting = () => {
+    setRoutingDestination(null);
+  };
 
   // Smart search function that detects search type and filters accordingly
   const smartSearch = (options, searchInput) => {
@@ -987,6 +1111,14 @@ export default function BurialMap() {
               <Popup>You are here.</Popup>
             </Marker>
           )}
+
+          {/* Add Routing Control */}
+          {routingDestination && lat && lng && (
+            <RoutingControl
+              from={[lat, lng]}
+              to={routingDestination}
+            />
+          )}
           
           {/* Update marker cluster creation */}
           {showAllBurials && filteredBurials.map((burial, index) => {
@@ -1013,7 +1145,6 @@ export default function BurialMap() {
                   mouseover: () => setHoveredMarker(burial.OBJECTID),
                   mouseout: () => setHoveredMarker(null),
                   click: (e) => {
-                    // Prevent section click when clicking marker
                     L.DomEvent.stopPropagation(e);
                     handleMarkerClick(burial, index);
                   }
@@ -1028,6 +1159,16 @@ export default function BurialMap() {
                     <p>Grave: {burial.Grave}</p>
                     <p>Birth: {burial.Birth}</p>
                     <p>Death: {burial.Death}</p>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="small"
+                      fullWidth
+                      onClick={() => routingDestination ? stopRouting() : startRouting(burial)}
+                      sx={{ mt: 1 }}
+                    >
+                      {routingDestination ? 'Stop Navigation' : 'Get Directions'}
+                    </Button>
                   </div>
                 </Popup>
               </Marker>
@@ -1046,7 +1187,7 @@ export default function BurialMap() {
                 mouseout: () => setHoveredIndex(null),
                 click: () => handleMarkerClick(burial, index)
               }}
-              zIndexOffset={1000} // Ensure search results are always on top
+              zIndexOffset={1000}
             >
               <Popup>
                 <div>
@@ -1057,6 +1198,16 @@ export default function BurialMap() {
                   <p>Grave: {burial.Grave}</p>
                   <p>Birth: {burial.Birth}</p>
                   <p>Death: {burial.Death}</p>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    size="small"
+                    fullWidth
+                    onClick={() => routingDestination ? stopRouting() : startRouting(burial)}
+                    sx={{ mt: 1 }}
+                  >
+                    {routingDestination ? 'Stop Navigation' : 'Get Directions'}
+                  </Button>
                 </div>
               </Popup>
             </Marker>

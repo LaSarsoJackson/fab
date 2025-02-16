@@ -147,9 +147,9 @@ div.ReactModal__Overlay.ReactModal__Overlay--after-open.slide-pane__overlay.some
   border: none;
   box-shadow: none;
   font-size: 14px;
-  font-weight: 500;
-  color: #666;
-  text-shadow: 0 0 4px rgba(255,255,255,0.8);
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 0 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6);
 }
 
 /* Burial Markers */
@@ -214,6 +214,15 @@ div.ReactModal__Overlay.ReactModal__Overlay--after-open.slide-pane__overlay.some
   border: none !important;
   border-radius: 4px !important;
   box-shadow: 0 1px 5px rgba(0,0,0,0.2) !important;
+}
+
+/* Fix for inactive layers blocking clicks */
+.leaflet-overlay-pane path.leaflet-interactive {
+  pointer-events: auto;
+}
+
+.leaflet-overlay-pane .leaflet-layer:not(.leaflet-layer-active) path.leaflet-interactive {
+  pointer-events: none !important;
 }
 
 .leaflet-control-layers-toggle {
