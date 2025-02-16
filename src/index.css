@@ -140,3 +140,162 @@ div.ReactModal__Overlay.ReactModal__Overlay--after-open.slide-pane__overlay.some
 .left-sidebar ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+/* Section Labels */
+.section-label {
+  background: none;
+  border: none;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  text-shadow: 0 0 4px rgba(255,255,255,0.8);
+}
+
+/* Burial Markers */
+.burial-marker {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  opacity: 0.8;
+}
+
+.burial-marker:hover {
+  transform: scale(1.5);
+  opacity: 1;
+  z-index: 1000 !important;
+}
+
+/* Left Sidebar */
+.left-sidebar {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 1000;
+  width: 350px;
+  max-height: calc(100vh - 20px);
+  overflow-y: auto;
+  background: white;
+}
+
+/* Map Container */
+.map-container {
+  position: relative;
+  height: 100vh;
+  width: 100vw;
+}
+
+.map {
+  height: 100%;
+  width: 100%;
+}
+
+/* Improve section hover state */
+.leaflet-interactive:hover {
+  cursor: pointer;
+}
+
+/* Make popups more readable */
+.leaflet-popup-content {
+  margin: 8px 12px;
+}
+
+.leaflet-popup-content h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.leaflet-popup-content p {
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+/* Improve layer control appearance */
+.leaflet-control-layers {
+  border: none !important;
+  border-radius: 4px !important;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.2) !important;
+}
+
+.leaflet-control-layers-toggle {
+  width: 36px !important;
+  height: 36px !important;
+}
+
+.leaflet-control-layers-expanded {
+  padding: 8px !important;
+  background: white !important;
+  border-radius: 4px !important;
+}
+
+.leaflet-control-layers-expanded label {
+  margin: 4px 0 !important;
+}
+
+/* Cluster Markers */
+.custom-cluster-marker {
+  background: none;
+  border: none;
+}
+
+.cluster-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: bold;
+  color: white;
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+  transition: all 0.2s ease;
+  background: rgba(74, 144, 226, 0.9);
+  border: 2px solid white;
+}
+
+.cluster-marker:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(0,0,0,0.4);
+}
+
+.cluster-marker.small {
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
+}
+
+.cluster-marker.medium {
+  width: 35px;
+  height: 35px;
+  font-size: 14px;
+  background: rgba(66, 134, 244, 0.9);
+}
+
+.cluster-marker.large {
+  width: 40px;
+  height: 40px;
+  font-size: 16px;
+  background: rgba(59, 120, 231, 0.9);
+}
+
+.cluster-marker span {
+  display: block;
+  text-align: center;
+  line-height: 1;
+  margin-top: -1px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Optimize marker rendering */
+.leaflet-marker-icon {
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Improve marker animations */
+.leaflet-fade-anim .leaflet-popup {
+  transition: opacity 0.2s linear;
+}
+
+.leaflet-zoom-anim .leaflet-zoom-animated {
+  transition: transform 0.25s cubic-bezier(0,0,0.25,1);
+}

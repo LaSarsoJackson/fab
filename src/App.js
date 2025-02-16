@@ -1,10 +1,10 @@
 import React from "react";
-import Map from "./Map";
+import BurialMap from "./Map";
 
 export default function App() {
   
   return (
-    <Map>
-    </Map>
+    <BurialMap>
+    </BurialMap>
   );
 }
