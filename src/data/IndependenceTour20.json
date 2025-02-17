@@ -1,0 +1,930 @@
+{
+    "type": "FeatureCollection",
+    "name": "IndependenceTour20",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        }
+    },
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 60,
+                "First_name": "William",
+                "Last_Name": "Patterson",
+                "ARC_Secton": 14,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "William Patterson",
+                "Titles": "Signator to the Constitution, Continental Congress",
+                "Birth": "1745\/12\/24",
+                "Death": "1806\/09\/09",
+                "Tour_ID": 60,
+                "Tour_Bio": "Patterson60",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Patterson60a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731753346442986,
+                    42.706737840102143
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 61,
+                "First_name": "Philip",
+                "Last_Name": "Schuyler",
+                "ARC_Secton": 29,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 2.0,
+                "Full_Name": "Maj. Gen. Philip Schuyler",
+                "Titles": "Continental Congress",
+                "Birth": "1733\/11\/20",
+                "Death": "1804\/11\/18",
+                "Tour_ID": 61,
+                "Tour_Bio": "Schuyler61",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Schuyler61d.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731918342098808,
+                    42.703510915201548
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 62,
+                "First_name": "Robert",
+                "Last_Name": "Yates",
+                "ARC_Secton": 8,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Robert Yates",
+                "Titles": "US Constitutional Convention",
+                "Birth": "1738\/01\/27",
+                "Death": "1801\/09\/09",
+                "Tour_ID": 62,
+                "Tour_Bio": "Yates62",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Yates62a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.729340682601759,
+                    42.706725888070537
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 63,
+                "First_name": "Leonard",
+                "Last_Name": "Gansevoort",
+                "ARC_Secton": 43,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 7.0,
+                "Full_Name": "Leonard Gansevoort",
+                "Titles": "Continental Congress",
+                "Birth": "1751\/07\/14",
+                "Death": "1810\/08\/26",
+                "Tour_ID": 63,
+                "Tour_Bio": "Gansvoort63",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Gansevoort63a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732871549798276,
+                    42.705911450670257
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 64,
+                "First_name": "Abraham",
+                "Last_Name": "Yates Jr.",
+                "ARC_Secton": 34,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 7.0,
+                "Full_Name": "Abraham Yates Jr.",
+                "Titles": "Continental Congress Location lot 6 or 7",
+                "Birth": "1724\/08\/23",
+                "Death": "1796\/06\/30",
+                "Tour_ID": 64,
+                "Tour_Bio": "YatesJr64",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "YatesJr64a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731453741170697,
+                    42.704946171249631
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 65,
+                "First_name": "Jan Jansen",
+                "Last_Name": "Bleeker",
+                "ARC_Secton": 61,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Jan Jansen Bleeker",
+                "Titles": "Colonial Assembly",
+                "Birth": "1641\/07\/09",
+                "Death": "1732\/11\/21",
+                "Tour_ID": 65,
+                "Tour_Bio": "Bleeker65",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Bleeker65a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.725942466198489,
+                    42.707043291541289
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 66,
+                "First_name": "Volkert",
+                "Last_Name": "Petrus Douw",
+                "ARC_Secton": 32,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 19.0,
+                "Full_Name": "Volkert Petrus Douw",
+                "Titles": "Colonial Assembly & Provincial Congress S32\/52?",
+                "Birth": "1720\/03\/23",
+                "Death": "1801\/03\/20",
+                "Tour_ID": 66,
+                "Tour_Bio": "Douw66",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Douw66a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732242368383936,
+                    42.709364325947256
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 67,
+                "First_name": "Stephen",
+                "Last_Name": "Van Rensselaer III",
+                "ARC_Secton": 14,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Stephen Van Rensselaer III",
+                "Titles": "Maj Gen Stephen Van Rensselaer",
+                "Birth": "1764\/11\/01",
+                "Death": "1839\/01\/26",
+                "Tour_ID": 67,
+                "Tour_Bio": "VanRensselaer67",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "VanRensselaer67a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.73173162370847,
+                    42.706732992391885
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 68,
+                "First_name": "Solomon",
+                "Last_Name": "Van Rensselaer",
+                "ARC_Secton": 56,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 65.0,
+                "Full_Name": "Solomon Van Rensselaer",
+                "Titles": "US Congress, Lt Col, War of 1812r",
+                "Birth": "1774\/08\/09",
+                "Death": "1852\/04\/23",
+                "Tour_ID": 68,
+                "Tour_Bio": "VanRensselaer68",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "VanRensselaer68a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.729584310122974,
+                    42.70804588607556
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 69,
+                "First_name": "Goose",
+                "Last_Name": "Van Schaick",
+                "ARC_Secton": 3,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 5.0,
+                "Full_Name": "Goose Van Schaick",
+                "Titles": "Colonel Goose Van Schaick,",
+                "Birth": "1736\/09\/05",
+                "Death": "1789\/07\/04",
+                "Tour_ID": 69,
+                "Tour_Bio": "VanSchaick69",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.725476330587057,
+                    42.705699629044197
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 70,
+                "First_name": "Peter Philip",
+                "Last_Name": "Schuyler",
+                "ARC_Secton": 29,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 66.0,
+                "Full_Name": "Peter Philip Schuyler",
+                "Titles": "Colonial Governor of NY, First mayor of Albany",
+                "Birth": "1657\/09\/17",
+                "Death": "1724\/02\/19",
+                "Tour_ID": 70,
+                "Tour_Bio": "Schuyler70",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Schuyler70a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732279290481614,
+                    42.70354496308773
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 71,
+                "First_name": "Peter",
+                "Last_Name": "Schuyler",
+                "ARC_Secton": 29,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 66.0,
+                "Full_Name": "Peter Schuyler",
+                "Titles": "Maj Peter Schuyler",
+                "Birth": "1748\/02\/29",
+                "Death": "1792\/01\/04",
+                "Tour_ID": 71,
+                "Tour_Bio": "Schuyler71",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732309915603295,
+                    42.703554251630294
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 72,
+                "First_name": "Philip P",
+                "Last_Name": "Schuyler",
+                "ARC_Secton": 29,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 66.0,
+                "Full_Name": "Col Philip P Schuyler",
+                "Titles": "Col Philip Schuyler, Comander Rev. Fort Schoharie",
+                "Birth": "1736\/04\/22",
+                "Death": "1808\/06\/03",
+                "Tour_ID": 72,
+                "Tour_Bio": "Schuyler72",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732323999169509,
+                    42.703575040647671
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 73,
+                "First_name": "Peter Pedrom",
+                "Last_Name": "Schuyler Jr",
+                "ARC_Secton": 29,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 66.0,
+                "Full_Name": "Capt.Peter Pedrom Schuyler Jr",
+                "Titles": "D 1779, F&I Commander Fort Irondequoit",
+                "Birth": "1698\/01\/12",
+                "Death": null,
+                "Tour_ID": 73,
+                "Tour_Bio": "Schuyler73",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Schuyler73a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732356049143121,
+                    42.703578451829017
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 74,
+                "First_name": "Johnnes",
+                "Last_Name": "Schuyler",
+                "ARC_Secton": 29,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 66.0,
+                "Full_Name": "Johannes  Schuyler",
+                "Titles": "Member Colonial Assembly B Oct 1668-1747",
+                "Birth": null,
+                "Death": "1747\/11\/05",
+                "Tour_ID": 74,
+                "Tour_Bio": "Schuyler74",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Schuyler74a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732292906650102,
+                    42.703575460137728
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 75,
+                "First_name": "Johannes",
+                "Last_Name": "Abeel",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Johannes Abeel",
+                "Titles": "Colonial Assembly 1667-1711",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 75,
+                "Tour_Bio": "Abeel75",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734965967786366,
+                    42.7100451273812
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 76,
+                "First_name": "William",
+                "Last_Name": "Alexander",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 0.0,
+                "Full_Name": "William Alexander",
+                "Titles": "Major General Rev, War   Colonial Assembly",
+                "Birth": "1725\/12\/27",
+                "Death": "1783\/01\/15",
+                "Tour_ID": 76,
+                "Tour_Bio": "Alexander76",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Alexander76a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734181853917661,
+                    42.709676261087999
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 77,
+                "First_name": "Johannes",
+                "Last_Name": "Bleeker Jr.",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Johannes Bleeker Jr.",
+                "Titles": "Colonial Assembly  1668 - 1737",
+                "Birth": null,
+                "Death": "1738\/12\/20",
+                "Tour_ID": 77,
+                "Tour_Bio": "Bleeker77",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734970008061964,
+                    42.710066851539871
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 78,
+                "First_name": "Johannes",
+                "Last_Name": "Cuyler",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 0.0,
+                "Full_Name": "Johannes Cuyler",
+                "Titles": "Colonial Assembly  1661 - 1740",
+                "Birth": null,
+                "Death": "1740\/07\/20",
+                "Tour_ID": 78,
+                "Tour_Bio": "Cuyler78",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.735009982075596,
+                    42.710123393845407
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 79,
+                "First_name": "Johannes",
+                "Last_Name": "DePeyster",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 0.0,
+                "Full_Name": "Johannes DePeyster III",
+                "Titles": "Colonial Assembly B 1694",
+                "Birth": null,
+                "Death": "1783\/02\/27",
+                "Tour_ID": 79,
+                "Tour_Bio": "DePeyster79",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "DePeyster79a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.735007338759644,
+                    42.710092950809717
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 80,
+                "First_name": "Hendrick",
+                "Last_Name": "Hansen",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Hendrick Hansen",
+                "Titles": "Colonial Assembly",
+                "Birth": "1665\/02\/26",
+                "Death": "1724\/02\/17",
+                "Tour_ID": 80,
+                "Tour_Bio": "Hansen80",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734969452501304,
+                    42.710092281072718
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 81,
+                "First_name": "Myndert",
+                "Last_Name": "Schuyler",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Myndert Schuyler",
+                "Titles": "Colonial Assembly",
+                "Birth": "1672\/01\/16",
+                "Death": "1755\/10\/18",
+                "Tour_ID": 81,
+                "Tour_Bio": "Schuyler81",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734970340786077,
+                    42.710126284357941
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 82,
+                "First_name": "Dirck",
+                "Last_Name": "Ten Broeck",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 0.0,
+                "Full_Name": "Dirck Ten Broeck",
+                "Titles": "Appointed Mayor by King George II 1686-1751",
+                "Birth": "1686\/12\/04",
+                "Death": "1751\/01\/07",
+                "Tour_ID": 82,
+                "Tour_Bio": "TenBroeck82",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "TenBroeck82b.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.735002944453896,
+                    42.710020416241093
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 83,
+                "First_name": "Jacob",
+                "Last_Name": "Ten Eyck",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Jacob Coenraedt Ten Eyck",
+                "Titles": "Rev War Albany safety committee",
+                "Birth": "1705\/04\/21",
+                "Death": "1793\/09\/09",
+                "Tour_ID": 83,
+                "Tour_Bio": "TenEyck83",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.735003478614459,
+                    42.710045041023953
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 84,
+                "First_name": "Jeremiah",
+                "Last_Name": "Van Rensselaer",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Jermemiah Van Rensselaer",
+                "Titles": "1st US Congressmen after Rev War",
+                "Birth": "1738\/08\/27",
+                "Death": "1810\/02\/19",
+                "Tour_ID": 84,
+                "Tour_Bio": "VanRensselaer84",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "VanRensselaer84b.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.735006134297109,
+                    42.710068862547494
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 85,
+                "First_name": "Peter",
+                "Last_Name": "Gansevoort",
+                "ARC_Secton": 55,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Peter Gansevoort",
+                "Titles": "Rev War Major General",
+                "Birth": "1749\/07\/14",
+                "Death": "1812\/07\/12",
+                "Tour_ID": 85,
+                "Tour_Bio": "Gansevoort85",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Gansevoort85d.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.729273522675783,
+                    42.708483477966809
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 86,
+                "First_name": "Henry",
+                "Last_Name": "Quackenbush",
+                "ARC_Secton": 9,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 15.0,
+                "Full_Name": "Henry Quackenbush",
+                "Titles": "Ft Ticonderoga F&I, Saratoga Rev B1737",
+                "Birth": null,
+                "Death": "1813\/02\/02",
+                "Tour_ID": 86,
+                "Tour_Bio": "Quackenbush86",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Quackenbush86b.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.729840351112813,
+                    42.70703564500247
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 87,
+                "First_name": "Abraham",
+                "Last_Name": "Ten Broeck",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 0.0,
+                "Full_Name": "Abraham Ten Broeck",
+                "Titles": "General,Colonial Militia at Saratoga",
+                "Birth": "1734\/05\/13",
+                "Death": "1810\/01\/19",
+                "Tour_ID": 87,
+                "Tour_Bio": "TenBroeck87",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "TenBroeck87a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731734326150686,
+                    42.706752771106274
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 89,
+                "First_name": "Samuel",
+                "Last_Name": "Stringer",
+                "ARC_Secton": 40,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 9.0,
+                "Full_Name": "Dr Samuel Stringer",
+                "Titles": "Albany's first professional Physician B 1734",
+                "Birth": null,
+                "Death": "1817\/07\/11",
+                "Tour_ID": 89,
+                "Tour_Bio": "Stringer89",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Stringer89a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.7301450867,
+                    42.7061983076
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 90,
+                "First_name": "John",
+                "Last_Name": "Tayler",
+                "ARC_Secton": 19,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 15.0,
+                "Full_Name": "John Tayler",
+                "Titles": "5th Gov of NY",
+                "Birth": "1742\/07\/04",
+                "Death": "1829\/03\/19",
+                "Tour_ID": 90,
+                "Tour_Bio": "Tayler90",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Tayler90a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.7294799769,
+                    42.7076862837
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 91,
+                "First_name": "Philip",
+                "Last_Name": "Van Rensselaer",
+                "ARC_Secton": 56,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 65.0,
+                "Full_Name": "Philip Van Rensselaer",
+                "Titles": "Comissary for Philip Schuylers Army",
+                "Birth": "1747\/05\/19",
+                "Death": "1798\/03\/03",
+                "Tour_ID": 91,
+                "Tour_Bio": "VanRensselaer91",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "VanRensselaer91a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.729558308366194,
+                    42.70806037995294
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 92,
+                "First_name": "Christopher",
+                "Last_Name": "Yates",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 0,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Christopher A Yates",
+                "Titles": "Rev. War Lieutenant",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 92,
+                "Tour_Bio": "Yates92",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.73496470377259,
+                    42.710021567075806
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 94,
+                "First_name": "Margaret",
+                "Last_Name": "Schuyler",
+                "ARC_Secton": 14,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Margaret Schuyler",
+                "Titles": "Daughter of Phlip Schuyler",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 94,
+                "Tour_Bio": "Schuyler94",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Schuyler94a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731747301020107,
+                    42.706717688467258
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 95,
+                "First_name": "Anneke",
+                "Last_Name": "Bogardus",
+                "ARC_Secton": 61,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Aneke Jans Bogards",
+                "Titles": "Lower Manhatten Estate",
+                "Birth": "1605\/01\/15",
+                "Death": "1663\/02\/23",
+                "Tour_ID": 95,
+                "Tour_Bio": "Bogardus95",
+                "Tour_Name": "IN",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Bogardus95a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.725956079592095,
+                    42.706993629767496
+                ]
+            }
+        }
+    ]
+}

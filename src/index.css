@@ -308,3 +308,126 @@ div.ReactModal__Overlay.ReactModal__Overlay--after-open.slide-pane__overlay.some
 .leaflet-zoom-anim .leaflet-zoom-animated {
   transition: transform 0.25s cubic-bezier(0,0,0.25,1);
 }
+
+/* ARCE Leaflet Styles */
+.arce-tooltip {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+}
+
+.arce-tooltip::before {
+  border: none;
+}
+
+.arce-popup .leaflet-popup-content-wrapper {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 4px;
+  box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+}
+
+.arce-popup .leaflet-popup-content {
+  margin: 13px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.arce-popup .leaflet-popup-content h3 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+}
+
+.arce-popup .leaflet-popup-content p {
+  margin: 0 0 10px 0;
+}
+
+.arce-popup .leaflet-popup-tip {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.custom-div-icon {
+  background: transparent;
+  border: none;
+}
+
+.custom-div-icon div {
+  transition: all 0.2s ease;
+}
+
+.custom-div-icon div:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 8px rgba(0,0,0,0.4);
+}
+
+/* Tour marker colors */
+.tour-marker.Notable { background-color: #ff7700; }
+.tour-marker.Independence { background-color: #7700ff; }
+.tour-marker.AfricanAmerican { background-color: #eedd00; }
+.tour-marker.Artist { background-color: #ff4277; }
+.tour-marker.Associations { background-color: #86cece; }
+.tour-marker.Authors { background-color: #996038; }
+.tour-marker.Business { background-color: #558e76; }
+.tour-marker.CivilWar { background-color: #a0a0a0; }
+.tour-marker.Pillars { background-color: #d10008; }
+.tour-marker.Mayors { background-color: #ff00dd; }
+.tour-marker.GAR { background-color: #000080; }
+
+/* Tour marker and popup styles */
+.custom-popup {
+  max-width: 300px !important;
+}
+
+.custom-popup img {
+  display: block;
+  max-width: 200px;
+  max-height: 200px;
+  margin: 8px auto;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+}
+
+.tour-marker {
+  transition: all 0.3s ease;
+}
+
+.tour-marker:hover {
+  transform: scale(1.2);
+}
+
+.tour-marker div {
+  transition: all 0.3s ease;
+}
+
+.tour-marker:hover div {
+  transform: scale(1.2);
+  box-shadow: 0 0 8px rgba(0,0,0,0.6);
+}
+
+/* Tour type colors in search results */
+.Lot7 { background-color: #7587ff !important; color: white !important; }
+.Sec49 { background-color: #75ff87 !important; color: black !important; }
+.Notable { background-color: #ff7700 !important; color: white !important; }
+.Indep { background-color: #7700ff !important; color: white !important; }
+.Afr { background-color: #eedd00 !important; color: black !important; }
+.Art { background-color: #ff4277 !important; color: white !important; }
+.Groups { background-color: #86cece !important; color: black !important; }
+.AuthPub { background-color: #996038 !important; color: white !important; }
+.Business { background-color: #558e76 !important; color: white !important; }
+.CivilWar { background-color: #a0a0a0 !important; color: white !important; }
+.Pillars { background-color: #d10008 !important; color: white !important; }
+.Mayor { background-color: #ff00dd !important; color: white !important; }
+.GAR { background-color: #000080 !important; color: white !important; }
+
+/* Tour search result styling */
+.search-result-tour {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  font-weight: bold;
+  margin-left: 8px;
+  white-space: nowrap;
+}

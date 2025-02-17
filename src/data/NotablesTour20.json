@@ -1,0 +1,1044 @@
+{
+    "type": "FeatureCollection",
+    "name": "NotablesTour20",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        }
+    },
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 1,
+                "First_name": "James",
+                "Last_Name": "Hall",
+                "ARC_Secton": 18,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 93.0,
+                "Full_Name": "James Hall",
+                "Titles": "Father of modern Geology, Founder NYS Museum",
+                "Birth": "1811\/09\/12",
+                "Death": "1898\/08\/07",
+                "Tour_ID": 1,
+                "Tour_Bio": "Hall1",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Hall1a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.73150863677364,
+                    42.708227331133102
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 2,
+                "First_name": "Stanford",
+                "Last_Name": "Mausoleum",
+                "ARC_Secton": 18,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 105.0,
+                "Full_Name": "Stanford Mausoleum",
+                "Titles": null,
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 2,
+                "Tour_Bio": "Stanford2",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Stanford2e.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731929668560866,
+                    42.708722635298422
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 4,
+                "First_name": "Guilbert M.",
+                "Last_Name": "Tucker Jr.",
+                "ARC_Secton": 19,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 9.0,
+                "Full_Name": "Guilbert M. Tucker Jr.",
+                "Titles": "Titanic Survivor",
+                "Birth": "1880\/11\/03",
+                "Death": "1968\/02\/26",
+                "Tour_ID": 4,
+                "Tour_Bio": "Tucker4",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Tucker4g.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.730546775180287,
+                    42.707370988637592
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 5,
+                "First_name": "Marcus T.",
+                "Last_Name": "Reynolds",
+                "ARC_Secton": 17,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Marcus T. Reynolds",
+                "Titles": "Albany Architect",
+                "Birth": "1869\/08\/20",
+                "Death": "1937\/03\/18",
+                "Tour_ID": 5,
+                "Tour_Bio": "Reynolds5",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Reynolds5d.png"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.730901468315764,
+                    42.707159096931143
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 6,
+                "First_name": "Family Plot",
+                "Last_Name": "James",
+                "ARC_Secton": 16,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "James Family Plot",
+                "Titles": null,
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 6,
+                "Tour_Bio": "James6",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "James6a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731181530594768,
+                    42.707072068009481
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 7,
+                "First_name": "Jack",
+                "Last_Name": "Mcauliffe",
+                "ARC_Secton": 15,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 73.0,
+                "Full_Name": "Jack Mcauliffe",
+                "Titles": "Boxer",
+                "Birth": "1866\/03\/24",
+                "Death": "1937\/11\/04",
+                "Tour_ID": 7,
+                "Tour_Bio": "Mcauliffe7",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "McAuliffe7a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731810902015567,
+                    42.707030044474337
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 8,
+                "First_name": "James Bentley",
+                "Last_Name": "Seymour",
+                "ARC_Secton": 15,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 46.0,
+                "Full_Name": "James Bentley Seymour",
+                "Titles": "Major League Baseball  Outfielder",
+                "Birth": "1872\/12\/09",
+                "Death": "1919\/09\/20",
+                "Tour_ID": 8,
+                "Tour_Bio": "Seymour8",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Seymour8a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732398951993019,
+                    42.707809353632108
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 9,
+                "First_name": "John Alden",
+                "Last_Name": "Dix",
+                "ARC_Secton": 41,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 11.0,
+                "Full_Name": "John Alden Dix",
+                "Titles": "NYS Governor",
+                "Birth": "1860\/12\/25",
+                "Death": "1928\/04\/19",
+                "Tour_ID": 9,
+                "Tour_Bio": "Dix9",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Dix9a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731282087978911,
+                    42.706063282377499
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 11,
+                "First_name": "Dyer",
+                "Last_Name": "Lathrop",
+                "ARC_Secton": 11,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 21.0,
+                "Full_Name": "Dyer Lathrop",
+                "Titles": "Albany Orphan Asylum",
+                "Birth": "1787\/05\/04",
+                "Death": "1855\/04\/19",
+                "Tour_ID": 11,
+                "Tour_Bio": "Lathrop11",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Lathrop11a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.730238867484701,
+                    42.707315711443385
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 12,
+                "First_name": "Edward Cornelius",
+                "Last_Name": "Delavan",
+                "ARC_Secton": 53,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 10.0,
+                "Full_Name": "Edward Cornelius Delavan",
+                "Titles": "American Temperance",
+                "Birth": "1793\/01\/06",
+                "Death": "1871\/01\/15",
+                "Tour_ID": 12,
+                "Tour_Bio": "Delavan12",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Delavan12d.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.730513934970006,
+                    42.708807407470182
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 14,
+                "First_name": "Catharine",
+                "Last_Name": "Hamilton",
+                "ARC_Secton": 5,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 23.0,
+                "Full_Name": "Catharine Hamilton",
+                "Titles": "Burial in a private vault which became unstable",
+                "Birth": null,
+                "Death": "1847\/02\/03",
+                "Tour_ID": 14,
+                "Tour_Bio": "Hamilton14",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Hamilton14a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728124049444304,
+                    42.706138428096033
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 16,
+                "First_name": "Harmanus",
+                "Last_Name": "Bleecker",
+                "ARC_Secton": 3,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 61.0,
+                "Full_Name": "Harmanus Bleecker",
+                "Titles": "Scholar, preservationist, philanthropist",
+                "Birth": "1779\/10\/09",
+                "Death": "1849\/07\/19",
+                "Tour_ID": 16,
+                "Tour_Bio": "Bleecker16",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Bleecker16a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.727794869894083,
+                    42.706394098711819
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 17,
+                "First_name": "William",
+                "Last_Name": "Dalton",
+                "ARC_Secton": 21,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 34.0,
+                "Full_Name": "William Dalton",
+                "Titles": "Chief engineer of ALCO",
+                "Birth": "1869\/09\/12",
+                "Death": "1968\/02\/01",
+                "Tour_ID": 17,
+                "Tour_Bio": "Dalton17",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732727116578303,
+                    42.708580421507484
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 18,
+                "First_name": "Chester Alan",
+                "Last_Name": "Arthur",
+                "ARC_Secton": 24,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 8.0,
+                "Full_Name": "President Chester A. Arthur",
+                "Titles": "US President",
+                "Birth": "1829\/10\/05",
+                "Death": "1886\/11\/18",
+                "Tour_ID": 18,
+                "Tour_Bio": "Arthur18",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Arthur18a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733622974355086,
+                    42.707493868452055
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 19,
+                "First_name": null,
+                "Last_Name": "Almshouse Cemetery",
+                "ARC_Secton": 48,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Almshouse Cemetery",
+                "Titles": null,
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 19,
+                "Tour_Bio": "Almshouse19",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Almshouse19f.png"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733603336271671,
+                    42.710046312326597
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 20,
+                "First_name": "John V. L.",
+                "Last_Name": "Pruyn",
+                "ARC_Secton": 53,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "John V. L. Pruyn",
+                "Titles": "Regent and Chancellor of SUNY",
+                "Birth": "1811\/06\/22",
+                "Death": "1877\/11\/21",
+                "Tour_ID": 20,
+                "Tour_Bio": "Pruyn20",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Pruyn20a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728956545079285,
+                    42.708676846655784
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 21,
+                "First_name": "Kate",
+                "Last_Name": "Stoneman",
+                "ARC_Secton": 56,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 28.0,
+                "Full_Name": "Kate Stoneman",
+                "Titles": "First female attorney in NYS",
+                "Birth": "1841\/04\/01",
+                "Death": "1925\/05\/19",
+                "Tour_ID": 21,
+                "Tour_Bio": "Stoneman21",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Stoneman21d.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.730525576299385,
+                    42.708069893891754
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 22,
+                "First_name": "Edwin T.",
+                "Last_Name": "Thacher",
+                "ARC_Secton": 56,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 24.0,
+                "Full_Name": "Edwin T. Thacher",
+                "Titles": "Formed Alcoholics Anonymous",
+                "Birth": "1896\/04\/29",
+                "Death": "1966\/03\/21",
+                "Tour_ID": 22,
+                "Tour_Bio": "Thacher22",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Thacher22a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.730019648278699,
+                    42.708025737164327
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 10.0,
+                "First_name": "Learned",
+                "Last_Name": "Hand",
+                "ARC_Secton": 11.0,
+                "ARCPvt_Pub": 1.0,
+                "ARC_Lot": 14.0,
+                "Full_Name": "Learned Hand",
+                "Titles": "US Supreme Court judge",
+                "Birth": "1872-01-27",
+                "Death": "1961-08-18",
+                "Tour_ID": 10,
+                "Tour_Bio": "Hand10",
+                "Tour_Name": "NO",
+                "Bio_Done": "N",
+                "Deploy_dat": "2021-07-06",
+                "Change_Dat": "2021-07-06",
+                "Change_Tar": "Deploy & Bio_Portra",
+                "Bio_Portra": "Hand10a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.729492439,
+                    42.7075341180001
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 43.0,
+                "First_name": "Thurlow",
+                "Last_Name": "Weed",
+                "ARC_Secton": 109.0,
+                "ARCPvt_Pub": 1.0,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Thurlow Weed",
+                "Titles": "Republican Party founder",
+                "Birth": "1797-11-15",
+                "Death": "1882-11-22",
+                "Tour_ID": 43,
+                "Tour_Bio": "Weed43",
+                "Tour_Name": "NO",
+                "Bio_Done": "N",
+                "Deploy_dat": null,
+                "Change_Dat": "2021-07-07",
+                "Change_Tar": "New record to be deployed",
+                "Bio_Portra": "Weed43a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.7349387529999,
+                    42.7046270070001
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 26,
+                "First_name": "Blandina",
+                "Last_Name": "Dudley",
+                "ARC_Secton": 61,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Blandina Bleeker Dudley",
+                "Titles": "Dudley Observatory Benefactor",
+                "Birth": "1783\/10\/01",
+                "Death": "1863\/03\/06",
+                "Tour_ID": 26,
+                "Tour_Bio": "Dudley26",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Dudley26a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.725994274055935,
+                    42.707027073762326
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 27,
+                "First_name": "William",
+                "Last_Name": "Marcy",
+                "ARC_Secton": 62,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 94.0,
+                "Full_Name": "William Learned Marcy",
+                "Titles": "US Secretary of State",
+                "Birth": "1786\/12\/12",
+                "Death": "1857\/07\/04",
+                "Tour_ID": 27,
+                "Tour_Bio": "Marcy27",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Marcy27a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.727214006875613,
+                    42.707461732636759
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 28,
+                "First_name": "Lizzie M.",
+                "Last_Name": "Calhoun",
+                "ARC_Secton": 65,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 39.0,
+                "Full_Name": "Lizzie M. Calhoun",
+                "Titles": "Carriage Accident ARC",
+                "Birth": null,
+                "Death": "1877\/05\/31",
+                "Tour_ID": 28,
+                "Tour_Bio": "Calhoun28",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Calhoun28l.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.725551834638679,
+                    42.708344529543389
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 32,
+                "First_name": "Andrew",
+                "Last_Name": "Hamilton",
+                "ARC_Secton": 28,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 91.0,
+                "Full_Name": "Andrew Hamilton",
+                "Titles": "Lawyer & Judge",
+                "Birth": null,
+                "Death": "1908\/03\/01",
+                "Tour_ID": 32,
+                "Tour_Bio": "Hamilton32",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Hamilton32a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733221760595896,
+                    42.704191428190441
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 35,
+                "First_name": "John",
+                "Last_Name": "Thacher",
+                "ARC_Secton": 29,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 33.0,
+                "Full_Name": "John Boyd Thatcher",
+                "Titles": "Thatcher Park",
+                "Birth": "1847\/09\/11",
+                "Death": "1909\/02\/25",
+                "Tour_ID": 35,
+                "Tour_Bio": "Thacher35",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Thacher35a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733571164151584,
+                    42.704122889209778
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 37,
+                "First_name": "Erastus",
+                "Last_Name": "Corning II",
+                "ARC_Secton": 31,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 2.0,
+                "Full_Name": "Erastus Corning II Mayor of Albany",
+                "Titles": "Albany's longest servig Mayor",
+                "Birth": "1909\/10\/07",
+                "Death": "1983\/05\/28",
+                "Tour_ID": 37,
+                "Tour_Bio": "Corning37",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Corning37d.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.73183008065611,
+                    42.70380967024073
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 44,
+                "First_name": "Daniel",
+                "Last_Name": "Manning",
+                "ARC_Secton": 27,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 5.0,
+                "Full_Name": "Daniel Manning",
+                "Titles": "Secretary of the Treasury",
+                "Birth": "1831\/05\/16",
+                "Death": "1887\/12\/24",
+                "Tour_ID": 44,
+                "Tour_Bio": "Manning44",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Manning44d.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734586240330742,
+                    42.704860080837314
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 45,
+                "First_name": "Rufus",
+                "Last_Name": "Peckham",
+                "ARC_Secton": 11,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 19.0,
+                "Full_Name": "Rufus Wheeler Peckham",
+                "Titles": "Associate Justice, US Supreme Court",
+                "Birth": "1838\/11\/08",
+                "Death": "1909\/10\/24",
+                "Tour_ID": 45,
+                "Tour_Bio": "Peckham45",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Peckham45a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.729855800508602,
+                    42.707441449889394
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 46,
+                "First_name": "Dr. Alden",
+                "Last_Name": "March",
+                "ARC_Secton": 52,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Dr. Alden March",
+                "Titles": "Founder Alb Med College, B 1795 D 1869",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 46,
+                "Tour_Bio": "March46",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "March46a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731175688345715,
+                    42.709219455036987
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 48,
+                "First_name": "Thomas",
+                "Last_Name": "Olcott",
+                "ARC_Secton": 53,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 11.0,
+                "Full_Name": "Thomas Olcott",
+                "Titles": "Founder of the ARC",
+                "Birth": "1795\/05\/22",
+                "Death": "1880\/05\/23",
+                "Tour_ID": 48,
+                "Tour_Bio": "Olcott48",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Olcott48a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.73055785478374,
+                    42.708892809557931
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 49,
+                "First_name": "John",
+                "Last_Name": "Hillhouse",
+                "ARC_Secton": 4,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "John Hillhouse",
+                "Titles": "ARC Landowner & Founder",
+                "Birth": "1817\/12\/17",
+                "Death": "1882\/03\/29",
+                "Tour_ID": 49,
+                "Tour_Bio": "Hillhouse49",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Hillhouse49a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.725766014237152,
+                    42.705583412433541
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 50,
+                "First_name": "William",
+                "Last_Name": "Barnes",
+                "ARC_Secton": 109,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 3.0,
+                "Full_Name": "William Barnes",
+                "Titles": "Albny Republican Machine boss",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 50,
+                "Tour_Bio": "Barnes50",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Barnes50a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.735031232150547,
+                    42.704569231337842
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 51,
+                "First_name": "James",
+                "Last_Name": "Eights",
+                "ARC_Secton": 56,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 53.0,
+                "Full_Name": "James Eights",
+                "Titles": "Explorer, Painter B 1798 D June 1882",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 51,
+                "Tour_Bio": "Eights51",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Eights51a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72960026443161,
+                    42.708310529220007
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 52,
+                "First_name": "David",
+                "Last_Name": "Strain",
+                "ARC_Secton": 76,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 46.0,
+                "Full_Name": "David Strain",
+                "Titles": "First ARC Burial",
+                "Birth": "1823\/10\/27",
+                "Death": "1844\/10\/24",
+                "Tour_ID": 52,
+                "Tour_Bio": "Strain52",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Strain52a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.726251303362645,
+                    42.710119049502076
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 53,
+                "First_name": "John Canfield",
+                "Last_Name": "Spencer",
+                "ARC_Secton": 45,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "John Canfield Spencer",
+                "Titles": "Sec'y War & Treasury",
+                "Birth": "1788\/01\/08",
+                "Death": "1855\/05\/17",
+                "Tour_ID": 53,
+                "Tour_Bio": "Spencer53",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Spencer53a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732150769288054,
+                    42.709171837920508
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 55,
+                "First_name": "Elizabeth",
+                "Last_Name": "Knapp",
+                "ARC_Secton": 18,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 31.0,
+                "Full_Name": "Elizabeth Knapp",
+                "Titles": "Albany's Angel of Mercy",
+                "Birth": null,
+                "Death": "1898\/03\/18",
+                "Tour_ID": 55,
+                "Tour_Bio": "Knapp55",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Knapp55a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732189697769783,
+                    42.70866425424844
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 56,
+                "First_name": "Mary",
+                "Last_Name": "McPherson",
+                "ARC_Secton": 15,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 26.0,
+                "Full_Name": "Mary McPherson",
+                "Titles": "Scottish Immigrant leaves family legacy",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 56,
+                "Tour_Bio": "McPherson56",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "McPherson56a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732424727695303,
+                    42.707205701633242
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 57,
+                "First_name": "Lydia",
+                "Last_Name": "Mott",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 2.0,
+                "Full_Name": "Lydia Mott",
+                "Titles": "Womens Rights Advocate",
+                "Birth": null,
+                "Death": "1875\/08\/20",
+                "Tour_ID": 57,
+                "Tour_Bio": "Mott57",
+                "Tour_Name": "NO",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Mott57a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734953057713255,
+                    42.70961310969102
+                ]
+            }
+        }
+    ]
+}

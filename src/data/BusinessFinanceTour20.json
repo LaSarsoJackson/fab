@@ -1,0 +1,309 @@
+{
+    "type": "FeatureCollection",
+    "name": "BusinessFinanceTour20",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        }
+    },
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 13,
+                "First_name": "Archibald",
+                "Last_Name": "McIntyre",
+                "ARC_Secton": 9,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 5.0,
+                "Full_Name": "Archibald McIntyre",
+                "Titles": "Mc Intyre Iron Works- Adirondacks",
+                "Birth": "1772\/06\/01",
+                "Death": "1858\/04\/05",
+                "Tour_ID": 13,
+                "Tour_Bio": "McIntyre13",
+                "Tour_Name": "BF",
+                "Bio_Done": "Y",
+                "Bio_Portra": "McIntyre13a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72938581543049,
+                    42.707082232562819
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 23,
+                "First_name": "Andrew",
+                "Last_Name": "Meneely",
+                "ARC_Secton": 58,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 12.0,
+                "Full_Name": "Andrew Meneely",
+                "Titles": "Meneely Bell Foundry",
+                "Birth": "1802\/05\/19",
+                "Death": "1851\/10\/14",
+                "Tour_ID": 23,
+                "Tour_Bio": "Meneely23",
+                "Tour_Name": "BF",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Meneely23a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72860660159661,
+                    42.707725211727713
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 25,
+                "First_name": "Henry",
+                "Last_Name": "Burden",
+                "ARC_Secton": 61,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 4.0,
+                "Full_Name": "Henry Burden",
+                "Titles": "Burden Iron Works",
+                "Birth": "1791\/04\/22",
+                "Death": "1871\/01\/19",
+                "Tour_ID": 25,
+                "Tour_Bio": "Burden25",
+                "Tour_Name": "BF",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Burden25a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.726126309923004,
+                    42.707384469041862
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 29,
+                "First_name": "John Flack",
+                "Last_Name": "Winslow",
+                "ARC_Secton": 71,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "John Flack Winslow",
+                "Titles": "Financed the USS Monitor",
+                "Birth": "1810\/11\/10",
+                "Death": "1892\/03\/10",
+                "Tour_ID": 29,
+                "Tour_Bio": "Winslow29",
+                "Tour_Name": "BF",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Winslow29a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.725366232573222,
+                    42.709275622906958
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 34,
+                "First_name": "Josiah",
+                "Last_Name": "Root",
+                "ARC_Secton": 29,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 10.0,
+                "Full_Name": "Josiah Goodrich Root",
+                "Titles": "Cohoes Textiles and Cohoes National Bank",
+                "Birth": "1801\/05\/28",
+                "Death": "1883\/02\/03",
+                "Tour_ID": 34,
+                "Tour_Bio": "Root34",
+                "Tour_Name": "BF",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Root34a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.7334026247851,
+                    42.704046781414213
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 36,
+                "First_name": "John",
+                "Last_Name": "Myers",
+                "ARC_Secton": 30,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "John Myers",
+                "Titles": "Owner Meyers Dept store, VP National Savings Bank",
+                "Birth": null,
+                "Death": "1901\/12\/01",
+                "Tour_ID": 36,
+                "Tour_Bio": "Myers36",
+                "Tour_Name": "BF",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Myers36d.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.73250918824634,
+                    42.705109551839435
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 38,
+                "First_name": "Erastus",
+                "Last_Name": "Corning I",
+                "ARC_Secton": 31,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 2.0,
+                "Full_Name": "Erastus Corning I",
+                "Titles": "NYCRR",
+                "Birth": "1794\/12\/14",
+                "Death": "1872\/04\/09",
+                "Tour_ID": 38,
+                "Tour_Bio": "Corning38",
+                "Tour_Name": "BF",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Corning38d.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731685346249265,
+                    42.703809973002365
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 39,
+                "First_name": "Parker",
+                "Last_Name": "Corning",
+                "ARC_Secton": 31,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 2.0,
+                "Full_Name": "Rep. Parker Corning",
+                "Titles": "Founder Albany International",
+                "Birth": "1874\/01\/22",
+                "Death": "1943\/05\/24",
+                "Tour_ID": 39,
+                "Tour_Bio": "Corning39",
+                "Tour_Name": "BF",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Corning39a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.73175881973404,
+                    42.703755508944916
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 47,
+                "First_name": "Peter",
+                "Last_Name": "Kinnear",
+                "ARC_Secton": 113,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 16.0,
+                "Full_Name": "Peter Kinnear",
+                "Titles": "Celluoid Billiard Balls",
+                "Birth": null,
+                "Death": "1913\/05\/16",
+                "Tour_ID": 47,
+                "Tour_Bio": "Kinnear47",
+                "Tour_Name": "BF",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Kinnear47a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.736461452876085,
+                    42.705795253400566
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 109,
+                "First_name": "Charles",
+                "Last_Name": "Easton",
+                "ARC_Secton": 27,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 11.0,
+                "Full_Name": "Charles Patterson Easton",
+                "Titles": "Founder of CP Easton Lumber Co.",
+                "Birth": "1824\/10\/10",
+                "Death": "1885\/03\/03",
+                "Tour_ID": 109,
+                "Tour_Bio": "Easton109",
+                "Tour_Name": "BF",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Easton109a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733979286887163,
+                    42.704893175725132
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 110,
+                "First_name": "John",
+                "Last_Name": "VanAntwerp",
+                "ARC_Secton": 16,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 45.0,
+                "Full_Name": "John Henry VanAntwerp",
+                "Titles": "Founder, National Savings Bank",
+                "Birth": "1823\/10\/12",
+                "Death": "1903\/12\/14",
+                "Tour_ID": 110,
+                "Tour_Bio": "VanAntwerp110",
+                "Tour_Name": "BF",
+                "Bio_Done": "Y",
+                "Bio_Portra": "VanAntwerp110a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731649200481982,
+                    42.707732953970073
+                ]
+            }
+        }
+    ]
+}
