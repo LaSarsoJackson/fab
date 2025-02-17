@@ -411,11 +411,10 @@ function TourFilter({ overlayMaps, setShowAllBurials, onTourSelect }) {
       options={Object.keys(TOURS)}
       getOptionLabel={(option) => TOURS[option].name}
       onChange={(event, newValue) => {
-        if (newValue) {
-          setShowAllBurials(true);
-          const layerName = TOURS[newValue].name;
-          onTourSelect(layerName);
-        }
+        setShowAllBurials(true);
+        // Pass null to clear the tour, or the tour name to select it
+        const layerName = newValue ? TOURS[newValue].name : null;
+        onTourSelect(layerName);
       }}
       renderInput={(params) => (
         <TextField
@@ -445,7 +444,7 @@ function TourFilter({ overlayMaps, setShowAllBurials, onTourSelect }) {
   );
 }
 
-// Update MapTourController to handle exclusive tour selection
+// Update MapTourController to handle tour clearing
 function MapTourController({ selectedTour, overlayMaps }) {
   const map = useMap();
   
@@ -506,10 +505,77 @@ const getImagePath = (imageName) => {
   
   if (process.env.NODE_ENV === 'development') {
     // Local development path using Python server
-    return `http://localhost:8000/images/${imageName}`;
+    return `http://localhost:8000/src/data/images/${imageName}`;
   }
   // Production path
   return `https://www.albany.edu/arce/images/${imageName}`;
+};
+
+// Add this helper function before the BurialMap component
+const createTourMarker = (tourKey) => {
+  const tourInfo = TOURS[tourKey];
+  if (!tourInfo) return null;
+
+  return (feature, latlng) => {
+    if (feature.geometry.type === 'Point') {
+      const icon = L.divIcon({
+        className: 'tour-marker',
+        html: `<div style="
+          width: 12px;
+          height: 12px;
+          background-color: ${tourInfo.color};
+          border-radius: 50%;
+          border: 2px solid white;
+          box-shadow: 0 0 4px rgba(0,0,0,0.4);
+        "></div>`,
+        iconSize: [12, 12],
+        iconAnchor: [6, 6]
+      });
+      return L.marker(latlng, { icon });
+    }
+    return L.circleMarker(latlng, {
+      radius: 6,
+      fillColor: tourInfo.color,
+      color: '#ffffff',
+      weight: 2,
+      opacity: 0.9,
+      fillOpacity: 0.7
+    });
+  };
+};
+
+// Helper function to create consistent popup content
+const createTourPopupContent = (feature, tourKey) => {
+  let content = `<dl class="popup-content">`;
+  
+  // Add name
+  content += `<dt><b>${feature.properties.Full_Name}</b></dt><hr>`;
+  
+  // Add titles if available
+  if (feature.properties.Titles) {
+    content += `<dt>${feature.properties.Titles}</dt>`;
+  }
+  
+  // Add biography link text
+  content += `<dt>(Click image to view detailed biography)</dt>`;
+  
+  // Add image if available
+  if (feature.properties.Bio_Portra && feature.properties.Bio_Portra !== "NONE") {
+    content += `
+      <dt>
+        <a href="https://www.albany.edu/arce/${feature.properties.Tour_Bio}.html" target="_blank">
+          <img 
+            src="${getImagePath(feature.properties.Bio_Portra)}"
+            style="max-width:200px; max-height:200px; border:2px solid #ccc; border-radius:4px; margin:8px 0;"
+            loading="lazy"
+            onerror="this.onerror=null; this.src='https://www.albany.edu/arce/images/no-image.jpg';"
+          />
+        </a>
+      </dt>`;
+  }
+  
+  content += '</dl>';
+  return content;
 };
 
 export default function BurialMap() {
@@ -553,50 +619,8 @@ export default function BurialMap() {
   // Define feature handlers
   const onEachLot7Feature = useCallback((feature, layer) => {
     if (feature.properties && feature.properties.Full_Name) {
-      let list = `<dl class="popup-content"><dt><b>${feature.properties.Full_Name}</b></dt>`;
-      if (feature.properties.Bio_Portra && feature.properties.Bio_Portra !== "NONE") {
-        list += `
-          <dt>
-            <a href="https://www.albany.edu/arce/${feature.properties.Tour_Bio}.html" target="_blank">
-              <img 
-                src="../data/images/${feature.properties.Bio_Portra}" 
-                style="max-width:200px; max-height:200px; border:2px solid #ccc; border-radius:4px; margin:8px 0;"
-                loading="lazy"
-                onerror="this.style.display='none'"
-              />
-            </a>
-          </dt>`;
-      }
-      list += `<dt>${feature.properties.Section} - ${feature.properties.Lot}</dt></dl>`;
-      
-      // Create marker with custom icon if it's a point
-      if (feature.geometry.type === 'Point') {
-        const icon = L.divIcon({
-          className: 'tour-marker',
-          html: `<div style="
-            width: 12px;
-            height: 12px;
-            background-color: ${TOURS.Lot7.color};
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 0 4px rgba(0,0,0,0.4);
-          "></div>`,
-          iconSize: [12, 12],
-          iconAnchor: [6, 6]
-        });
-        layer.setIcon(icon);
-      }
-      // Set style if it's a polygon/line
-      else {
-        layer.setStyle({
-          color: TOURS.Lot7.color,
-          weight: 2,
-          opacity: 0.9,
-          fillOpacity: 0.4
-        });
-      }
-      
-      layer.bindPopup(list, {
+      const content = createTourPopupContent(feature, 'Lot7');
+      layer.bindPopup(content, {
         maxWidth: 300,
         className: 'custom-popup'
       });
@@ -606,47 +630,8 @@ export default function BurialMap() {
 
   const onEachSec49Feature = useCallback((feature, layer) => {
     if (feature.properties) {
-      let list = `<dl class="popup-content"><dt><b>Section ${feature.properties.Section}</b></dt>`;
-      if (feature.properties.Bio_Portra && feature.properties.Bio_Portra !== "NONE") {
-        list += `
-          <dt>
-            <a href="https://www.albany.edu/arce/${feature.properties.Tour_Bio}.html" target="_blank">
-              <img 
-                src="${getImagePath(feature.properties.Bio_Portra)}"
-                style="max-width:200px; max-height:200px; border:2px solid #ccc; border-radius:4px; margin:8px 0;"
-                loading="lazy"
-                onerror="this.onerror=null; console.log('Image failed to load:', this.src); this.src='https://www.albany.edu/arce/images/no-image.jpg';"
-              />
-            </a>
-          </dt>`;
-      }
-      list += `<dt>Lot ${feature.properties.Lot}</dt></dl>`;
-      
-      if (feature.geometry.type === 'Point') {
-        const icon = L.divIcon({
-          className: 'tour-marker',
-          html: `<div style="
-            width: 12px;
-            height: 12px;
-            background-color: ${TOURS.Sec49.color};
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 0 4px rgba(0,0,0,0.4);
-          "></div>`,
-          iconSize: [12, 12],
-          iconAnchor: [6, 6]
-        });
-        layer.setIcon(icon);
-      } else {
-        layer.setStyle({
-          color: TOURS.Sec49.color,
-          weight: 2,
-          opacity: 0.9,
-          fillOpacity: 0.4
-        });
-      }
-      
-      layer.bindPopup(list, {
+      const content = createTourPopupContent(feature, 'Sec49');
+      layer.bindPopup(content, {
         maxWidth: 300,
         className: 'custom-popup'
       });
@@ -656,52 +641,8 @@ export default function BurialMap() {
 
   const onEachNotableFeature = useCallback((feature, layer) => {
     if (feature.properties && feature.properties.Full_Name) {
-      let list = `<dl class="popup-content"><dt><b>${feature.properties.Full_Name}</b></dt><hr>`;
-      if (feature.properties.Titles) {
-        list += `<dt>${feature.properties.Titles}</dt>`;
-      }
-      list += `<dt>(Click image to view detailed biography)</dt>`;
-
-      if (feature.properties.Bio_Portra && feature.properties.Bio_Portra !== "NONE") {
-        list += `
-          <dt>
-            <a href="https://www.albany.edu/arce/${feature.properties.Tour_Bio}.html" target="_blank">
-              <img 
-                src="${getImagePath(feature.properties.Bio_Portra)}"
-                style="max-width:200px; max-height:200px; border:2px solid #ccc; border-radius:4px; margin:8px 0;"
-                loading="lazy"
-                onerror="this.onerror=null; console.log('Image failed to load:', this.src); this.src='https://www.albany.edu/arce/images/no-image.jpg';"
-              />
-            </a>
-          </dt>`;
-      }
-      list += '</dl>';
-
-      if (feature.geometry.type === 'Point') {
-        const icon = L.divIcon({
-          className: 'tour-marker',
-          html: `<div style="
-            width: 12px;
-            height: 12px;
-            background-color: ${TOURS.Notable.color};
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 0 4px rgba(0,0,0,0.4);
-          "></div>`,
-          iconSize: [12, 12],
-          iconAnchor: [6, 6]
-        });
-        layer.setIcon(icon);
-      } else {
-        layer.setStyle({
-          color: TOURS.Notable.color,
-          weight: 2,
-          opacity: 0.9,
-          fillOpacity: 0.4
-        });
-      }
-
-      layer.bindPopup(list, {
+      const content = createTourPopupContent(feature, 'Notable');
+      layer.bindPopup(content, {
         maxWidth: 300,
         className: 'custom-popup'
       });
@@ -711,53 +652,8 @@ export default function BurialMap() {
 
   const onEachIndepFeature = useCallback((feature, layer) => {
     if (feature.properties && feature.properties.Full_Name) {
-      let list = `<dl class="popup-content"><dt><b>${feature.properties.Full_Name}</b></dt><hr>`;
-      if (feature.properties.Titles) {
-        list += `<dt>${feature.properties.Titles}</dt>`;
-      }
-      list += `<dt>(Click image to view detailed biography)</dt>`;
-
-      if (feature.properties.Bio_Portra && feature.properties.Bio_Portra !== "NONE") {
-        list += `
-          <dt>
-            <a href="https://www.albany.edu/arce/${feature.properties.Tour_Bio}.html" target="_blank">
-              <img 
-                src="${getImagePath(feature.properties.Bio_Portra)}"
-                style="max-width:200px; max-height:200px; border:2px solid #ccc; border-radius:4px; margin:8px 0;"
-                loading="lazy"
-                onerror="this.onerror=null; console.log('Image failed to load:', this.src); this.src='https://www.albany.edu/arce/images/no-image.jpg';"
-              />
-            </a>
-          </dt>`;
-      }
-      list += '</dl>';
-
-      // Create marker with custom icon if it's a point
-      if (feature.geometry.type === 'Point') {
-        const icon = L.divIcon({
-          className: 'tour-marker',
-          html: `<div style="
-            width: 12px;
-            height: 12px;
-            background-color: ${TOURS.Indep.color};
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 0 4px rgba(0,0,0,0.4);
-          "></div>`,
-          iconSize: [12, 12],
-          iconAnchor: [6, 6]
-        });
-        layer.setIcon(icon);
-      } else {
-        layer.setStyle({
-          color: TOURS.Indep.color,
-          weight: 2,
-          opacity: 0.9,
-          fillOpacity: 0.4
-        });
-      }
-
-      layer.bindPopup(list, {
+      const content = createTourPopupContent(feature, 'Indep');
+      layer.bindPopup(content, {
         maxWidth: 300,
         className: 'custom-popup'
       });
@@ -767,79 +663,99 @@ export default function BurialMap() {
 
   const onEachAAFeature = useCallback((feature, layer) => {
     if (feature.properties && feature.properties.Full_Name) {
-      let list = `<dl class="popup-content"><dt><b>${feature.properties.Full_Name}</b></dt><hr>`;
-      if (feature.properties.Titles) {
-        list += `<dt>${feature.properties.Titles}</dt>`;
-      }
-      list += `<dt>(Click image to view detailed biography)</dt>`;
-
-      if (feature.properties.Bio_Portra && feature.properties.Bio_Portra !== "NONE") {
-        list += `
-          <dt>
-            <a href="https://www.albany.edu/arce/${feature.properties.Tour_Bio}.html" target="_blank">
-              <img 
-                src="${getImagePath(feature.properties.Bio_Portra)}"
-                style="max-width:200px; max-height:200px; border:2px solid #ccc; border-radius:4px; margin:8px 0;"
-                loading="lazy"
-                onerror="this.onerror=null; console.log('Image failed to load:', this.src); this.src='https://www.albany.edu/arce/images/no-image.jpg';"
-              />
-            </a>
-          </dt>`;
-      }
-      list += '</dl>';
-      layer.bindPopup(list);
+      const content = createTourPopupContent(feature, 'Afr');
+      layer.bindPopup(content, {
+        maxWidth: 300,
+        className: 'custom-popup'
+      });
       feature.properties.title = "Afr";
     }
   }, []);
 
   const onEachArtistFeature = useCallback((feature, layer) => {
     if (feature.properties && feature.properties.Full_Name) {
-      let list = `<dl class="popup-content"><dt><b>${feature.properties.Full_Name}</b></dt><hr>`;
-      if (feature.properties.Titles) {
-        list += `<dt>${feature.properties.Titles}</dt>`;
-      }
-      list += `<dt>(Click image to view detailed biography)</dt>`;
-
-      if (feature.properties.Bio_Portra && feature.properties.Bio_Portra !== "NONE") {
-        list += `
-          <dt>
-            <a href="https://www.albany.edu/arce/${feature.properties.Tour_Bio}.html" target="_blank">
-              <img 
-                src="${getImagePath(feature.properties.Bio_Portra)}"
-                style="max-width:200px; max-height:200px; border:2px solid #ccc; border-radius:4px; margin:8px 0;"
-                loading="lazy"
-                onerror="this.onerror=null; console.log('Image failed to load:', this.src); this.src='https://www.albany.edu/arce/images/no-image.jpg';"
-              />
-            </a>
-          </dt>`;
-      }
-      list += '</dl>';
-      layer.bindPopup(list);
+      const content = createTourPopupContent(feature, 'Art');
+      layer.bindPopup(content, {
+        maxWidth: 300,
+        className: 'custom-popup'
+      });
       feature.properties.title = "Art";
+    }
+  }, []);
+
+  const onEachAssociationFeature = useCallback((feature, layer) => {
+    if (feature.properties && feature.properties.Full_Name) {
+      const content = createTourPopupContent(feature, 'Groups');
+      layer.bindPopup(content, {
+        maxWidth: 300,
+        className: 'custom-popup'
+      });
+      feature.properties.title = "Groups";
+    }
+  }, []);
+
+  const onEachAuthorFeature = useCallback((feature, layer) => {
+    if (feature.properties && feature.properties.Full_Name) {
+      const content = createTourPopupContent(feature, 'AuthPub');
+      layer.bindPopup(content, {
+        maxWidth: 300,
+        className: 'custom-popup'
+      });
+      feature.properties.title = "AuthPub";
+    }
+  }, []);
+
+  const onEachBusinessFeature = useCallback((feature, layer) => {
+    if (feature.properties && feature.properties.Full_Name) {
+      const content = createTourPopupContent(feature, 'Business');
+      layer.bindPopup(content, {
+        maxWidth: 300,
+        className: 'custom-popup'
+      });
+      feature.properties.title = "Business";
+    }
+  }, []);
+
+  const onEachCivilWarFeature = useCallback((feature, layer) => {
+    if (feature.properties && feature.properties.Full_Name) {
+      const content = createTourPopupContent(feature, 'CivilWar');
+      layer.bindPopup(content, {
+        maxWidth: 300,
+        className: 'custom-popup'
+      });
+      feature.properties.title = "CivilWar";
+    }
+  }, []);
+
+  const onEachMayorFeature = useCallback((feature, layer) => {
+    if (feature.properties && feature.properties.Full_Name) {
+      const content = createTourPopupContent(feature, 'MayorsOfAlbany');
+      layer.bindPopup(content, {
+        maxWidth: 300,
+        className: 'custom-popup'
+      });
+      feature.properties.title = "MayorsOfAlbany";
+    }
+  }, []);
+
+  const onEachGARFeature = useCallback((feature, layer) => {
+    if (feature.properties && feature.properties.Full_Name) {
+      const content = createTourPopupContent(feature, 'GAR');
+      layer.bindPopup(content, {
+        maxWidth: 300,
+        className: 'custom-popup'
+      });
+      feature.properties.title = "GAR";
     }
   }, []);
 
   const onEachPillarFeature = useCallback((feature, layer) => {
     if (feature.properties && feature.properties.Full_Name) {
-      let list = `<dl class="popup-content"><dt><b>${feature.properties.Full_Name}</b></dt>`;
-      if (feature.properties.Bio_Portra && feature.properties.Bio_Portra !== "NONE") {
-        list += `
-          <dt>
-            <a href="https://www.albany.edu/arce/${feature.properties.Tour_Bio}.html" target="_blank">
-              <img 
-                src="${getImagePath(feature.properties.Bio_Portra)}"
-                style="max-width:200px; max-height:200px; border:2px solid #ccc; border-radius:4px; margin:8px 0;"
-                loading="lazy"
-                onerror="this.onerror=null; console.log('Image failed to load:', this.src); this.src='https://www.albany.edu/arce/images/no-image.jpg';"
-              />
-            </a>
-          </dt>`;
-      }
-      if (feature.properties.Titles) {
-        list += `<dt>${feature.properties.Titles}</dt>`;
-      }
-      list += '</dl>';
-      layer.bindPopup(list);
+      const content = createTourPopupContent(feature, 'Pillars');
+      layer.bindPopup(content, {
+        maxWidth: 300,
+        className: 'custom-popup'
+      });
       feature.properties.title = "Pillars";
     }
   }, []);
@@ -862,19 +778,58 @@ export default function BurialMap() {
     try {
       // Create feature layers using imported data
       const layers = {
-        lot7: L.geoJSON(Sec75_Headstones, { onEachFeature: onEachLot7Feature }),
-        sec49: L.geoJSON(Sec49_Headstones, { onEachFeature: onEachSec49Feature }),
-        notables: L.geoJSON(NotablesTour, { onEachFeature: onEachNotableFeature }),
-        independence: L.geoJSON(IndependenceTour, { onEachFeature: onEachIndepFeature }),
-        africanAmerican: L.geoJSON(AfricanAmericanTour, { onEachFeature: onEachAAFeature }),
-        artist: L.geoJSON(ArtistTour, { onEachFeature: onEachArtistFeature }),
-        associations: L.geoJSON(AssociationsTour),
-        authors: L.geoJSON(AuthorsTour),
-        business: L.geoJSON(BusinessTour),
-        civilWar: L.geoJSON(CivilWarTour),
-        pillars: L.geoJSON(PillarsTour, { onEachFeature: onEachPillarFeature }),
-        mayors: L.geoJSON(MayorsTour),
-        gar: L.geoJSON(GARTour),
+        lot7: L.geoJSON(Sec75_Headstones, { 
+          pointToLayer: createTourMarker('Lot7'),
+          onEachFeature: onEachLot7Feature 
+        }),
+        sec49: L.geoJSON(Sec49_Headstones, { 
+          pointToLayer: createTourMarker('Sec49'),
+          onEachFeature: onEachSec49Feature 
+        }),
+        notables: L.geoJSON(NotablesTour, { 
+          pointToLayer: createTourMarker('Notable'),
+          onEachFeature: onEachNotableFeature 
+        }),
+        independence: L.geoJSON(IndependenceTour, { 
+          pointToLayer: createTourMarker('Indep'),
+          onEachFeature: onEachIndepFeature 
+        }),
+        africanAmerican: L.geoJSON(AfricanAmericanTour, { 
+          pointToLayer: createTourMarker('Afr'),
+          onEachFeature: onEachAAFeature 
+        }),
+        artist: L.geoJSON(ArtistTour, { 
+          pointToLayer: createTourMarker('Art'),
+          onEachFeature: onEachArtistFeature 
+        }),
+        associations: L.geoJSON(AssociationsTour, { 
+          pointToLayer: createTourMarker('Groups'),
+          onEachFeature: onEachAssociationFeature 
+        }),
+        authors: L.geoJSON(AuthorsTour, { 
+          pointToLayer: createTourMarker('AuthPub'),
+          onEachFeature: onEachAuthorFeature 
+        }),
+        business: L.geoJSON(BusinessTour, { 
+          pointToLayer: createTourMarker('Business'),
+          onEachFeature: onEachBusinessFeature 
+        }),
+        civilWar: L.geoJSON(CivilWarTour, { 
+          pointToLayer: createTourMarker('CivilWar'),
+          onEachFeature: onEachCivilWarFeature 
+        }),
+        pillars: L.geoJSON(PillarsTour, { 
+          pointToLayer: createTourMarker('Pillars'),
+          onEachFeature: onEachPillarFeature 
+        }),
+        mayors: L.geoJSON(MayorsTour, { 
+          pointToLayer: createTourMarker('MayorsOfAlbany'),
+          onEachFeature: onEachMayorFeature 
+        }),
+        gar: L.geoJSON(GARTour, { 
+          pointToLayer: createTourMarker('GAR'),
+          onEachFeature: onEachGARFeature 
+        }),
         boundary: L.geoJSON(ARC_Boundary, { style: exteriorStyle }),
         roads: L.geoJSON(ARC_Roads, { style: roadStyle }),
         sections: L.geoJSON(ARC_Sections, { onEachFeature: onEachSection })
@@ -921,7 +876,9 @@ export default function BurialMap() {
       console.error('Error loading GeoJSON data:', error);
     }
   }, [onEachLot7Feature, onEachSec49Feature, onEachNotableFeature, onEachIndepFeature, 
-      onEachAAFeature, onEachArtistFeature, onEachPillarFeature, onEachSection]);
+      onEachAAFeature, onEachArtistFeature, onEachAssociationFeature, onEachAuthorFeature,
+      onEachBusinessFeature, onEachCivilWarFeature, onEachPillarFeature, onEachMayorFeature,
+      onEachGARFeature, onEachSection]);
 
   // Adjust zoom levels
   const ZOOM_LEVELS = {

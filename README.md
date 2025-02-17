@@ -27,6 +27,8 @@ Hosted at https://www.albany.edu/arce/Burial_Locator/
 - Implements marker clustering for handling large datasets
 - Material-UI components for modern UI elements
 
+Local python dev server will deploy on port 8000 unless NODE_ENV is set to production. 
+
 ## Getting Started
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
