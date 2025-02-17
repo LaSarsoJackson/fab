@@ -892,6 +892,7 @@ export default function BurialMap() {
     geo_burials.features.map(feature => ({
       label: `${feature.properties.First_Name} ${feature.properties.Last_Name}`,
       searchableLabel: `${feature.properties.First_Name} ${feature.properties.Last_Name} (Section ${feature.properties.Section}, Lot ${feature.properties.Lot})`,
+      key: `${feature.properties.OBJECTID}_${feature.properties.First_Name}_${feature.properties.Last_Name}_Section${feature.properties.Section}_Lot${feature.properties.Lot}`,
       ...feature.properties,
       coordinates: feature.geometry.coordinates
     })).filter(option => option.First_Name || option.Last_Name)
@@ -1130,32 +1131,37 @@ export default function BurialMap() {
       });
     }
   };
+const createClusterGroup = useCallback(() => {
+  return L.markerClusterGroup({
+    maxClusterRadius: 70,
+    disableClusteringAtZoom: 21,
+    spiderfyOnMaxZoom: false,
+    removeOutsideVisibleBounds: true,
+    chunkedLoading: true,
+    chunkInterval: 200,
+    chunkDelay: 50,
+    iconCreateFunction: (cluster) => {
+      const count = cluster.getChildCount();
+      return L.divIcon({
+        html: `<div style="
+          background-color: rgba(0,123,255,0.6);
+          border: none;
+          border-radius: 50%;
+          width: 30px;
+          height: 30px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 14px;
+        ">${count}</div>`,
+        className: 'custom-cluster-icon',
+        iconSize: [30, 30]
+      });
+    }
+  });
+}, []);
 
-  // Function to create marker cluster group - optimized
-  const createClusterGroup = useCallback(() => {
-    return L.markerClusterGroup({
-      maxClusterRadius: 70,
-      disableClusteringAtZoom: 21,
-      spiderfyOnMaxZoom: false,
-      removeOutsideVisibleBounds: true,
-      chunkedLoading: true,
-      chunkInterval: 200,
-      chunkDelay: 50,
-      iconCreateFunction: (cluster) => {
-        const count = cluster.getChildCount();
-        return L.divIcon({
-          html: `
-            <div class="marker-cluster" style="background-image: url('./data/images/headstone.svg');">
-              <span>${count}</span>
-            </div>
-          `,
-          className: 'custom-cluster',
-          iconSize: L.point(40, 40),
-          iconAnchor: L.point(20, 20)
-        });
-      }
-    });
-  }, []);
 
   // Add CSS styles for markers and clusters
   useEffect(() => {
@@ -1336,7 +1342,7 @@ export default function BurialMap() {
                 return smartSearch(options, inputValue).slice(0, 100);
               }}
               renderOption={(props, option) => (
-                <li {...props}>
+                <li {...props} key={option.key}>
                   <Box sx={{ width: '100%' }}>
                     <Typography variant="body1">
                       {option.First_Name} {option.Last_Name}
@@ -1750,61 +1756,7 @@ export default function BurialMap() {
             />
           )}
           
-          {/* Update marker cluster creation */}
-          {showAllBurials && filteredBurials.map((burial, index) => {
-            const marker = (
-              <Marker
-                key={`all-${burial.OBJECTID}`}
-                position={[burial.coordinates[1], burial.coordinates[0]]}
-                icon={L.divIcon({
-                  className: 'burial-marker',
-                  html: `
-                    <div style="
-                      width: 6px;
-                      height: 6px;
-                      background-color: #666;
-                      border-radius: 50%;
-                      border: 1px solid white;
-                      box-shadow: 0 0 4px rgba(0,0,0,0.4);
-                    "></div>
-                  `,
-                  iconSize: [6, 6],
-                  iconAnchor: [3, 3]
-                })}
-                eventHandlers={{
-                  mouseover: () => setHoveredMarker(burial.OBJECTID),
-                  mouseout: () => setHoveredMarker(null),
-                  click: (e) => {
-                    L.DomEvent.stopPropagation(e);
-                    handleMarkerClick(burial, index);
-                  }
-                }}
-              >
-                <Popup>
-                  <div>
-                    <h3>{burial.First_Name} {burial.Last_Name}</h3>
-                    <p>Section: {burial.Section}</p>
-                    <p>Lot: {burial.Lot}</p>
-                    <p>Tier: {burial.Tier}</p>
-                    <p>Grave: {burial.Grave}</p>
-                    <p>Birth: {burial.Birth}</p>
-                    <p>Death: {burial.Death}</p>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      size="small"
-                      fullWidth
-                      onClick={() => routingDestination ? stopRouting() : startRouting(burial)}
-                      sx={{ mt: 1 }}
-                    >
-                      {routingDestination ? 'Stop Navigation' : 'Get Directions'}
-                    </Button>
-                  </div>
-                </Popup>
-              </Marker>
-            );
-            return marker;
-          })}
+ 
           
           {/* Search Result Markers - Always on top */}
           {selectedBurials.map((burial, index) => (
