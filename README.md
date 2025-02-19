@@ -1,7 +1,7 @@
 # Albany Rural Cemetery Burial Locator
 
 An interactive web application for locating and navigating to burial sites at Albany Rural Cemetery.
-Hosted at https://www.albany.edu/arce/Burial_Locator/
+Hosted at https://www.albany.edu/arce/Burial_Locator/ (not always up to date) and https://lasarsojackson.github.io/fab/ (live)
 
 ## Features
 
