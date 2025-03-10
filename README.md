@@ -41,4 +41,4 @@ This project was bootstrapped with [Create React App](https://github.com/faceboo
 ### Installation
 
 1. Clone the repository
-2. Install dependencies:
+2. Install dependencies with npm install --legacy-peer-deps
