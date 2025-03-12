@@ -60,6 +60,20 @@ import CivilWarTour from "./data/CivilWarTour20.json";
 import PillarsTour from "./data/SocietyPillarsTour20.json";
 import MayorsTour from "./data/AlbanyMayors_fixed.json";
 import GARTour from "./data/GAR_fixed.json";
+//First, you'd need to import the new tour JSON file at the top of the file with the other tour data imports
+/* 
+ * === TOUR ADDITION CHECKLIST ===
+* 
+* When adding a new tour to the application:
+* 1. Import the new tour JSON file in the Tour Data Imports section
+* 2. Add an entry to the TOURS object with a unique key, display name, and color
+* 3. Add an entry to the TOUR_DATA array linking the key, data, and name
+*
+* Note: The tour key in TOURS must match the key in TOUR_DATA, and the 
+* name in TOUR_DATA should match the name in TOURS for proper functionality.
+*/
+
+import NewTour from "./data/NewTour.json";  
 
 //=============================================================================
 // Constants and Configuration
@@ -111,8 +125,11 @@ const TOURS = {
   CivilWar: { name: "Civil War Tour 2020", color: '#a0a0a0' },
   Pillars: { name: "Pillars of Society Tour 2020", color: '#d10008' },
   MayorsOfAlbany: { name: "Mayors of Albany", color: '#ff00dd' },
-  GAR: { name: "Grand Army of the Republic", color: '#000080' }
+  GAR: { name: "Grand Army of the Republic", color: '#000080' },
+  NewTourKey: { name: "Where is Saint Patrick buried?", color: '#ff4500' } 
 };
+//SECOND, add an entry for the new tour
+ 
 
 //=============================================================================
 // Style Definitions
@@ -623,8 +640,12 @@ const TOUR_DATA = [
   { key: 'CivilWar', data: CivilWarTour, name: "Civil War Tour 2020" },
   { key: 'Pillars', data: PillarsTour, name: "Pillars of Society Tour 2020" },
   { key: 'MayorsOfAlbany', data: MayorsTour, name: "Mayors of Albany" },
-  { key: 'GAR', data: GARTour, name: "Grand Army of the Republic" }
+  { key: 'GAR', data: GARTour, name: "Grand Army of the Republic" },
+  { key: 'NewTourKey', data: NewTour, name: "Where is Saint Patrick buried?" } 
 ];
+
+//THIRD, add entry to the TOUR_DATA array
+
 
 /**
  * Default style for burial markers
