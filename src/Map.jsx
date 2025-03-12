@@ -1,25 +1,54 @@
+/**
+ * Albany Rural Cemetery Interactive Map Application
+ * 
+ * This React application provides an interactive map interface for the Albany Rural Cemetery,
+ * featuring search capabilities, tour routes, burial locations, and navigation assistance.
+ * The application integrates various mapping technologies and UI components to create
+ * a user-friendly cemetery exploration tool.
+ */
+
+//=============================================================================
+// External Dependencies
+//=============================================================================
+
+// React and Core Dependencies
 import { React, useState, useEffect, useMemo, useRef, useCallback } from "react";
+
+// Leaflet and Map-related Dependencies
 import { MapContainer, Popup, Marker, GeoJSON, LayersControl, LayerGroup, useMap } from "react-leaflet";
-import L from 'leaflet';
+import L from 'leaflet';  // Core Leaflet library for map functionality
 import "./index.css";
-import 'leaflet.markercluster/dist/leaflet.markercluster';
+import 'leaflet.markercluster/dist/leaflet.markercluster';  // Clustering support for markers
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import 'leaflet-routing-machine';
+import 'leaflet-routing-machine';  // Routing capabilities
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
-import 'lrm-graphhopper';
-import geo_burials from "./data/Geo_Burials.json";
-import { AgGridReact } from 'ag-grid-react';
-import 'ag-grid-community/dist/styles/ag-grid.css';
-import 'ag-grid-community/dist/styles/ag-theme-material.css';
-import Button from '@mui/material/Button';
+import 'lrm-graphhopper';  // GraphHopper routing integration
+import * as turf from '@turf/turf';  // Geospatial calculations library
+import { BasemapLayer } from 'react-esri-leaflet';  // ESRI basemap integration
 
-// Import local GeoJSON files
+// Material-UI Components and Icons
+import { 
+  Autocomplete, TextField, Paper, InputAdornment, IconButton,
+  List, ListItem, ListItemText, Divider, Box, Typography,
+  ButtonGroup, Button 
+} from '@mui/material';
+import PinDropIcon from '@mui/icons-material/PinDrop';
+import SearchIcon from '@mui/icons-material/Search';
+import CloseIcon from '@mui/icons-material/Close';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
+import HomeIcon from '@mui/icons-material/Home';
+
+// Local Data and Styles
+import geo_burials from "./data/Geo_Burials.json";
 import ARC_Roads from "./data/ARC_Roads.json";
 import ARC_Boundary from "./data/ARC_Boundary.json";
 import ARC_Sections from "./data/ARC_Sections.json";
 import Sec75_Headstones from "./data/Projected_Sec75_Headstones.json";
 import Sec49_Headstones from "./data/Projected_Sec49_Headstones.json";
+
+// Tour Data Imports
 import NotablesTour from "./data/NotablesTour20.json";
 import IndependenceTour from "./data/IndependenceTour20.json";
 import AfricanAmericanTour from "./data/AfricanAmericanTour20.json";
@@ -31,102 +60,91 @@ import CivilWarTour from "./data/CivilWarTour20.json";
 import PillarsTour from "./data/SocietyPillarsTour20.json";
 import MayorsTour from "./data/AlbanyMayors_fixed.json";
 import GARTour from "./data/GAR_fixed.json";
-import PinDropIcon from '@mui/icons-material/PinDrop';
-import SearchIcon from '@mui/icons-material/Search';
-import CloseIcon from '@mui/icons-material/Close';
-import AddIcon from '@mui/icons-material/Add';
-import RemoveIcon from '@mui/icons-material/Remove';
-import * as turf from '@turf/turf';
-import { BasemapLayer } from 'react-esri-leaflet';
-import { 
-  Autocomplete, 
-  TextField, 
-  Paper, 
-  InputAdornment, 
-  IconButton,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
-  Box,
-  Typography,
-  ButtonGroup
-} from '@mui/material';
-import { divIcon } from 'leaflet';
-import HomeIcon from '@mui/icons-material/Home';
 
-const columns = [
-  { field: 'OBJECTID', sortable: true, hide: true },
-  {
-    field: 'First_Name', sortable: true, checkboxSelection: true, headerName: 'First Name',
-  },
-  {
-    field: 'Last_Name', sortable: true, headerName: 'Last Name',
-  },
-  {
-    field: 'Birth', sortable: true,
-  },
-  {
-    field: 'Death', sortable: true,
-  },
-  {
-    field: 'Section', sortable: true,
-  },
-  {
-    field: 'Lot', sortable: true,
-  },
-  {
-    field: 'Pvt_Pub', sortable: true, hide: true
-  },
-  {
-    field: 'Tier', sortable: true,
-  },
-  {
-    field: 'Grave', sortable: true,
-  },
-  {
-    field: 'Sec_Disp', sortable: true, hide: true
-  },
-  {
-    field: 'ARC_GeoID', sortable: true, headerName: 'GeoID',
-  },
-  {
-    field: 'Geotype', sortable: true, hide: true
-  },
-  {
-    field: 'Coordinates', sortable: true, hide: true
-  },
-];
+//=============================================================================
+// Constants and Configuration
+//=============================================================================
 
-const defaultColDef = {
-  // set filtering on for all columns
-  filter: true,
-  floatingFilter: true,
+/**
+ * Defines zoom level thresholds for different map behaviors
+ */
+const ZOOM_LEVELS = {
+  SECTION: 16,    // Level at which section info becomes visible
+  CLUSTER: 17,    // Level at which markers begin clustering
+  INDIVIDUAL: 20  // Level at which individual markers are always visible
 };
 
-let geo_burials_rows = [];
-for (let i = 0; i < geo_burials.features.length; i++) {
-  let feature = geo_burials.features[i];
-  let row = {
-    OBJECTID: feature.properties.OBJECTID,
-    First_Name: feature.properties.First_Name,
-    Last_Name: feature.properties.Last_Name,
-    Section: feature.properties.Section,
-    Lot: feature.properties.Lot,
-    Pvt_Pub: feature.properties.Pvt_Pub,
-    Tier: feature.properties.Tier,
-    Grave: feature.properties.Grave,
-    Sec_Disp: feature.properties.Sec_Disp,
-    ARC_GeoID: feature.properties.ARC_GeoID,
-    Birth: feature.properties.Birth,
-    Death: feature.properties.Death,
-    Geotype: feature.geometry.type,
-    Coordinates: feature.geometry.coordinates,
-  };
-  geo_burials_rows.push(row);
-}
+/**
+ * Colors used for numbered markers in search results
+ * Cycles through these colors for multiple markers
+ */
+const MARKER_COLORS = [
+  '#e41a1c', // red
+  '#377eb8', // blue
+  '#4daf4a', // green
+  '#984ea3', // purple
+  '#ff7f00', // orange
+  '#ffff33', // yellow
+  '#a65628', // brown
+  '#f781bf', // pink
+  '#999999'  // grey
+];
 
-// Custom Zoom Control Component
+/**
+ * Default zoom level for focusing on specific locations
+ */
+const ZOOM_LEVEL = 18;
+
+/**
+ * Tour definitions with associated colors and display names
+ */
+const TOURS = {
+  Lot7: { name: "Soldier's Lot (Section 75, Lot 7)", color: '#7587ff' },
+  Sec49: { name: "Section 49", color: '#75ff87' },
+  Notable: { name: "Notables Tour 2020", color: '#ff7700' },
+  Indep: { name: "Independence Tour 2020", color: '#7700ff' },
+  Afr: { name: "African American Tour 2020", color: '#eedd00' },
+  Art: { name: "Artists Tour 2020", color: '#ff4277' },
+  Groups: { name: "Associations, Societies, & Groups Tour 2020", color: '#86cece' },
+  AuthPub: { name: "Authors & Publishers Tour 2020", color: '#996038' },
+  Business: { name: "Business & Finance Tour 2020", color: '#558e76' },
+  CivilWar: { name: "Civil War Tour 2020", color: '#a0a0a0' },
+  Pillars: { name: "Pillars of Society Tour 2020", color: '#d10008' },
+  MayorsOfAlbany: { name: "Mayors of Albany", color: '#ff00dd' },
+  GAR: { name: "Grand Army of the Republic", color: '#000080' }
+};
+
+//=============================================================================
+// Style Definitions
+//=============================================================================
+
+/**
+ * Style configuration for the cemetery boundary
+ */
+const exteriorStyle = {
+  color: "#ffffff",
+  weight: 1.5,
+  fillOpacity: .08
+};
+
+/**
+ * Style configuration for cemetery roads
+ */
+const roadStyle = {
+  color: '#000000',
+  weight: 2,
+  opacity: 1,
+  fillOpacity: 0.1
+};
+
+//=============================================================================
+// React Components
+//=============================================================================
+
+/**
+ * Custom zoom control component that provides zoom in/out buttons
+ * Positioned at the top-right corner of the map
+ */
 function CustomZoomControl() {
   const map = useMap();
   
@@ -156,13 +174,16 @@ function CustomZoomControl() {
   );
 }
 
-// MapBounds component to restrict zoom and pan
+/**
+ * Component that restricts map bounds and zoom levels to the cemetery area
+ * Uses Turf.js for geospatial calculations
+ */
 function MapBounds() {
   const map = useMap();
   const boundaryPolygon = ARC_Boundary.features[0];
   
   useEffect(() => {
-    // Calculate the bounds of the boundary polygon
+    // Calculate the bounds of the boundary polygon using Turf.js
     const bounds = turf.bbox(boundaryPolygon);
     
     // Add significant padding to the bounds (about 1km)
@@ -172,12 +193,12 @@ function MapBounds() {
     
     const paddedBounds = [southWest, northEast];
     
-    // Set less restrictive bounds
+    // Set map constraints
     map.setMaxBounds(paddedBounds);
     map.setMinZoom(13);
     map.setMaxZoom(25);
 
-    // Initial fit to bounds, but don't force recenter after
+    // Initial fit to bounds
     map.once('load', () => {
       map.fitBounds(paddedBounds);
     });
@@ -186,196 +207,30 @@ function MapBounds() {
   return null;
 }
 
-// Create a custom component for the vector basemap
+/**
+ * Component that renders the ESRI vector basemap
+ */
 function VectorBasemap({ name }) {
   return <BasemapLayer name={name} maxZoom={25} maxNativeZoom={19} />;
 }
 
-// Add this after the VectorBasemap component and before the Map component
+/**
+ * Component that manages map state and provides access to the map instance
+ */
 function MapController({ selectedBurials, hoveredIndex }) {
   const map = useMap();
   
   useEffect(() => {
-    // Store the map instance in the window for access from outside
+    // Store the map instance globally for external access
     window.mapInstance = map;
   }, [map]);
   
   return null;
 }
 
-// Add this before the Map component
-const MARKER_COLORS = [
-  '#e41a1c', // red
-  '#377eb8', // blue
-  '#4daf4a', // green
-  '#984ea3', // purple
-  '#ff7f00', // orange
-  '#ffff33', // yellow
-  '#a65628', // brown
-  '#f781bf', // pink
-  '#999999'  // grey
-];
-
-// Add this before the Map component
-const ZOOM_LEVEL = 18;
-
-// Add before the Map component
-const createNumberedIcon = (number, isHighlighted = false) => {
-  const colorIndex = (number - 1) % MARKER_COLORS.length;
-  const color = MARKER_COLORS[colorIndex];
-  
-  return divIcon({
-    className: 'custom-div-icon',
-    html: `
-      <div style="
-        background-color: ${color};
-        width: ${isHighlighted ? '32px' : '24px'};
-        height: ${isHighlighted ? '32px' : '24px'};
-        border-radius: 50%;
-        border: ${isHighlighted ? '3px' : '2px'} solid white;
-        box-shadow: ${isHighlighted ? '0 0 8px rgba(0,0,0,0.6)' : '0 0 4px rgba(0,0,0,0.4)'};
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: bold;
-        font-size: ${isHighlighted ? '16px' : '14px'};
-        transition: all 0.2s ease;
-      ">
-        ${number}
-      </div>
-    `,
-    iconSize: [isHighlighted ? 32 : 24, isHighlighted ? 32 : 24],
-    iconAnchor: [isHighlighted ? 16 : 12, isHighlighted ? 16 : 12],
-    popupAnchor: [0, isHighlighted ? -16 : -12]
-  });
-};
-
-// Add this before the Map component
-const createUniqueKey = (burial, index) => {
-  // Create a unique key combining multiple properties
-  return `${burial.OBJECTID}_${burial.Section}_${burial.Lot}_${burial.Grave}_${index}`;
-};
-
-// Add before the Map component
-const UNIQUE_SECTIONS = Array.from(new Set(geo_burials.features.map(f => f.properties.Section))).sort((a, b) => {
-  // Handle special case for section 100A
-  if (a === '100A') return 1;
-  if (b === '100A') return -1;
-  return a - b;
-});
-
-// Add Routing Control Component
-function RoutingControl({ from, to }) {
-  const map = useMap();
-  const [routingError, setRoutingError] = useState(null);
-  
-  useEffect(() => {
-    if (!from || !to) return;
-
-    // Check if API key is available
-    const apiKey = process.env.REACT_APP_GRAPHHOPPER_API_KEY;
-    if (!apiKey) {
-      console.error('GraphHopper API key not found in environment variables');
-      setRoutingError('Configuration error: API key not found');
-      return;
-    }
-
-    const routingControl = L.Routing.control({
-      router: new L.Routing.GraphHopper(apiKey, {
-        urlParameters: {
-          vehicle: 'foot'  // Set to pedestrian routing
-        }
-      }),
-      waypoints: [
-        L.latLng(from[0], from[1]),
-        L.latLng(to[0], to[1])
-      ],
-      createMarker: function() { return null; }, // Don't create markers - we already have them
-      lineOptions: {
-        styles: [
-          {color: '#0066CC', opacity: 0.8, weight: 5},
-          {color: '#ffffff', opacity: 0.3, weight: 7}
-        ]
-      },
-      addWaypoints: false,
-      draggableWaypoints: false,
-      fitSelectedRoutes: true,
-      showAlternatives: false,
-      useZoomParameter: true,
-      show: false // Hide the instruction panel
-    }).addTo(map);
-
-    // Add error handling
-    routingControl.on('routingerror', (e) => {
-      console.error('Routing error:', e);
-      setRoutingError('Unable to calculate route. Please try again.');
-      
-      // Remove the control after error
-      map.removeControl(routingControl);
-    });
-
-    return () => {
-      map.removeControl(routingControl);
-    };
-  }, [map, from, to]);
-
-  // Show error message if there's a routing error
-  if (routingError) {
-    return (
-      <Paper
-        elevation={3}
-        sx={{
-          position: 'absolute',
-          bottom: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1000,
-          padding: '10px',
-          backgroundColor: '#f44336',
-          color: 'white',
-        }}
-      >
-        <Typography>{routingError}</Typography>
-      </Paper>
-    );
-  }
-
-  return null;
-}
-
-// Update tour marker styles to match ARCE Leaflet
-const TOURS = {
-  Lot7: { name: "Soldier's Lot (Section 75, Lot 7)", color: '#7587ff' },
-  Sec49: { name: "Section 49", color: '#75ff87' },
-  Notable: { name: "Notables Tour 2020", color: '#ff7700' },
-  Indep: { name: "Independence Tour 2020", color: '#7700ff' },
-  Afr: { name: "African American Tour 2020", color: '#eedd00' },
-  Art: { name: "Artists Tour 2020", color: '#ff4277' },
-  Groups: { name: "Associations, Societies, & Groups Tour 2020", color: '#86cece' },
-  AuthPub: { name: "Authors & Publishers Tour 2020", color: '#996038' },
-  Business: { name: "Business & Finance Tour 2020", color: '#558e76' },
-  CivilWar: { name: "Civil War Tour 2020", color: '#a0a0a0' },
-  Pillars: { name: "Pillars of Society Tour 2020", color: '#d10008' },
-  MayorsOfAlbany: { name: "Mayors of Albany", color: '#ff00dd' },
-  GAR: { name: "Grand Army of the Republic", color: '#000080' }
-};
-
-// Define styles
-const exteriorStyle = {
-  color: "#ffffff",
-  weight: 1.5,
-  fillOpacity: .08
-};
-
-const roadStyle = {
-  color: '#000000',
-  weight: 2,
-  opacity: 1,
-  fillOpacity: 0.1
-};
-
-// Move DefaultExtentButton outside BurialMap component
+/**
+ * Button component that resets the map view to the default extent
+ */
 function DefaultExtentButton() {
   const map = useMap();
   
@@ -404,114 +259,192 @@ function DefaultExtentButton() {
   );
 }
 
-// Move TourFilter outside BurialMap component and remove useMap dependency
-function TourFilter({ overlayMaps, setShowAllBurials, onTourSelect }) {
-  return (
-    <Autocomplete
-      options={Object.keys(TOURS)}
-      getOptionLabel={(option) => TOURS[option].name}
-      onChange={(event, newValue) => {
-        setShowAllBurials(true);
-        // Pass null to clear the tour, or the tour name to select it
-        const layerName = newValue ? TOURS[newValue].name : null;
-        onTourSelect(layerName);
-      }}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          label="Tour"
-          size="small"
-          fullWidth
-        />
-      )}
-      renderOption={(props, option) => (
-        <li {...props}>
-          <Box
-            component="span"
-            sx={{
-              width: 14,
-              height: 14,
-              mr: 1,
-              borderRadius: '50%',
-              backgroundColor: TOURS[option].color,
-              display: 'inline-block'
-            }}
-          />
-          {TOURS[option].name}
-        </li>
-      )}
-    />
-  );
-}
-
-// Update MapTourController to handle tour clearing
-function MapTourController({ selectedTour, overlayMaps }) {
+/**
+ * Component that manages routing between two points using GraphHopper
+ */
+function RoutingControl({ from, to }) {
   const map = useMap();
+  const [routingError, setRoutingError] = useState(null);
+  const [isCalculating, setIsCalculating] = useState(false);
   
   useEffect(() => {
-    if (!map || !overlayMaps) return;
+    if (!from || !to) return;
 
-    // Remove all tour layers first
-    Object.entries(overlayMaps).forEach(([name, layer]) => {
-      if (name.includes('Tour') || name.includes('Lot 7') || name.includes('Section 49') || 
-          name.includes('Mayors') || name.includes('GAR')) {
-        map.removeLayer(layer);
-      }
+    setRoutingError(null);
+    setIsCalculating(true);
+
+    const apiKey = process.env.REACT_APP_GRAPHHOPPER_API_KEY;
+    if (!apiKey) {
+      console.error('GraphHopper API key not found in environment variables');
+      setRoutingError('Configuration error: API key not found. Please contact administrators.');
+      setIsCalculating(false);
+      return;
+    }
+
+    const routingControl = L.Routing.control({
+      router: new L.Routing.GraphHopper(apiKey, {
+        urlParameters: {
+          vehicle: 'foot'  // Set to pedestrian routing
+        }
+      }),
+      waypoints: [
+        L.latLng(from[0], from[1]),
+        L.latLng(to[0], to[1])
+      ],
+      createMarker: function() { return null; },
+      lineOptions: {
+        styles: [
+          {color: '#0066CC', opacity: 0.8, weight: 5},
+          {color: '#ffffff', opacity: 0.3, weight: 7}
+        ]
+      },
+      addWaypoints: false,
+      draggableWaypoints: false,
+      fitSelectedRoutes: true,
+      showAlternatives: false,
+      useZoomParameter: true,
+      show: false
+    }).addTo(map);
+
+    routingControl.on('routesfound', () => {
+      setIsCalculating(false);
     });
 
-    // Add only the selected tour layer if it exists
-    if (selectedTour) {
-      Object.entries(overlayMaps).forEach(([name, layer]) => {
-        if (name === selectedTour) {
-          map.addLayer(layer);
-        }
-      });
-    }
-  }, [map, selectedTour, overlayMaps]);
-  
+    routingControl.on('routingerror', (e) => {
+      console.error('Routing error:', e);
+      
+      if (e.error && e.error.status === 0) {
+        setRoutingError('Network error: Please check your internet connection.');
+      } else if (e.error && e.error.status === 401) {
+        setRoutingError('Authentication error: Invalid API key.');
+      } else if (e.error && e.error.status === 429) {
+        setRoutingError('Too many requests: Rate limit exceeded.');
+      } else {
+        setRoutingError('Unable to calculate route. The locations might be inaccessible by foot or too far apart.');
+      }
+      
+      setIsCalculating(false);
+      map.removeControl(routingControl);
+    });
+
+    return () => {
+      map.removeControl(routingControl);
+    };
+  }, [map, from, to]);
+
+  if (isCalculating) {
+    return (
+      <Paper
+        elevation={3}
+        sx={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          padding: '10px',
+          backgroundColor: '#f5f5f5',
+          color: '#333',
+        }}
+      >
+        <Typography>Calculating route...</Typography>
+      </Paper>
+    );
+  }
+
+  if (routingError) {
+    return (
+      <Paper
+        elevation={3}
+        sx={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          padding: '10px',
+          backgroundColor: '#f44336',
+          color: 'white',
+        }}
+      >
+        <Typography>{routingError}</Typography>
+      </Paper>
+    );
+  }
+
   return null;
 }
 
-// Add CSS styles for popup images and markers
-const popupImageStyle = {
-  maxWidth: '200px',
-  maxHeight: '200px',
-  border: '2px solid #ccc',
-  borderRadius: '4px',
-  margin: '8px 0'
+//=============================================================================
+// Helper Functions
+//=============================================================================
+
+/**
+ * Creates a numbered marker icon for search results
+ * @param {number} number - The number to display in the marker
+ * @param {boolean} isHighlighted - Whether the marker should be highlighted
+ * @returns {L.DivIcon} A Leaflet div icon configured with the specified number and styling
+ */
+const createNumberedIcon = (number, isHighlighted = false) => {
+  const colorIndex = (number - 1) % MARKER_COLORS.length;
+  const color = MARKER_COLORS[colorIndex];
+  
+  return L.divIcon({
+    className: 'custom-div-icon',
+    html: `
+      <div style="
+        background-color: ${color};
+        width: ${isHighlighted ? '32px' : '24px'};
+        height: ${isHighlighted ? '32px' : '24px'};
+        border-radius: 50%;
+        border: ${isHighlighted ? '3px' : '2px'} solid white;
+        box-shadow: ${isHighlighted ? '0 0 8px rgba(0,0,0,0.6)' : '0 0 4px rgba(0,0,0,0.4)'};
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: ${isHighlighted ? '16px' : '14px'};
+        transition: all 0.2s ease;
+      ">
+        ${number}
+      </div>
+    `,
+    iconSize: [isHighlighted ? 32 : 24, isHighlighted ? 32 : 24],
+    iconAnchor: [isHighlighted ? 16 : 12, isHighlighted ? 16 : 12],
+    popupAnchor: [0, isHighlighted ? -16 : -12]
+  });
 };
 
-// Update marker styles
-const markerStyle = {
-  radius: 8,
-  fillColor: "#ff7800",
-  color: "#000",
-  weight: 1,
-  opacity: 1,
-  fillOpacity: 0.8
+/**
+ * Creates a unique key for a burial record
+ * @param {Object} burial - The burial record object
+ * @param {number} index - The index of the burial in the list
+ * @returns {string} A unique identifier string
+ */
+const createUniqueKey = (burial, index) => {
+  return `${burial.OBJECTID}_${burial.Section}_${burial.Lot}_${burial.Grave}_${index}`;
 };
 
-const tourMarkerStyle = {
-  radius: 10,
-  weight: 3,
-  opacity: 0.9,
-  fillOpacity: 0.7,
-  className: 'tour-marker'
-};
-
-// Update the getImagePath function
+/**
+ * Gets the image path for a burial record's photo
+ * @param {string} imageName - The name of the image file
+ * @returns {string} The complete URL path to the image
+ */
 const getImagePath = (imageName) => {
   if (!imageName || imageName === "NONE") return 'https://www.albany.edu/arce/images/no-image.jpg';
   
   if (process.env.NODE_ENV === 'development') {
-    // Local development path using Python server
     return `http://localhost:8000/src/data/images/${imageName}`;
   }
-  // Production path
   return `https://www.albany.edu/arce/images/${imageName}`;
 };
 
-// Add this helper function before the BurialMap component
+/**
+ * Creates a marker for a tour point
+ * @param {string} tourKey - The key identifying the tour
+ * @returns {Function} A function that creates a Leaflet marker or circle marker
+ */
 const createTourMarker = (tourKey) => {
   const tourInfo = TOURS[tourKey];
   if (!tourInfo) return null;
@@ -544,22 +477,23 @@ const createTourMarker = (tourKey) => {
   };
 };
 
-// Helper function to create consistent popup content
+/**
+ * Creates HTML content for a tour point popup
+ * @param {Object} feature - The GeoJSON feature containing burial information
+ * @param {string} tourKey - The key identifying the tour
+ * @returns {string} HTML content for the popup
+ */
 const createTourPopupContent = (feature, tourKey) => {
   let content = `<dl class="popup-content">`;
   
-  // Add name
   content += `<dt><b>${feature.properties.Full_Name}</b></dt><hr>`;
   
-  // Add titles if available
   if (feature.properties.Titles) {
     content += `<dt>${feature.properties.Titles}</dt>`;
   }
   
-  // Add biography link text
   content += `<dt>(Click image to view detailed biography)</dt>`;
   
-  // Add image if available
   if (feature.properties.Bio_Portra && feature.properties.Bio_Portra !== "NONE") {
     content += `
       <dt>
@@ -578,26 +512,247 @@ const createTourPopupContent = (feature, tourKey) => {
   return content;
 };
 
+/**
+ * Enhanced search function that supports multiple search strategies
+ * @param {Array} options - Array of searchable burial records
+ * @param {string} searchInput - The user's search query
+ * @returns {Array} Filtered array of matching burial records
+ */
+const smartSearch = (options, searchInput) => {
+  const input = searchInput.toLowerCase().trim();
+  if (!input) return [];
+
+  // Year search (4 digits)
+  const yearPattern = /^\d{4}$/;
+  if (yearPattern.test(input)) {
+    return options.filter(option => 
+      (option.Birth && option.Birth.includes(input)) ||
+      (option.Death && option.Death.includes(input))
+    );
+  }
+
+  // Section search (e.g., "section 1" or "sec 1")
+  const sectionPattern = /^(section|sec)\s*([a-zA-Z0-9]+)$/i;
+  const sectionMatch = input.match(sectionPattern);
+  if (sectionMatch) {
+    const sectionQuery = sectionMatch[2];
+    return options.filter(option => 
+      option.Section && option.Section.toString().toLowerCase() === sectionQuery.toLowerCase()
+    );
+  }
+
+  // Lot search (e.g., "lot 123")
+  const lotPattern = /^lot\s*(\d+)$/i;
+  const lotMatch = input.match(lotPattern);
+  if (lotMatch) {
+    const lotQuery = lotMatch[1];
+    return options.filter(option => 
+      option.Lot && option.Lot.toString() === lotQuery
+    );
+  }
+
+  // Tour search by name (e.g., "notable tour", "civil war tour")
+  const tourPattern = /^(.*?)\s*tour$/i;
+  const tourMatch = input.match(tourPattern);
+  if (tourMatch) {
+    const tourQuery = tourMatch[1].toLowerCase();
+    return options.filter(option => {
+      if (!option.title) return false;
+      const tourName = TOURS[option.title]?.name.toLowerCase() || '';
+      return tourName.includes(tourQuery);
+    });
+  }
+
+  // Tour search by keyword
+  const tourKeywords = Object.values(TOURS).map(tour => tour.name.toLowerCase());
+  const matchesTour = tourKeywords.some(keyword => keyword.includes(input));
+  if (matchesTour) {
+    return options.filter(option => {
+      if (!option.title) return false;
+      const tourName = TOURS[option.title]?.name.toLowerCase() || '';
+      return tourName.includes(input);
+    });
+  }
+
+  // Numeric search (section, lot, or year)
+  const numberPattern = /^\d+$/;
+  if (numberPattern.test(input)) {
+    return options.filter(option => 
+      (option.Section && option.Section.toString() === input) ||
+      (option.Lot && option.Lot.toString() === input) ||
+      (option.Birth && option.Birth.includes(input)) ||
+      (option.Death && option.Death.includes(input))
+    );
+  }
+
+  // Default name search
+  return options.filter(option => {
+    const nameMatch = option.searchableLabel.toLowerCase().includes(input);
+    const tourMatch = option.title && TOURS[option.title]?.name.toLowerCase().includes(input);
+    return nameMatch || tourMatch;
+  });
+};
+
+//=============================================================================
+// Data Structures
+//=============================================================================
+
+/**
+ * Array of unique section numbers from the burial data
+ * Sorted numerically with special handling for section 100A
+ */
+const UNIQUE_SECTIONS = Array.from(new Set(geo_burials.features.map(f => f.properties.Section))).sort((a, b) => {
+  if (a === '100A') return 1;
+  if (b === '100A') return -1;
+  return a - b;
+});
+
+/**
+ * Tour data configuration with associated GeoJSON data
+ */
+const TOUR_DATA = [
+  { key: 'Lot7', data: Sec75_Headstones, name: "Soldier's Lot (Section 75, Lot 7)" },
+  { key: 'Sec49', data: Sec49_Headstones, name: "Section 49" },
+  { key: 'Notable', data: NotablesTour, name: "Notables Tour 2020" },
+  { key: 'Indep', data: IndependenceTour, name: "Independence Tour 2020" },
+  { key: 'Afr', data: AfricanAmericanTour, name: "African American Tour 2020" },
+  { key: 'Art', data: ArtistTour, name: "Artists Tour 2020" },
+  { key: 'Groups', data: AssociationsTour, name: "Associations, Societies, & Groups Tour 2020" },
+  { key: 'AuthPub', data: AuthorsTour, name: "Authors & Publishers Tour 2020" },
+  { key: 'Business', data: BusinessTour, name: "Business & Finance Tour 2020" },
+  { key: 'CivilWar', data: CivilWarTour, name: "Civil War Tour 2020" },
+  { key: 'Pillars', data: PillarsTour, name: "Pillars of Society Tour 2020" },
+  { key: 'MayorsOfAlbany', data: MayorsTour, name: "Mayors of Albany" },
+  { key: 'GAR', data: GARTour, name: "Grand Army of the Republic" }
+];
+
+/**
+ * Default style for burial markers
+ */
+const markerStyle = {
+  radius: 8,
+  fillColor: "#ff7800",
+  color: "#000",
+  weight: 1,
+  opacity: 1,
+  fillOpacity: 0.8
+};
+
+//=============================================================================
+// Tour Components
+//=============================================================================
+
+/**
+ * Component for filtering and selecting cemetery tours
+ */
+function TourFilter({ overlayMaps, setShowAllBurials, onTourSelect }) {
+  return (
+    <Autocomplete
+      options={TOUR_DATA}
+      getOptionLabel={(option) => option.name}
+      onChange={(event, newValue) => {
+        setShowAllBurials(true);
+        const tourName = newValue ? newValue.name : null;
+        onTourSelect(tourName);
+      }}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          label="Tour"
+          size="small"
+          fullWidth
+        />
+      )}
+      renderOption={(props, option) => (
+        <li {...props}>
+          <Box
+            component="span"
+            sx={{
+              width: 14,
+              height: 14,
+              mr: 1,
+              borderRadius: '50%',
+              backgroundColor: TOURS[option.key].color,
+              display: 'inline-block'
+            }}
+          />
+          {option.name}
+        </li>
+      )}
+    />
+  );
+}
+
+/**
+ * Component that manages the visibility of tour layers on the map
+ */
+function MapTourController({ selectedTour, overlayMaps }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (!map || !overlayMaps) return;
+
+    // Remove all tour layers first
+    TOUR_DATA.forEach(({ name }) => {
+      const layer = overlayMaps[name];
+      if (layer) {
+        map.removeLayer(layer);
+      }
+    });
+
+    // Add only the selected tour layer if it exists
+    if (selectedTour) {
+      const layer = overlayMaps[selectedTour];
+      if (layer) {
+        map.addLayer(layer);
+      }
+    }
+  }, [map, selectedTour, overlayMaps]);
+  
+  return null;
+}
+
+/**
+ * Creates event handlers for tour features
+ * @param {string} tourKey - The key identifying the tour
+ * @returns {Function} Event handler for the tour feature
+ */
+const createOnEachTourFeature = (tourKey) => (feature, layer) => {
+  if (feature.properties && feature.properties.Full_Name) {
+    const content = createTourPopupContent(feature, tourKey);
+    layer.bindPopup(content, {
+      maxWidth: 300,
+      className: 'custom-popup'
+    });
+    feature.properties.title = tourKey;
+  }
+};
+
+//=============================================================================
+// Main Map Component
+//=============================================================================
+
+/**
+ * Main component for the Albany Rural Cemetery interactive map
+ * Provides functionality for:
+ * - Searching and displaying burial locations
+ * - Filtering by section, lot, and tier
+ * - Displaying themed cemetery tours
+ * - Real-time location tracking
+ * - Turn-by-turn navigation to burial sites
+ */
 export default function BurialMap() {
-  // Move all state declarations inside the component
-  const [featuresLayer, setFeaturesLayer] = useState(null);
-  const [featuresLayer2, setFeaturesLayer2] = useState(null);
-  const [featuresLayer3, setFeaturesLayer3] = useState(null);
-  const [featuresLayer4, setFeaturesLayer4] = useState(null);
-  const [featuresLayer5, setFeaturesLayer5] = useState(null);
-  const [featuresLayer6, setFeaturesLayer6] = useState(null);
-  const [featuresLayer7, setFeaturesLayer7] = useState(null);
-  const [featuresLayer8, setFeaturesLayer8] = useState(null);
-  const [featuresLayer9, setFeaturesLayer9] = useState(null);
-  const [featuresLayer10, setFeaturesLayer10] = useState(null);
-  const [featuresLayer11, setFeaturesLayer11] = useState(null);
-  const [featuresLayer12, setFeaturesLayer12] = useState(null);
-  const [featuresLayer13, setFeaturesLayer13] = useState(null);
+  //-----------------------------------------------------------------------------
+  // State Management
+  //-----------------------------------------------------------------------------
+  
+  // Map and UI State
   const [overlayMaps, setOverlayMaps] = useState({});
-  const [dataLoaded, setDataLoaded] = useState(false);
-  const [lat, setLat] = useState(null);
-  const [lng, setLng] = useState(null);
-  const [status, setStatus] = useState('Find me');
+  const [currentZoom, setCurrentZoom] = useState(14);
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+  const [selectedTour, setSelectedTour] = useState(null);
+  
+  // Search and Filter State
   const [selectedBurials, setSelectedBurials] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [currentSelection, setCurrentSelection] = useState(null);
@@ -605,289 +760,26 @@ export default function BurialMap() {
   const [sectionFilter, setSectionFilter] = useState('');
   const [lotTierFilter, setLotTierFilter] = useState('');
   const [filterType, setFilterType] = useState('lot');
-  const [currentZoom, setCurrentZoom] = useState(14);
+  
+  // Location and Routing State
+  const [lat, setLat] = useState(null);
+  const [lng, setLng] = useState(null);
+  const [status, setStatus] = useState('Find me');
   const [routingDestination, setRoutingDestination] = useState(null);
   const [watchId, setWatchId] = useState(null);
-  const [hoveredIndex, setHoveredIndex] = useState(null);
-  const [hoveredMarker, setHoveredMarker] = useState(null);
-  const [selectedTour, setSelectedTour] = useState(null);
 
+  // Component References
   const { BaseLayer } = LayersControl;
   const markerClusterRef = useRef(null);
-  const markersRef = useRef(new Map());
 
-  // Define feature handlers
-  const onEachLot7Feature = useCallback((feature, layer) => {
-    if (feature.properties && feature.properties.Full_Name) {
-      const content = createTourPopupContent(feature, 'Lot7');
-      layer.bindPopup(content, {
-        maxWidth: 300,
-        className: 'custom-popup'
-      });
-      feature.properties.title = "Lot7";
-    }
-  }, []);
+  //-----------------------------------------------------------------------------
+  // Memoized Values
+  //-----------------------------------------------------------------------------
 
-  const onEachSec49Feature = useCallback((feature, layer) => {
-    if (feature.properties) {
-      const content = createTourPopupContent(feature, 'Sec49');
-      layer.bindPopup(content, {
-        maxWidth: 300,
-        className: 'custom-popup'
-      });
-      feature.properties.title = "Sec49";
-    }
-  }, []);
-
-  const onEachNotableFeature = useCallback((feature, layer) => {
-    if (feature.properties && feature.properties.Full_Name) {
-      const content = createTourPopupContent(feature, 'Notable');
-      layer.bindPopup(content, {
-        maxWidth: 300,
-        className: 'custom-popup'
-      });
-      feature.properties.title = "Notable";
-    }
-  }, []);
-
-  const onEachIndepFeature = useCallback((feature, layer) => {
-    if (feature.properties && feature.properties.Full_Name) {
-      const content = createTourPopupContent(feature, 'Indep');
-      layer.bindPopup(content, {
-        maxWidth: 300,
-        className: 'custom-popup'
-      });
-      feature.properties.title = "Indep";
-    }
-  }, []);
-
-  const onEachAAFeature = useCallback((feature, layer) => {
-    if (feature.properties && feature.properties.Full_Name) {
-      const content = createTourPopupContent(feature, 'Afr');
-      layer.bindPopup(content, {
-        maxWidth: 300,
-        className: 'custom-popup'
-      });
-      feature.properties.title = "Afr";
-    }
-  }, []);
-
-  const onEachArtistFeature = useCallback((feature, layer) => {
-    if (feature.properties && feature.properties.Full_Name) {
-      const content = createTourPopupContent(feature, 'Art');
-      layer.bindPopup(content, {
-        maxWidth: 300,
-        className: 'custom-popup'
-      });
-      feature.properties.title = "Art";
-    }
-  }, []);
-
-  const onEachAssociationFeature = useCallback((feature, layer) => {
-    if (feature.properties && feature.properties.Full_Name) {
-      const content = createTourPopupContent(feature, 'Groups');
-      layer.bindPopup(content, {
-        maxWidth: 300,
-        className: 'custom-popup'
-      });
-      feature.properties.title = "Groups";
-    }
-  }, []);
-
-  const onEachAuthorFeature = useCallback((feature, layer) => {
-    if (feature.properties && feature.properties.Full_Name) {
-      const content = createTourPopupContent(feature, 'AuthPub');
-      layer.bindPopup(content, {
-        maxWidth: 300,
-        className: 'custom-popup'
-      });
-      feature.properties.title = "AuthPub";
-    }
-  }, []);
-
-  const onEachBusinessFeature = useCallback((feature, layer) => {
-    if (feature.properties && feature.properties.Full_Name) {
-      const content = createTourPopupContent(feature, 'Business');
-      layer.bindPopup(content, {
-        maxWidth: 300,
-        className: 'custom-popup'
-      });
-      feature.properties.title = "Business";
-    }
-  }, []);
-
-  const onEachCivilWarFeature = useCallback((feature, layer) => {
-    if (feature.properties && feature.properties.Full_Name) {
-      const content = createTourPopupContent(feature, 'CivilWar');
-      layer.bindPopup(content, {
-        maxWidth: 300,
-        className: 'custom-popup'
-      });
-      feature.properties.title = "CivilWar";
-    }
-  }, []);
-
-  const onEachMayorFeature = useCallback((feature, layer) => {
-    if (feature.properties && feature.properties.Full_Name) {
-      const content = createTourPopupContent(feature, 'MayorsOfAlbany');
-      layer.bindPopup(content, {
-        maxWidth: 300,
-        className: 'custom-popup'
-      });
-      feature.properties.title = "MayorsOfAlbany";
-    }
-  }, []);
-
-  const onEachGARFeature = useCallback((feature, layer) => {
-    if (feature.properties && feature.properties.Full_Name) {
-      const content = createTourPopupContent(feature, 'GAR');
-      layer.bindPopup(content, {
-        maxWidth: 300,
-        className: 'custom-popup'
-      });
-      feature.properties.title = "GAR";
-    }
-  }, []);
-
-  const onEachPillarFeature = useCallback((feature, layer) => {
-    if (feature.properties && feature.properties.Full_Name) {
-      const content = createTourPopupContent(feature, 'Pillars');
-      layer.bindPopup(content, {
-        maxWidth: 300,
-        className: 'custom-popup'
-      });
-      feature.properties.title = "Pillars";
-    }
-  }, []);
-
-  const onEachSection = useCallback((feature, layer) => {
-    if (feature.properties && feature.properties.Section) {
-      layer.on('mouseover', () => {
-        layer.setStyle({ weight: 6 });
-      });
-      layer.on('mouseout', () => {
-        layer.setStyle({ weight: 2 });
-      });
-      const list = `<dl><dt><b>Section ${feature.properties.Section}</b></dt></dl>`;
-      layer.bindPopup(list);
-    }
-  }, []);
-
-  // Move useEffect for loading GeoJSON data inside component
-  useEffect(() => {
-    try {
-      // Create feature layers using imported data
-      const layers = {
-        lot7: L.geoJSON(Sec75_Headstones, { 
-          pointToLayer: createTourMarker('Lot7'),
-          onEachFeature: onEachLot7Feature 
-        }),
-        sec49: L.geoJSON(Sec49_Headstones, { 
-          pointToLayer: createTourMarker('Sec49'),
-          onEachFeature: onEachSec49Feature 
-        }),
-        notables: L.geoJSON(NotablesTour, { 
-          pointToLayer: createTourMarker('Notable'),
-          onEachFeature: onEachNotableFeature 
-        }),
-        independence: L.geoJSON(IndependenceTour, { 
-          pointToLayer: createTourMarker('Indep'),
-          onEachFeature: onEachIndepFeature 
-        }),
-        africanAmerican: L.geoJSON(AfricanAmericanTour, { 
-          pointToLayer: createTourMarker('Afr'),
-          onEachFeature: onEachAAFeature 
-        }),
-        artist: L.geoJSON(ArtistTour, { 
-          pointToLayer: createTourMarker('Art'),
-          onEachFeature: onEachArtistFeature 
-        }),
-        associations: L.geoJSON(AssociationsTour, { 
-          pointToLayer: createTourMarker('Groups'),
-          onEachFeature: onEachAssociationFeature 
-        }),
-        authors: L.geoJSON(AuthorsTour, { 
-          pointToLayer: createTourMarker('AuthPub'),
-          onEachFeature: onEachAuthorFeature 
-        }),
-        business: L.geoJSON(BusinessTour, { 
-          pointToLayer: createTourMarker('Business'),
-          onEachFeature: onEachBusinessFeature 
-        }),
-        civilWar: L.geoJSON(CivilWarTour, { 
-          pointToLayer: createTourMarker('CivilWar'),
-          onEachFeature: onEachCivilWarFeature 
-        }),
-        pillars: L.geoJSON(PillarsTour, { 
-          pointToLayer: createTourMarker('Pillars'),
-          onEachFeature: onEachPillarFeature 
-        }),
-        mayors: L.geoJSON(MayorsTour, { 
-          pointToLayer: createTourMarker('MayorsOfAlbany'),
-          onEachFeature: onEachMayorFeature 
-        }),
-        gar: L.geoJSON(GARTour, { 
-          pointToLayer: createTourMarker('GAR'),
-          onEachFeature: onEachGARFeature 
-        }),
-        boundary: L.geoJSON(ARC_Boundary, { style: exteriorStyle }),
-        roads: L.geoJSON(ARC_Roads, { style: roadStyle }),
-        sections: L.geoJSON(ARC_Sections, { onEachFeature: onEachSection })
-      };
-
-      // Set feature layers
-      setFeaturesLayer(layers.lot7);
-      setFeaturesLayer2(layers.sec49);
-      setFeaturesLayer3(layers.notables);
-      setFeaturesLayer4(layers.independence);
-      setFeaturesLayer5(layers.africanAmerican);
-      setFeaturesLayer6(layers.artist);
-      setFeaturesLayer7(layers.associations);
-      setFeaturesLayer8(layers.authors);
-      setFeaturesLayer9(layers.business);
-      setFeaturesLayer10(layers.civilWar);
-      setFeaturesLayer11(layers.pillars);
-      setFeaturesLayer12(layers.mayors);
-      setFeaturesLayer13(layers.gar);
-
-      // Create overlay maps
-      const newOverlayMaps = {
-        "Soldier's Lot (Section 75, Lot 7)": layers.lot7,
-        "Section 49": layers.sec49,
-        "Notables Tour 2020": layers.notables,
-        "Independence Tour 2020": layers.independence,
-        "African American Tour 2020": layers.africanAmerican,
-        "Artists Tour 2020": layers.artist,
-        "Associations, Societies, & Groups Tour 2020": layers.associations,
-        "Authors & Publishers Tour 2020": layers.authors,
-        "Business & Finance Tour 2020": layers.business,
-        "Civil War Tour 2020": layers.civilWar,
-        "Pillars of Society Tour 2020": layers.pillars,
-        "Mayors of Albany": layers.mayors,
-        "Grand Army of the Republic": layers.gar,
-        "Albany Rural Cemetery Boundary": layers.boundary,
-        "Albany Rural Cemetery Roads": layers.roads,
-        "Section Boundaries": layers.sections
-      };
-
-      setOverlayMaps(newOverlayMaps);
-      setDataLoaded(true);
-    } catch (error) {
-      console.error('Error loading GeoJSON data:', error);
-    }
-  }, [onEachLot7Feature, onEachSec49Feature, onEachNotableFeature, onEachIndepFeature, 
-      onEachAAFeature, onEachArtistFeature, onEachAssociationFeature, onEachAuthorFeature,
-      onEachBusinessFeature, onEachCivilWarFeature, onEachPillarFeature, onEachMayorFeature,
-      onEachGARFeature, onEachSection]);
-
-  // Adjust zoom levels
-  const ZOOM_LEVELS = {
-    SECTION: 16,    // Show section info
-    CLUSTER: 17,    // Show clusters
-    INDIVIDUAL: 20  // Show individual markers
-  };
-
-  // Create searchable options from burial data with enhanced search capabilities
+  /**
+   * Create searchable options from burial data
+   * Includes name, section, lot, and tour information
+   */
   const searchOptions = useMemo(() => 
     geo_burials.features.map(feature => ({
       label: `${feature.properties.First_Name} ${feature.properties.Last_Name}`,
@@ -898,19 +790,19 @@ export default function BurialMap() {
     })).filter(option => option.First_Name || option.Last_Name)
   , []);
 
-  // Filter burials based on section/lot/tier
+  /**
+   * Filter burials based on section/lot/tier criteria
+   */
   const filteredBurials = useMemo(() => {
     if (!showAllBurials || !sectionFilter) return [];
     
     return geo_burials.features.filter(feature => {
       const props = feature.properties;
       
-      // Always require a section filter
       if (props.Section !== sectionFilter) {
         return false;
       }
       
-      // Apply lot/tier filter if present
       if (lotTierFilter) {
         if (filterType === 'lot' && props.Lot !== lotTierFilter) {
           return false;
@@ -927,14 +819,20 @@ export default function BurialMap() {
     }));
   }, [showAllBurials, sectionFilter, lotTierFilter, filterType]);
 
-  // Update location tracking to be live
+  //-----------------------------------------------------------------------------
+  // Event Handlers
+  //-----------------------------------------------------------------------------
+
+  /**
+   * Handles user location tracking
+   * Checks if user is within 5 miles of the cemetery
+   */
   const onLocateMarker = () => {
     if (!navigator.geolocation) {
       setStatus('Geolocation is not supported by your browser');
       return;
     }
 
-    // Clear any existing watch
     if (watchId) {
       navigator.geolocation.clearWatch(watchId);
     }
@@ -970,109 +868,29 @@ export default function BurialMap() {
     setWatchId(id);
   };
 
-  // Cleanup geolocation watch on unmount
-  useEffect(() => {
-    return () => {
-      if (watchId) {
-        navigator.geolocation.clearWatch(watchId);
+  /**
+   * Handles adding a burial to the search results
+   */
+  const addToResults = useCallback((burial) => {
+    if (burial && !selectedBurials.some(b => b.OBJECTID === burial.OBJECTID)) {
+      setSelectedBurials(prev => [...prev, burial]);
+      setCurrentSelection(null);
+      setInputValue('');
+      
+      if (window.mapInstance) {
+        window.mapInstance.panTo([burial.coordinates[1], burial.coordinates[0]], {
+          duration: 1.5
+        });
       }
-    };
-  }, [watchId]);
-
-  // Function to start routing to a burial
-  const startRouting = (burial) => {
-    if (!lat || !lng) {
-      setStatus('Please enable location tracking first');
-      return;
     }
-    setRoutingDestination([burial.coordinates[1], burial.coordinates[0]]);
-  };
+  }, [selectedBurials]);
 
-  // Function to stop routing
-  const stopRouting = () => {
-    setRoutingDestination(null);
-  };
-
-  // Enhance the smart search function to include tour searches
-  const smartSearch = (options, searchInput) => {
-    const input = searchInput.toLowerCase().trim();
-    if (!input) return [];
-
-    // Check if input is a year (4 digits)
-    const yearPattern = /^\d{4}$/;
-    if (yearPattern.test(input)) {
-      return options.filter(option => 
-        (option.Birth && option.Birth.includes(input)) ||
-        (option.Death && option.Death.includes(input))
-      );
-    }
-
-    // Check if input is looking for section (e.g., "section 1" or "sec 1")
-    const sectionPattern = /^(section|sec)\s*([a-zA-Z0-9]+)$/i;
-    const sectionMatch = input.match(sectionPattern);
-    if (sectionMatch) {
-      const sectionQuery = sectionMatch[2];
-      return options.filter(option => 
-        option.Section && option.Section.toString().toLowerCase() === sectionQuery.toLowerCase()
-      );
-    }
-
-    // Check if input is looking for lot (e.g., "lot 123")
-    const lotPattern = /^lot\s*(\d+)$/i;
-    const lotMatch = input.match(lotPattern);
-    if (lotMatch) {
-      const lotQuery = lotMatch[1];
-      return options.filter(option => 
-        option.Lot && option.Lot.toString() === lotQuery
-      );
-    }
-
-    // Check if input is looking for a tour (e.g., "notable tour", "civil war tour", etc.)
-    const tourPattern = /^(.*?)\s*tour$/i;
-    const tourMatch = input.match(tourPattern);
-    if (tourMatch) {
-      const tourQuery = tourMatch[1].toLowerCase();
-      return options.filter(option => {
-        if (!option.title) return false;
-        const tourName = TOURS[option.title]?.name.toLowerCase() || '';
-        return tourName.includes(tourQuery);
-      });
-    }
-
-    // Check if input matches any tour keywords
-    const tourKeywords = Object.values(TOURS).map(tour => tour.name.toLowerCase());
-    const matchesTour = tourKeywords.some(keyword => keyword.includes(input));
-    if (matchesTour) {
-      return options.filter(option => {
-        if (!option.title) return false;
-        const tourName = TOURS[option.title]?.name.toLowerCase() || '';
-        return tourName.includes(input);
-      });
-    }
-
-    // Check if input is just a number (assume it could be section, lot, or year)
-    const numberPattern = /^\d+$/;
-    if (numberPattern.test(input)) {
-      return options.filter(option => 
-        (option.Section && option.Section.toString() === input) ||
-        (option.Lot && option.Lot.toString() === input) ||
-        (option.Birth && option.Birth.includes(input)) ||
-        (option.Death && option.Death.includes(input))
-      );
-    }
-
-    // Default: search by name and tour information
-    return options.filter(option => {
-      const nameMatch = option.searchableLabel.toLowerCase().includes(input);
-      const tourMatch = option.title && TOURS[option.title]?.name.toLowerCase().includes(input);
-      return nameMatch || tourMatch;
-    });
-  };
-
-  const handleSearch = (event, value) => {
+  /**
+   * Handles search input and selection
+   */
+  const handleSearch = useCallback((event, value) => {
     if (value) {
       if (typeof value === 'string') {
-        // If it's a string, find the matching burial
         const matches = smartSearch(searchOptions, value);
         if (matches.length > 0) {
           addToResults(matches[0]);
@@ -1081,34 +899,28 @@ export default function BurialMap() {
         addToResults(value);
       }
     }
-  };
+  }, [searchOptions, addToResults]);
 
-  const addToResults = (burial) => {
-    if (burial && !selectedBurials.some(b => b.OBJECTID === burial.OBJECTID)) {
-      setSelectedBurials(prev => [...prev, burial]);
-      setCurrentSelection(null);
-      setInputValue('');
-      
-      // Only pan to location when adding
-      if (window.mapInstance) {
-        window.mapInstance.panTo([burial.coordinates[1], burial.coordinates[0]], {
-          duration: 1.5
-        });
-      }
-    }
-  };
-
-  const removeFromResults = (objectId) => {
+  /**
+   * Removes a burial from search results
+   */
+  const removeFromResults = useCallback((objectId) => {
     setSelectedBurials(prev => prev.filter(burial => burial.OBJECTID !== objectId));
-  };
+  }, []);
 
-  const clearSearch = () => {
+  /**
+   * Clears all search results
+   */
+  const clearSearch = useCallback(() => {
     setSelectedBurials([]);
     setInputValue('');
     setCurrentSelection(null);
-  };
+  }, []);
 
-  const handleResultClick = (burial, index) => {
+  /**
+   * Handles clicking on a search result item
+   */
+  const handleResultClick = useCallback((burial, index) => {
     if (window.mapInstance) {
       const map = window.mapInstance;
       map.flyTo(
@@ -1120,50 +932,72 @@ export default function BurialMap() {
         }
       );
     }
-  };
+  }, []);
 
-  const handleMarkerClick = (burial, index) => {
+  /**
+   * Handles clicking on a marker
+   */
+  const handleMarkerClick = useCallback((burial, index) => {
     if (window.mapInstance) {
       const map = window.mapInstance;
-      // Just pan for marker clicks
       map.panTo([burial.coordinates[1], burial.coordinates[0]], {
         duration: 1.5
       });
     }
-  };
-const createClusterGroup = useCallback(() => {
-  return L.markerClusterGroup({
-    maxClusterRadius: 70,
-    disableClusteringAtZoom: 21,
-    spiderfyOnMaxZoom: false,
-    removeOutsideVisibleBounds: true,
-    chunkedLoading: true,
-    chunkInterval: 200,
-    chunkDelay: 50,
-    iconCreateFunction: (cluster) => {
-      const count = cluster.getChildCount();
-      return L.divIcon({
-        html: `<div style="
-          background-color: rgba(0,123,255,0.6);
-          border: none;
-          border-radius: 50%;
-          width: 30px;
-          height: 30px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-size: 14px;
-        ">${count}</div>`,
-        className: 'custom-cluster-icon',
-        iconSize: [30, 30]
-      });
-    }
-  });
-}, []);
+  }, []);
 
+  /**
+   * Creates a marker cluster group with custom styling
+   */
+  const createClusterGroup = useCallback(() => {
+    return L.markerClusterGroup({
+      maxClusterRadius: 70,
+      disableClusteringAtZoom: 21,
+      spiderfyOnMaxZoom: false,
+      removeOutsideVisibleBounds: true,
+      chunkedLoading: true,
+      chunkInterval: 200,
+      chunkDelay: 50,
+      iconCreateFunction: (cluster) => {
+        const count = cluster.getChildCount();
+        return L.divIcon({
+          html: `<div style="
+            background-color: rgba(0,123,255,0.6);
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+          ">${count}</div>`,
+          className: 'custom-cluster-icon',
+          iconSize: [30, 30]
+        });
+      }
+    });
+  }, []);
 
-  // Add CSS styles for markers and clusters
+  //-----------------------------------------------------------------------------
+  // Effects
+  //-----------------------------------------------------------------------------
+
+  /**
+   * Cleanup geolocation watch on unmount
+   */
+  useEffect(() => {
+    return () => {
+      if (watchId) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [watchId]);
+
+  /**
+   * Add custom CSS styles for markers and clusters
+   */
   useEffect(() => {
     const style = document.createElement('style');
     style.textContent = `
@@ -1226,7 +1060,9 @@ const createClusterGroup = useCallback(() => {
     };
   }, []);
 
-  // Update filtered burials marker creation
+  /**
+   * Update filtered burials marker display
+   */
   useEffect(() => {
     if (!window.mapInstance || !showAllBurials || !sectionFilter) return;
 
@@ -1273,13 +1109,14 @@ const createClusterGroup = useCallback(() => {
     };
   }, [filteredBurials, showAllBurials, sectionFilter, createClusterGroup]);
 
-  // Handle map zoom changes
+  /**
+   * Handle map zoom changes
+   */
   const handleZoomEnd = useCallback((e) => {
     const map = e.target;
     setCurrentZoom(map.getZoom());
   }, []);
 
-  // Add zoom handler to map
   useEffect(() => {
     if (!window.mapInstance) return;
     
@@ -1290,9 +1127,103 @@ const createClusterGroup = useCallback(() => {
     };
   }, [handleZoomEnd]);
 
+  /**
+   * Handle tour selection
+   */
   const handleTourSelect = useCallback((tourName) => {
     setSelectedTour(tourName);
   }, []);
+
+  //=============================================================================
+  // Routing Functions
+  //=============================================================================
+
+  /**
+   * Starts turn-by-turn navigation to a burial location
+   * @param {Object} burial - The burial record to navigate to
+   */
+  const startRouting = (burial) => {
+    if (!lat || !lng) {
+      setStatus('Please enable location tracking first');
+      return;
+    }
+    setRoutingDestination([burial.coordinates[1], burial.coordinates[0]]);
+  };
+
+  /**
+   * Stops the current navigation
+   */
+  const stopRouting = () => {
+    setRoutingDestination(null);
+  };
+
+  //=============================================================================
+  // Map Layer Management
+  //=============================================================================
+
+  /**
+   * Callback for handling section layer interactions
+   */
+  const onEachSection = useCallback((feature, layer) => {
+    if (feature.properties && feature.properties.Section) {
+      layer.on('mouseover', () => {
+        layer.setStyle({ weight: 6 });
+      });
+      layer.on('mouseout', () => {
+        layer.setStyle({ weight: 2 });
+      });
+      const list = `<dl><dt><b>Section ${feature.properties.Section}</b></dt></dl>`;
+      layer.bindPopup(list);
+    }
+  }, []);
+
+  /**
+   * Create callbacks for tour feature interactions
+   */
+  const tourCallbacks = useMemo(() => {
+    return TOUR_DATA.reduce((acc, { key }) => {
+      acc[key] = createOnEachTourFeature(key);
+      return acc;
+    }, {});
+  }, []);
+
+  /**
+   * Initialize GeoJSON layers and overlay maps
+   */
+  useEffect(() => {
+    try {
+      // Create tour layers
+      const newTourLayers = TOUR_DATA.reduce((acc, { key, data }) => {
+        acc[key] = L.geoJSON(data, {
+          pointToLayer: createTourMarker(key),
+          onEachFeature: tourCallbacks[key]
+        });
+        return acc;
+      }, {});
+
+      // Create base layers
+      const otherLayers = {
+        boundary: L.geoJSON(ARC_Boundary, { style: exteriorStyle }),
+        roads: L.geoJSON(ARC_Roads, { style: roadStyle }),
+        sections: L.geoJSON(ARC_Sections, { onEachFeature: onEachSection })
+      };
+
+      // Combine all layers
+      const newOverlayMaps = {
+        ...TOUR_DATA.reduce((acc, { key, name }) => {
+          acc[name] = newTourLayers[key];
+          return acc;
+        }, {}),
+        "Albany Rural Cemetery Boundary": otherLayers.boundary,
+        "Albany Rural Cemetery Roads": otherLayers.roads,
+        "Section Boundaries": otherLayers.sections
+      };
+
+      setOverlayMaps(newOverlayMaps);
+    } catch (error) {
+      console.error('Error loading GeoJSON data:', error);
+    }
+  }, [tourCallbacks, onEachSection]);
 
   return (
     <div className="map-container">
@@ -1685,19 +1616,18 @@ const createClusterGroup = useCallback(() => {
                   
                   layer.on({
                     click: (e) => {
-                      // Only handle section click if we didn't click a marker
-                      if (!hoveredMarker) {
-                        setSectionFilter(feature.properties.Section);
-                        if (!showAllBurials) {
-                          setShowAllBurials(true);
-                        }
-                        // Zoom to section bounds with lower max zoom
-                        const bounds = layer.getBounds();
-                        window.mapInstance.fitBounds(bounds, {
-                          padding: [50, 50],
-                          maxZoom: 17  // Reduced from ZOOM_LEVELS.CLUSTER
-                        });
+                      // Only handle section click without checking hoveredMarker
+                      setSectionFilter(feature.properties.Section);
+                      if (!showAllBurials) {
+                        setShowAllBurials(true);
                       }
+                      // Zoom to section bounds with lower max zoom
+                      const bounds = layer.getBounds();
+                      window.mapInstance.fitBounds(bounds, {
+                        padding: [50, 50],
+                        maxZoom: 17  // Reduced from ZOOM_LEVELS.CLUSTER
+                      });
+                      
                       // Prevent event from propagating
                       L.DomEvent.stopPropagation(e);
                     },
@@ -1755,8 +1685,6 @@ const createClusterGroup = useCallback(() => {
               to={routingDestination}
             />
           )}
-          
- 
           
           {/* Search Result Markers - Always on top */}
           {selectedBurials.map((burial, index) => (
