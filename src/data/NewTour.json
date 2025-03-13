@@ -12,20 +12,20 @@
             "type": "Feature",
             "properties": {
                 "OBJECTID": 1,
-                "First_name": "Saint",
-                "Last_Name": "Patrick",
+                "First_name": "YOURNAMEHERE",
+                "Last_Name": "YOURNAMEHERE",
                 "ARC_Secton": 69,
                 "ARCPvt_Pub": 1,
                 "ARC_Lot": 420.0,
-                "Full_Name": "Saint Patrick",
-                "Titles": "BEEERS",
+                "Full_Name": "YOURNAMEHERE YOURNAMEHERE",
+                "Titles": "YOURNAMEHERE",
                 "Birth": "1811\/09\/12",
                 "Death": "1898\/08\/07",
                 "Tour_ID": 1,
-                "Tour_Bio": "BEERS",
+                "Tour_Bio": "YOURNAMEHERE",
                 "Tour_Name": "NO",
                 "Bio_Done": "Y",
-                "Bio_Portra": "StPatty.jpg"
+                "Bio_Portra": "YOURNAMEHERE.jpg"
             },
             "geometry": {
                 "type": "Point",
