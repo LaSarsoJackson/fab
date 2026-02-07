@@ -1,44 +1,72 @@
-# Albany Rural Cemetery Burial Locator
+# Albany Rural Cemetery Burial Finder (`fab`)
 
-An interactive web application for locating and navigating to burial sites at Albany Rural Cemetery.
-Hosted at https://www.albany.edu/arce/Burial_Locator/ (not always up to date) and https://lasarsojackson.github.io/fab/ (live)
+Installable map-first PWA for finding burials, touring sites, and navigating on location at Albany Rural Cemetery.
 
-## Features
+Live target: [https://lasarsojackson.github.io/fab/](https://lasarsojackson.github.io/fab/)  
+Legacy reference: [https://www.albany.edu/arce/](https://www.albany.edu/arce/)
 
-- Interactive map with multiple layers including:
-  - Cemetery sections with labels
-  - Roads and pathways
-  - Cemetery boundary
-  - All burial locations
-- Search functionality for finding burials by:
-  - Name
-  - Section
-  - Lot/Tier
-  - Year (birth/death)
-- Live location tracking within cemetery grounds
-- Turn-by-turn walking directions to burial sites using GraphHopper routing API
-- Clustered markers for improved performance
-- Responsive design for mobile and desktop use
+## Modernization status
 
-## Technical Details
+- Bun-first package management (`bun.lock`, `packageManager: bun@1.3.8`)
+- npm fallback stabilized (`.npmrc` sets `legacy-peer-deps=true`)
+- Async loading of the 97k-record burial dataset
+- Deferred, indexed search model for faster query response
+- Utility extraction for core business logic:
+  - `src/lib/burialSearch.js`
+  - `src/lib/urlState.js`
+- PWA shell + install/offline indicators + deep links
 
-- Built with React and Leaflet for mapping functionality
-- Uses GraphHopper API for pedestrian routing
-- Implements marker clustering for handling large datasets
-- Material-UI components for modern UI elements
+## Deep links
 
-Local python dev server will deploy on port 8000 unless NODE_ENV is set to production. 
+- `?view=burials`
+- `?view=tours`
+- `?section=<value>`
+- `?tour=<name fragment>`
+- `?q=<search text>`
 
-## Getting Started
+## Content alignment with ARCE legacy site
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+See: `docs/arce-content-upgrade-plan.md`
 
-### Prerequisites
+## Prerequisites
 
-- Node.js and npm installed
-- GraphHopper API key (set as REACT_APP_GRAPHHOPPER_API_KEY in .env)
+- Bun `>= 1.3`
+- Node `>= 20` (see `.nvmrc`)
+- Optional GraphHopper key in `.env`:
+  - `REACT_APP_GRAPHHOPPER_API_KEY=...`
 
-### Installation
+## Install
 
-1. Clone the repository
-2. Install dependencies:
+```bash
+bun install
+```
+
+npm fallback:
+
+```bash
+npm install
+```
+
+## Run
+
+```bash
+bun run start
+```
+
+## Test
+
+```bash
+bun test
+```
+
+## Build
+
+```bash
+bun run build
+```
+
+## Deploy (GitHub Pages)
+
+```bash
+bun run deploy
+```

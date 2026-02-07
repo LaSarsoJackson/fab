@@ -31,7 +31,7 @@ import { BasemapLayer } from 'react-esri-leaflet';  // ESRI basemap integration
 import { 
   Autocomplete, TextField, Paper, InputAdornment, IconButton,
   List, ListItem, ListItemText, Divider, Box, Typography,
-  ButtonGroup, Button 
+  ButtonGroup, Button, CircularProgress, Chip
 } from '@mui/material';
 import PinDropIcon from '@mui/icons-material/PinDrop';
 import SearchIcon from '@mui/icons-material/Search';
@@ -39,27 +39,15 @@ import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import HomeIcon from '@mui/icons-material/Home';
+import InstallMobileIcon from '@mui/icons-material/InstallMobile';
+import WifiOffIcon from '@mui/icons-material/WifiOff';
 
 // Local Data and Styles
-import geo_burials from "./data/Geo_Burials.json";
 import ARC_Roads from "./data/ARC_Roads.json";
 import ARC_Boundary from "./data/ARC_Boundary.json";
 import ARC_Sections from "./data/ARC_Sections.json";
-import Sec75_Headstones from "./data/Projected_Sec75_Headstones.json";
-import Sec49_Headstones from "./data/Projected_Sec49_Headstones.json";
-
-// Tour Data Imports
-import NotablesTour from "./data/NotablesTour20.json";
-import IndependenceTour from "./data/IndependenceTour20.json";
-import AfricanAmericanTour from "./data/AfricanAmericanTour20.json";
-import ArtistTour from "./data/ArtistTour20.json";
-import AssociationsTour from "./data/AssociationsTour20.json";
-import AuthorsTour from "./data/AuthorsPublishersTour20.json";
-import BusinessTour from "./data/BusinessFinanceTour20.json";
-import CivilWarTour from "./data/CivilWarTour20.json";
-import PillarsTour from "./data/SocietyPillarsTour20.json";
-import MayorsTour from "./data/AlbanyMayors_fixed.json";
-import GARTour from "./data/GAR_fixed.json";
+import { buildSearchIndex, smartSearch, sortSectionValues } from "./lib/burialSearch";
+import { parseDeepLinkState } from "./lib/urlState";
 
 //=============================================================================
 // Constants and Configuration
@@ -512,118 +500,27 @@ const createTourPopupContent = (feature, tourKey) => {
   return content;
 };
 
-/**
- * Enhanced search function that supports multiple search strategies
- * @param {Array} options - Array of searchable burial records
- * @param {string} searchInput - The user's search query
- * @returns {Array} Filtered array of matching burial records
- */
-const smartSearch = (options, searchInput) => {
-  const input = searchInput.toLowerCase().trim();
-  if (!input) return [];
-
-  // Year search (4 digits)
-  const yearPattern = /^\d{4}$/;
-  if (yearPattern.test(input)) {
-    return options.filter(option => 
-      (option.Birth && option.Birth.includes(input)) ||
-      (option.Death && option.Death.includes(input))
-    );
-  }
-
-  // Section search (e.g., "section 1" or "sec 1")
-  const sectionPattern = /^(section|sec)\s*([a-zA-Z0-9]+)$/i;
-  const sectionMatch = input.match(sectionPattern);
-  if (sectionMatch) {
-    const sectionQuery = sectionMatch[2];
-    return options.filter(option => 
-      option.Section && option.Section.toString().toLowerCase() === sectionQuery.toLowerCase()
-    );
-  }
-
-  // Lot search (e.g., "lot 123")
-  const lotPattern = /^lot\s*(\d+)$/i;
-  const lotMatch = input.match(lotPattern);
-  if (lotMatch) {
-    const lotQuery = lotMatch[1];
-    return options.filter(option => 
-      option.Lot && option.Lot.toString() === lotQuery
-    );
-  }
-
-  // Tour search by name (e.g., "notable tour", "civil war tour")
-  const tourPattern = /^(.*?)\s*tour$/i;
-  const tourMatch = input.match(tourPattern);
-  if (tourMatch) {
-    const tourQuery = tourMatch[1].toLowerCase();
-    return options.filter(option => {
-      if (!option.title) return false;
-      const tourName = TOURS[option.title]?.name.toLowerCase() || '';
-      return tourName.includes(tourQuery);
-    });
-  }
-
-  // Tour search by keyword
-  const tourKeywords = Object.values(TOURS).map(tour => tour.name.toLowerCase());
-  const matchesTour = tourKeywords.some(keyword => keyword.includes(input));
-  if (matchesTour) {
-    return options.filter(option => {
-      if (!option.title) return false;
-      const tourName = TOURS[option.title]?.name.toLowerCase() || '';
-      return tourName.includes(input);
-    });
-  }
-
-  // Numeric search (section, lot, or year)
-  const numberPattern = /^\d+$/;
-  if (numberPattern.test(input)) {
-    return options.filter(option => 
-      (option.Section && option.Section.toString() === input) ||
-      (option.Lot && option.Lot.toString() === input) ||
-      (option.Birth && option.Birth.includes(input)) ||
-      (option.Death && option.Death.includes(input))
-    );
-  }
-
-  // Default name search
-  return options.filter(option => {
-    const nameMatch = option.searchableLabel.toLowerCase().includes(input);
-    const tourMatch = option.title && TOURS[option.title]?.name.toLowerCase().includes(input);
-    return nameMatch || tourMatch;
-  });
-};
-
 //=============================================================================
 // Data Structures
 //=============================================================================
 
 /**
- * Array of unique section numbers from the burial data
- * Sorted numerically with special handling for section 100A
- */
-const UNIQUE_SECTIONS = Array.from(new Set(geo_burials.features.map(f => f.properties.Section))).sort((a, b) => {
-  if (a === '100A') return 1;
-  if (b === '100A') return -1;
-  return a - b;
-});
-
-/**
  * Tour data configuration with associated GeoJSON data
  */
-const TOUR_DATA = [
-  { key: 'Lot7', data: Sec75_Headstones, name: "Soldier's Lot (Section 75, Lot 7)" },
-  { key: 'Sec49', data: Sec49_Headstones, name: "Section 49" },
-  { key: 'Notable', data: NotablesTour, name: "Notables Tour 2020" },
-  { key: 'Indep', data: IndependenceTour, name: "Independence Tour 2020" },
-  { key: 'Afr', data: AfricanAmericanTour, name: "African American Tour 2020" },
-  { key: 'Art', data: ArtistTour, name: "Artists Tour 2020" },
-  { key: 'Groups', data: AssociationsTour, name: "Associations, Societies, & Groups Tour 2020" },
-  { key: 'AuthPub', data: AuthorsTour, name: "Authors & Publishers Tour 2020" },
-  { key: 'Business', data: BusinessTour, name: "Business & Finance Tour 2020" },
-  { key: 'CivilWar', data: CivilWarTour, name: "Civil War Tour 2020" },
-  { key: 'Pillars', data: PillarsTour, name: "Pillars of Society Tour 2020" },
-  { key: 'MayorsOfAlbany', data: MayorsTour, name: "Mayors of Albany" },
-  { key: 'GAR', data: GARTour, name: "Grand Army of the Republic" }
+const TOUR_DEFINITIONS = [
+  { key: 'Lot7', name: "Soldier's Lot (Section 75, Lot 7)", load: () => import("./data/Projected_Sec75_Headstones.json") },
+  { key: 'Sec49', name: "Section 49", load: () => import("./data/Projected_Sec49_Headstones.json") },
+  { key: 'Notable', name: "Notables Tour 2020", load: () => import("./data/NotablesTour20.json") },
+  { key: 'Indep', name: "Independence Tour 2020", load: () => import("./data/IndependenceTour20.json") },
+  { key: 'Afr', name: "African American Tour 2020", load: () => import("./data/AfricanAmericanTour20.json") },
+  { key: 'Art', name: "Artists Tour 2020", load: () => import("./data/ArtistTour20.json") },
+  { key: 'Groups', name: "Associations, Societies, & Groups Tour 2020", load: () => import("./data/AssociationsTour20.json") },
+  { key: 'AuthPub', name: "Authors & Publishers Tour 2020", load: () => import("./data/AuthorsPublishersTour20.json") },
+  { key: 'Business', name: "Business & Finance Tour 2020", load: () => import("./data/BusinessFinanceTour20.json") },
+  { key: 'CivilWar', name: "Civil War Tour 2020", load: () => import("./data/CivilWarTour20.json") },
+  { key: 'Pillars', name: "Pillars of Society Tour 2020", load: () => import("./data/SocietyPillarsTour20.json") },
+  { key: 'MayorsOfAlbany', name: "Mayors of Albany", load: () => import("./data/AlbanyMayors_fixed.json") },
+  { key: 'GAR', name: "Grand Army of the Republic", load: () => import("./data/GAR_fixed.json") }
 ];
 
 /**
@@ -645,10 +542,10 @@ const markerStyle = {
 /**
  * Component for filtering and selecting cemetery tours
  */
-function TourFilter({ overlayMaps, setShowAllBurials, onTourSelect }) {
+function TourFilter({ setShowAllBurials, onTourSelect }) {
   return (
     <Autocomplete
-      options={TOUR_DATA}
+      options={TOUR_DEFINITIONS}
       getOptionLabel={(option) => option.name}
       onChange={(event, newValue) => {
         setShowAllBurials(true);
@@ -686,14 +583,14 @@ function TourFilter({ overlayMaps, setShowAllBurials, onTourSelect }) {
 /**
  * Component that manages the visibility of tour layers on the map
  */
-function MapTourController({ selectedTour, overlayMaps }) {
+function MapTourController({ selectedTour, overlayMaps, tourNames }) {
   const map = useMap();
   
   useEffect(() => {
     if (!map || !overlayMaps) return;
 
     // Remove all tour layers first
-    TOUR_DATA.forEach(({ name }) => {
+    tourNames.forEach((name) => {
       const layer = overlayMaps[name];
       if (layer) {
         map.removeLayer(layer);
@@ -707,7 +604,7 @@ function MapTourController({ selectedTour, overlayMaps }) {
         map.addLayer(layer);
       }
     }
-  }, [map, selectedTour, overlayMaps]);
+  }, [map, selectedTour, overlayMaps, tourNames]);
   
   return null;
 }
@@ -760,6 +657,16 @@ export default function BurialMap() {
   const [sectionFilter, setSectionFilter] = useState('');
   const [lotTierFilter, setLotTierFilter] = useState('');
   const [filterType, setFilterType] = useState('lot');
+  const [burialFeatures, setBurialFeatures] = useState([]);
+  const [isBurialDataLoading, setIsBurialDataLoading] = useState(true);
+  const [burialDataError, setBurialDataError] = useState('');
+  const [tourLayerError, setTourLayerError] = useState('');
+  const [loadingTourName, setLoadingTourName] = useState('');
+  const [searchIndex, setSearchIndex] = useState(null);
+  const [isSearchIndexReady, setIsSearchIndexReady] = useState(false);
+  const [installPromptEvent, setInstallPromptEvent] = useState(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
   
   // Location and Routing State
   const [lat, setLat] = useState(null);
@@ -771,24 +678,55 @@ export default function BurialMap() {
   // Component References
   const { BaseLayer } = LayersControl;
   const markerClusterRef = useRef(null);
+  const didApplyUrlStateRef = useRef(false);
+  const loadedTourNamesRef = useRef(new Set());
+  const loadingTourNamesRef = useRef(new Set());
 
   //-----------------------------------------------------------------------------
   // Memoized Values
   //-----------------------------------------------------------------------------
 
+  const uniqueSections = useMemo(
+    () => Array.from(new Set(burialFeatures.map((feature) => feature.properties.Section))).sort(sortSectionValues),
+    [burialFeatures]
+  );
+
+  const getTourName = useCallback(
+    (option) => TOURS[option.title]?.name || option.title || '',
+    []
+  );
+
+  const tourDefinitionsByName = useMemo(
+    () => new Map(TOUR_DEFINITIONS.map((definition) => [definition.name, definition])),
+    []
+  );
+  const tourNames = useMemo(
+    () => TOUR_DEFINITIONS.map((definition) => definition.name),
+    []
+  );
+
   /**
    * Create searchable options from burial data
    * Includes name, section, lot, and tour information
    */
-  const searchOptions = useMemo(() => 
-    geo_burials.features.map(feature => ({
-      label: `${feature.properties.First_Name} ${feature.properties.Last_Name}`,
-      searchableLabel: `${feature.properties.First_Name} ${feature.properties.Last_Name} (Section ${feature.properties.Section}, Lot ${feature.properties.Lot})`,
-      key: `${feature.properties.OBJECTID}_${feature.properties.First_Name}_${feature.properties.Last_Name}_Section${feature.properties.Section}_Lot${feature.properties.Lot}`,
-      ...feature.properties,
-      coordinates: feature.geometry.coordinates
-    })).filter(option => option.First_Name || option.Last_Name)
-  , []);
+  const searchOptions = useMemo(() => (
+    burialFeatures
+      .map((feature) => {
+        const firstName = feature.properties.First_Name || '';
+        const lastName = feature.properties.Last_Name || '';
+        const searchableLabel = `${firstName} ${lastName} (Section ${feature.properties.Section}, Lot ${feature.properties.Lot})`.trim();
+
+        return {
+          label: `${firstName} ${lastName}`.trim(),
+          searchableLabel,
+          searchableLabelLower: searchableLabel.toLowerCase(),
+          key: `${feature.properties.OBJECTID}_${firstName}_${lastName}_Section${feature.properties.Section}_Lot${feature.properties.Lot}`,
+          ...feature.properties,
+          coordinates: feature.geometry.coordinates
+        };
+      })
+      .filter((option) => option.First_Name || option.Last_Name)
+  ), [burialFeatures]);
 
   /**
    * Filter burials based on section/lot/tier criteria
@@ -796,18 +734,18 @@ export default function BurialMap() {
   const filteredBurials = useMemo(() => {
     if (!showAllBurials || !sectionFilter) return [];
     
-    return geo_burials.features.filter(feature => {
+    return burialFeatures.filter(feature => {
       const props = feature.properties;
       
-      if (props.Section !== sectionFilter) {
+      if (`${props.Section}` !== `${sectionFilter}`) {
         return false;
       }
       
       if (lotTierFilter) {
-        if (filterType === 'lot' && props.Lot !== lotTierFilter) {
+        if (filterType === 'lot' && `${props.Lot}` !== `${lotTierFilter}`) {
           return false;
         }
-        if (filterType === 'tier' && props.Tier !== lotTierFilter) {
+        if (filterType === 'tier' && `${props.Tier}` !== `${lotTierFilter}`) {
           return false;
         }
       }
@@ -817,7 +755,46 @@ export default function BurialMap() {
       ...feature.properties,
       coordinates: feature.geometry.coordinates
     }));
-  }, [showAllBurials, sectionFilter, lotTierFilter, filterType]);
+  }, [burialFeatures, showAllBurials, sectionFilter, lotTierFilter, filterType]);
+
+  /**
+   * Build search indexes off the main interaction path.
+   * This keeps first paint responsive even with large datasets.
+   */
+  useEffect(() => {
+    if (!searchOptions.length) {
+      setSearchIndex(null);
+      setIsSearchIndexReady(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    let handle;
+    setIsSearchIndexReady(false);
+
+    const buildIndex = () => {
+      const nextIndex = buildSearchIndex(searchOptions, { getTourName });
+      if (!cancelled) {
+        setSearchIndex(nextIndex);
+        setIsSearchIndexReady(true);
+      }
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      handle = window.requestIdleCallback(buildIndex, { timeout: 1500 });
+    } else {
+      handle = setTimeout(buildIndex, 0);
+    }
+
+    return () => {
+      cancelled = true;
+      if (typeof window !== 'undefined' && 'cancelIdleCallback' in window && typeof handle === 'number') {
+        window.cancelIdleCallback(handle);
+      } else {
+        clearTimeout(handle);
+      }
+    };
+  }, [searchOptions, getTourName]);
 
   //-----------------------------------------------------------------------------
   // Event Handlers
@@ -891,7 +868,11 @@ export default function BurialMap() {
   const handleSearch = useCallback((event, value) => {
     if (value) {
       if (typeof value === 'string') {
-        const matches = smartSearch(searchOptions, value);
+        if (value.trim().length < 2) return;
+        const matches = smartSearch(searchOptions, value, {
+          index: searchIndex,
+          getTourName,
+        });
         if (matches.length > 0) {
           addToResults(matches[0]);
         }
@@ -899,7 +880,7 @@ export default function BurialMap() {
         addToResults(value);
       }
     }
-  }, [searchOptions, addToResults]);
+  }, [searchOptions, addToResults, searchIndex, getTourName]);
 
   /**
    * Removes a burial from search results
@@ -916,6 +897,13 @@ export default function BurialMap() {
     setInputValue('');
     setCurrentSelection(null);
   }, []);
+
+  const handleInstallApp = useCallback(async () => {
+    if (!installPromptEvent) return;
+    installPromptEvent.prompt();
+    await installPromptEvent.userChoice;
+    setInstallPromptEvent(null);
+  }, [installPromptEvent]);
 
   /**
    * Handles clicking on a search result item
@@ -983,6 +971,111 @@ export default function BurialMap() {
   //-----------------------------------------------------------------------------
   // Effects
   //-----------------------------------------------------------------------------
+
+  /**
+   * Load the largest burial dataset asynchronously so the app shell renders first.
+   */
+  useEffect(() => {
+    let ignore = false;
+
+    const loadBurials = async () => {
+      setIsBurialDataLoading(true);
+      setBurialDataError('');
+      try {
+        const module = await import('./data/Geo_Burials.json');
+        if (!ignore) {
+          setBurialFeatures(module.default.features || []);
+        }
+      } catch (error) {
+        console.error('Failed to load burial data:', error);
+        if (!ignore) {
+          setBurialDataError('Burial records failed to load. Refresh and try again.');
+        }
+      } finally {
+        if (!ignore) {
+          setIsBurialDataLoading(false);
+        }
+      }
+    };
+
+    loadBurials();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (event) => {
+      event.preventDefault();
+      setInstallPromptEvent(event);
+    };
+
+    const handleAppInstalled = () => {
+      setInstallPromptEvent(null);
+      setIsInstalled(true);
+    };
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    setIsInstalled(Boolean(standalone));
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  /**
+   * Apply URL-driven state once data is available for deep links from the companion app.
+   */
+  useEffect(() => {
+    if (didApplyUrlStateRef.current) return;
+    if (isBurialDataLoading) return;
+
+    const deepLink = parseDeepLinkState(
+      window.location.search,
+      tourNames
+    );
+
+    if (deepLink.section) {
+      setSectionFilter(deepLink.section);
+      setShowAllBurials(true);
+    }
+
+    if (deepLink.showBurialsView) {
+      setShowAllBurials(true);
+    }
+
+    if (deepLink.selectedTourName) {
+      setSelectedTour(deepLink.selectedTourName);
+    }
+
+    if (deepLink.query && searchOptions.length > 0) {
+      const matches = smartSearch(searchOptions, deepLink.query, {
+        index: searchIndex,
+        getTourName,
+      });
+      if (matches.length > 0) {
+        setSelectedBurials((prev) => {
+          if (prev.some((item) => item.OBJECTID === matches[0].OBJECTID)) {
+            return prev;
+          }
+          return [...prev, matches[0]];
+        });
+      }
+      setInputValue(deepLink.query);
+    }
+
+    didApplyUrlStateRef.current = true;
+  }, [isBurialDataLoading, searchOptions, searchIndex, getTourName, tourNames]);
 
   /**
    * Cleanup geolocation watch on unmount
@@ -1177,53 +1270,104 @@ export default function BurialMap() {
     }
   }, []);
 
-  /**
-   * Create callbacks for tour feature interactions
-   */
-  const tourCallbacks = useMemo(() => {
-    return TOUR_DATA.reduce((acc, { key }) => {
-      acc[key] = createOnEachTourFeature(key);
-      return acc;
-    }, {});
-  }, []);
+  const ensureTourLayerLoaded = useCallback(async (tourName) => {
+    if (!tourName) return;
+
+    const definition = tourDefinitionsByName.get(tourName);
+    if (!definition) return;
+    if (loadedTourNamesRef.current.has(tourName) || loadingTourNamesRef.current.has(tourName)) return;
+
+    loadingTourNamesRef.current.add(tourName);
+    setLoadingTourName(tourName);
+    setTourLayerError('');
+
+    try {
+      const module = await definition.load();
+      const layer = L.geoJSON(module.default, {
+        pointToLayer: createTourMarker(definition.key),
+        onEachFeature: createOnEachTourFeature(definition.key)
+      });
+
+      loadedTourNamesRef.current.add(tourName);
+      setOverlayMaps((current) => ({
+        ...current,
+        [tourName]: layer
+      }));
+    } catch (error) {
+      console.error('Error loading tour layer:', error);
+      setTourLayerError(`Unable to load "${tourName}". Please try again.`);
+    } finally {
+      loadingTourNamesRef.current.delete(tourName);
+      setLoadingTourName((current) => (current === tourName ? '' : current));
+    }
+  }, [tourDefinitionsByName]);
 
   /**
-   * Initialize GeoJSON layers and overlay maps
+   * Initialize base GeoJSON layers. Tour layers are loaded lazily.
    */
   useEffect(() => {
     try {
-      // Create tour layers
-      const newTourLayers = TOUR_DATA.reduce((acc, { key, data }) => {
-        acc[key] = L.geoJSON(data, {
-          pointToLayer: createTourMarker(key),
-          onEachFeature: tourCallbacks[key]
-        });
-        return acc;
-      }, {});
-
-      // Create base layers
-      const otherLayers = {
+      const baseLayers = {
         boundary: L.geoJSON(ARC_Boundary, { style: exteriorStyle }),
         roads: L.geoJSON(ARC_Roads, { style: roadStyle }),
         sections: L.geoJSON(ARC_Sections, { onEachFeature: onEachSection })
       };
 
-      // Combine all layers
-      const newOverlayMaps = {
-        ...TOUR_DATA.reduce((acc, { key, name }) => {
-          acc[name] = newTourLayers[key];
-          return acc;
-        }, {}),
-        "Albany Rural Cemetery Boundary": otherLayers.boundary,
-        "Albany Rural Cemetery Roads": otherLayers.roads,
-        "Section Boundaries": otherLayers.sections
-      };
-
-      setOverlayMaps(newOverlayMaps);
+      setOverlayMaps({
+        "Albany Rural Cemetery Boundary": baseLayers.boundary,
+        "Albany Rural Cemetery Roads": baseLayers.roads,
+        "Section Boundaries": baseLayers.sections
+      });
     } catch (error) {
-      console.error('Error loading GeoJSON data:', error);
+      console.error('Error loading base GeoJSON data:', error);
     }
-  }, [tourCallbacks, onEachSection]);
+  }, [onEachSection]);
+
+  /**
+   * Load the selected tour layer on demand.
+   */
+  useEffect(() => {
+    if (!selectedTour) return;
+    void ensureTourLayerLoaded(selectedTour);
+  }, [selectedTour, ensureTourLayerLoaded]);
+
+  /**
+   * Prefetch tour layers in idle time to reduce switching latency.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    let index = 0;
+    let handle;
+
+    const loadNextTour = () => {
+      if (cancelled || index >= tourNames.length) return;
+      const nextTourName = tourNames[index];
+      index += 1;
+      void ensureTourLayerLoaded(nextTourName).finally(() => {
+        if (cancelled) return;
+        if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+          handle = window.requestIdleCallback(loadNextTour, { timeout: 2000 });
+        } else {
+          handle = setTimeout(loadNextTour, 300);
+        }
+      });
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      handle = window.requestIdleCallback(loadNextTour, { timeout: 2000 });
+    } else {
+      handle = setTimeout(loadNextTour, 300);
+    }
+
+    return () => {
+      cancelled = true;
+      if (typeof window !== 'undefined' && 'cancelIdleCallback' in window && typeof handle === 'number') {
+        window.cancelIdleCallback(handle);
+      } else {
+        clearTimeout(handle);
+      }
+    };
+  }, [ensureTourLayerLoaded, tourNames]);
 
   return (
     <div className="map-container">
@@ -1233,10 +1377,78 @@ export default function BurialMap() {
         className="left-sidebar"
       >
         <Box sx={{ p: 2 }}>
+          <Box sx={{ mb: 1.5 }}>
+            <Typography variant="overline" sx={{ letterSpacing: 1.2, color: 'var(--muted-text)' }}>
+              Albany Rural Cemetery
+            </Typography>
+            <Typography variant="h6" sx={{ lineHeight: 1.2 }}>
+              Burial Finder PWA
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'var(--muted-text)', mt: 0.5 }}>
+              Search 97k+ records, pin results, and navigate on site.
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+            <Chip
+              size="small"
+              color={isBurialDataLoading || !isSearchIndexReady ? 'warning' : burialDataError ? 'error' : 'success'}
+              label={
+                isBurialDataLoading
+                  ? 'Loading records…'
+                  : burialDataError
+                    ? 'Record load failed'
+                    : isSearchIndexReady
+                      ? `${searchOptions.length.toLocaleString()} records ready`
+                      : `Indexing ${searchOptions.length.toLocaleString()} records…`
+              }
+            />
+            <Chip
+              size="small"
+              icon={!isOnline ? <WifiOffIcon /> : null}
+              color={isOnline ? 'success' : 'warning'}
+              label={isOnline ? 'Online' : 'Offline'}
+            />
+            {loadingTourName && (
+              <Chip
+                size="small"
+                color="warning"
+                label={`Loading tour: ${loadingTourName}`}
+              />
+            )}
+            {isInstalled && (
+              <Chip size="small" color="primary" label="Installed" />
+            )}
+          </Box>
+
+          {!isInstalled && installPromptEvent && (
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleInstallApp}
+              startIcon={<InstallMobileIcon />}
+              sx={{ mb: 1.5 }}
+            >
+              Install App
+            </Button>
+          )}
+
+          {burialDataError && (
+            <Typography variant="body2" color="error" sx={{ mb: 1 }}>
+              {burialDataError}
+            </Typography>
+          )}
+          {tourLayerError && (
+            <Typography variant="body2" color="error" sx={{ mb: 1 }}>
+              {tourLayerError}
+            </Typography>
+          )}
+
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Autocomplete
               freeSolo
               options={searchOptions}
+              disabled={isBurialDataLoading || !!burialDataError}
               getOptionLabel={(option) => {
                 if (typeof option === 'string') {
                   return option;
@@ -1256,11 +1468,17 @@ export default function BurialMap() {
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  placeholder="Search by name, year, section, tour..."
+                  placeholder={isBurialDataLoading ? 'Loading records…' : 'Search by name, year, section, tour…'}
                   variant="outlined"
                   size="small"
                   InputProps={{
                     ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {isBurialDataLoading ? <CircularProgress size={16} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
                     startAdornment: (
                       <InputAdornment position="start">
                         <SearchIcon />
@@ -1270,7 +1488,13 @@ export default function BurialMap() {
                 />
               )}
               filterOptions={(options, { inputValue }) => {
-                return smartSearch(options, inputValue).slice(0, 100);
+                if (inputValue.trim().length < 2) {
+                  return [];
+                }
+                return smartSearch(options, inputValue, {
+                  index: searchIndex,
+                  getTourName,
+                }).slice(0, 100);
               }}
               renderOption={(props, option) => (
                 <li {...props} key={option.key}>
@@ -1324,8 +1548,9 @@ export default function BurialMap() {
               Filter by Section
             </Typography>
             <Autocomplete
-              options={UNIQUE_SECTIONS}
+              options={uniqueSections}
               value={sectionFilter || null}
+              disabled={isBurialDataLoading || !!burialDataError}
               onChange={(event, newValue) => {
                 setSectionFilter(newValue || '');
                 if (newValue && !showAllBurials) {
@@ -1412,6 +1637,7 @@ export default function BurialMap() {
                 label={filterType === 'lot' ? 'Lot Number' : 'Tier Number'}
                 value={lotTierFilter}
                 onChange={(e) => setLotTierFilter(e.target.value)}
+                disabled={isBurialDataLoading || !!burialDataError}
                 margin="dense"
               />
               
@@ -1448,7 +1674,6 @@ export default function BurialMap() {
               Filter by Tour
             </Typography>
             <TourFilter 
-              overlayMaps={overlayMaps} 
               setShowAllBurials={setShowAllBurials} 
               onTourSelect={handleTourSelect}
             />
@@ -1578,7 +1803,7 @@ export default function BurialMap() {
         <DefaultExtentButton />
         <MapBounds />
         <MapController selectedBurials={selectedBurials} hoveredIndex={hoveredIndex} />
-        <MapTourController selectedTour={selectedTour} overlayMaps={overlayMaps} />
+        <MapTourController selectedTour={selectedTour} overlayMaps={overlayMaps} tourNames={tourNames} />
         <LayersControl>
           <BaseLayer checked name="Imagery">
             <VectorBasemap name="ImageryClarity" />
