@@ -1,0 +1,174 @@
+{
+    "type": "FeatureCollection",
+    "name": "ArtistTour20",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        }
+    },
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 40,
+                "First_name": "Erastus",
+                "Last_Name": "Palmer",
+                "ARC_Secton": 34,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 15.0,
+                "Full_Name": "Erastus Dow Palmer",
+                "Titles": "World renowned Sculptor",
+                "Birth": "1817\/04\/02",
+                "Death": "1904\/03\/09",
+                "Tour_ID": 40,
+                "Tour_Bio": "Palmer40",
+                "Tour_Name": "AR",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Palmer40a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.730571540748144,
+                    42.704947036819348
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 42,
+                "First_name": "Charles",
+                "Last_Name": "Calverley",
+                "ARC_Secton": 107,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 109.0,
+                "Full_Name": "Charles Calverley",
+                "Titles": "Sculptor and Stonecutter",
+                "Birth": null,
+                "Death": "1914\/02\/25",
+                "Tour_ID": 42,
+                "Tour_Bio": "Calverley42",
+                "Tour_Name": "AR",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Calverley42a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.736544479794901,
+                    42.705958390465916
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 105,
+                "First_name": "Family Plot",
+                "Last_Name": "Lathrop",
+                "ARC_Secton": 27,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 46.0,
+                "Full_Name": "Lathrop Family Plot",
+                "Titles": "Family of femals artists",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 105,
+                "Tour_Bio": "Lathrop105a.jpg",
+                "Tour_Name": "AR",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Lathrop105a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733717795055554,
+                    42.705062756654158
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 106,
+                "First_name": "Samantha",
+                "Last_Name": "Huntley",
+                "ARC_Secton": 114,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 97.0,
+                "Full_Name": "Samantha Littltfield Huntley",
+                "Titles": "One of the first well known female painters",
+                "Birth": "1865\/05\/16",
+                "Death": "1949\/06\/20",
+                "Tour_ID": 106,
+                "Tour_Bio": "Huntley106",
+                "Tour_Name": "AR",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Huntley106a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734805153677001,
+                    42.70261711236747
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 108,
+                "First_name": "Alice",
+                "Last_Name": "Wright",
+                "ARC_Secton": 29,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 42.0,
+                "Full_Name": "Alice Morgan Wright",
+                "Titles": "Sculptor, Co Found NYS League of Women Voters",
+                "Birth": "1881\/10\/10",
+                "Death": "1975\/04\/08",
+                "Tour_ID": 108,
+                "Tour_Bio": "Wright108",
+                "Tour_Name": "AR",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Wright108a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734520994225065,
+                    42.704072302380446
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 173,
+                "First_name": "Frances",
+                "Last_Name": "Starr",
+                "ARC_Secton": 122,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 11.0,
+                "Full_Name": "Frances Starr",
+                "Titles": "Actress on stage, screen and early television",
+                "Birth": "1881\/06\/06",
+                "Death": "1973\/06\/11",
+                "Tour_ID": 173,
+                "Tour_Bio": "Starr173",
+                "Tour_Name": "AR",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Starr173d.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.735309277468929,
+                    42.704138685884168
+                ]
+            }
+        }
+    ]
+}

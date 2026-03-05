@@ -1,0 +1,282 @@
+{
+    "type": "FeatureCollection",
+    "name": "AssociationsTour20",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        }
+    },
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 30,
+                "First_name": null,
+                "Last_Name": "Soldiers Lot",
+                "ARC_Secton": 75,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 7.0,
+                "Full_Name": "Soldiers Lot",
+                "Titles": null,
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 30,
+                "Tour_Bio": "Soldiers30",
+                "Tour_Name": "ASG",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Soldier30a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728029646565901,
+                    42.709469574467107
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 177,
+                "First_name": null,
+                "Last_Name": "House of Shelter",
+                "ARC_Secton": 57,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 7.0,
+                "Full_Name": "Albany House of Shelter",
+                "Titles": "Shelter for homeless women",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 177,
+                "Tour_Bio": "Shelter177",
+                "Tour_Name": "ASG",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Shelter177a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.729903349693373,
+                    42.707800961114359
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 178,
+                "First_name": null,
+                "Last_Name": "Albany Med.",
+                "ARC_Secton": 68,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 22.0,
+                "Full_Name": "Albany Medical Center Anatomical Gift Program",
+                "Titles": "Albany Medical Center Anatomical Gift Program",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 178,
+                "Tour_Bio": "AMCAGP178",
+                "Tour_Name": "ASG",
+                "Bio_Done": "Y",
+                "Bio_Portra": "AMCAGP178a.png"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72470304834583,
+                    42.709608465341404
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 179,
+                "First_name": null,
+                "Last_Name": "Arsenal",
+                "ARC_Secton": 100,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 28.0,
+                "Full_Name": "Arsenal Burial Ground",
+                "Titles": "Gibbonsville Reformed Church in Watervliet",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 179,
+                "Tour_Bio": "Arsenal179",
+                "Tour_Name": "ASG",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Arsenal179a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732343297910603,
+                    42.712247956392055
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 180,
+                "First_name": null,
+                "Last_Name": "Corning Foundation",
+                "ARC_Secton": 121,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 313.0,
+                "Full_Name": "Corning Foundation for Christian Work",
+                "Titles": "Children’s Hospital & St. Margaret’s Home",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 180,
+                "Tour_Bio": "Childrens180",
+                "Tour_Name": "ASG",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Childrens180a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.735947895375887,
+                    42.709317980318353
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 181,
+                "First_name": null,
+                "Last_Name": "Fairview Home",
+                "ARC_Secton": 104,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 453.0,
+                "Full_Name": "Fairview Home for the Friendless",
+                "Titles": "Chrildren from Fairview Orphanage",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 181,
+                "Tour_Bio": "Fairview181",
+                "Tour_Name": "ASG",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Fairview181c.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.736859849267674,
+                    42.7088915672526
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 182,
+                "First_name": null,
+                "Last_Name": "Tompkins Engine",
+                "ARC_Secton": 72,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 6.0,
+                "Full_Name": "D.D. Tompkins Engine Co.",
+                "Titles": "Albany’s Volunteer Fire Companies",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 182,
+                "Tour_Bio": "Tompkins182",
+                "Tour_Name": "ASG",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Tompkins182b.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.725735428464731,
+                    42.709032072059657
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 183,
+                "First_name": null,
+                "Last_Name": "United Presbyterian",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 8.0,
+                "Full_Name": "United Presbyterian Church",
+                "Titles": "1st United Presbyterian Church in US",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 183,
+                "Tour_Bio": "Presbyterian183",
+                "Tour_Name": "ASG",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Presbyterian183a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734569499181418,
+                    42.709903751267987
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 184,
+                "First_name": null,
+                "Last_Name": "Home for Aged Men",
+                "ARC_Secton": 121,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 335.0,
+                "Full_Name": "Home for Aged Men",
+                "Titles": "Residents of Menands Manor",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 184,
+                "Tour_Bio": "Menands184",
+                "Tour_Name": "ASG",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Menands184a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.736091710336751,
+                    42.709274798275281
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 185,
+                "First_name": null,
+                "Last_Name": "Church Gronds",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 0.0,
+                "Full_Name": "Church Grounds",
+                "Titles": "Reinternments from Albany's urbam cemeteries",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 185,
+                "Tour_Bio": "Churchgrounds185",
+                "Tour_Name": "ASG",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Churchgrounds185a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734668901074897,
+                    42.709843127657813
+                ]
+            }
+        }
+    ]
+}

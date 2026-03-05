@@ -1,0 +1,2992 @@
+{
+    "type": "FeatureCollection",
+    "name": "Projected_Sec75_Headstones",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        }
+    },
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 1,
+                "Headstone_": 35,
+                "Last_Name": "Berringer",
+                "Full_Name": "Kerrin Berringer",
+                "Highest_Ra": "Private",
+                "Unit": "2nd Massachusetts Infantry",
+                "Service_Re": "Enlisted, July 7, 1862, at Boston, Massachusetts; mustered in as private, Co. D, July 9, 1862; re-enlisted Dec 30, 1863; died Feb 24, 1864 at general hospital, Albany, NY.",
+                "Death": "Feb. 24, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728075877693797,
+                    42.70966223910235
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 2,
+                "Headstone_": 34,
+                "Last_Name": "Ellis",
+                "Full_Name": "David A. Ellis",
+                "Highest_Ra": "Private",
+                "Unit": "116th Illinois Infantry, 2nd Battalion Veterans Reserve Corps",
+                "Service_Re": "Private, from Decatur, IL.  Enlisted, Sep 6, 1862, Transferred to 2nd Battalion, Veterans Reserve Corps, Sep 1, 1863",
+                "Death": "March 21, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728078778789822,
+                    42.709654896825626
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 3,
+                "Headstone_": 33,
+                "Last_Name": "Grant",
+                "Full_Name": "Samuel L. Grant",
+                "Highest_Ra": "Unknown",
+                "Unit": "161st NY Infantry",
+                "Service_Re": "Unknown",
+                "Death": "Mar 19, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72808180864233,
+                    42.709647229083899
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 4,
+                "Headstone_": 32,
+                "Last_Name": "Medley",
+                "Full_Name": "Lawrence W. Medley",
+                "Highest_Ra": "Unknown",
+                "Unit": "N.Y.",
+                "Service_Re": "Regiment unknown.  Headstone indicates “N.Y.”",
+                "Death": "April 16, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728084838494055,
+                    42.709639561342051
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 5,
+                "Headstone_": 31,
+                "Last_Name": "Vousden",
+                "Full_Name": "Henry Vousden",
+                "Highest_Ra": "Private",
+                "Unit": "58th NY Infantry, \"Morgan Rifles\"",
+                "Service_Re": "Age, 44 years.  Enlisted at New York city, to serve three years, and mustered in as private, Co F, Sep 13, 1862; captured in action, May 2, 1863, at Chancellorsville, Va.",
+                "Death": "Jan 27, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728087919825839,
+                    42.70963176449456
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 6,
+                "Headstone_": 30,
+                "Last_Name": "Prout",
+                "Full_Name": "Alfred Prout",
+                "Highest_Ra": "Private",
+                "Unit": "102nd NY Infantry, \"Van Buren Light Infantry\"",
+                "Service_Re": "Age, 23 years.  Enlisted, Feb 15, 1864, in Ulster county, to serve three years; mustered in as private, Feb 16, 1864.",
+                "Death": "Mar 31, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728091191768058,
+                    42.709623483473948
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 7,
+                "Headstone_": 29,
+                "Last_Name": "McCumber",
+                "Full_Name": "William McCumber",
+                "Highest_Ra": "Unknown",
+                "Unit": "125th NY Infantry",
+                "Service_Re": "Regimental information from headstone, name not carried on regimental roster of 125th NY Infantry.",
+                "Death": "April 25, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728094149463473,
+                    42.709616000441066
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 8,
+                "Headstone_": 28,
+                "Last_Name": "Warren",
+                "Full_Name": "William Warren",
+                "Highest_Ra": "Private",
+                "Unit": "25th NY Cavalry,  \"Sickles' Cavalry\"",
+                "Service_Re": "Age, 18 years.  Enlisted, Dec 28, 1863, at Rockland; mustered in as private Jan 23, 1864, to serve three years.",
+                "Death": "April 12, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728097364800931,
+                    42.709607860175915
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 9,
+                "Headstone_": 27,
+                "Last_Name": "Cade",
+                "Full_Name": "Ezra Cade",
+                "Highest_Ra": "Private",
+                "Unit": "80th NY Infantry, (Ulster Guard)",
+                "Service_Re": "Age, 21 years. Enlisted, Feb 20, 1864, at Kingston, to serve three years; mustered in as private, Feb 22, 1864.",
+                "Death": "Mar 25, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728100265873337,
+                    42.709600518798858
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 10,
+                "Headstone_": 26,
+                "Last_Name": "Howard",
+                "Full_Name": "James D. Howard",
+                "Highest_Ra": "Private",
+                "Unit": "1st NY Artillery",
+                "Service_Re": "Age, 18 years.  Enlisted. Feb 18, 1864, at Antwerp; mustered in as private, Feb 23, 1864, to serve three years.",
+                "Death": "Mar 29, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728103697413488,
+                    42.709591837010315
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 11,
+                "Headstone_": 25,
+                "Last_Name": "Farrell",
+                "Full_Name": "William Farrell",
+                "Highest_Ra": "Private",
+                "Unit": "15th NY Engineers,\"NY Sappers and Miners\"",
+                "Service_Re": "Age, 19 years. Enlisted, Feb 24, 1864, at Spafford; mustered in as private, Feb 24, 1864, to serve three years.",
+                "Death": "Mar 26, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728106921698668,
+                    42.709583677032398
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 12,
+                "Headstone_": 24,
+                "Last_Name": "Dingman",
+                "Full_Name": "Edward Dingman",
+                "Highest_Ra": "Private",
+                "Unit": "3rd NY Cavalry",
+                "Service_Re": "Age, 18 years.  Enlisted Feb 19, 1864 at Maryland; mustered in as private, Co B, Feb 29, 1864, to serve three years; died of disease, at Albany.",
+                "Death": "Mar 28, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728110046812745,
+                    42.709575769003891
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 13,
+                "Headstone_": 23,
+                "Last_Name": "Linehan",
+                "Full_Name": "Bartholemew Linehan",
+                "Highest_Ra": "Private",
+                "Unit": "93rd NY Infantry, \"Morgan's Rifles\"",
+                "Service_Re": "Age, 43 years.  Enlisted at Albany, to serve three years, and mustered in as private, Co. F, Dec 27, 1861; transferred to Co. H , Dec 27, 1863; re-enlisted as a veteran, Dec 28,1863; died of disease, in Feb 1864, at Albany, NY.",
+                "Death": "Feb. 18, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728112823008345,
+                    42.709568742328031
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 14,
+                "Headstone_": 22,
+                "Last_Name": "Gilbert",
+                "Full_Name": "Miles H. Gilbert",
+                "Highest_Ra": "Private",
+                "Unit": "169th NY Infantry (Troy Regiment)",
+                "Service_Re": "Age, 18 years. Enlisted, February 24, 1864, at Troy, to serve three years; mustered in as private, February 25, 1864",
+                "Death": "March 29, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728115972603646,
+                    42.709560771533653
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 15,
+                "Headstone_": 21,
+                "Last_Name": "Lowin",
+                "Full_Name": "David T. Lowin",
+                "Highest_Ra": "Unknown",
+                "Unit": "Unknown",
+                "Service_Re": "Cemetery card lists regiment as 144th NY Infantry - name not found on roster of 144th NY.  Name found as David G. Lown in National Park Service Civil War Soldiers & Sailors Database as serving in the 91st NY Infantry.",
+                "Death": "March 23, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728119140172197,
+                    42.709552757712977
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 16,
+                "Headstone_": 20,
+                "Last_Name": "Green",
+                "Full_Name": "Joseph H. Green",
+                "Highest_Ra": "Private",
+                "Unit": "144th NY Infantry, (Sullivan County Regiment)",
+                "Service_Re": "Age, 19 years.  Enlisted, Feb 20, 1864, at Colchester, to serve one year; mustered in as private, Feb 29, 1864.",
+                "Death": "March 21, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728122186786166,
+                    42.709545046029888
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 17,
+                "Headstone_": 19,
+                "Last_Name": "Gustin",
+                "Full_Name": "Aaron Gustin",
+                "Highest_Ra": "Private",
+                "Unit": "8th NY Cavalry,      \"Rochester Regiment\"",
+                "Service_Re": "Age, 18 years.  Enlisted, Feb 27, 1864, at Sidney; mustered in as private, Co. G, Feb 27, 1864, to serve three years; died of disease, Mar 18, 1864, at Albany, NY.",
+                "Death": "March 18, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728125319607358,
+                    42.709537119175188
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 18,
+                "Headstone_": 18,
+                "Last_Name": "Van Court",
+                "Full_Name": "Charles Van Court",
+                "Highest_Ra": "Private",
+                "Unit": "108th NY Infantry, (Rochester Regiment), Veterans Reserve Corps",
+                "Service_Re": "Age, 34 years. Enlisted at Rochester, to serve three years, and mustered in as private, Co. E, Jul 24, 1862; transferred to Veteran Reserve Corps, Sep 1, 1863.",
+                "Death": "Oct 6, 1863"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728128582515538,
+                    42.709528861467014
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 19,
+                "Headstone_": 17,
+                "Last_Name": "Kelly",
+                "Full_Name": "Edward L. Kelly",
+                "Highest_Ra": "Private",
+                "Unit": "16th NY Heavy Artillery",
+                "Service_Re": "Age, 40 years.  Enlisted, Jun 27, 1863, at New York City; mustered in as private, Aug 5, 1863, to serve three years.",
+                "Death": "Sept. 22, 1863"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728131195130871,
+                    42.709522250823113
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 20,
+                "Headstone_": 16,
+                "Last_Name": "Gates",
+                "Full_Name": "Burtus Gates",
+                "Highest_Ra": "Unknown",
+                "Unit": "26th Maine Infantry",
+                "Service_Re": "National Park Service Civil War Soldiers & Sailors Database lists only one man under the name Burtus Gates, as having served in the 26th Maine Infantry regiment.",
+                "Death": "Sep 21, 1863"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728134507002864,
+                    42.709513867583333
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 21,
+                "Headstone_": 15,
+                "Last_Name": "Travers",
+                "Full_Name": "John Travers",
+                "Highest_Ra": "Private",
+                "Unit": "122nd NY Infantry, \"The Onondagas\"",
+                "Service_Re": "Age, 31 years. Enlisted, July 15, 1862, at Syracuse, to serve three years; mustered in as private, Co. I, Aug 6, 1862; deserted, Sep 21, 1862, at Syracuse, N. Y.",
+                "Death": "Nov 27, 1862"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728137881930294,
+                    42.709505326549234
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 22,
+                "Headstone_": 14,
+                "Last_Name": "Easterly",
+                "Full_Name": "William A. Easterly",
+                "Highest_Ra": "Unknown",
+                "Unit": "Unknown",
+                "Service_Re": "National Park Service Civil War Soldiers & Sailors Database shows one WIlliam A. Easterly as serving in the 3rd NY Light Artillery. Name not listed on the 3rd NY Lght Artillery, but name found on the 3rd NY Heavy Artillery.",
+                "Death": "Sep 19, 1863"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728141008312292,
+                    42.709497415832217
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 23,
+                "Headstone_": 13,
+                "Last_Name": "Angeline",
+                "Full_Name": "Michael Angeline",
+                "Highest_Ra": "Private",
+                "Unit": "37th Mass. Infantry, 12th Veteran Reserve Corps",
+                "Service_Re": "Unknown",
+                "Death": "Sep 18, 1863"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728144027830893,
+                    42.70948977498994
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 24,
+                "Headstone_": 12,
+                "Last_Name": "Ham",
+                "Full_Name": "Myron L. Ham",
+                "Highest_Ra": "Private",
+                "Unit": "177th NY Infantry, (Albany Regiment)",
+                "Service_Re": "Age, 21 years.  Enlisted, Oct 30, 1862, at Albany, to serve nine months; mustered in as private. Co. G, Nov 21, 1862; died of chronic diarrhea, Sep 5, 1863, at Rochester, N.Y.",
+                "Death": "Sep 5, 1863"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728147047330339,
+                    42.709482135047914
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 25,
+                "Headstone_": 11,
+                "Last_Name": "Davis",
+                "Full_Name": "Edward W. Davis",
+                "Highest_Ra": "Sergeant",
+                "Unit": "177th NY Infantry, (Albany Regiment)",
+                "Service_Re": "Age, 19 years.  Enlisted, Oct 16, 1862 at Albany to serve nine months; mustered in as sergeant, Co. D, Nov 21, 1862; wounded in action, May 27, 1863, at Port Hudson, La.; died, Sep 1, 1863, on board (railroad)cars near Albany, N.Y",
+                "Death": "Sep 1, 1863"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728150043732626,
+                    42.70947454978203
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 26,
+                "Headstone_": 10,
+                "Last_Name": "Joyce",
+                "Full_Name": "George Joyce",
+                "Highest_Ra": "Private",
+                "Unit": "7th NY Cavalry,  “First Mounted Rifles”, 2nd NY Infantry, (Troy Regiment)",
+                "Service_Re": "Age, 43 years. Enlisted, Oct 6, 1861, at Troy; mustered in as private, Co. F, Oct 12, 1861, to serve three years*",
+                "Death": null
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728153238381964,
+                    42.709466465118616
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 27,
+                "Headstone_": 9,
+                "Last_Name": "Gilman",
+                "Full_Name": "Ezra T. Gilman",
+                "Highest_Ra": "Private",
+                "Unit": "43rd NY Infantry, \"Albany Rifles\"",
+                "Service_Re": "Age, 18 years.  Enlisted, Aug 6, 1861, at Albany, to serve three years; mustered in as private, Co. B, Aug 18, 1861; died of disease, Dec 21, 1862, at hospital, Elmira, NY.",
+                "Death": "Dec. 21, 1863"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728156682777055,
+                    42.70945775105173
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 28,
+                "Headstone_": 8,
+                "Last_Name": "Wilson",
+                "Full_Name": "Amos Wilson",
+                "Highest_Ra": "Unknown",
+                "Unit": "Unknown",
+                "Service_Re": "Stone reflects regiment as 3rd NY Heavy Artillery.  Not listed on that regimental roster.",
+                "Death": null
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728159720339278,
+                    42.70945006358145
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 29,
+                "Headstone_": 7,
+                "Last_Name": "Coffinger",
+                "Full_Name": "Joseph Coffinger",
+                "Highest_Ra": "Private",
+                "Unit": "3rd NY Heavy Artillery, \"German Heavy Artillery\"",
+                "Service_Re": "Age, 44 years.  Enlisted, Aug 14, 1862, at Auburn; mustered in as private, to serve three years: borne only on enlistment paper.",
+                "Death": null
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728162908569345,
+                    42.709441994155583
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 30,
+                "Headstone_": 6,
+                "Last_Name": "Buck",
+                "Full_Name": "Martin Buck",
+                "Highest_Ra": "Private",
+                "Unit": "34th NY Infantry, (Herkimer Regiment)",
+                "Service_Re": "Age, 20 years. Enlisted, May 18, 1861, at West Troy, to serve two years; mustered in as private, Co. A, June 15, 1861; killed, Sep 17, 1862, at Battle of Antietam, Sharpsburg, Md.",
+                "Death": "Sept 17, 1862"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728165696310029,
+                    42.709434939689814
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 32,
+                "Headstone_": 5,
+                "Last_Name": "Tenney",
+                "Full_Name": "Charles Tenney",
+                "Highest_Ra": "Private",
+                "Unit": "104th NY Infantry, \"Wadsworth Guards\"",
+                "Service_Re": "Age, 18 years. Enlisted, Feb 17, 1862, at Geneseo, to serve three years; mustered in as private, Co. F, Feb 25, 1862; died of typhoid fever, Mar 25, 1862, at Albany, N.Y.",
+                "Death": "Mar 25, 1862"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728167548394708,
+                    42.709429334603577
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 33,
+                "Headstone_": 4,
+                "Last_Name": "Stubles",
+                "Full_Name": "James Stubles",
+                "Highest_Ra": "Private",
+                "Unit": "26th NY Infantry (Second Oneida Regiment)",
+                "Service_Re": "Age, 31 years. Enlisted, July 10, 1862, at Utica, to serve three years; mustered in as private, same date; died, Aug 13, 1862.",
+                "Death": "Aug 13, 1862"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728169458848512,
+                    42.709424399264485
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 34,
+                "Headstone_": 3,
+                "Last_Name": "Drake",
+                "Full_Name": "Joseph H. Drake",
+                "Highest_Ra": "Private",
+                "Unit": "71st Pennsylvania Infantry",
+                "Service_Re": "Age, not stated.  Enrolled, May 31, 1861 at Attleborough, PA, to serve three years; mustered in as private, Co. I, 71st Pennsylvania Infantry, at Fort Schuyler; died at Albany, NY, of wounds received in action at Richmond, Va., Jul 14, 1862.",
+                "Death": "July 14, 1862"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728171864722782,
+                    42.709419361362748
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 35,
+                "Headstone_": 2,
+                "Last_Name": "Strathern",
+                "Full_Name": "James K. Strathern",
+                "Highest_Ra": "Private",
+                "Unit": "18th NY Infantry, \"New York State Rifles\"",
+                "Service_Re": "Age, 18 years. Enlisted, May 17, 1861, at Albany; mustered in as private, Co. K, same date, to serve two years; died of disease, Jan 31, 1862, at Alexandria, Va.",
+                "Death": "Jan 31, 1862"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728174152876989,
+                    42.709413570205264
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 36,
+                "Headstone_": 1,
+                "Last_Name": "Hayes",
+                "Full_Name": "James Hayes",
+                "Highest_Ra": "Private",
+                "Unit": "25th NY Infantry,  \"Union Rangers\"",
+                "Service_Re": "Age, 19 years.  Enlisted, May 11, 1861, at New York City, to serve two years; mustered in as private, Co. A, June 14, 1861; killed, May 27, 1862, at Hanover Court House, Va.",
+                "Death": "May 27, 1862"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728176336646911,
+                    42.709408047149054
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 37,
+                "Headstone_": 66,
+                "Last_Name": "Kenter",
+                "Full_Name": "Andrew F. Kenter",
+                "Highest_Ra": "Musician",
+                "Unit": "3rd NY Infantry, (Albany Regiment)",
+                "Service_Re": "Enlisted, May 6, 1863, at Fort Monroe, Va.; mustered in as musician, Co. F, May 6, 1863, to serve three years; mustered out with company, Aug 28, 1865, at Raleigh, NC.",
+                "Death": "Oct. 20, 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728053216002152,
+                    42.709622610535455
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 38,
+                "Headstone_": 65,
+                "Last_Name": "Kiernan",
+                "Full_Name": "Michael Kiernan",
+                "Highest_Ra": "Private",
+                "Unit": "4th NY Heavy Artillery",
+                "Service_Re": "Enlisted, Feb 6, 1864, at New York; mustered in as private, Feb 6, 1864, to serve three years.",
+                "Death": "Aug. 29, 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728056330825254,
+                    42.709614728509742
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 39,
+                "Headstone_": 64,
+                "Last_Name": "Cannon",
+                "Full_Name": "Michael Cannon",
+                "Highest_Ra": "Unknown",
+                "Unit": "Unknown",
+                "Service_Re": "Only one man with this name is listed in the National Park Service Civil War Soldiers & Sailors Database.  Served in Co. D, 2nd U.S. Veteran Infantry (also listed as \"Cunnion\")  A Michael Cunnion served in the 48th NY Infantry, but was discharged.",
+                "Death": "Aug 21, 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728059114703058,
+                    42.709607684810379
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 40,
+                "Headstone_": 63,
+                "Last_Name": "Unknown",
+                "Full_Name": "Unknown",
+                "Highest_Ra": "Unknown",
+                "Unit": "Unknown",
+                "Service_Re": "Unknown",
+                "Death": null
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728062511521827,
+                    42.709599089089039
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 41,
+                "Headstone_": 62,
+                "Last_Name": "Curtain",
+                "Full_Name": "Michael Curtain",
+                "Highest_Ra": "Private",
+                "Unit": "164th NY Infantry, (Seventh Regiment,  Irish Legion)",
+                "Service_Re": "Age, 23 years. Enlisted at Buffalo, to serve three years, and mustered in as private, Co. C, Nov 25, 1862,in hospital, since Jul 26, 1864, and at muster-out of company.",
+                "Death": "Jan 21, 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728065568426615,
+                    42.709591352306759
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 42,
+                "Headstone_": 61,
+                "Last_Name": "Bates",
+                "Full_Name": "Samuel Bates",
+                "Highest_Ra": "Private",
+                "Unit": "6th NY Cavalry",
+                "Service_Re": "Age, 30 years. Enlisted, Oct 7, 1861, at Cherry Valley; mustered in as private, Co. E, Oct 7, 1861, to serve three years; re-enlisted, Dec 16, 1863; missing in action, Sep 4, 1864; died of disease, Nov 29, 1864, at Albany, NY.",
+                "Death": "Nov 29, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728067636344136,
+                    42.709586121541172
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 43,
+                "Headstone_": 60,
+                "Last_Name": "Hess",
+                "Full_Name": "John Hess",
+                "Highest_Ra": "Unknown",
+                "Unit": "3rd Veterans Reserve Corps",
+                "Service_Re": "National Park Service Soldiers & Sailors Database shows 528,927 results for John Hess who served in the Union Army.",
+                "Death": "Mar 21, 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728071718200525,
+                    42.709575791789284
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 44,
+                "Headstone_": 59,
+                "Last_Name": "Murphy",
+                "Full_Name": "John Murphy",
+                "Highest_Ra": "Unknown",
+                "Unit": "Unknown",
+                "Service_Re": "National Park Service Soldiers & Sailors Database shows 534,707 results for John Murphy who served in the Union Army.",
+                "Death": "c. 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728074919245429,
+                    42.709567693691213
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 45,
+                "Headstone_": 58,
+                "Last_Name": "Uthman",
+                "Full_Name": "John Uthman",
+                "Highest_Ra": "Private",
+                "Unit": "16th NY Cavalry, Veterans Reserve Corps",
+                "Service_Re": "Age, 36 years.  Enlisted, May 7, 1863, at New York; mustered in as private, Co. I, May 18, 1863, to serve three years; discharged for disability, Nov 15, 1864, at Alexandria, Va.",
+                "Death": "Feb 15, 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728078171825359,
+                    42.709559463786469
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 46,
+                "Headstone_": 57,
+                "Last_Name": "Rhodes",
+                "Full_Name": "Alvin D. Rhodes",
+                "Highest_Ra": "Private",
+                "Unit": "4th NY Artillery",
+                "Service_Re": "Age, 18 years. Enlisted, Dec 27, 1863, at Northampton; mustered in as private, Co. E, Dec 27, 1863, to serve three years; died of disease, Apr 18, 1865, at U.S. General Hospital, Albany, NY.",
+                "Death": "Apr 18, 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728081321406179,
+                    42.709551493893379
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 47,
+                "Headstone_": 56,
+                "Last_Name": "Hartford",
+                "Full_Name": "Charles H. Hartford",
+                "Highest_Ra": "Private",
+                "Unit": "Company F, 142nd NY Infantry, (St lawrence County Regiment)",
+                "Service_Re": "Age, 26 years. Enlisted at Tarrytown, to serve one year, and mustered in as private, Co. F, Sep 21, 1864; mustered out with company, Jun 7, 1865, at Raleigh, NC.",
+                "Death": "Jul 1, 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728084330635014,
+                    42.709543879054067
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 48,
+                "Headstone_": 55,
+                "Last_Name": "Thayer",
+                "Full_Name": "Milo Thayer",
+                "Highest_Ra": "Private",
+                "Unit": "28th NY Infantry, \"Niagara Rifles\"",
+                "Service_Re": "Age, 19 years. Enlisted, Jul 14, 1862, at Batavia, to serve three years; mustered in as private, Co, F, same date; transferred, subsequent to Aug 2, 1863, to Second Battalion, unassigned detachment, Veteran Reserve Corps, and died, Feb 20, 1864.",
+                "Death": "Feb 20, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728087303822932,
+                    42.709536354768623
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 49,
+                "Headstone_": 54,
+                "Last_Name": "Steele",
+                "Full_Name": "James Steele",
+                "Highest_Ra": "Private",
+                "Unit": "Company A, 91st NY Infantry, (Albany Regiment)",
+                "Service_Re": "Age, 18 years. Enlisted, Sept 2, 1861, at Albany, to serve three years; mustered in as private, Co. A, Sept 12, 1861; re-enlisted as a veteran, Jan 1, 1864; died of Bright's disease, Oct 21, 1864, at Albany, NY.",
+                "Death": "Oct 21, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728090284702773,
+                    42.709528812557792
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 50,
+                "Headstone_": 53,
+                "Last_Name": "St. Clair",
+                "Full_Name": "John St. Clair",
+                "Highest_Ra": "Private",
+                "Unit": "2nd NY Infantry",
+                "Service_Re": "Age, - years.  Enlisted, May 17, 1861, at Troy; mustered in as private, Co. G, May 17, 1861, to serve two years; discharged for disability, Sep 12, 1862.",
+                "Death": "Nov 12, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728093309351493,
+                    42.709521160066885
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 51,
+                "Headstone_": 52,
+                "Last_Name": "Bowers",
+                "Full_Name": "Hermanus A. Bowers",
+                "Highest_Ra": "Private",
+                "Unit": "77th NY Infantry, \"Bemis Heights Regiment)",
+                "Service_Re": "Age, 21 years. Enlisted, Mar 13, 1862, at Ephratah, to serve three years; mustered in as private, Co. C, Apr 21, 1862; wounded in action, May 5, 1864, at the Wilderness, Va.; died of wounds, May 19, 1864, at Fredericksburg, Va.",
+                "Death": "May 19, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728096728017817,
+                    42.709512510554816
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 52,
+                "Headstone_": 51,
+                "Last_Name": "Culver",
+                "Full_Name": "John T. Culver",
+                "Highest_Ra": "Private",
+                "Unit": "112th NY Infantry, (Chautauqua Regiment)",
+                "Service_Re": "Age, 21 years.  Enlisted, Aug 1, 1862, at Olymer, to serve three years; mustered in as private, Co. D, Aug 15, 1862; died, Oct 11, 1864, at Albany, N. Y.",
+                "Death": "Oct 11, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728099746284983,
+                    42.709504871500926
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 53,
+                "Headstone_": 50,
+                "Last_Name": "Malorey",
+                "Full_Name": "Henry C. Malorey",
+                "Highest_Ra": "Unknown",
+                "Unit": "Unknown",
+                "Service_Re": "Unknown",
+                "Death": "Oct. 5, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728102980792173,
+                    42.709496689123107
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 54,
+                "Headstone_": 49,
+                "Last_Name": "Lawdenslager",
+                "Full_Name": "Frederick Lawdenslager",
+                "Highest_Ra": "Private",
+                "Unit": "1st Maryland Infantry, 22nd Veterans Reserve Corps",
+                "Service_Re": "Enlisted, May 27, 1861.  Transferred to Co. H, 22nd Veterans Relief Corps, Feb 16, 1864.",
+                "Death": "Oct 10, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728105776271647,
+                    42.709489614933048
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 55,
+                "Headstone_": 48,
+                "Last_Name": "Decker",
+                "Full_Name": "Joseph",
+                "Highest_Ra": "Private",
+                "Unit": "91st NY Infantry, (Albany Regiment)",
+                "Service_Re": "Age, 40 years.  Enlisted at Albany, to serve three years, and mustered in as private, Co. D, Nov 19, 1861; wounded in action, Jun 14, 1863, before Port Hudson, La.; discharged for disability, Mar 4, 1864, at Fort Jackson, La.",
+                "Death": "Sep 27, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728109288926959,
+                    42.709480727822076
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 56,
+                "Headstone_": 47,
+                "Last_Name": "Saithof",
+                "Full_Name": "Isaac Saithof",
+                "Highest_Ra": "Private",
+                "Unit": "39th NY Infantry, \"Garibaldi Guard\"",
+                "Service_Re": "Age, 19 years.  Enlisted a t New York City, to serve three years, and mustered in as private, Co. B, Jan 20, 1861; transferred to Co. I, Jun 1, 1861; wounded in action, Jun 17, 1864, at Petersburg, Va.; died of his wounds, Sep 27, 1864.",
+                "Death": "Sept 27, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728111945330127,
+                    42.709474005998274
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 57,
+                "Headstone_": 46,
+                "Last_Name": "Chubb",
+                "Full_Name": "Henry Chubb",
+                "Highest_Ra": "Private",
+                "Unit": "179th NY Infantry",
+                "Service_Re": "Age, 36 years.  Enlisted, Mar 28, 1864, at Butternuts, to serve three years; mustered in as private, Co. B, Apr 23, 1864; died of typhoid fever, Sept 4, 1864, at hospital, Albany, N.Y.",
+                "Death": "Sep 4, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728115212064537,
+                    42.70946574022804
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 58,
+                "Headstone_": 45,
+                "Last_Name": "Wilkinson",
+                "Full_Name": "Charles W. Wilkinson",
+                "Highest_Ra": "Unknown",
+                "Unit": "N.Y.",
+                "Service_Re": "Unknown",
+                "Death": "Sep 18, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728118427354261,
+                    42.709457601762601
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 59,
+                "Headstone_": 44,
+                "Last_Name": "Saulsburg",
+                "Full_Name": "George Saulsburg",
+                "Highest_Ra": "Private",
+                "Unit": "91st NY Infantry, (Albany Regiment)",
+                "Service_Re": "Age, 35 years. Enlisted at Albany, to serve three years, and mustered in as private, Co. D, Nov 20, 1861; wounded in action, May 25, 1863, before Port Hudson, La.; re-enlisted as a veteran, Apr 23, 1864; died of disease, Aug 18, 1864, at Albany*",
+                "Death": "Aug 18, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728121433929871,
+                    42.709449996798625
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 60,
+                "Headstone_": 43,
+                "Last_Name": "Deming",
+                "Full_Name": "Howell Deming",
+                "Highest_Ra": "Unknown",
+                "Unit": "Unknown",
+                "Service_Re": "Information from headstone.",
+                "Death": "Nov 22, 1862"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728124616969012,
+                    42.709441942625325
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 61,
+                "Headstone_": 42,
+                "Last_Name": "Unknown",
+                "Full_Name": "Unknown",
+                "Highest_Ra": "Unknown",
+                "Unit": "Unknown",
+                "Service_Re": "Unknown",
+                "Death": null
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728127792296263,
+                    42.709433907277514
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 62,
+                "Headstone_": 41,
+                "Last_Name": "Ginsinger",
+                "Full_Name": "Jacob Ginsinger",
+                "Highest_Ra": "Unknown",
+                "Unit": "N.Y.",
+                "Service_Re": "Headstone indicates “N.Y.”",
+                "Death": null
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728130878789358,
+                    42.70942609607728
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 63,
+                "Headstone_": 40,
+                "Last_Name": "Trainor",
+                "Full_Name": "Bernard Trainor",
+                "Highest_Ra": "Private",
+                "Unit": "Company A, 69th NY Infantry, \"First Regiment Irish Brigade\"",
+                "Service_Re": "Age, 35 years. Enlisted at New York City, to serve three years, mustered in as private, Co. K, Aug 15, 1862; transferred to Co. A, Jun 12, 1863; wounded in action, Jul 2, 1863, at Gettysburg, Pa.; discharged for disability Aug 10, 1865.",
+                "Death": "Sep 25, 1868"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728133821047976,
+                    42.709418650694211
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 64,
+                "Headstone_": 39,
+                "Last_Name": "Bailey",
+                "Full_Name": "George H. Bailey",
+                "Highest_Ra": "Private",
+                "Unit": "118th NY Infantry, (Adirondack Regiment)",
+                "Service_Re": "Age, 31 years. Enlisted, July 26, 1862, at Schroon, to serve three years; mustered in as private, Co. E, August 30, 1862; captured in action, October 27, 1864, at Fair Oaks, Va.; reported to have died in prison at Salisbury, North Carolina.",
+                "Death": "c. 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728136406604861,
+                    42.709412109090934
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 65,
+                "Headstone_": 38,
+                "Last_Name": "Fagan",
+                "Full_Name": "William E. Fagan",
+                "Highest_Ra": "Unknown",
+                "Unit": "125th NY Infantry",
+                "Service_Re": "Unknown",
+                "Death": "Apr 4, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728139437713764,
+                    42.709404438659661
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 66,
+                "Headstone_": 37,
+                "Last_Name": "Munger",
+                "Full_Name": "Horatio Munger",
+                "Highest_Ra": "Unknown",
+                "Unit": "125th NY Infantry",
+                "Service_Re": "Unknown",
+                "Death": "May 21, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728142925913346,
+                    42.709395612512431
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 67,
+                "Headstone_": 36,
+                "Last_Name": "Rosche",
+                "Full_Name": "Francis Rosche",
+                "Highest_Ra": "1st Lieutenant",
+                "Unit": "177th NY Infantry",
+                "Service_Re": "Age, 36 years. Enrolled at Albany, to serve nine months, and mustered in as first lieutenant, Co. K, Nov 5, 1862; died, Aug 17, 1863, at Mount Pleasant Hospital, La. Commissioned first lieutenant, Nov 24, 1862, with rank from Nov 5, 1862.",
+                "Death": "Aug 17, 1863"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72814639478834,
+                    42.709386835679986
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 68,
+                "Headstone_": 98,
+                "Last_Name": "Hayes",
+                "Full_Name": "Michael Hayes",
+                "Highest_Ra": "Private",
+                "Unit": "42nd NY Infantry, \"Tammany Regiment\"",
+                "Service_Re": "42nd NY Infantry:\nAge, 22 years. Enlisted, at New York City, to serve three years, and mustered in as private, Co. D, Aug 12, 1861; transferred to Co. D, Eighty-second New York Infantry, Jun 28, 1864.\n82nd NY Infantry:\nPrivate, Co. D, Forty-second*",
+                "Death": "Aug 28, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728023447707528,
+                    42.709602344725283
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 69,
+                "Headstone_": 97,
+                "Last_Name": "Doyle",
+                "Full_Name": "John Doyle",
+                "Highest_Ra": "Private",
+                "Unit": "10th NY Infantry,\"McChesney Zouaves\"",
+                "Service_Re": "Age, 19 years. Enlisted, Oct 9, 1861, at New York City; mustered in as private, Co. B, same date, to serve three years; captured, Jun 27, 1862, at Gaines Mills, Va.; paroled, August 3, 1862.",
+                "Death": "c. 1862"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728026169947441,
+                    42.70959538949527
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 70,
+                "Headstone_": 96,
+                "Last_Name": "Bailey",
+                "Full_Name": "John H. Bailey",
+                "Highest_Ra": "Private",
+                "Unit": "13th NY Artillery",
+                "Service_Re": "Age, 37 years. Enlisted, Dec 12, 1863, at Fifth District, New York; mustered in as private, Co. K, Jan 19, 1864, to serve three years; mustered out, with company, Jun 28, 1865, at Norfolk, Va.",
+                "Death": "Jan 19, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728029319860397,
+                    42.709587343962276
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 71,
+                "Headstone_": 95,
+                "Last_Name": "Maguire",
+                "Full_Name": "Joseph Maguire",
+                "Highest_Ra": "Musician",
+                "Unit": "63rd NY Infantry, \"Third Regiment Irish Brigade\"",
+                "Service_Re": "Age, 15 years, enlisted at New York City, to serve three years, and mustered in as musician, Co. C, Aug 21, 1861; wounded, Jul 1, 1862, at Malvern Hill, Va.; mustered out, Jun 12, 1863, by consolidation, at Morrisville, Va., as James McGuire.",
+                "Death": "Mar 10, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728032022793627,
+                    42.709580437146677
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 72,
+                "Headstone_": 94,
+                "Last_Name": "Hunter",
+                "Full_Name": "Samuel Hunter",
+                "Highest_Ra": "Private",
+                "Unit": "132nd NY Infantry, \"Hillhouse Light Infantry\"",
+                "Service_Re": "Age, 33 years. Enlisted, Aug 20, 1862, at Brooklyn, to serve three years; mustered in as private, Co. B, Oct 4, 1862; mustered out, Jul 5, 1865, at David's Island, New York Harbor.",
+                "Death": "Mar 11, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728034920257656,
+                    42.709573033594104
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 73,
+                "Headstone_": 93,
+                "Last_Name": "McCready",
+                "Full_Name": "Charles E. McCready",
+                "Highest_Ra": "Drummer",
+                "Unit": "83rd NY Infantry, “Ninth Militia”",
+                "Service_Re": "Age, 21 years. Enlisted at New York City, to serve three years, and mustered in as drummer, Co. C, Dec 10, 1861; deserted, Aug 19, 1863, at Fort Schuyler, New York Harbor.",
+                "Death": "Feb 2, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728037830609594,
+                    42.709565596864721
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 74,
+                "Headstone_": 92,
+                "Last_Name": "Bennett",
+                "Full_Name": "Richard Bennett",
+                "Highest_Ra": "Private",
+                "Unit": "12th NY Cavalry, \"Third ira Harris Guard\"",
+                "Service_Re": "Age, 21 years. Enlisted, Jan 30, 1863, at Buffalo; mustered in as private, Co. F, Jan 31, 1863, to serve three years; transferred, May 20, 1863, to Co. E; dropped, Dec, 1863, from subsequent records.",
+                "Death": "Feb 2, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.7280407783322,
+                    42.709558064192876
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 75,
+                "Headstone_": 91,
+                "Last_Name": "Mc Harg",
+                "Full_Name": "Norris Mc Harg",
+                "Highest_Ra": "Unknown",
+                "Unit": "Unknown",
+                "Service_Re": "Unknown",
+                "Death": "Jan 20, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728043677033313,
+                    42.709550659753241
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 76,
+                "Headstone_": 90,
+                "Last_Name": "Hoose",
+                "Full_Name": "Charles Hoose",
+                "Highest_Ra": "Unknown",
+                "Unit": "Unknown",
+                "Service_Re": "Headstone indicates “N.Y.”",
+                "Death": "Nov 20, 1866"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728046649255674,
+                    42.709543063415182
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 77,
+                "Headstone_": 89,
+                "Last_Name": "Clark",
+                "Full_Name": "John Clark",
+                "Highest_Ra": "Unknown",
+                "Unit": "Unknown",
+                "Service_Re": "Headstone indicates “N.Y.”",
+                "Death": null
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72804889350212,
+                    42.709537330307604
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 78,
+                "Headstone_": 88,
+                "Last_Name": "Stanton",
+                "Full_Name": "Edmond Stanton",
+                "Highest_Ra": "Private",
+                "Unit": "160th NY Infantry, 21st Battalion, Veteran Reserve Corps.",
+                "Service_Re": "Age, 23 years. Enlisted at New York City, to serve three years, and mustered in as private, Co. E, Nov 21, 1862; transferred to Co. E, Twenty-first Regiment, Veteran Reserve Corps, Jan 17, 1865; deserted, Apr 29, 1865, at Camp Perrine, Trenton, NJ.",
+                "Death": null
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72805199196506,
+                    42.709529412078716
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 79,
+                "Headstone_": 87,
+                "Last_Name": "Mc Dermott",
+                "Full_Name": "Terrance Mc Dermott",
+                "Highest_Ra": "Unknown",
+                "Unit": "6th NY Cavalry",
+                "Service_Re": "Age, date and place of enlistment or muster in as private, \"unassigned,\" not stated; transferred to Invalid Corps, Nov 28, 1863.",
+                "Death": null
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728054746355483,
+                    42.709522377057212
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 80,
+                "Headstone_": 86,
+                "Last_Name": "Taylor",
+                "Full_Name": "William A. Taylor",
+                "Highest_Ra": "Private",
+                "Unit": "6th NY Cavalry, \"Ira Harris Light Cavalry\"",
+                "Service_Re": "Age, 22 years. Enlisted, Aug 20, 1862, at Brooklyn; mustered in as private, Co. A, Aug 27, 1862, to serve three years; reported on muster roll, Sep and Oct 1864, absent, sick.",
+                "Death": "Aug 4, 1866"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728057812623021,
+                    42.709514540419434
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 81,
+                "Headstone_": 85,
+                "Last_Name": "Keeler",
+                "Full_Name": "Robert Keeler",
+                "Highest_Ra": "Private",
+                "Unit": "13th NY Cavalry,\"Seymour Light Cavalry\", 3rd NY Provisional Cavalry",
+                "Service_Re": "Age, 32 years.  Enlisted, Oct 6, 1863, at New York City; mustered in as private, Co. I, 13th NY Cavalry, Nov 24, 1863, to serve three years; transferred, Aug 17, 1865, to Co. E, 3rd NY Provisional Cavalry; mustered out with company, Sep 21, 1865.",
+                "Death": "c. 1866"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728060755108032,
+                    42.709507024799024
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 82,
+                "Headstone_": 84,
+                "Last_Name": "Ward",
+                "Full_Name": "Edward Ward",
+                "Highest_Ra": "Private",
+                "Unit": "147th NY Infantry, (Oswego Regimant)",
+                "Service_Re": "Age, 43 years. Enlisted at Auburn, to serve three years, and mustered in as private, Co. F, Jul 23, 1863; discharged for disability, no date.",
+                "Death": "May 24, 1866"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72806328798589,
+                    42.709500551953745
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 83,
+                "Headstone_": 83,
+                "Last_Name": "Welch",
+                "Full_Name": "Thomas Welch",
+                "Highest_Ra": "Private",
+                "Unit": "132nd NY Infantry, Hillhouse Light Infantry\"",
+                "Service_Re": "Age, 22 years.  Enlisted, Aug 3, 1862, at New York city, to serve three years; mustered in as private, Co. K, Oct 1, 1862; mustered out with company, Jun 29, 1865, at Salisbury, N.C .",
+                "Death": "Jul 21, 1866"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728066110699629,
+                    42.709493340284993
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 84,
+                "Headstone_": 82,
+                "Last_Name": "Gillespie",
+                "Full_Name": "John Gillespie",
+                "Highest_Ra": "Private",
+                "Unit": "173rd NY Infantry, \"Fourth Metropolitan Guard\"",
+                "Service_Re": "Age, 21 years. Enlisted, Sep 2, 1862, at Brooklyn, to serve three years; mustered in as private, Co. H, Oct 30, 1862; deserted Dec 7, 1862, from ship, New York Harbor.",
+                "Death": "Jul 19, 1866"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728069039109968,
+                    42.709485856026802
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 85,
+                "Headstone_": 81,
+                "Last_Name": "Peterson",
+                "Full_Name": "Frederick Peterson",
+                "Highest_Ra": "Private",
+                "Unit": "103rd NY Infantry, \"Seward Infantry\"",
+                "Service_Re": "Age, 42 years. Enlisted, Jan 16, 1863, at New York City, to serve three years; mustered in as private, Co. A, Jan 17, 1863; transferred to Co. A, Battalion, Mar 11, 1865; discharged, Jun 21, 1865, at Portsmouth, Va.",
+                "Death": "Jul 16, 1866"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728071968758769,
+                    42.709478370881754
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 86,
+                "Headstone_": 80,
+                "Last_Name": "Coffee",
+                "Full_Name": "Samuel Leary Coffee",
+                "Highest_Ra": "Private",
+                "Unit": "7th NY Heavy Artillery,“Seymour Guard” (Albany Regiment)",
+                "Service_Re": "Age, 19 years. Enlisted, Jan 12, 1864, at Troy; mustered in as private, Co. L, Jan 18, 1864, to serve three years; wounded, Jun 16, 1864, at Petersburg, Va.; discharged for disability, May 29, 1865.\nNOTE: Born in Ireland.  Occupation: shoemaker.",
+                "Death": "Jul 4, 1866"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728074319955212,
+                    42.70947236339709
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 87,
+                "Headstone_": 79,
+                "Last_Name": "Jefferson",
+                "Full_Name": "Richard Jefferson",
+                "Highest_Ra": "Corporal",
+                "Unit": "170th NY Infantry, \"Fourth Regiment, Corcoran's Irish Legion\"",
+                "Service_Re": "Age, 40 years. Enlisted, Sept 5, 1862, at New York City, to serve three years; mustered in as private, Co. K, Oct 7, 1862; promoted corporal, prior to Apr 10, 1863; discharged for disability, Sep 29, 1864.",
+                "Death": "Jan 30, 1866"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728077186454328,
+                    42.709465040547727
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 88,
+                "Headstone_": 78,
+                "Last_Name": "Monagahn",
+                "Full_Name": "James Monagahn",
+                "Highest_Ra": "Private",
+                "Unit": "2nd NY Cavalry, “Harris Light Cavalry”, (Albany Regiment)",
+                "Service_Re": "Enlisted April 1, 1862, at Washington; mustered in as private, Company G, Apr 1, 1862, to serve three years; transferred to Company C, Aug 20, 1864; discharged for disability, Jul 31, 1865, at hospital, West Philadelphia, Pa.",
+                "Death": "Mar 30, 1866"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728080022053334,
+                    42.709457795701809
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 89,
+                "Headstone_": 77,
+                "Last_Name": "Pattison",
+                "Full_Name": "Thomas Pattison",
+                "Highest_Ra": "Sergeant",
+                "Unit": "43rd NY Infantry, \"Albany Rifles\"",
+                "Service_Re": "Age, 31 years. Enlisted, Aug 27, 1862, at Albany, to serve three years; mustered in as sergeant, Co. I, Sep 11, 1862; returned to ranks, no date; discharged for disability, Mar 9, 1863, from camp, near Belle Plain, Va.",
+                "Death": "Jan 28, 1866"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728083070266692,
+                    42.709450005690663
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 90,
+                "Headstone_": 76,
+                "Last_Name": "Bentz",
+                "Full_Name": "Christian Bentz",
+                "Highest_Ra": "Unknown",
+                "Unit": "UNKNOWN                           (See Notes)",
+                "Service_Re": "Age, 31 years. Enlisted, Aug 25, 1862, at Schenectady, to serve three years; Private, Co. F, Sept 23, 1862; transferred to Co. K; promoted sergeant, March 27, 1863; first sergeant, no date; killed in action, July 1, 1863, at Gettysburg, Pa.",
+                "Death": "Mar 29, 1866"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728086162230454,
+                    42.709442106299804
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 91,
+                "Headstone_": 75,
+                "Last_Name": "Hutchinson",
+                "Full_Name": "Samuel Hutchinson",
+                "Highest_Ra": "Private",
+                "Unit": "81st NY Infantry, \"Mohawk Rangers\"",
+                "Service_Re": "Age, 26 years. Enlisted at Buffalo, to serve three years, and mustered in as private, Co. D, Dec 8, 1861; mustered out, Aug 31, 1865, while absent sick, at Fort Monroe, Va.\nNOTE: Born in Canada.  Cause of death: Chronic Diarrhea",
+                "Death": "Nov 2, 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728088890854252,
+                    42.709435136730427
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 92,
+                "Headstone_": 74,
+                "Last_Name": "Carroll",
+                "Full_Name": "William Carroll",
+                "Highest_Ra": "Private",
+                "Unit": "18th NY Cavalry, \"Corning Light Cavalry\"",
+                "Service_Re": "Age, 28 years. Enlisted, Feb 6, 1861, at Albany; mustered in as private, Co. E, Feb 11, 1861, to serve three years; died of disease, May 18, 1865, in hospital at Albany, NY",
+                "Death": "May 18, 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728091825694023,
+                    42.709427636333295
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 93,
+                "Headstone_": 73,
+                "Last_Name": "Silsby",
+                "Full_Name": "William Silsby",
+                "Highest_Ra": "Musician",
+                "Unit": "18th NY Infantry, \"New York State Rifles”",
+                "Service_Re": "18th NY Infantry:\nAge, 19 years. Enlisted, May 17, 1861, at Albany; mustered in as musician, Co. B, same date, to serve two years; reduced, date not stated; mustered out with company, May 28, 1863, at Albany, NY; subsequent service in Co. I, Thirtee*",
+                "Death": "Nov 1, 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728094541446339,
+                    42.709420699040109
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 94,
+                "Headstone_": 72,
+                "Last_Name": "Peck",
+                "Full_Name": "Orange Peck",
+                "Highest_Ra": "Private",
+                "Unit": "20th NY Cavalry,\"McClellan Cavary\"",
+                "Service_Re": "Age, 18 years. Enlisted, July 28, 1863, at Gouverneur; mustered in as private, Co. H, Sep 4, 1863, to serve three years; died, Dec 28, 1864, in United States General Hospital, Albany, NY.",
+                "Death": "Dec 28, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728097369366893,
+                    42.709413471218625
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 95,
+                "Headstone_": 71,
+                "Last_Name": "Gladding",
+                "Full_Name": "James Gladding",
+                "Highest_Ra": "Unknown",
+                "Unit": "N.Y.",
+                "Service_Re": "Regiment unknown.  Headstone indicates “N.Y.”  Four men with this name served in Union Army (Michigan, Rhode Island and Connecticut).  More information needed.",
+                "Death": "Oct 4, 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728100575955793,
+                    42.709405280425848
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 96,
+                "Headstone_": 70,
+                "Last_Name": "Gondoux",
+                "Full_Name": "William P. Gondoux",
+                "Highest_Ra": "Private",
+                "Unit": "2nd NY Infantry, (Troy Regiment),70th NY Infantry, \"First Regiment Excelsior Brigade\"",
+                "Service_Re": "2nd NY Infantry:\nAge, 35 years.  Enlisted, Dec 17, 1862, at Troy; mustered in as private, Co. C, Jan 7, 1863, to serve three years; transferred to Seventieth Infantry, May 11,1863. \n70th NY Infantry:Private, Co. C, *",
+                "Death": "Sep 20, 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728103026371656,
+                    42.709399018289965
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 97,
+                "Headstone_": 69,
+                "Last_Name": "Smith",
+                "Full_Name": "John Smith",
+                "Highest_Ra": "Private",
+                "Unit": "100th NY Infantry, (Third Buffalo Regiment)",
+                "Service_Re": "Age, 19 years. Enlisted at Buffalo, to serve three years, and mustered in as private, Co. A, Oct 5, 1861; died of consumption, Sep 17, 1865, at Ira Harris Hospital, Albany, NY.",
+                "Death": "Sep 19, 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728106144107272,
+                    42.709391052544966
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 98,
+                "Headstone_": 68,
+                "Last_Name": "Unknown",
+                "Full_Name": "Unknown",
+                "Highest_Ra": "Unknown",
+                "Unit": "Unknown",
+                "Service_Re": "Unknown",
+                "Death": null
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728109154905951,
+                    42.709383360276036
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 99,
+                "Headstone_": 67,
+                "Last_Name": "Kehan",
+                "Full_Name": "Martin Kehan",
+                "Highest_Ra": "Unknown",
+                "Unit": "UNKNOWN",
+                "Service_Re": "Unknown",
+                "Death": "Aug. 31, 1865"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728112548402677,
+                    42.709374687069783
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 100,
+                "Headstone_": 99,
+                "Last_Name": "Goldtucker",
+                "Full_Name": "Henry Goldtucker",
+                "Highest_Ra": "Unknown",
+                "Unit": "UNKNOWN",
+                "Service_Re": "Name only cited on headstone.  Recorded on cemetery  as having served in Co. F, 7th NY Heavy Artillery regiment.  Name not listed on roster of 7th NYHA, nor found in National Park Service Civil War Soldiers & Sailors Database.",
+                "Death": "May 6, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728076470508626,
+                    42.709367589092338
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 101,
+                "Headstone_": 100,
+                "Last_Name": "Parker",
+                "Full_Name": "Rudolph Parker",
+                "Highest_Ra": "Unknown",
+                "Unit": "UNKNOWN",
+                "Service_Re": "Regiment cited on cemetery record as 1st NY Volunteers.  Name not listed on 1st NY rosters of Infantry, Artillery, Cavalry, Mounted Rifles nor Engineers.",
+                "Death": "Aug 29, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728074069093609,
+                    42.709373723895652
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 102,
+                "Headstone_": 101,
+                "Last_Name": "Hellenny",
+                "Full_Name": "John Hellenny",
+                "Highest_Ra": "Unknown",
+                "Unit": "UNKNOWN",
+                "Service_Re": "Regiment cited on cemetery card as service in Co. C, 24th NYV Infantry.  Name not found on regimental roster for 24th NY Infantry.",
+                "Death": "Aug 28, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728070989946886,
+                    42.709381593710894
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 103,
+                "Headstone_": 102,
+                "Last_Name": "Clement",
+                "Full_Name": "Samuel Clement",
+                "Highest_Ra": "Private",
+                "Unit": "150th NY Infantry, (Dutchess County Regiment)",
+                "Service_Re": "Age, 44 years. Enlisted, Sep 3, 1862, at Dover, to serve three years; mustered in as private, Co. E, Oct 11, 1862; discharged for disability, Dec 13, 1864, at St. Louis, Mo..",
+                "Death": "May 1, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728068658077376,
+                    42.709387551880688
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 104,
+                "Headstone_": 103,
+                "Last_Name": "Kayser",
+                "Full_Name": "Hyram Kayser",
+                "Highest_Ra": "Private",
+                "Unit": "8th NY Infantry, \"First German Rifles\", 15th NY Artillary",
+                "Service_Re": "8th NY Infantry:   Age, 34 years.  Enlisted, Apr 23, 1861, at New York City; mustered in as private, Co. G, Apr 23, 1861, to serve two years; mustered out with company, Apr 23, 1863; subsequent service in 15th NY Heavy Artillery.",
+                "Death": "May 19, 1864"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728066225706158,
+                    42.709393767388349
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 105,
+                "Headstone_": 104,
+                "Last_Name": "Nugent",
+                "Full_Name": "John Nugent",
+                "Highest_Ra": "Private",
+                "Unit": "25th NY Infantry, \"Union Rangers\"",
+                "Service_Re": "Age, 32 years. Enlisted, Jul 1, 1861, at New York City, to serve two years; mustered in as private, Co. A, same date; discharged for disability, Jan 12, 1862, at Hall's Hill, Va.",
+                "Death": "Apr 28, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728063698065853,
+                    42.709400223181767
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 106,
+                "Headstone_": 105,
+                "Last_Name": "Johnson",
+                "Full_Name": "John P. Johnson",
+                "Highest_Ra": "Unknown",
+                "Unit": "UNKNOWN",
+                "Service_Re": "National Park Service Civil War Soldiers & Sailors Database shows 20 results for John P. Johnson who served in the Union Army.",
+                "Death": "Sep 24, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728061335240326,
+                    42.709406262055921
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 107,
+                "Headstone_": 106,
+                "Last_Name": "Munnsch",
+                "Full_Name": "Carl Munnsch",
+                "Highest_Ra": "Unknown",
+                "Unit": "N.Y.",
+                "Service_Re": "Headstone lists “N.Y.”  Name not found in National Park Service Civil War Soldiers & Sailors Database.",
+                "Death": "Jun 1, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728058701883441,
+                    42.709412991338866
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 108,
+                "Headstone_": 107,
+                "Last_Name": "Irving",
+                "Full_Name": "John Irving",
+                "Highest_Ra": "Veterinary Sergeant",
+                "Unit": "2nd NY Cavalry, “Harris Light Cavalry”,(Albany Regiment)",
+                "Service_Re": "Age, 44 years. Enlisted Aug —, 1861, at Troy; mustered in as orderly sergeant, Co. E, Aug 14, 1861, to serve three years; appointed battalion veterinary sergeant, Jan 1, 1862; mustered out Oct 2, 1862, at Washington, D.C.",
+                "Death": "Apr 17, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72805592301583,
+                    42.709420089126333
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 109,
+                "Headstone_": 108,
+                "Last_Name": "Hull",
+                "Full_Name": "William H. Hull",
+                "Highest_Ra": "Corporal",
+                "Unit": "1st Massachusetts Cavalry",
+                "Service_Re": "Age, 21 years. Enlisted Sep 18, 1861, at Pittsfield; mustered in as private, Sep 19, 1861, to serve two years; re-enlisted Dec 20, 1863; mustered out Jun 26, 1865.",
+                "Death": "May 10, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728053189156427,
+                    42.709427075747008
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 110,
+                "Headstone_": 109,
+                "Last_Name": "Whittinger",
+                "Full_Name": "Edward Whittinger",
+                "Highest_Ra": "Sergeant",
+                "Unit": "68th NY Infantry",
+                "Service_Re": "Age, 36 years. Enlisted, Aug 23, 1861, at New York City, to serve three years; mustered in as private, Co. I, Aug 31, 1861; promoted corporal, Oct 14, 1862; re-enlisted as a veteran, Jan 1, 1864; promoted sergeant, Aug 16, 1865.",
+                "Death": "Nov 20, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728050774884878,
+                    42.709433241925794
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 111,
+                "Headstone_": 110,
+                "Last_Name": "Goldwait",
+                "Full_Name": "Thomas Goldwait",
+                "Highest_Ra": "Corporal",
+                "Unit": "3rd NY Infantry, (Albany Regiment)",
+                "Service_Re": "Age, 29 years. Enlisted, Apr 21, 1861, at Albany; mustered in as corporal, Co. E, May 14, 1861, to serve two years; died, Sep 28, 1861, at Fort McHenry, Baltimore, Md.",
+                "Death": "Sep 28, 1861"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728047934087826,
+                    42.709440502022389
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 112,
+                "Headstone_": 111,
+                "Last_Name": "Goisel",
+                "Full_Name": "Daniel Goisel",
+                "Highest_Ra": "Private",
+                "Unit": "176th NY Infantry, \"Ironsides\"",
+                "Service_Re": "Age, 25 years. Enlisted at New York City, to serve three years; mustered in as private, Co. B, Oct 9, 1863; wounded in action, Oct 19, 1864, at Cedar Creek, Va.; discharged for disability, May 18, 1866, at DeCamp Hospital, David's Island, N Y.",
+                "Death": "UNKNOWN"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728045143568352,
+                    42.70944763209949
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 113,
+                "Headstone_": 112,
+                "Last_Name": "Bese",
+                "Full_Name": "Joseph Bese",
+                "Highest_Ra": "Private",
+                "Unit": "115th NY Infantry, \"The Iron Hearted Regiment:",
+                "Service_Re": "Age, 40 years. Enlisted at Glen, to serve three years, and mustered in as private, Co. A, Jul 25, 1862; captured in action, Sep 15, and paroled, Sep 16, 1862, at Harper's Ferry, Va.; discharged for disability, Aug 29, 1863, at Beaufort, SC.",
+                "Death": "Mar 4, 1868"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728043037179347,
+                    42.70945301282719
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 114,
+                "Headstone_": 113,
+                "Last_Name": "Vischell",
+                "Full_Name": "Henry Vischell",
+                "Highest_Ra": "Unknown",
+                "Unit": "2nd U.S. Infantry",
+                "Service_Re": "Served in Co. I",
+                "Death": "Mar 19, 1868"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728040139722196,
+                    42.709460416380217
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 115,
+                "Headstone_": 114,
+                "Last_Name": "Beaver",
+                "Full_Name": "Joseph Beaver",
+                "Highest_Ra": "Private",
+                "Unit": "1st NY Heavy Artillery",
+                "Service_Re": "Age, 30 years. Enlisted, Dec 14, 1863, at Moriah; mustered in as private, Battery B, Dec 16, 1863, to serve three years; mustered out, June 18, 1865, at Elmira, NY.",
+                "Death": "Mar 27, 1868"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728037606862046,
+                    42.709466888324634
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 116,
+                "Headstone_": 115,
+                "Last_Name": "Tschumper",
+                "Full_Name": "George Tschumper",
+                "Highest_Ra": "Private",
+                "Unit": "7th NY Infantry, \"Steuben Guard\"",
+                "Service_Re": "Age, 30 years.  Enlisted, Mar 22, 1864, at New York City; mustered in as private, Co. A, Mar 20, 1864, to serve three years; wounded, Apr 2, 1865, near South Side Railroad, Va.; discharged, Oct 3, 1865, at DeCamp General Hospital, David's Island, NY.",
+                "Death": "1868"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72803525568068,
+                    42.709472894908188
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 117,
+                "Headstone_": 116,
+                "Last_Name": "Miller",
+                "Full_Name": "Michael Miller",
+                "Highest_Ra": "Private",
+                "Unit": "34th NY Infantry, (Herkimer Regiment)",
+                "Service_Re": "Age, 23 years.  Enlisted, May 18, 1861, at West Troy, to serve two years; mustered in as private, Co. A, Jun 15, 1861; deserted Jun 30, 1861, at Albany, N.Y",
+                "Death": "Jun 16, 1868"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728032427786857,
+                    42.709480120927275
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 118,
+                "Headstone_": 117,
+                "Last_Name": "Wood",
+                "Full_Name": "James H. Wood",
+                "Highest_Ra": "Private",
+                "Unit": "4th NY Infantry, \"First Scott's Life Guard\"",
+                "Service_Re": "Age, 27 years. Enlisted, April 22, 1861, at New York City; mustered in as private, Co. A, May 7, 1861, to serve two years; mustered out with company, May 25, 1863, at New York City.\nNOTE: Born in Philadelphia, Pa.  Occupation: chair maker.",
+                "Death": "May 20, 1868"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728029964471958,
+                    42.70948641623815
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 119,
+                "Headstone_": 118,
+                "Last_Name": "Fowler",
+                "Full_Name": "John M. Fowler",
+                "Highest_Ra": "Private",
+                "Unit": "53rd NY Infantry",
+                "Service_Re": "Age, 20 years. Enlisted, Sep 12, 1861, at New York City, to serve three years; mustered in as private, Co. B, Sep 13, 1861; no record subsequent to Dec 31, 1861.",
+                "Death": "Jan 25, 1868"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728027141772756,
+                    42.709493627005649
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 120,
+                "Headstone_": 119,
+                "Last_Name": "Stevens",
+                "Full_Name": "Joseph Stevens",
+                "Highest_Ra": "Private",
+                "Unit": "91st NY Infantry, (Albany Regiment)",
+                "Service_Re": "Age, 44 years.  Enlisted, at Albany, to serve one year, and mustered in as private, Co. G, Aug 20, 1864; mustered out with detachment, Jun 10, 1865, near Washington, DC.",
+                "Death": "Mar 6, 1868"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728024696504448,
+                    42.70949987568892
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 121,
+                "Headstone_": 120,
+                "Last_Name": "Van Vleck",
+                "Full_Name": "William Henry Van Vleck",
+                "Highest_Ra": "Private",
+                "Unit": "125th NY Infantry",
+                "Service_Re": "Age, 37 years.  Enlisted, Aug 14, 1862, at Troy, to serve three years; mustered in as private, Co. H, Aug 27, 1862; wounded in action, Sep 14, 1862, at Harper's Ferry, Va,; surrendered, Sep 15, 1862, and paroled, Sep 16, 1862, at Harper's Ferry, Va.",
+                "Death": "Jul 27, 1868"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72802200004601,
+                    42.709506764565624
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 122,
+                "Headstone_": 121,
+                "Last_Name": "Christianson",
+                "Full_Name": "Michael Christianson",
+                "Highest_Ra": "Sergeant",
+                "Unit": "3rd Battery NY Lt Artillery, \"Mott's Artillery\"",
+                "Service_Re": "Age, 33 years. Enlisted, Sep 6, 1861, at New York; mustered in as private, Sep 6, 1861, to serve three years; promoted sergeant in Apr, 1863; reduced, date not stated; mustered out, Sep 17, 1864, at Washington, DC.",
+                "Death": "Dec 21, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728019397579914,
+                    42.709513415843894
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 123,
+                "Headstone_": 122,
+                "Last_Name": "Mc Gaffey",
+                "Full_Name": "James A. Mc Gaffey",
+                "Highest_Ra": "Unknown",
+                "Unit": "U.S. Navy",
+                "Service_Re": "Unknown",
+                "Death": "Aug 16, 1868"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728016775881471,
+                    42.709520111935376
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 124,
+                "Headstone_": 123,
+                "Last_Name": "Tandy",
+                "Full_Name": "John Tandy",
+                "Highest_Ra": "Private",
+                "Unit": "113th NY Infantry, (became 7th NY Heavy Artillery),“Seymour Guards\"",
+                "Service_Re": "Age, 25 years. Enlisted, Aug 11, 1862, at Albany; mustered in as private, Co. D (originally 113th New York Infantry), Aug 18, 1862, to serve three years; mustered out with detachment, Jun 16, 1865, at Fort Federal Hill, Baltimore",
+                "Death": "Oct 19, 1868"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728014468428952,
+                    42.70952601003912
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 125,
+                "Headstone_": 124,
+                "Last_Name": "Williams",
+                "Full_Name": "Henry Williams",
+                "Highest_Ra": "Private",
+                "Unit": "66th NY Infantry, \"Governor's Guard\"",
+                "Service_Re": "Age, 25 years. Enlisted at Brooklyn, to serve three years, and mustered in as private, Co. I, Jan 11, 1864; mustered out with company, Aug 30, 1865, at New York City.",
+                "Death": "May 5, 1869"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728011715273055,
+                    42.709533044172815
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 126,
+                "Headstone_": 125,
+                "Last_Name": "Zingler",
+                "Full_Name": "Charles H. Zingler",
+                "Highest_Ra": "Private",
+                "Unit": "5th NY Heavy Artillery, \"Second Regiment Jackson Heavy Artillery”",
+                "Service_Re": "Age, 21 years. Enlisted, Jan 20, 1862, at Brooklyn; mustered in as private, Co. A, Jan 20, 1862, to serve three years; deserted, Jan 25, 1862, at Camp Doubleday, L.I.",
+                "Death": "Nov 9, 1868"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728008835874334,
+                    42.709540400197042
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 127,
+                "Headstone_": 126,
+                "Last_Name": "Wunschemeyer",
+                "Full_Name": "Frederick Wunschemeyer",
+                "Highest_Ra": "Private",
+                "Unit": "45th NY Infantry, \"Fifth German Regiment\"",
+                "Service_Re": "Age, 32 years. Enlisted at New York City, to serve three years, and mustered in as private, Co. G, Sep 3, 1861; transferred to Co. I, no date; to Co. A, Third Regiment, Veteran Reserve Corps, July 1, 1863.",
+                "Death": "May 10, 1869"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728006252784255,
+                    42.709546999459036
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 128,
+                "Headstone_": 127,
+                "Last_Name": "Hoffman",
+                "Full_Name": "Edward Hoffman",
+                "Highest_Ra": "Corporal",
+                "Unit": "34th NY Infantry, (Herkimer Regiment)",
+                "Service_Re": "Age, 41 years. Enlisted, May 18, 1861, at West Troy, to serve two years; mustered in as private, Co. A, Jun 15, 1861; promoted corporal, date not stated; died, Nov 1, 1862, at West Troy, NY.",
+                "Death": "Jan. 13, 1867"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72800363228535,
+                    42.709553696463999
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 129,
+                "Headstone_": 128,
+                "Last_Name": "Hoffman",
+                "Full_Name": "Cornelius P. Hoffman",
+                "Highest_Ra": null,
+                "Unit": "Comapny F, 17th NYS Militia,",
+                "Service_Re": "Unknown",
+                "Death": "Apr 25, 1870"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728000665271523,
+                    42.709561276649104
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 130,
+                "Headstone_": 129,
+                "Last_Name": "Rose",
+                "Full_Name": "Charles H. Rose",
+                "Highest_Ra": "Private",
+                "Unit": "21st New Jersey Infantry",
+                "Service_Re": "Age, 34 years.  Enrolled, Augt 25, 1862, at Trenton, NJ, to serve nine months; mustered in as private, Co. A, Sep 15, 1862, at Trenton, NJ; mustered out, Jun 19, 1863.  The regiment was engaged at the battles of Fredericksburg, Chancellorsville.",
+                "Death": "Jun 15, 1870"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.727998509872123,
+                    42.709566784707768
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 131,
+                "Headstone_": 130,
+                "Last_Name": "Foster",
+                "Full_Name": "James B. Foster",
+                "Highest_Ra": "Private",
+                "Unit": "95th NY Infantry, \"Warren Rifles\"",
+                "Service_Re": "Age, 34 years. Enlisted, Dec 1, 1861, at New York City, to serve three years; mustered in as private, Co. C, Dec 6, 1861; deserted, Nov 19, 1862.\nNOTE: Born in England.  Cause of death: Consumption",
+                "Death": "Aug 25, 1870"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.727995794102384,
+                    42.709573721998254
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 132,
+                "Headstone_": 131,
+                "Last_Name": "Krentz",
+                "Full_Name": "Joseph Krentz",
+                "Highest_Ra": "Private",
+                "Unit": "14th NY Heavy Artillery",
+                "Service_Re": "Enlisted, and mustered in as private, Co. E, dates and places not stated; deserted, Jan 17, 1864, at Fort Hamilton, New York Harbor.\n Born in Germany.  Cause of death: Hemiplegia",
+                "Death": "June 2, 1871"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72804390090127,
+                    42.70935791761066
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 133,
+                "Headstone_": 132,
+                "Last_Name": "Steves",
+                "Full_Name": "William H. Steves",
+                "Highest_Ra": "Private",
+                "Unit": "91st NY Infantry, (Albany regiment)",
+                "Service_Re": "Age, 22 years. Enlisted at Albany, to serve three years, and mustered in as private, Co. B, Mar 31, 1862; re-enlisted as a veteran, Apr 1, 1864; mustered out with company, Jul 3, 1865, near Washington, DC.",
+                "Death": "Jan 3, 1873"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728040826984241,
+                    42.709365770372983
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 134,
+                "Headstone_": 133,
+                "Last_Name": "Stewart",
+                "Full_Name": "David Stewart",
+                "Highest_Ra": "Unknown",
+                "Unit": "N.Y.",
+                "Service_Re": "According to the National Park Service Civil War Soldiers & Sailors Database, there were 20 men with the name David Stewart that served in a New York regiment during the Civil War.",
+                "Death": "Jan 29, 1873"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728038212932219,
+                    42.70937245124091
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 135,
+                "Headstone_": 134,
+                "Last_Name": "Tibbetts",
+                "Full_Name": "John Tibbetts",
+                "Highest_Ra": "Corporal",
+                "Unit": "102nd NY Infantry, “Van Buren Light Infantry”",
+                "Service_Re": "Age, 25 years. Enlisted, Dec 11, 1861 at Albany, to serve three years; mustered in as private, Co. K, Jan 7, 1862; promoted corporal, returned to ranks, and transferred to Co. E, no dates; discharged, Apr 1, 1865.",
+                "Death": "Nov 3, 1873"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728035095207346,
+                    42.709380416083633
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 136,
+                "Headstone_": 135,
+                "Last_Name": "Catchpole",
+                "Full_Name": "William Catchpole",
+                "Highest_Ra": "Private",
+                "Unit": "7th NY Heavy Artillery,“Seymour Guard”, (Albany Regiment)",
+                "Service_Re": "Age, 18 years. Enlisted, Jan 22, 1863, at Albany; mustered in as private, Co. C, Jan 22, 1863, to serve three years; wounded, Oct 11, 1864, near Petersburg, Va.; discharged, Apr 13, 1866, at Fort McHenry, Md.\nNOTE: Born in Albany, NY.  Occupation*",
+                "Death": "Apr 17, 1874"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728032448978638,
+                    42.709387177642355
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 137,
+                "Headstone_": 136,
+                "Last_Name": "Reigel",
+                "Full_Name": "Richard Reigel",
+                "Highest_Ra": "Captain",
+                "Unit": "46th NY Infantry, “Fremont Rifle Regiment\"",
+                "Service_Re": "Age, 43 years. Enrolled, at New York City, to serve three years,mustered in as captain, Co. D, Aug 22, 1861; discharged, Jan 3, 1862; again enrolled, Sep 2, 1862, and mustered in as private Sep 16, 1862; promoted 2nd lieutenant, Nov 1, 1862.",
+                "Death": "Apr 25, 1875"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728029557958578,
+                    42.709394565057003
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 138,
+                "Headstone_": 137,
+                "Last_Name": "Teeling",
+                "Full_Name": "Nathaniel Alexander Teeling",
+                "Highest_Ra": "Private",
+                "Unit": "12th Independent Battery, NY Light Artillery",
+                "Service_Re": "Age, 27 years. Enlisted, October 29, 1861,mustered in as private, November 18, 1861, to serve three years; re-enlisted, December 26, 1863; captured, August 25, 1864, at Reams Station, Va.; returned, May 17, 1865; mustered out with battery, at Albany, N.Y.",
+                "Death": "Jan 1875"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728026578085775,
+                    42.709402177519515
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 139,
+                "Headstone_": 138,
+                "Last_Name": "Kelly",
+                "Full_Name": "Daniel Kelly",
+                "Highest_Ra": "Private",
+                "Unit": "91st NY Infantry, (Albany Regiment)",
+                "Service_Re": "Age, 30 years.  Enlisted at Albany, to serve three years, and mustered in as private, Co. A, Oct 23, 1861; wounded in action, Jun 11, 1863, before Port Hudson, La.; re-enlisted as a veteran, Jan 1, 1864.",
+                "Death": "Feb. 28, 1876"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728023359838033,
+                    42.709410400600049
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 140,
+                "Headstone_": 139,
+                "Last_Name": "Doyson",
+                "Full_Name": "Thomas Doyson",
+                "Highest_Ra": "Private",
+                "Unit": "159th NY Infantry, (Second Dutchess and Columbia Regiment)",
+                "Service_Re": "Age, 29 years.  Enlisted, Jan 21, 1864, at Hudson, to serve three years; mustered in as private, Co. G, Feb 8, 1864; mustered out with company, Oct 12, 1865, at Augusta, Ga.",
+                "Death": "Mar 23, 1881"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72802076386661,
+                    42.709417033039337
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 141,
+                "Headstone_": 140,
+                "Last_Name": "Patterson",
+                "Full_Name": "Joseph W. Patterson",
+                "Highest_Ra": "Private",
+                "Unit": "Battery B, 2nd Maryland Light Artillery, “Eagle Artillery”",
+                "Service_Re": "Enlisted, Jul 8, 1863, at Baltimore, to serve six months; mustered in as private, same date; mustered out Jan 16, 1864, expiration of term of service.",
+                "Death": "Jan 20, 1882"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728006192858018,
+                    42.709454263298348
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 142,
+                "Headstone_": 141,
+                "Last_Name": "Mc NEeil",
+                "Full_Name": "James Mc NEeil",
+                "Highest_Ra": "Corporal",
+                "Unit": "18th NY Infantry, “New York State Rifles”",
+                "Service_Re": "Age, 22 years. Enlisted, May 2, 1861, at Schenectady; mustered in as private, Co. E, May 17, 1861, to serve two years; promoted corporal, Aug 12, 1862; mustered out with company, May 28, 1863, at Albany, NY.",
+                "Death": "Dec 11, 1882"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728003967897749,
+                    42.709459948890903
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 143,
+                "Headstone_": 142,
+                "Last_Name": "Corrigan",
+                "Full_Name": "Samuel Corrigan",
+                "Highest_Ra": "Unknown",
+                "Unit": "U.S. Navy",
+                "Service_Re": "Buried Apr 24, 1885",
+                "Death": "Jan 19, 1885"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728001748151314,
+                    42.709465618331691
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 144,
+                "Headstone_": 143,
+                "Last_Name": "Van Valkenburgh",
+                "Full_Name": "Michael Van Valkenburgh",
+                "Highest_Ra": "Private",
+                "Unit": "25th NY Infantry, “Union Rangers\", 44th NY Infantry, \"Halleck Infantry\"",
+                "Service_Re": "25th NY Infantry:\nAge, 40 years. Enlisted, Sep 26, 1862, at Guilderland, to serve three years; mustered in as private, Co. K, Nov 29, 1862; transferred, June 19, 1863, to Forty-fourth New York Infantry.\n44th NY Infantry:                             *",
+                "Death": "Apr 14, 1885"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.727998857105362,
+                    42.709473006645709
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 145,
+                "Headstone_": 144,
+                "Last_Name": "Walmsley",
+                "Full_Name": "Edward Walmsley",
+                "Highest_Ra": "Private",
+                "Unit": "177th NY Infantry,  (Albany Regiment)",
+                "Service_Re": "Age, 18 years. Enlisted, Oct 11, 1862, at Albany, to serve nine months; mustered in as private, Co. D, Nov 21, 1862; mustered out with company, Sep 10, 1863, at Albany, NY.\nNOTE: Born in Ireland.  Cause of death: Phthisis",
+                "Death": "Mar 4, 1885"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.727996141321626,
+                    42.70947994483673
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 146,
+                "Headstone_": 145,
+                "Last_Name": "King",
+                "Full_Name": "George King",
+                "Highest_Ra": "Private",
+                "Unit": "91st NY Infantry, (Albany Regiment)",
+                "Service_Re": "Age, 32 years. Enlisted, Aug 31, 1864, at Troy, to serve one year; mustered in as private, Sep 6, 1864; discharged, May 10, 1865, at Hart’s Island, New York Harbor.",
+                "Death": "Apr 3, 1886"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.727993532474017,
+                    42.709486609551639
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 147,
+                "Headstone_": 146,
+                "Last_Name": "Beaver",
+                "Full_Name": "Jacob T. Beaver",
+                "Highest_Ra": "Private",
+                "Unit": "43rd NY Infantry,  \"Albany Rifles”",
+                "Service_Re": "Age, 34 years. Enlisted at Albany, to serve three years, and mustered in as private, Co. C, December 7, 1861; discharged for disability, September 26, 1862, at Philadelphia, Pa.",
+                "Death": "Mar 15, 1886"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.727991043414477,
+                    42.709492969414377
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 148,
+                "Headstone_": 147,
+                "Last_Name": "Mesick",
+                "Full_Name": "Cyrus Mesick",
+                "Highest_Ra": "Sergeant",
+                "Unit": "159th NY Infantry, (Second Dutchess and Columbia Regiment)",
+                "Service_Re": "Age, 21 years. Enlisted, Sep 2, 1862, at Claverack, to serve three years; mustered in as corporal, Co. G, Nov 1, 1862; discharged for disability, no date, at Baton Rouge, La.",
+                "Death": "Sep 26, 1886"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.727987844462433,
+                    42.709501144079091
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 149,
+                "Headstone_": 148,
+                "Last_Name": "Elliott",
+                "Full_Name": "William Elliott",
+                "Highest_Ra": "Wagoner",
+                "Unit": "112th NY Infantry, “Chautauqua Regiment “",
+                "Service_Re": "Age, 27 years. Enlisted, Jul 26, 1862, at Stockton, to serve three years; mustered in as wagoner, Co. B, Aug 8, 1862; discharged for disability, Sep 14, 1864.\nNOTES: Born in England.  Cause of death: Cardiac Syncope",
+                "Death": "Jun 22, 1887"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.727985065564241,
+                    42.709508242764898
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 151,
+                "Headstone_": 149,
+                "Last_Name": "Lorman",
+                "Full_Name": "Henry Lorman",
+                "Highest_Ra": "Private",
+                "Unit": "34th NY Infantry, “Herkimer Regiment”",
+                "Service_Re": "Age, 20 years. Enlisted, May 18, 1861, at West Troy, to serve two years; mustered in as private, Co. A, Jun 15, 1861; wounded, Sep 17, 1862, at Battle of Antietam, Sharpsburg, Md.; mustered out with company, June 30, 1863, at Albany, NY.",
+                "Death": "May 29, 1893"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.727983166551368,
+                    42.709513095378504
+                ]
+            }
+        }
+    ]
+}

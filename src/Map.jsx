@@ -12,7 +12,7 @@
 //=============================================================================
 
 // React and Core Dependencies
-import { React, useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
 // Leaflet and Map-related Dependencies
 import { MapContainer, Popup, Marker, GeoJSON, LayersControl, LayerGroup, useMap } from "react-leaflet";
@@ -41,6 +41,9 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import HomeIcon from '@mui/icons-material/Home';
 import InstallMobileIcon from '@mui/icons-material/InstallMobile';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import TuneIcon from '@mui/icons-material/Tune';
 
 // Local Data and Styles
 import ARC_Roads from "./data/ARC_Roads.json";
@@ -67,21 +70,39 @@ const ZOOM_LEVELS = {
  * Cycles through these colors for multiple markers
  */
 const MARKER_COLORS = [
-  '#e41a1c', // red
-  '#377eb8', // blue
-  '#4daf4a', // green
-  '#984ea3', // purple
-  '#ff7f00', // orange
-  '#ffff33', // yellow
-  '#a65628', // brown
-  '#f781bf', // pink
-  '#999999'  // grey
+  '#8b5e34', // warm earth
+  '#2f5d7c', // slate blue
+  '#3d7245', // moss
+  '#7f4f7a', // plum
+  '#8f6a2f', // bronze
+  '#4d5f7d', // dusk blue
+  '#7a3d44', // rosewood
+  '#5c6a35', // olive
+  '#4e4d63'  // charcoal violet
 ];
 
 /**
  * Default zoom level for focusing on specific locations
  */
 const ZOOM_LEVEL = 18;
+const MOBILE_BREAKPOINT = 840;
+
+const ENV = (typeof import.meta !== 'undefined' && import.meta.env)
+  ? import.meta.env
+  : process.env;
+const GRAPHHOPPER_API_KEY = ENV.VITE_GRAPHHOPPER_API_KEY || ENV.REACT_APP_GRAPHHOPPER_API_KEY || '';
+const IS_DEV_MODE = (ENV.MODE || ENV.NODE_ENV) === 'development';
+
+const getPublicDataUrl = (fileName) => {
+  const externalBase = ENV.VITE_DATA_BASE_URL || '';
+  if (externalBase) {
+    return `${externalBase.replace(/\/$/, '')}/${fileName}`;
+  }
+
+  const basePath = (ENV.BASE_URL || '/').replace(/\/?$/, '/');
+  return `${basePath}data/${fileName}`;
+};
+const BURIAL_DATA_URL = ENV.VITE_BURIAL_DATA_URL || getPublicDataUrl('Geo_Burials.json');
 
 /**
  * Tour definitions with associated colors and display names
@@ -205,7 +226,7 @@ function VectorBasemap({ name }) {
 /**
  * Component that manages map state and provides access to the map instance
  */
-function MapController({ selectedBurials, hoveredIndex }) {
+function MapController() {
   const map = useMap();
   
   useEffect(() => {
@@ -261,7 +282,7 @@ function RoutingControl({ from, to }) {
     setRoutingError(null);
     setIsCalculating(true);
 
-    const apiKey = process.env.REACT_APP_GRAPHHOPPER_API_KEY;
+    const apiKey = GRAPHHOPPER_API_KEY;
     if (!apiKey) {
       console.error('GraphHopper API key not found in environment variables');
       setRoutingError('Configuration error: API key not found. Please contact administrators.');
@@ -376,31 +397,18 @@ function RoutingControl({ from, to }) {
 const createNumberedIcon = (number, isHighlighted = false) => {
   const colorIndex = (number - 1) % MARKER_COLORS.length;
   const color = MARKER_COLORS[colorIndex];
+  const markerNumber = number > 99 ? '99+' : `${number}`;
   
   return L.divIcon({
-    className: 'custom-div-icon',
+    className: 'result-marker-icon',
     html: `
-      <div style="
-        background-color: ${color};
-        width: ${isHighlighted ? '32px' : '24px'};
-        height: ${isHighlighted ? '32px' : '24px'};
-        border-radius: 50%;
-        border: ${isHighlighted ? '3px' : '2px'} solid white;
-        box-shadow: ${isHighlighted ? '0 0 8px rgba(0,0,0,0.6)' : '0 0 4px rgba(0,0,0,0.4)'};
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: bold;
-        font-size: ${isHighlighted ? '16px' : '14px'};
-        transition: all 0.2s ease;
-      ">
-        ${number}
+      <div class="result-marker-pin ${isHighlighted ? 'is-highlighted' : ''}" style="--pin-color: ${color};">
+        <span>${markerNumber}</span>
       </div>
     `,
-    iconSize: [isHighlighted ? 32 : 24, isHighlighted ? 32 : 24],
-    iconAnchor: [isHighlighted ? 16 : 12, isHighlighted ? 16 : 12],
-    popupAnchor: [0, isHighlighted ? -16 : -12]
+    iconSize: [isHighlighted ? 36 : 32, isHighlighted ? 46 : 42],
+    iconAnchor: [isHighlighted ? 18 : 16, isHighlighted ? 44 : 40],
+    popupAnchor: [0, isHighlighted ? -40 : -36]
   });
 };
 
@@ -422,7 +430,7 @@ const createUniqueKey = (burial, index) => {
 const getImagePath = (imageName) => {
   if (!imageName || imageName === "NONE") return 'https://www.albany.edu/arce/images/no-image.jpg';
   
-  if (process.env.NODE_ENV === 'development') {
+  if (IS_DEV_MODE) {
     return `http://localhost:8000/src/data/images/${imageName}`;
   }
   return `https://www.albany.edu/arce/images/${imageName}`;
@@ -440,27 +448,24 @@ const createTourMarker = (tourKey) => {
   return (feature, latlng) => {
     if (feature.geometry.type === 'Point') {
       const icon = L.divIcon({
-        className: 'tour-marker',
-        html: `<div style="
-          width: 12px;
-          height: 12px;
-          background-color: ${tourInfo.color};
-          border-radius: 50%;
-          border: 2px solid white;
-          box-shadow: 0 0 4px rgba(0,0,0,0.4);
-        "></div>`,
-        iconSize: [12, 12],
-        iconAnchor: [6, 6]
+        className: 'tour-marker-icon',
+        html: `
+          <div class="tour-marker-dot" style="--tour-color: ${tourInfo.color};">
+            <div class="tour-marker-dot-core"></div>
+          </div>
+        `,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
       });
       return L.marker(latlng, { icon });
     }
     return L.circleMarker(latlng, {
-      radius: 6,
+      radius: 5,
       fillColor: tourInfo.color,
-      color: '#ffffff',
-      weight: 2,
+      color: '#f8f4ea',
+      weight: 1.5,
       opacity: 0.9,
-      fillOpacity: 0.7
+      fillOpacity: 0.85
     });
   };
 };
@@ -508,31 +513,31 @@ const createTourPopupContent = (feature, tourKey) => {
  * Tour data configuration with associated GeoJSON data
  */
 const TOUR_DEFINITIONS = [
-  { key: 'Lot7', name: "Soldier's Lot (Section 75, Lot 7)", load: () => import("./data/Projected_Sec75_Headstones.json") },
-  { key: 'Sec49', name: "Section 49", load: () => import("./data/Projected_Sec49_Headstones.json") },
-  { key: 'Notable', name: "Notables Tour 2020", load: () => import("./data/NotablesTour20.json") },
-  { key: 'Indep', name: "Independence Tour 2020", load: () => import("./data/IndependenceTour20.json") },
-  { key: 'Afr', name: "African American Tour 2020", load: () => import("./data/AfricanAmericanTour20.json") },
-  { key: 'Art', name: "Artists Tour 2020", load: () => import("./data/ArtistTour20.json") },
-  { key: 'Groups', name: "Associations, Societies, & Groups Tour 2020", load: () => import("./data/AssociationsTour20.json") },
-  { key: 'AuthPub', name: "Authors & Publishers Tour 2020", load: () => import("./data/AuthorsPublishersTour20.json") },
-  { key: 'Business', name: "Business & Finance Tour 2020", load: () => import("./data/BusinessFinanceTour20.json") },
-  { key: 'CivilWar', name: "Civil War Tour 2020", load: () => import("./data/CivilWarTour20.json") },
-  { key: 'Pillars', name: "Pillars of Society Tour 2020", load: () => import("./data/SocietyPillarsTour20.json") },
-  { key: 'MayorsOfAlbany', name: "Mayors of Albany", load: () => import("./data/AlbanyMayors_fixed.json") },
-  { key: 'GAR', name: "Grand Army of the Republic", load: () => import("./data/GAR_fixed.json") }
+  { key: 'Lot7', name: "Soldier's Lot (Section 75, Lot 7)", fileName: 'Projected_Sec75_Headstones.json' },
+  { key: 'Sec49', name: "Section 49", fileName: 'Projected_Sec49_Headstones.json' },
+  { key: 'Notable', name: "Notables Tour 2020", fileName: 'NotablesTour20.json' },
+  { key: 'Indep', name: "Independence Tour 2020", fileName: 'IndependenceTour20.json' },
+  { key: 'Afr', name: "African American Tour 2020", fileName: 'AfricanAmericanTour20.json' },
+  { key: 'Art', name: "Artists Tour 2020", fileName: 'ArtistTour20.json' },
+  { key: 'Groups', name: "Associations, Societies, & Groups Tour 2020", fileName: 'AssociationsTour20.json' },
+  { key: 'AuthPub', name: "Authors & Publishers Tour 2020", fileName: 'AuthorsPublishersTour20.json' },
+  { key: 'Business', name: "Business & Finance Tour 2020", fileName: 'BusinessFinanceTour20.json' },
+  { key: 'CivilWar', name: "Civil War Tour 2020", fileName: 'CivilWarTour20.json' },
+  { key: 'Pillars', name: "Pillars of Society Tour 2020", fileName: 'SocietyPillarsTour20.json' },
+  { key: 'MayorsOfAlbany', name: "Mayors of Albany", fileName: 'AlbanyMayors_fixed.json' },
+  { key: 'GAR', name: "Grand Army of the Republic", fileName: 'GAR_fixed.json' }
 ];
 
 /**
  * Default style for burial markers
  */
 const markerStyle = {
-  radius: 8,
-  fillColor: "#ff7800",
-  color: "#000",
-  weight: 1,
+  radius: 5,
+  fillColor: "#8f7a56",
+  color: "#f8f4ea",
+  weight: 1.5,
   opacity: 1,
-  fillOpacity: 0.8
+  fillOpacity: 0.92
 };
 
 //=============================================================================
@@ -667,6 +672,12 @@ export default function BurialMap() {
   const [installPromptEvent, setInstallPromptEvent] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
+  const [isCompactLayout, setIsCompactLayout] = useState(
+    typeof window !== 'undefined' ? window.innerWidth <= MOBILE_BREAKPOINT : false
+  );
+  const [isPanelCollapsed, setIsPanelCollapsed] = useState(
+    typeof window !== 'undefined' ? window.innerWidth <= MOBILE_BREAKPOINT : false
+  );
   
   // Location and Routing State
   const [lat, setLat] = useState(null);
@@ -859,8 +870,12 @@ export default function BurialMap() {
           duration: 1.5
         });
       }
+
+      if (isCompactLayout) {
+        setIsPanelCollapsed(true);
+      }
     }
-  }, [selectedBurials]);
+  }, [selectedBurials, isCompactLayout]);
 
   /**
    * Handles search input and selection
@@ -920,7 +935,10 @@ export default function BurialMap() {
         }
       );
     }
-  }, []);
+    if (isCompactLayout) {
+      setIsPanelCollapsed(true);
+    }
+  }, [isCompactLayout]);
 
   /**
    * Handles clicking on a marker
@@ -948,21 +966,13 @@ export default function BurialMap() {
       chunkDelay: 50,
       iconCreateFunction: (cluster) => {
         const count = cluster.getChildCount();
+        const size = count < 10 ? 34 : count < 100 ? 40 : 46;
         return L.divIcon({
-          html: `<div style="
-            background-color: rgba(0,123,255,0.6);
-            border: none;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 14px;
-          ">${count}</div>`,
+          html: `<div class="cluster-pill" style="width:${size}px;height:${size}px;">
+            <span>${count}</span>
+          </div>`,
           className: 'custom-cluster-icon',
-          iconSize: [30, 30]
+          iconSize: [size, size]
         });
       }
     });
@@ -977,19 +987,28 @@ export default function BurialMap() {
    */
   useEffect(() => {
     let ignore = false;
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), 30000);
 
     const loadBurials = async () => {
       setIsBurialDataLoading(true);
       setBurialDataError('');
       try {
-        const module = await import('./data/Geo_Burials.json');
+        const response = await fetch(BURIAL_DATA_URL, {
+          signal: abortController.signal,
+          cache: 'no-cache',
+        });
+        if (!response.ok) {
+          throw new Error(`Burial data request failed: ${response.status}`);
+        }
+        const module = await response.json();
         if (!ignore) {
-          setBurialFeatures(module.default.features || []);
+          setBurialFeatures(module.features || []);
         }
       } catch (error) {
         console.error('Failed to load burial data:', error);
         if (!ignore) {
-          setBurialDataError('Burial records failed to load. Refresh and try again.');
+          setBurialDataError('Burial records failed to load. Verify internet access or set VITE_BURIAL_DATA_URL in .env.');
         }
       } finally {
         if (!ignore) {
@@ -1001,6 +1020,8 @@ export default function BurialMap() {
     loadBurials();
     return () => {
       ignore = true;
+      clearTimeout(timeoutId);
+      abortController.abort();
     };
   }, []);
 
@@ -1031,6 +1052,27 @@ export default function BurialMap() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const mediaQuery = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const updateLayout = () => {
+      setIsCompactLayout(mediaQuery.matches);
+      if (!mediaQuery.matches) {
+        setIsPanelCollapsed(false);
+      }
+    };
+
+    updateLayout();
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', updateLayout);
+      return () => mediaQuery.removeEventListener('change', updateLayout);
+    }
+
+    mediaQuery.addListener(updateLayout);
+    return () => mediaQuery.removeListener(updateLayout);
   }, []);
 
   /**
@@ -1103,8 +1145,58 @@ export default function BurialMap() {
         max-width: 200px;
         max-height: 200px;
         margin: 8px auto;
-        border: 2px solid #ccc;
-        border-radius: 4px;
+        border: 2px solid #d8d0c0;
+        border-radius: 8px;
+      }
+
+      .result-marker-pin {
+        position: relative;
+        width: 30px;
+        height: 30px;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        background: radial-gradient(circle at 30% 30%, #ffffff, var(--pin-color));
+        border: 2px solid #ffffff;
+        box-shadow: 0 6px 12px rgba(34, 29, 22, 0.45);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .result-marker-pin span {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: rotate(45deg);
+        color: #fefefe;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+      }
+
+      .result-marker-pin.is-highlighted {
+        transform: rotate(-45deg) scale(1.12);
+        box-shadow: 0 10px 18px rgba(34, 29, 22, 0.6);
+      }
+
+      .tour-marker-dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: color-mix(in srgb, var(--tour-color) 35%, #fefefe);
+        border: 2px solid #fff8ec;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--tour-color) 45%, transparent), 0 5px 10px rgba(31, 25, 18, 0.3);
+      }
+
+      .tour-marker-dot-core {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--tour-color);
       }
       
       .marker-cluster {
@@ -1123,6 +1215,23 @@ export default function BurialMap() {
         display: flex;
         align-items: center;
         justify-content: center;
+      }
+
+      .cluster-pill {
+        border-radius: 50%;
+        border: 2px solid rgba(255, 251, 243, 0.95);
+        background: radial-gradient(circle at 30% 30%, rgba(224, 238, 255, 0.95), rgba(39, 76, 124, 0.92));
+        color: #f8fbff;
+        box-shadow: 0 8px 14px rgba(26, 44, 70, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .cluster-pill span {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
       }
       
       .tour-marker {
@@ -1282,8 +1391,13 @@ export default function BurialMap() {
     setTourLayerError('');
 
     try {
-      const module = await definition.load();
-      const layer = L.geoJSON(module.default, {
+      const response = await fetch(getPublicDataUrl(definition.fileName), { cache: 'force-cache' });
+      if (!response.ok) {
+        throw new Error(`Tour data request failed (${response.status})`);
+      }
+
+      const tourData = await response.json();
+      const layer = L.geoJSON(tourData, {
         pointToLayer: createTourMarker(definition.key),
         onEachFeature: createOnEachTourFeature(definition.key)
       });
@@ -1374,8 +1488,26 @@ export default function BurialMap() {
       {/* Left sidebar with search and filters */}
       <Paper 
         elevation={3}
-        className="left-sidebar"
+        className={`left-sidebar${isCompactLayout && isPanelCollapsed ? ' collapsed' : ''}`}
       >
+        {isCompactLayout && (
+          <Box className="mobile-panel-toggle">
+            <Button
+              size="small"
+              variant="contained"
+              onClick={() => setIsPanelCollapsed((current) => !current)}
+              startIcon={<TuneIcon />}
+              endIcon={isPanelCollapsed ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            >
+              {isPanelCollapsed ? 'Open Finder Panel' : 'Map View'}
+            </Button>
+            <Typography variant="caption" sx={{ color: 'var(--muted-text)' }}>
+              {selectedBurials.length} saved {selectedBurials.length === 1 ? 'pin' : 'pins'}
+            </Typography>
+          </Box>
+        )}
+
+        <Box className="left-sidebar-body">
         <Box sx={{ p: 2 }}>
           <Box sx={{ mb: 1.5 }}>
             <Typography variant="overline" sx={{ letterSpacing: 1.2, color: 'var(--muted-text)' }}>
@@ -1698,7 +1830,7 @@ export default function BurialMap() {
 
         {/* Search Results */}
         {selectedBurials.length > 0 && (
-          <Box sx={{ maxHeight: 'calc(100vh - 200px)', overflow: 'auto' }}>
+          <Box sx={{ maxHeight: isCompactLayout ? '42vh' : 'calc(100vh - 200px)', overflow: 'auto' }}>
             <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="h6">Search Results ({selectedBurials.length})</Typography>
               <IconButton onClick={clearSearch} size="small">
@@ -1736,19 +1868,19 @@ export default function BurialMap() {
                 >
                   <Box
                     sx={{
-                      width: hoveredIndex === index ? '32px' : '24px',
-                      height: hoveredIndex === index ? '32px' : '24px',
-                      borderRadius: '50%',
-                      backgroundColor: MARKER_COLORS[index % MARKER_COLORS.length],
-                      color: 'white',
+                      minWidth: hoveredIndex === index ? '34px' : '30px',
+                      height: hoveredIndex === index ? '34px' : '30px',
+                      borderRadius: '999px',
+                      background: `linear-gradient(135deg, ${MARKER_COLORS[index % MARKER_COLORS.length]}, #2f2f2f)`,
+                      color: '#f8f8f8',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       marginRight: 1,
                       fontWeight: 'bold',
-                      fontSize: hoveredIndex === index ? '16px' : '14px',
-                      border: hoveredIndex === index ? '3px solid white' : '2px solid white',
-                      boxShadow: hoveredIndex === index ? '0 0 8px rgba(0,0,0,0.6)' : '0 0 4px rgba(0,0,0,0.4)',
+                      fontSize: hoveredIndex === index ? '0.95rem' : '0.84rem',
+                      border: hoveredIndex === index ? '2px solid rgba(255,255,255,0.95)' : '1px solid rgba(255,255,255,0.85)',
+                      boxShadow: hoveredIndex === index ? '0 8px 16px rgba(0,0,0,0.25)' : '0 4px 10px rgba(0,0,0,0.18)',
                       transition: 'all 0.2s ease'
                     }}
                   >
@@ -1790,7 +1922,19 @@ export default function BurialMap() {
             </List>
           </Box>
         )}
+        </Box>
       </Paper>
+
+      {isCompactLayout && isPanelCollapsed && (
+        <Button
+          className="mobile-panel-fab"
+          variant="contained"
+          onClick={() => setIsPanelCollapsed(false)}
+          startIcon={<SearchIcon />}
+        >
+          Find Burials
+        </Button>
+      )}
 
       <MapContainer
         center={[42.704180, -73.731980]}
@@ -1802,7 +1946,7 @@ export default function BurialMap() {
         <CustomZoomControl />
         <DefaultExtentButton />
         <MapBounds />
-        <MapController selectedBurials={selectedBurials} hoveredIndex={hoveredIndex} />
+        <MapController />
         <MapTourController selectedTour={selectedTour} overlayMaps={overlayMaps} tourNames={tourNames} />
         <LayersControl>
           <BaseLayer checked name="Imagery">
@@ -1826,9 +1970,9 @@ export default function BurialMap() {
               <GeoJSON 
                 data={ARC_Sections}
                 style={(feature) => ({
-                  fillColor: feature.properties.Section === sectionFilter ? '#4a90e2' : '#f8f9fa',
-                  fillOpacity: feature.properties.Section === sectionFilter ? 0.4 : 0.05,
-                  color: feature.properties.Section === sectionFilter ? '#2c5282' : '#999',
+                  fillColor: feature.properties.Section === sectionFilter ? '#7f6745' : '#f7f2e6',
+                  fillOpacity: feature.properties.Section === sectionFilter ? 0.34 : 0.09,
+                  color: feature.properties.Section === sectionFilter ? '#453824' : '#8f8673',
                   weight: feature.properties.Section === sectionFilter ? 2 : 1
                 })}
                 onEachFeature={(feature, layer) => {

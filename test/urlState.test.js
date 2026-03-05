@@ -30,4 +30,17 @@ describe('parseDeepLinkState', () => {
     expect(state.showBurialsView).toBe(false);
     expect(state.showToursView).toBe(false);
   });
+
+  test('accepts search strings without a leading question mark', () => {
+    const state = parseDeepLinkState('view=tours&tour=notables', ['Notables Tour 2020']);
+
+    expect(state.view).toBe('tours');
+    expect(state.showToursView).toBe(true);
+    expect(state.selectedTourName).toBe('Notables Tour 2020');
+  });
+
+  test('returns null when no tour match is found', () => {
+    const state = parseDeepLinkState('?tour=unknown', ['Civil War Tour 2020']);
+    expect(state.selectedTourName).toBeNull();
+  });
 });

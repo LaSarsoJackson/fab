@@ -1,0 +1,255 @@
+{
+    "type": "FeatureCollection",
+    "name": "AuthorsPublishersTour20",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        }
+    },
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 3,
+                "First_name": "Phoebe Harris",
+                "Last_Name": "Phelps",
+                "ARC_Secton": 18,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 3.0,
+                "Full_Name": "Phoebe Harris Phelps",
+                "Titles": "Domestic Abuse Survivor",
+                "Birth": "1818\/02\/10",
+                "Death": "1889\/11\/16",
+                "Tour_ID": 3,
+                "Tour_Bio": "Phelps3",
+                "Tour_Name": "AP",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Phelps3d.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731140621145784,
+                    42.70741352629755
+                ]
+            }
+        },
+		{
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 3,
+                "First_name": "Matthew",
+                "Last_Name": "Bender IV",
+                "ARC_Secton": 30,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 2.0,
+                "Full_Name": "Matthew BenderIV",
+                "Titles": "Philanthropist & Publisher",
+                "Birth": "1931\/11\/10",
+                "Death": "2020\/02\/23",
+                "Tour_ID": 189,
+                "Tour_Bio": "Bender189",
+                "Tour_Name": "AP",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Bender189a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732454885,
+                    42.705016109
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 15,
+                "First_name": "Joel",
+                "Last_Name": "Munsell",
+                "ARC_Secton": 4,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 47.0,
+                "Full_Name": "Joel Munsell",
+                "Titles": "Publisher",
+                "Birth": "1808\/04\/14",
+                "Death": "1880\/01\/15",
+                "Tour_ID": 15,
+                "Tour_Bio": "Munsell15",
+                "Tour_Name": "AP",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Munsell15a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.727895159899958,
+                    42.705914291526305
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 31,
+                "First_name": "Charles",
+                "Last_Name": "Fort",
+                "ARC_Secton": 28,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 8.0,
+                "Full_Name": "Charles Hoy Fort",
+                "Titles": "Author, Naturalist",
+                "Birth": "1874\/08\/06",
+                "Death": "1932\/05\/03",
+                "Tour_ID": 31,
+                "Tour_Bio": "Fort31",
+                "Tour_Name": "AP",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Fort31a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.73290826283386,
+                    42.704560039853128
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 58,
+                "First_name": "Matthew",
+                "Last_Name": "Bender",
+                "ARC_Secton": 80,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 2.0,
+                "Full_Name": "Matthew Bender",
+                "Titles": "Publisher - Law Books",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 58,
+                "Tour_Bio": "Bender58",
+                "Tour_Name": "AP",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Bender58a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72812600264659,
+                    42.71007750474493
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 59,
+                "First_name": "Matthew",
+                "Last_Name": "Bender Jr",
+                "ARC_Secton": 30,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Matthew Bender Jr.",
+                "Titles": "Publisher - Law Books",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 59,
+                "Tour_Bio": "Bender59",
+                "Tour_Name": "AP",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Bender59a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732479863396676,
+                    42.70501663579536
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 102,
+                "First_name": "Frances",
+                "Last_Name": "Parsons",
+                "ARC_Secton": 30,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 68.0,
+                "Full_Name": "Frances Theodora Parsons",
+                "Titles": "Author, Botanist, Naturalist",
+                "Birth": "1861\/12\/05",
+                "Death": "1952\/06\/10",
+                "Tour_ID": 102,
+                "Tour_Bio": "Parsons102",
+                "Tour_Name": "AP",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Parsons102a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732334797671228,
+                    42.704097139878535
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 103,
+                "First_name": "Ann",
+                "Last_Name": "Bleeker",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Ann Elizabeth Schuyler Bleeker",
+                "Titles": "Female poet",
+                "Birth": "1752\/11\/01",
+                "Death": "1783\/11\/23",
+                "Tour_ID": 103,
+                "Tour_Bio": "Bleeker103",
+                "Tour_Name": "AP",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Bleeker103a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.735036914852714,
+                    42.709612032266016
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 104,
+                "First_name": "Alfred",
+                "Last_Name": "Street",
+                "ARC_Secton": 37,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 23.0,
+                "Full_Name": "Alfred Billings Street",
+                "Titles": "Poet",
+                "Birth": null,
+                "Death": "1881\/06\/07",
+                "Tour_ID": 104,
+                "Tour_Bio": "Street104",
+                "Tour_Name": "AP",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Street104c.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.730459942129741,
+                    42.705496875695168
+                ]
+            }
+        }
+    ]
+}

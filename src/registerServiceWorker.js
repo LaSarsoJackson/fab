@@ -1,5 +1,9 @@
 const registerServiceWorker = () => {
-  if (process.env.NODE_ENV !== 'production') {
+  const isProduction =
+    (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PROD) ||
+    process.env.NODE_ENV === 'production';
+
+  if (!isProduction) {
     return;
   }
 
@@ -8,8 +12,13 @@ const registerServiceWorker = () => {
   }
 
   window.addEventListener('load', () => {
+    const baseUrl =
+      (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) ||
+      '/';
+    const serviceWorkerUrl = `${baseUrl.replace(/\/?$/, '/')}service-worker.js`;
+
     navigator.serviceWorker
-      .register(`${process.env.PUBLIC_URL}/service-worker.js`)
+      .register(serviceWorkerUrl)
       .catch((error) => {
         console.error('Service worker registration failed:', error);
       });

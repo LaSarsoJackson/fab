@@ -84,6 +84,11 @@ describe('smartSearch with index', () => {
     const results = smartSearch(options, '12', { index, getTourName });
     expect(results.map((item) => item.OBJECTID)).toEqual([1, 2]);
   });
+
+  test('matches tokenized partial terms', () => {
+    const results = smartSearch(options, 'ada', { index, getTourName });
+    expect(results.map((item) => item.OBJECTID)).toEqual([3]);
+  });
 });
 
 describe('smartSearch without index', () => {

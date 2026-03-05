@@ -1,0 +1,1635 @@
+{
+    "type": "FeatureCollection",
+    "name": "CivilWarTour20",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        }
+    },
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 33,
+                "First_name": "Willard",
+                "Last_Name": "Glazier",
+                "ARC_Secton": 29,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 26.0,
+                "Full_Name": "Willard Glazier",
+                "Titles": "Civil War General & POW",
+                "Birth": null,
+                "Death": "1905\/04\/26",
+                "Tour_ID": 33,
+                "Tour_Bio": "Glazier33",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Glazier33a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732734469259682,
+                    42.703796356386668
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 188.0,
+                "First_name": "Terrence",
+                "Last_Name": "Begley",
+                "ARC_Secton": 900.0,
+                "ARCPvt_Pub": 1.0,
+                "ARC_Lot": 100.0,
+                "Full_Name": "Pvt. Terrence Begley",
+                "Titles": "Medal of Honor, Pvt., 7th NY Heavy Artillery",
+                "Birth": null,
+                "Death": "1864-08-25",
+                "Tour_ID": 188,
+                "Tour_Bio": "Begley188",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Deploy_dat": null,
+                "Change_Dat": null,
+                "Change_Tar": null,
+                "Bio_Portra": "Begley188b.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733149482,
+                    42.712788939
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 41,
+                "First_name": "Charles",
+                "Last_Name": "Pease",
+                "ARC_Secton": 41,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 21.0,
+                "Full_Name": "Brevet Maj. Charles E. Pease",
+                "Titles": "Effected the surrender between Grant & Lee",
+                "Birth": "1838\/08\/16",
+                "Death": "1886\/03\/26",
+                "Tour_ID": 41,
+                "Tour_Bio": "Pease41",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Pease41a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731566040510089,
+                    42.705861567095077
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 96,
+                "First_name": "Douglas",
+                "Last_Name": "Lodge",
+                "ARC_Secton": 40,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 46.0,
+                "Full_Name": "Douglas Lodge",
+                "Titles": "Capt. 43rd Regiment, NY Volunteers",
+                "Birth": "1842\/09\/22",
+                "Death": "1863\/05\/03",
+                "Tour_ID": 96,
+                "Tour_Bio": "Lodge96",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Lodge96a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731379357105155,
+                    42.706372365351584
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 97,
+                "First_name": null,
+                "Last_Name": "Bounty",
+                "ARC_Secton": 98,
+                "ARCPvt_Pub": 2,
+                "ARC_Lot": 12.0,
+                "Full_Name": "Bounty Jumpers",
+                "Titles": "Civil War Bounty Jumpers",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 97,
+                "Tour_Bio": "Bounty97",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Bounty97a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732779797667874,
+                    42.712011637878128
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 117,
+                "First_name": "Benjamin",
+                "Last_Name": "Baker",
+                "ARC_Secton": 58,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 5.0,
+                "Full_Name": "Benjamin Franklin Baker",
+                "Titles": "Brig. Gen, 43rd NY Volunteers",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 117,
+                "Tour_Bio": "Baker117",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Baker117.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.72767880800194,
+                    42.707872147215632
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 118,
+                "First_name": "Lewis",
+                "Last_Name": "Bennedict",
+                "ARC_Secton": 3,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 38.0,
+                "Full_Name": "Lewis Bennedict",
+                "Titles": "Brig, Gen. 162nd NY Volunteer Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 118,
+                "Tour_Bio": "Bennedict118",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Bennedict118a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.726327336911922,
+                    42.706024532350568
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 119,
+                "First_name": "Richard",
+                "Last_Name": "Bentley",
+                "ARC_Secton": 65,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 6.0,
+                "Full_Name": "Richard Charles Bentley",
+                "Titles": "Brig. Gen. 63rd NY Volunteer Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 119,
+                "Tour_Bio": "Bentley119",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Bentley119a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.725214793523833,
+                    42.708600128530705
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 120,
+                "First_name": "Samuel",
+                "Last_Name": "Berry",
+                "ARC_Secton": 98,
+                "ARCPvt_Pub": 2,
+                "ARC_Lot": 9.0,
+                "Full_Name": "Samuel O. Berry",
+                "Titles": "1st Sergt 6th Kentucky Cavalry CSA",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 120,
+                "Tour_Bio": "Berry120",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Berry120a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732955869721465,
+                    42.711846226671511
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 121,
+                "First_name": "Justus",
+                "Last_Name": "Blanchard",
+                "ARC_Secton": 10,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 6.0,
+                "Full_Name": "Justus Wardwell Blanchard",
+                "Titles": "Bvt. Gen. 3rd NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 121,
+                "Tour_Bio": "Blanchard121",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Blanchard121a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728315063375732,
+                    42.707094203084189
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 122,
+                "First_name": "Reed",
+                "Last_Name": "Brown",
+                "ARC_Secton": 74,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 27.0,
+                "Full_Name": "Reed L. Brown",
+                "Titles": "Sgt. 11th NY Vol. Artillery",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 122,
+                "Tour_Bio": "Brown122",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.727114967879317,
+                    42.709059221274472
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 123,
+                "First_name": "Michael",
+                "Last_Name": "Bryan",
+                "ARC_Secton": 43,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 4.0,
+                "Full_Name": "Michael K. Bryan",
+                "Titles": "Col. 25th NYS Militia",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 123,
+                "Tour_Bio": "Bryan123",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Bryan123a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732526508364586,
+                    42.70575180439328
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 124,
+                "First_name": "Howard",
+                "Last_Name": "Carroll",
+                "ARC_Secton": 33,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 2.0,
+                "Full_Name": "Howard C. Carroll",
+                "Titles": "Col. 105th NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 124,
+                "Tour_Bio": "Carroll124",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732351548715286,
+                    42.705131735261034
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 125,
+                "First_name": "Harrison",
+                "Last_Name": "Clark",
+                "ARC_Secton": 112,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 153.0,
+                "Full_Name": "Harrison Clark",
+                "Titles": "Medal of Honor, 125th NY Vol. Inf.",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 125,
+                "Tour_Bio": "Clark125",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Clark125a.gif"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.737393856581704,
+                    42.708397581063757
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 126,
+                "First_name": "John",
+                "Last_Name": "Cochrane",
+                "ARC_Secton": 53,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 15.0,
+                "Full_Name": "John Cochrane",
+                "Titles": "Brig. Gen. 65th NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 126,
+                "Tour_Bio": "Cochrane126",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Cochrane126a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.730885462187914,
+                    42.709200740063288
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 127,
+                "First_name": "Stephen",
+                "Last_Name": "Corliss",
+                "ARC_Secton": 18,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 74.0,
+                "Full_Name": "Stephen P. Corliss",
+                "Titles": "Medal of Honor, 1st Lt 11th NY Vol Lt Art.",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 127,
+                "Tour_Bio": "Corliss127",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Corliss127a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.730927024216939,
+                    42.707512453811901
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 128,
+                "First_name": "James",
+                "Last_Name": "Cross",
+                "ARC_Secton": 30,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 62.0,
+                "Full_Name": "James Edwin Cross",
+                "Titles": "Medal of Honor, Sgt. Maj.12th NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 128,
+                "Tour_Bio": "Cross128",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Cross128a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732596064861355,
+                    42.704399992579212
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 129,
+                "First_name": "George",
+                "Last_Name": "Dawson",
+                "ARC_Secton": 33,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "George Seward Dawson",
+                "Titles": "Maj. 10th NY Mil, 2nd NY Vol heavy Art.",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 129,
+                "Tour_Bio": "Dawson129",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Dawson129a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732369556394445,
+                    42.705253902512219
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 130,
+                "First_name": "James",
+                "Last_Name": "Dempsey",
+                "ARC_Secton": 16,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 60.0,
+                "Full_Name": "James L. Dempsey",
+                "Titles": "1st Lt. 34th Mass Vol Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 130,
+                "Tour_Bio": "Dempsey130",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Dempsey130a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732217823911867,
+                    42.707977883437323
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 131,
+                "First_name": "John",
+                "Last_Name": "Dempsey",
+                "ARC_Secton": 16,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 60.0,
+                "Full_Name": "John M. Dempsey",
+                "Titles": "1st Lt. 18th NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 131,
+                "Tour_Bio": "Dempsey131",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Dempsey131a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732226370901117,
+                    42.707977430525659
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 132,
+                "First_name": "Henry",
+                "Last_Name": "Dempsey",
+                "ARC_Secton": 16,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 60.0,
+                "Full_Name": "Henry L. Dempsey",
+                "Titles": "Cpl. 125th NY Vil. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 132,
+                "Tour_Bio": "Dempsey132",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732222989428664,
+                    42.707982905281767
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 133,
+                "First_name": "John",
+                "Last_Name": "Dickerman",
+                "ARC_Secton": 21,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 33.0,
+                "Full_Name": "John Dickerman",
+                "Titles": "Gen. Albany's 9th Brigade",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 133,
+                "Tour_Bio": "Dickerman133",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732824737845149,
+                    42.70857603544173
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 134,
+                "First_name": "John",
+                "Last_Name": "Douw",
+                "ARC_Secton": 74,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 38.0,
+                "Full_Name": "John DePeyster Douw",
+                "Titles": "Capt. 121st NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 134,
+                "Tour_Bio": "Douw134",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Douw134a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.726635212466832,
+                    42.708947974010734
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 135,
+                "First_name": "Addison",
+                "Last_Name": "Farnsworth",
+                "ARC_Secton": 18,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 110.0,
+                "Full_Name": "Addison Farnsworth",
+                "Titles": "Bvt. Brig. Gen. 38th NY Vol Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 135,
+                "Tour_Bio": "Farnsworth135",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Farnsworth135a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732270814457124,
+                    42.708780904554565
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 136,
+                "First_name": "Joseph",
+                "Last_Name": "Follett",
+                "ARC_Secton": 7,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 20.0,
+                "Full_Name": "Joseph L. Follett",
+                "Titles": "Medal of Honor,Lt. Col. 1st Missouri Lt, Artillery",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 136,
+                "Tour_Bio": "Follett136",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Follett136a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728318114305168,
+                    42.705912039354622
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 137,
+                "First_name": "Edward",
+                "Last_Name": "Frisby",
+                "ARC_Secton": 20,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 7.0,
+                "Full_Name": "Edward Frisby",
+                "Titles": "Col. 25th NYS Militia",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 137,
+                "Tour_Bio": "Frisby137",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Frisby137a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732423377259195,
+                    42.708132050558369
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 138,
+                "First_name": "Henry",
+                "Last_Name": "Gansevoort",
+                "ARC_Secton": 55,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 2.0,
+                "Full_Name": "Henry Sanford Gansevoort",
+                "Titles": "Bvt. Brig. Gen. 5th US Light Artillery",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 138,
+                "Tour_Bio": "Gansevoort138",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Gansevoort138b.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.729358075417906,
+                    42.708485762414966
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 139,
+                "First_name": "Alfred",
+                "Last_Name": "Huested",
+                "ARC_Secton": 3,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 59.0,
+                "Full_Name": "Alfred Huestead",
+                "Titles": "Lt. MD 113th NY Vol Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 139,
+                "Tour_Bio": "Huested139",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Huested139a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728575396455824,
+                    42.706506217652446
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 140,
+                "First_name": "Andrew",
+                "Last_Name": "Jones",
+                "ARC_Secton": 107,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 115.0,
+                "Full_Name": "Andrew B. Jones",
+                "Titles": "Quarter. Sgt. 24th NY National Guard",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 140,
+                "Tour_Bio": "Jones140",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.736609224986381,
+                    42.705966293720245
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 141,
+                "First_name": "George",
+                "Last_Name": "Jupp",
+                "ARC_Secton": 92,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 75.0,
+                "Full_Name": "George S. Jupp",
+                "Titles": "2nd Lt, 7th NY Vol. Heavy Artillery",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 141,
+                "Tour_Bio": "Jupp141",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732050234716226,
+                    42.710685371413383
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 142,
+                "First_name": "Robert",
+                "Last_Name": "King",
+                "ARC_Secton": 18,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 15.0,
+                "Full_Name": "Robert H. King",
+                "Titles": "Medal of Honor USN",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 142,
+                "Tour_Bio": "King142",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "King142a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731794908538006,
+                    42.708092444718901
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 143,
+                "First_name": "Rufus",
+                "Last_Name": "King",
+                "ARC_Secton": 32,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 26.0,
+                "Full_Name": "Rufus Howard King",
+                "Titles": "Brig. Gen, Paymaster Army of the Patomic",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 143,
+                "Tour_Bio": "King143",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "King143a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.730976593971576,
+                    42.704271927799297
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 144,
+                "First_name": "Robert",
+                "Last_Name": "Lathrop",
+                "ARC_Secton": 9,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 4.0,
+                "Full_Name": "Robert Dunlop Lathrop",
+                "Titles": "1st Lt and Adjutany, 14th NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 144,
+                "Tour_Bio": "Lathrop144",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Lathrop144a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.729188496053197,
+                    42.707043679488855
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 145,
+                "First_name": "Therndon",
+                "Last_Name": "Lord",
+                "ARC_Secton": 34,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 2.0,
+                "Full_Name": "Therndon Ellery Lord",
+                "Titles": "Bvt. Brig. Gen. 3rd NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 145,
+                "Tour_Bio": "Lord145",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Lord145a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731241259693363,
+                    42.704731123069578
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 146,
+                "First_name": "William",
+                "Last_Name": "Moon",
+                "ARC_Secton": 103,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 35.0,
+                "Full_Name": "Robert H. Moon",
+                "Titles": "Tvt. 43rd NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 146,
+                "Tour_Bio": "Moon146",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733773263762643,
+                    42.707997463637817
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 147,
+                "First_name": "John",
+                "Last_Name": "Morris",
+                "ARC_Secton": 60,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 27.0,
+                "Full_Name": "John Arthur Morris",
+                "Titles": "Capt. 7th NY Vol. Heavu Artillery",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 147,
+                "Tour_Bio": "Morris147",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Morris147a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.726023494491074,
+                    42.707793520949011
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 148,
+                "First_name": "Lewis",
+                "Last_Name": "Morris",
+                "ARC_Secton": 9,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Lewis O. Morris",
+                "Titles": "Col. 7th NY Vol. Heavy Artillery",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 148,
+                "Tour_Bio": "Morris148",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Morris148a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728841805684837,
+                    42.706964220112283
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 149,
+                "First_name": "Andrew",
+                "Last_Name": "Morrison",
+                "ARC_Secton": 105,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 447.0,
+                "Full_Name": "Andrew Jackson Morrison",
+                "Titles": "Col 7th NY Vol. Cavalry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 149,
+                "Tour_Bio": "Morrison149",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Morrison149"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734941339735457,
+                    42.70727071871304
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 150,
+                "First_name": "Robert",
+                "Last_Name": "Oliver",
+                "ARC_Secton": 60,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 34.0,
+                "Full_Name": "Robert Shaw Oliver",
+                "Titles": "Brig. Gen. 5th Mass. Vol Cavalry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 150,
+                "Tour_Bio": "Oliver150",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Oliver150a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728646356646323,
+                    42.708645959732422
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 151,
+                "First_name": "William",
+                "Last_Name": "Orr",
+                "ARC_Secton": 56,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 15.0,
+                "Full_Name": "William Emmet Orr",
+                "Titles": "1st Lt. 7th NY Vol. Heavy Artillery",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 151,
+                "Tour_Bio": "Orr151",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Orr151a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728927192862969,
+                    42.707944042866608
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 152,
+                "First_name": "John",
+                "Last_Name": "Patterson",
+                "ARC_Secton": 42,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 13.0,
+                "Full_Name": "John Henry Patterson",
+                "Titles": "Medal of Honor, Brig. Gen. 11th US Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 152,
+                "Tour_Bio": "Patterson152",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Patterson152a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731187804876413,
+                    42.705665971597192
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 153,
+                "First_name": "William",
+                "Last_Name": "Pohlman",
+                "ARC_Secton": 6,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 2.0,
+                "Full_Name": "William henry Pohlman",
+                "Titles": "Lt. 1st NJ Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 153,
+                "Tour_Bio": "Pohlman153",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Pohlman153a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.729290635371356,
+                    42.706276292389276
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 154,
+                "First_name": "George",
+                "Last_Name": "Pratt",
+                "ARC_Secton": 44,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 3.0,
+                "Full_Name": "George W. Pratt",
+                "Titles": "Col. 80th NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 154,
+                "Tour_Bio": "Pratt154",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Pratt154b.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.73186717404387,
+                    42.706590298462835
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 155,
+                "First_name": "Charles",
+                "Last_Name": "Pruyn",
+                "ARC_Secton": 24,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 4.0,
+                "Full_Name": "Charles Elisha Pruyn",
+                "Titles": null,
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 155,
+                "Tour_Bio": "Pruyn155",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Pruyn155a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733472506326933,
+                    42.707224019065855
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 156,
+                "First_name": "John",
+                "Last_Name": "Rathbone",
+                "ARC_Secton": 60,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 34.0,
+                "Full_Name": "John Rathbone",
+                "Titles": "Gen. 9th Brigade NY Militia",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 156,
+                "Tour_Bio": "Rathbone156",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Rathbone156b.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728543644489307,
+                    42.708604512314068
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 157,
+                "First_name": "Alexander",
+                "Last_Name": "Rice",
+                "ARC_Secton": 6,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 3.0,
+                "Full_Name": "Alexander Davidson Rice",
+                "Titles": "Sgt. 7th NY Vol. Heavy Artillery",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 157,
+                "Tour_Bio": "Rice157",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.729410991646404,
+                    42.706283334449694
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 158,
+                "First_name": "James",
+                "Last_Name": "Rice",
+                "ARC_Secton": 42,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 11.0,
+                "Full_Name": "James Clay Rice",
+                "Titles": "Brig. Gen. 39th Vol NY Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 158,
+                "Tour_Bio": "Rice158",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Rice158a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731510897953655,
+                    42.705664135740129
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 159,
+                "First_name": "Lyman",
+                "Last_Name": "Scriven",
+                "ARC_Secton": 41,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 56.0,
+                "Full_Name": "Lyman G. Scriven",
+                "Titles": "Corp 30th NY Vol Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 159,
+                "Tour_Bio": "Scriven159",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.73110735428024,
+                    42.705920939204248
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 160,
+                "First_name": "John",
+                "Last_Name": "Sprague",
+                "ARC_Secton": 13,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 25.0,
+                "Full_Name": "John Titcomb Sprague",
+                "Titles": "Adjutant Gen. of NYS",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 160,
+                "Tour_Bio": "Sprague160",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Sprague160a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731493109812249,
+                    42.706651603285565
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 161,
+                "First_name": "Edward",
+                "Last_Name": "Springsteed",
+                "ARC_Secton": 62,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 97.0,
+                "Full_Name": "Edward A. Springsteed",
+                "Titles": "Col. 43rd NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 161,
+                "Tour_Bio": "Springsteed161",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Springsteed161a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.727846087992177,
+                    42.707374642310597
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 162,
+                "First_name": "William",
+                "Last_Name": "Temple",
+                "ARC_Secton": 16,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "William James Temple",
+                "Titles": "Bvt. Maj. 17th US Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 162,
+                "Tour_Bio": "Temple162",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731245729707894,
+                    42.707047873993474
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 163,
+                "First_name": "Jacob",
+                "Last_Name": "TenEyck",
+                "ARC_Secton": 8,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 15.0,
+                "Full_Name": "Jacob H. TenEyck",
+                "Titles": "Maj. 3rd NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 163,
+                "Tour_Bio": "TenEyck163",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "TenEyck163a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.730224539527043,
+                    42.706763839251074
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 164,
+                "First_name": "Frederick",
+                "Last_Name": "Townsend",
+                "ARC_Secton": 45,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 3.0,
+                "Full_Name": "Frederick Townsend",
+                "Titles": "Bvt. Gen. 3rd NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 164,
+                "Tour_Bio": "Townsend164",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Townsend164b.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732403038949698,
+                    42.709119693161469
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 165,
+                "First_name": "Frederick",
+                "Last_Name": "Tremain",
+                "ARC_Secton": 35,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 12.0,
+                "Full_Name": "Frederick L. Tremain",
+                "Titles": "Lt. Col. 7th NY Vol. Heavy Artillery",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 165,
+                "Tour_Bio": "Tremain165",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Tremain165b.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.730686061670923,
+                    42.705296918697385
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 166,
+                "First_name": "Samual",
+                "Last_Name": "Vanderpool",
+                "ARC_Secton": 9,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Samual Oakley Vanderpool",
+                "Titles": "Surgen Gen. of NYS MD",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 166,
+                "Tour_Bio": "Vanderpoel166",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Vanderpoel166a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.728852168435921,
+                    42.706921693788011
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 167,
+                "First_name": "Adolph",
+                "Last_Name": "Steinwehr",
+                "ARC_Secton": 106,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 13.0,
+                "Full_Name": "Adolph von Steinwehr",
+                "Titles": "Brig. Gen. 29th NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 167,
+                "Tour_Bio": "Steinwehr167",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Steinwehr167b.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734965619657984,
+                    42.706761135881329
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 168,
+                "First_name": "James",
+                "Last_Name": "Williamson",
+                "ARC_Secton": 42,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 3.0,
+                "Full_Name": "James Williamson",
+                "Titles": "1st Lt. 177th NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 168,
+                "Tour_Bio": "Williamson168",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Williamson168a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732339172695532,
+                    42.705642170730314
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 169,
+                "First_name": "John",
+                "Last_Name": "Wilson",
+                "ARC_Secton": 62,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 23.0,
+                "Full_Name": "John Wilson",
+                "Titles": "Col. 43rd NY Vol. Infantry",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 169,
+                "Tour_Bio": "Wilson169",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "Wilson169a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.725815311377104,
+                    42.70721818948472
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 170,
+                "First_name": "William",
+                "Last_Name": "Wooley",
+                "ARC_Secton": 92,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 116.0,
+                "Full_Name": "William T. Wooley",
+                "Titles": "Capt. Albany Republician Artillery",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 170,
+                "Tour_Bio": "Wooley170",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "NONE"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731987464366824,
+                    42.710731465625479
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 171,
+                "First_name": "Thomas",
+                "Last_Name": "Van Alstyne",
+                "ARC_Secton": 28,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 11.0,
+                "Full_Name": "Thomas Jefferson Van Alstyne",
+                "Titles": "Maj. Judge Advocate",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 171,
+                "Tour_Bio": "VanAlstyne171",
+                "Tour_Name": "CW",
+                "Bio_Done": "Y",
+                "Bio_Portra": "VanAlstyne171a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734086858063478,
+                    42.704726694585403
+                ]
+            }
+        }
+    ]
+}

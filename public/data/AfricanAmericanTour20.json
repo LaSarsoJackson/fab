@@ -1,0 +1,436 @@
+{
+    "type": "FeatureCollection",
+    "name": "AfricanAmericanTour20",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+        }
+    },
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 24,
+                "First_name": "Samuel",
+                "Last_Name": "Schuyler",
+                "ARC_Secton": 59,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 66.0,
+                "Full_Name": "Capt. Samuel Schuyler",
+                "Titles": "Black riverboat captain D 1841",
+                "Birth": "1781\/10\/20",
+                "Death": null,
+                "Tour_ID": 24,
+                "Tour_Bio": "Schuyler24",
+                "Tour_Name": "AA",
+                "Bio_Portra": "Schuyler24a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.726793222333882,
+                    42.707643163108521
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 54,
+                "First_name": "Rosanna",
+                "Last_Name": "Vosburgh",
+                "ARC_Secton": 53,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 12.0,
+                "Full_Name": "Rosanna Vosburgh",
+                "Titles": "Servent of Thomas Olcott",
+                "Birth": "1800\/06\/07",
+                "Death": "1884\/09\/25",
+                "Tour_ID": 54,
+                "Tour_Bio": "Vosburgh54",
+                "Tour_Name": "AA",
+                "Bio_Portra": "Vosburgh54a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.730624950438227,
+                    42.708972493446645
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 186.0,
+                "First_name": "Nathaniel",
+                "Last_Name": "Paul",
+                "ARC_Secton": 99.0,
+                "ARCPvt_Pub": 1.0,
+                "ARC_Lot": 26.0,
+                "Full_Name": "Rev. Nathaniel Paul",
+                "Titles": "Pastor of Union St. Baptist Church",
+                "Birth": "1795-01-07",
+                "Death": "1839-07-16",
+                "Tour_ID": 186,
+                "Tour_Bio": "Paul186",
+                "Tour_Name": "AA",
+                "Bio_Done": "Y",
+                "Deploy_dat": null,
+                "Change_Dat": null,
+                "Change_Tar": null,
+                "Bio_Portra": "Paul186a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733358832,
+                    42.7119802610001
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 93,
+                "First_name": "Dianna",
+                "Last_Name": "Mingo",
+                "ARC_Secton": 99,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 8.0,
+                "Full_Name": "Dianna Mingo",
+                "Titles": "Oldest person buried in ARC, Born 1767",
+                "Birth": null,
+                "Death": "1872\/07\/25",
+                "Tour_ID": 93,
+                "Tour_Bio": "Mingo93",
+                "Tour_Name": "AA",
+                "Bio_Portra": "Mingo93a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733846711624139,
+                    42.711867621382858
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 98,
+                "First_name": "Sibbie",
+                "Last_Name": null,
+                "ARC_Secton": 98,
+                "ARCPvt_Pub": 2,
+                "ARC_Lot": 1.0,
+                "Full_Name": "Sibbie",
+                "Titles": "Last slave to the Schuyler family",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 98,
+                "Tour_Bio": "Sibbie98",
+                "Tour_Name": "AA",
+                "Bio_Portra": "Sibbie98a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.732685168404572,
+                    42.711716169262914
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 99,
+                "First_name": "Stephen",
+                "Last_Name": "Meyers",
+                "ARC_Secton": 98,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 2.0,
+                "Full_Name": "Stephen Meyers",
+                "Titles": "Abolitionist, leader of the Underground Railroad",
+                "Birth": null,
+                "Death": "1870\/02\/13",
+                "Tour_ID": 99,
+                "Tour_Bio": "Meyers99",
+                "Tour_Name": "AA",
+                "Bio_Portra": "Meyers99c.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733212418888854,
+                    42.712057158092477
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 100,
+                "First_name": "Arabella",
+                "Last_Name": "Miller",
+                "ARC_Secton": 104,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 448.0,
+                "Full_Name": "Arabella Chapman Miller",
+                "Titles": "1st African American grad of Albany High School",
+                "Birth": "1859\/11\/15",
+                "Death": "1927\/02\/16",
+                "Tour_ID": 100,
+                "Tour_Bio": "Miller100",
+                "Tour_Name": "AA",
+                "Bio_Portra": "Miller100a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734748637274635,
+                    42.707997526341423
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 101,
+                "First_name": "James",
+                "Last_Name": "Matthews",
+                "ARC_Secton": 29,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 95.0,
+                "Full_Name": "James C. Matthews",
+                "Titles": "1st Black student at Albany Law school",
+                "Birth": "1844\/11\/16",
+                "Death": "1930\/11\/01",
+                "Tour_ID": 101,
+                "Tour_Bio": "Matthews101",
+                "Tour_Name": "AA",
+                "Bio_Portra": "Matthews101a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733119046940061,
+                    42.703822493412183
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 111,
+                "First_name": "Thomas",
+                "Last_Name": "Elkins",
+                "ARC_Secton": 100,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 97.0,
+                "Full_Name": "Thomas Elkins",
+                "Titles": "Albany Doctor, Dentist, Druggist, Inventor",
+                "Birth": null,
+                "Death": "1900\/08\/10",
+                "Tour_ID": 111,
+                "Tour_Bio": "Elkins111",
+                "Tour_Name": "AA",
+                "Bio_Portra": "Elkins111a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733667509323141,
+                    42.712615491701889
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 187.0,
+                "First_name": "Susan",
+                "Last_Name": "Douge",
+                "ARC_Secton": 99.0,
+                "ARCPvt_Pub": 1.0,
+                "ARC_Lot": 3.0,
+                "Full_Name": "Susan Douge",
+                "Titles": "Wife & Husband support Abolition and Equal Rights",
+                "Birth": null,
+                "Death": "1897-12-21",
+                "Tour_ID": 187,
+                "Tour_Bio": "Douge187",
+                "Tour_Name": "AA",
+                "Bio_Done": "Y",
+                "Deploy_dat": null,
+                "Change_Dat": null,
+                "Change_Tar": "New record to be deployed",
+                "Bio_Portra": "Douge187a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733521761,
+                    42.7118094630001
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 112,
+                "First_name": "Phebe",
+                "Last_Name": "Jones",
+                "ARC_Secton": 49,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 2.0,
+                "Full_Name": "Phebe Hoag Jones",
+                "Titles": "Suffragette, Abolitionist, Social Reformer",
+                "Birth": "1812\/07\/21",
+                "Death": "1881\/07\/27",
+                "Tour_ID": 112,
+                "Tour_Bio": "Jones112",
+                "Tour_Name": "AA",
+                "Bio_Portra": "Jones112a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.734949013734891,
+                    42.709646340768238
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 113,
+                "First_name": "William",
+                "Last_Name": "Topp",
+                "ARC_Secton": 25,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 12.0,
+                "Full_Name": "William Topp",
+                "Titles": "Underground Railriad and Womens Rights Activest",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 113,
+                "Tour_Bio": "Topp113",
+                "Tour_Name": "AA",
+                "Bio_Portra": "Topp113a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733393060353393,
+                    42.706717304929967
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 114,
+                "First_name": "Catherine",
+                "Last_Name": "Williams",
+                "ARC_Secton": 99,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 3.0,
+                "Full_Name": "Catherine Mary Williams",
+                "Titles": "V.P.Alb. Womens Sufferage Society, Teacher",
+                "Birth": null,
+                "Death": "1884\/03\/16",
+                "Tour_ID": 114,
+                "Tour_Bio": "Williams114",
+                "Tour_Name": "AA",
+                "Bio_Portra": "Williams114a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.73353486435623,
+                    42.711803489632885
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 115,
+                "First_name": "Harriet",
+                "Last_Name": "Thompson",
+                "ARC_Secton": 99,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 61.0,
+                "Full_Name": "Harriet Alfrata Chapman Thompson",
+                "Titles": "Chief Stenographer NYS Library",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 115,
+                "Tour_Bio": "Thompson115",
+                "Tour_Name": "AA",
+                "Bio_Portra": "Thompson115a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.73385876707377,
+                    42.711783214975085
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 116,
+                "First_name": "James",
+                "Last_Name": "Gardner",
+                "ARC_Secton": 100,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 87.0,
+                "Full_Name": "James Gardner",
+                "Titles": "First Afr- Americn grad , Albany Coll of Pharmacy",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 116,
+                "Tour_Bio": "Gardner116",
+                "Tour_Name": "AA",
+                "Bio_Portra": "Gardner116a.jpg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.733412448834585,
+                    42.712610927648662
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "OBJECTID": 172,
+                "First_name": "Theophils",
+                "Last_Name": "Roessle",
+                "ARC_Secton": 41,
+                "ARCPvt_Pub": 1,
+                "ARC_Lot": 23.0,
+                "Full_Name": "Theophlis Roessle",
+                "Titles": "Albany's Celery king",
+                "Birth": null,
+                "Death": null,
+                "Tour_ID": 172,
+                "Tour_Bio": "Roessle172",
+                "Tour_Name": "AA",
+                "Bio_Portra": "Roessle172a.jpeg"
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -73.731448303332968,
+                    42.705809703235204
+                ]
+            }
+        }
+    ]
+}
