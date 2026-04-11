@@ -30,8 +30,8 @@ import { BasemapLayer } from 'react-esri-leaflet';  // ESRI basemap integration
 // Material-UI Components and Icons
 import { 
   Autocomplete, TextField, Paper, InputAdornment, IconButton,
-  List, ListItem, ListItemText, Divider, Box, Typography,
-  ButtonGroup, Button, CircularProgress, Chip
+  List, ListItem, Divider, Box, Typography,
+  ButtonGroup, Button, CircularProgress, Chip, Menu, MenuItem
 } from '@mui/material';
 import PinDropIcon from '@mui/icons-material/PinDrop';
 import SearchIcon from '@mui/icons-material/Search';
@@ -41,12 +41,18 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import HomeIcon from '@mui/icons-material/Home';
 import InstallMobileIcon from '@mui/icons-material/InstallMobile';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
+import AppsIcon from '@mui/icons-material/Apps';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import CenterFocusStrongIcon from '@mui/icons-material/CenterFocusStrong';
+import DirectionsIcon from '@mui/icons-material/Directions';
+import LaunchIcon from '@mui/icons-material/Launch';
 
 // Local Data and Styles
 import ARC_Roads from "./data/ARC_Roads.json";
 import ARC_Boundary from "./data/ARC_Boundary.json";
 import ARC_Sections from "./data/ARC_Sections.json";
-import { buildSearchIndex, smartSearch, sortSectionValues } from "./lib/burialSearch";
+import { buildSearchIndex, normalizeName, smartSearch, sortSectionValues } from "./lib/burialSearch";
+import { buildDirectionsLink } from "./lib/navigationLinks";
 import { parseDeepLinkState } from "./lib/urlState";
 
 //=============================================================================
@@ -414,6 +420,31 @@ const createUniqueKey = (burial, index) => {
   return `${burial.OBJECTID}_${burial.Section}_${burial.Lot}_${burial.Grave}_${index}`;
 };
 
+const formatBurialName = (burial) => {
+  const firstName = burial?.First_Name || '';
+  const lastName = burial?.Last_Name || '';
+  return `${firstName} ${lastName}`.trim() || 'Unknown burial';
+};
+
+const buildBurialRecord = (feature) => {
+  const firstName = feature.properties.First_Name || '';
+  const lastName = feature.properties.Last_Name || '';
+  const fullName = `${firstName} ${lastName}`.trim();
+  const displayName = fullName || 'Unknown burial';
+  const searchableLabel = `${displayName} (Section ${feature.properties.Section}, Lot ${feature.properties.Lot})`.trim();
+
+  return {
+    label: displayName,
+    fullName,
+    fullNameNormalized: normalizeName(fullName),
+    searchableLabel,
+    searchableLabelLower: searchableLabel.toLowerCase(),
+    key: `${feature.properties.OBJECTID}_${firstName}_${lastName}_Section${feature.properties.Section}_Lot${feature.properties.Lot}`,
+    ...feature.properties,
+    coordinates: feature.geometry.coordinates,
+  };
+};
+
 /**
  * Gets the image path for a burial record's photo
  * @param {string} imageName - The name of the image file
@@ -651,8 +682,8 @@ export default function BurialMap() {
   
   // Search and Filter State
   const [selectedBurials, setSelectedBurials] = useState([]);
+  const [activeBurialId, setActiveBurialId] = useState(null);
   const [inputValue, setInputValue] = useState('');
-  const [currentSelection, setCurrentSelection] = useState(null);
   const [showAllBurials, setShowAllBurials] = useState(false);
   const [sectionFilter, setSectionFilter] = useState('');
   const [lotTierFilter, setLotTierFilter] = useState('');
@@ -671,9 +702,13 @@ export default function BurialMap() {
   // Location and Routing State
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
-  const [status, setStatus] = useState('Find me');
+  const [status, setStatus] = useState('Location inactive');
   const [routingDestination, setRoutingDestination] = useState(null);
+  const [activeRouteBurialId, setActiveRouteBurialId] = useState(null);
   const [watchId, setWatchId] = useState(null);
+  const [appMenuAnchorEl, setAppMenuAnchorEl] = useState(null);
+  const [directionsMenuAnchorEl, setDirectionsMenuAnchorEl] = useState(null);
+  const [directionsMenuBurial, setDirectionsMenuBurial] = useState(null);
 
   // Component References
   const { BaseLayer } = LayersControl;
@@ -681,6 +716,7 @@ export default function BurialMap() {
   const didApplyUrlStateRef = useRef(false);
   const loadedTourNamesRef = useRef(new Set());
   const loadingTourNamesRef = useRef(new Set());
+  const selectedBurialRefs = useRef(new Map());
 
   //-----------------------------------------------------------------------------
   // Memoized Values
@@ -704,6 +740,15 @@ export default function BurialMap() {
     () => TOUR_DEFINITIONS.map((definition) => definition.name),
     []
   );
+  const appMenuOpen = Boolean(appMenuAnchorEl);
+  const directionsMenuOpen = Boolean(directionsMenuAnchorEl);
+  const isAppleMobile = useMemo(() => {
+    if (typeof navigator === 'undefined') return false;
+
+    return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }, []);
+  const showIosInstallHint = isAppleMobile && !isInstalled && !installPromptEvent;
 
   /**
    * Create searchable options from burial data
@@ -711,20 +756,7 @@ export default function BurialMap() {
    */
   const searchOptions = useMemo(() => (
     burialFeatures
-      .map((feature) => {
-        const firstName = feature.properties.First_Name || '';
-        const lastName = feature.properties.Last_Name || '';
-        const searchableLabel = `${firstName} ${lastName} (Section ${feature.properties.Section}, Lot ${feature.properties.Lot})`.trim();
-
-        return {
-          label: `${firstName} ${lastName}`.trim(),
-          searchableLabel,
-          searchableLabelLower: searchableLabel.toLowerCase(),
-          key: `${feature.properties.OBJECTID}_${firstName}_${lastName}_Section${feature.properties.Section}_Lot${feature.properties.Lot}`,
-          ...feature.properties,
-          coordinates: feature.geometry.coordinates
-        };
-      })
+      .map(buildBurialRecord)
       .filter((option) => option.First_Name || option.Last_Name)
   ), [burialFeatures]);
 
@@ -751,10 +783,7 @@ export default function BurialMap() {
       }
       
       return true;
-    }).map(feature => ({
-      ...feature.properties,
-      coordinates: feature.geometry.coordinates
-    }));
+    }).map(buildBurialRecord);
   }, [burialFeatures, showAllBurials, sectionFilter, lotTierFilter, filterType]);
 
   /**
@@ -804,9 +833,60 @@ export default function BurialMap() {
    * Handles user location tracking
    * Checks if user is within 5 miles of the cemetery
    */
-  const onLocateMarker = () => {
+  const updateLocationFromPosition = useCallback((position) => {
+    const point = turf.point([position.coords.longitude, position.coords.latitude]);
+    const boundaryPolygon = ARC_Boundary.features[0];
+    const bufferedBoundary = turf.buffer(boundaryPolygon, 8, { units: 'kilometers' });
+    const isWithinBuffer = turf.booleanPointInPolygon(point, bufferedBoundary);
+
+    if (isWithinBuffer) {
+      setStatus('Location active');
+      setLat(position.coords.latitude);
+      setLng(position.coords.longitude);
+      return {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+    }
+
+    setStatus('You must be within 5 miles of Albany Rural Cemetery');
+    setLat(null);
+    setLng(null);
+    return null;
+  }, []);
+
+  const handleLocationError = useCallback((error) => {
+    setStatus('Unable to retrieve your location');
+    console.error('Geolocation error:', error);
+    return null;
+  }, []);
+
+  const requestCurrentLocation = useCallback(() => new Promise((resolve) => {
     if (!navigator.geolocation) {
       setStatus('Geolocation is not supported by your browser');
+      resolve(null);
+      return;
+    }
+
+    setStatus('Locating...');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve(updateLocationFromPosition(position));
+      },
+      (error) => {
+        resolve(handleLocationError(error));
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 5000
+      }
+    );
+  }), [handleLocationError, updateLocationFromPosition]);
+
+  const onLocateMarker = useCallback(async () => {
+    const location = await requestCurrentLocation();
+    if (!location || !navigator.geolocation) {
       return;
     }
 
@@ -814,27 +894,12 @@ export default function BurialMap() {
       navigator.geolocation.clearWatch(watchId);
     }
 
-    setStatus('Locating...');
     const id = navigator.geolocation.watchPosition(
       (position) => {
-        const point = turf.point([position.coords.longitude, position.coords.latitude]);
-        const boundaryPolygon = ARC_Boundary.features[0];
-        const bufferedBoundary = turf.buffer(boundaryPolygon, 8, { units: 'kilometers' });
-        const isWithinBuffer = turf.booleanPointInPolygon(point, bufferedBoundary);
-        
-        if (isWithinBuffer) {
-          setStatus('Location active');
-          setLat(position.coords.latitude);
-          setLng(position.coords.longitude);
-        } else {
-          setStatus('You must be within 5 miles of Albany Rural Cemetery');
-          setLat(null);
-          setLng(null);
-        }
+        updateLocationFromPosition(position);
       },
       (error) => {
-        setStatus('Unable to retrieve your location');
-        console.error('Geolocation error:', error);
+        handleLocationError(error);
       },
       {
         enableHighAccuracy: true,
@@ -843,24 +908,45 @@ export default function BurialMap() {
       }
     );
     setWatchId(id);
-  };
+  }, [handleLocationError, requestCurrentLocation, updateLocationFromPosition, watchId]);
 
   /**
-   * Handles adding a burial to the search results
+   * Focuses a burial consistently regardless of whether it was found by search or map click.
    */
-  const addToResults = useCallback((burial) => {
-    if (burial && !selectedBurials.some(b => b.OBJECTID === burial.OBJECTID)) {
-      setSelectedBurials(prev => [...prev, burial]);
-      setCurrentSelection(null);
-      setInputValue('');
-      
-      if (window.mapInstance) {
-        window.mapInstance.panTo([burial.coordinates[1], burial.coordinates[0]], {
-          duration: 1.5
-        });
-      }
+  const focusBurial = useCallback((burial, { addToSelection = false, clearSearchInput = false } = {}) => {
+    if (!burial) return;
+
+    if (addToSelection) {
+      setSelectedBurials((prev) => (
+        prev.some((item) => item.OBJECTID === burial.OBJECTID)
+          ? prev
+          : [...prev, burial]
+      ));
     }
-  }, [selectedBurials]);
+
+    if (clearSearchInput) {
+      setInputValue('');
+    }
+
+    setActiveBurialId(burial.OBJECTID);
+
+    if (window.mapInstance && Array.isArray(burial.coordinates)) {
+      const map = window.mapInstance;
+      const targetZoom = Math.max(map.getZoom(), ZOOM_LEVEL);
+      map.flyTo(
+        [burial.coordinates[1], burial.coordinates[0]],
+        targetZoom,
+        {
+          duration: 1.5,
+          easeLinearity: 0.25
+        }
+      );
+    }
+  }, []);
+
+  const selectBurial = useCallback((burial, { clearSearchInput = false } = {}) => {
+    focusBurial(burial, { addToSelection: true, clearSearchInput });
+  }, [focusBurial]);
 
   /**
    * Handles search input and selection
@@ -874,28 +960,50 @@ export default function BurialMap() {
           getTourName,
         });
         if (matches.length > 0) {
-          addToResults(matches[0]);
+          selectBurial(matches[0], { clearSearchInput: true });
         }
       } else {
-        addToResults(value);
+        selectBurial(value, { clearSearchInput: true });
       }
     }
-  }, [searchOptions, addToResults, searchIndex, getTourName]);
+  }, [searchOptions, searchIndex, getTourName, selectBurial]);
 
   /**
    * Removes a burial from search results
    */
   const removeFromResults = useCallback((objectId) => {
-    setSelectedBurials(prev => prev.filter(burial => burial.OBJECTID !== objectId));
-  }, []);
+    setSelectedBurials((prev) => prev.filter((burial) => burial.OBJECTID !== objectId));
+
+    if (activeRouteBurialId === objectId) {
+      setRoutingDestination(null);
+      setActiveRouteBurialId(null);
+    }
+
+    if (directionsMenuBurial?.OBJECTID === objectId) {
+      setDirectionsMenuAnchorEl(null);
+      setDirectionsMenuBurial(null);
+    }
+  }, [activeRouteBurialId, directionsMenuBurial]);
 
   /**
    * Clears all search results
    */
   const clearSearch = useCallback(() => {
     setSelectedBurials([]);
+    setActiveBurialId(null);
     setInputValue('');
-    setCurrentSelection(null);
+    setRoutingDestination(null);
+    setActiveRouteBurialId(null);
+    setDirectionsMenuAnchorEl(null);
+    setDirectionsMenuBurial(null);
+  }, []);
+
+  const handleOpenAppMenu = useCallback((event) => {
+    setAppMenuAnchorEl(event.currentTarget);
+  }, []);
+
+  const handleCloseAppMenu = useCallback(() => {
+    setAppMenuAnchorEl(null);
   }, []);
 
   const handleInstallApp = useCallback(async () => {
@@ -905,34 +1013,30 @@ export default function BurialMap() {
     setInstallPromptEvent(null);
   }, [installPromptEvent]);
 
+  const handleOpenDirectionsMenu = useCallback((event, burial) => {
+    event.stopPropagation();
+    setDirectionsMenuAnchorEl(event.currentTarget);
+    setDirectionsMenuBurial(burial);
+  }, []);
+
+  const handleCloseDirectionsMenu = useCallback(() => {
+    setDirectionsMenuAnchorEl(null);
+    setDirectionsMenuBurial(null);
+  }, []);
+
   /**
    * Handles clicking on a search result item
    */
-  const handleResultClick = useCallback((burial, index) => {
-    if (window.mapInstance) {
-      const map = window.mapInstance;
-      map.flyTo(
-        [burial.coordinates[1], burial.coordinates[0]],
-        ZOOM_LEVEL,
-        {
-          duration: 1.5,
-          easeLinearity: 0.25
-        }
-      );
-    }
-  }, []);
+  const handleResultClick = useCallback((burial) => {
+    focusBurial(burial);
+  }, [focusBurial]);
 
   /**
    * Handles clicking on a marker
    */
-  const handleMarkerClick = useCallback((burial, index) => {
-    if (window.mapInstance) {
-      const map = window.mapInstance;
-      map.panTo([burial.coordinates[1], burial.coordinates[0]], {
-        duration: 1.5
-      });
-    }
-  }, []);
+  const handleMarkerClick = useCallback((burial) => {
+    selectBurial(burial);
+  }, [selectBurial]);
 
   /**
    * Creates a marker cluster group with custom styling
@@ -1064,25 +1168,45 @@ export default function BurialMap() {
         getTourName,
       });
       if (matches.length > 0) {
-        setSelectedBurials((prev) => {
-          if (prev.some((item) => item.OBJECTID === matches[0].OBJECTID)) {
-            return prev;
-          }
-          return [...prev, matches[0]];
-        });
+        selectBurial(matches[0]);
       }
       setInputValue(deepLink.query);
     }
 
     didApplyUrlStateRef.current = true;
-  }, [isBurialDataLoading, searchOptions, searchIndex, getTourName, tourNames]);
+  }, [isBurialDataLoading, searchOptions, searchIndex, getTourName, selectBurial, tourNames]);
+
+  useEffect(() => {
+    if (selectedBurials.length === 0) {
+      if (activeBurialId !== null) {
+        setActiveBurialId(null);
+      }
+      return;
+    }
+
+    if (!selectedBurials.some((burial) => burial.OBJECTID === activeBurialId)) {
+      setActiveBurialId(selectedBurials[0].OBJECTID);
+    }
+  }, [activeBurialId, selectedBurials]);
+
+  useEffect(() => {
+    if (activeBurialId === null) return;
+
+    const activeNode = selectedBurialRefs.current.get(activeBurialId);
+    if (activeNode) {
+      activeNode.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }
+  }, [activeBurialId, selectedBurials]);
 
   /**
    * Cleanup geolocation watch on unmount
    */
   useEffect(() => {
     return () => {
-      if (watchId) {
+      if (watchId && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchId);
       }
     };
@@ -1167,27 +1291,31 @@ export default function BurialMap() {
     const clusterGroup = createClusterGroup();
     markerClusterRef.current = clusterGroup;
 
-    filteredBurials.forEach(burial => {
+    filteredBurials.forEach((burial) => {
       const marker = L.circleMarker([burial.coordinates[1], burial.coordinates[0]], {
         ...markerStyle,
-        radius: 6
+        radius: activeBurialId === burial.OBJECTID ? 8 : 6
       });
 
       const popupContent = `
         <div class="custom-popup">
-          <h3>${burial.First_Name} ${burial.Last_Name}</h3>
+          <h3>${formatBurialName(burial)}</h3>
           <p>Section: ${burial.Section}</p>
           <p>Lot: ${burial.Lot}</p>
           <p>Tier: ${burial.Tier}</p>
           <p>Grave: ${burial.Grave}</p>
           <p>Birth: ${burial.Birth}</p>
           <p>Death: ${burial.Death}</p>
+          <p><strong>Selected markers appear in the sidebar for actions.</strong></p>
         </div>
       `;
 
       marker.bindPopup(popupContent, {
         maxWidth: 300,
         className: 'custom-popup'
+      });
+      marker.on('click', () => {
+        selectBurial(burial);
       });
 
       clusterGroup.addLayer(marker);
@@ -1200,7 +1328,7 @@ export default function BurialMap() {
         window.mapInstance.removeLayer(markerClusterRef.current);
       }
     };
-  }, [filteredBurials, showAllBurials, sectionFilter, createClusterGroup]);
+  }, [activeBurialId, createClusterGroup, filteredBurials, sectionFilter, selectBurial, showAllBurials]);
 
   /**
    * Handle map zoom changes
@@ -1235,20 +1363,53 @@ export default function BurialMap() {
    * Starts turn-by-turn navigation to a burial location
    * @param {Object} burial - The burial record to navigate to
    */
-  const startRouting = (burial) => {
-    if (!lat || !lng) {
-      setStatus('Please enable location tracking first');
+  const startRouting = useCallback(async (burial) => {
+    const location = lat && lng
+      ? { latitude: lat, longitude: lng }
+      : await requestCurrentLocation();
+
+    if (!location) {
       return;
     }
+
+    selectBurial(burial);
     setRoutingDestination([burial.coordinates[1], burial.coordinates[0]]);
-  };
+    setActiveRouteBurialId(burial.OBJECTID);
+  }, [lat, lng, requestCurrentLocation, selectBurial]);
 
   /**
    * Stops the current navigation
    */
-  const stopRouting = () => {
+  const stopRouting = useCallback(() => {
     setRoutingDestination(null);
-  };
+    setActiveRouteBurialId(null);
+  }, []);
+
+  const openExternalDirections = useCallback((burial) => {
+    if (!Array.isArray(burial.coordinates)) {
+      setStatus('Directions unavailable for this burial');
+      return;
+    }
+
+    const link = buildDirectionsLink({
+      latitude: burial.coordinates[1],
+      longitude: burial.coordinates[0],
+      label: formatBurialName(burial),
+      userAgent: typeof navigator === 'undefined' ? '' : navigator.userAgent,
+    });
+
+    if (!link) {
+      setStatus('Directions unavailable for this burial');
+      return;
+    }
+
+    if (link.target === 'self') {
+      window.location.assign(link.href);
+      return;
+    }
+
+    window.open(link.href, link.target, 'noopener,noreferrer');
+  }, []);
 
   //=============================================================================
   // Map Layer Management
@@ -1399,8 +1560,8 @@ export default function BurialMap() {
                   : burialDataError
                     ? 'Record load failed'
                     : isSearchIndexReady
-                      ? `${searchOptions.length.toLocaleString()} records ready`
-                      : `Indexing ${searchOptions.length.toLocaleString()} records…`
+                      ? 'Records ready'
+                      : 'Indexing records…'
               }
             />
             <Chip
@@ -1421,17 +1582,16 @@ export default function BurialMap() {
             )}
           </Box>
 
-          {!isInstalled && installPromptEvent && (
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleInstallApp}
-              startIcon={<InstallMobileIcon />}
-              sx={{ mb: 1.5 }}
-            >
-              Install App
-            </Button>
-          )}
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={handleOpenAppMenu}
+            startIcon={<AppsIcon />}
+            endIcon={<ArrowDropDownIcon />}
+            sx={{ mb: 1.5 }}
+          >
+            App
+          </Button>
 
           {burialDataError && (
             <Typography variant="body2" color="error" sx={{ mb: 1 }}>
@@ -1456,13 +1616,10 @@ export default function BurialMap() {
                 return option.searchableLabel || '';
               }}
               onChange={handleSearch}
-              value={currentSelection || null}
+              value={null}
               inputValue={inputValue}
               onInputChange={(event, newInputValue, reason) => {
                 setInputValue(newInputValue);
-                if (reason === 'clear') {
-                  setCurrentSelection(null);
-                }
               }}
               sx={{ flex: 1 }}
               renderInput={(params) => (
@@ -1530,16 +1687,6 @@ export default function BurialMap() {
                 </li>
               )}
             />
-            {currentSelection && (
-              <IconButton 
-                onClick={() => addToResults(currentSelection)}
-                color="primary"
-                size="small"
-                sx={{ alignSelf: 'center' }}
-              >
-                <AddIcon />
-              </IconButton>
-            )}
           </Box>
           
           {/* Section Filter */}
@@ -1689,108 +1836,247 @@ export default function BurialMap() {
               startIcon={<PinDropIcon />}
               sx={{ flex: 1 }}
             >
-              {status}
+              Use My Location
             </Button>
           </Box>
+          <Typography variant="caption" sx={{ display: 'block', mt: 0.75, color: 'var(--muted-text)' }}>
+            {status}
+          </Typography>
         </Box>
 
         <Divider />
 
-        {/* Search Results */}
+        {/* Selected Burials */}
         {selectedBurials.length > 0 && (
           <Box sx={{ maxHeight: 'calc(100vh - 200px)', overflow: 'auto' }}>
             <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h6">Search Results ({selectedBurials.length})</Typography>
+              <Typography variant="h6">Selected People ({selectedBurials.length})</Typography>
               <IconButton onClick={clearSearch} size="small">
                 <CloseIcon />
               </IconButton>
             </Box>
             <List>
-              {selectedBurials.map((burial, index) => (
-                <ListItem 
-                  key={createUniqueKey(burial, index)}
-                  onMouseEnter={() => setHoveredIndex(index)}
-                  onMouseLeave={() => setHoveredIndex(null)}
-                  onClick={() => handleResultClick(burial, index)}
-                  sx={{
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    backgroundColor: hoveredIndex === index ? 'rgba(0, 0, 0, 0.04)' : 'transparent',
-                    '&:hover': {
-                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                    }
-                  }}
-                  secondaryAction={
-                    <IconButton 
-                      edge="end" 
-                      aria-label="remove" 
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeFromResults(burial.OBJECTID);
+              {selectedBurials.map((burial, index) => {
+                const isActive = activeBurialId === burial.OBJECTID;
+                const isRouteActive = activeRouteBurialId === burial.OBJECTID;
+
+                return (
+                  <ListItem
+                    key={createUniqueKey(burial, index)}
+                    disablePadding
+                    sx={{ display: 'block', px: 2, pb: 1.5 }}
+                  >
+                    <Box
+                      ref={(node) => {
+                        if (node) {
+                          selectedBurialRefs.current.set(burial.OBJECTID, node);
+                        } else {
+                          selectedBurialRefs.current.delete(burial.OBJECTID);
+                        }
+                      }}
+                      onMouseEnter={() => setHoveredIndex(index)}
+                      onMouseLeave={() => setHoveredIndex(null)}
+                      onClick={() => handleResultClick(burial)}
+                      sx={{
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        borderRadius: 2,
+                        border: isActive ? '1px solid rgba(18, 94, 74, 0.35)' : '1px solid rgba(18, 47, 40, 0.12)',
+                        borderLeft: isActive ? '4px solid var(--accent)' : '4px solid transparent',
+                        backgroundColor: isActive
+                          ? 'rgba(18, 94, 74, 0.08)'
+                          : hoveredIndex === index
+                            ? 'rgba(0, 0, 0, 0.04)'
+                            : 'rgba(255, 255, 255, 0.72)',
+                        p: 1.5,
+                        '&:hover': {
+                          backgroundColor: isActive ? 'rgba(18, 94, 74, 0.12)' : 'rgba(0, 0, 0, 0.04)',
+                        }
                       }}
                     >
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
-                  }
-                >
-                  <Box
-                    sx={{
-                      width: hoveredIndex === index ? '32px' : '24px',
-                      height: hoveredIndex === index ? '32px' : '24px',
-                      borderRadius: '50%',
-                      backgroundColor: MARKER_COLORS[index % MARKER_COLORS.length],
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: 1,
-                      fontWeight: 'bold',
-                      fontSize: hoveredIndex === index ? '16px' : '14px',
-                      border: hoveredIndex === index ? '3px solid white' : '2px solid white',
-                      boxShadow: hoveredIndex === index ? '0 0 8px rgba(0,0,0,0.6)' : '0 0 4px rgba(0,0,0,0.4)',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    {index + 1}
-                  </Box>
-                  <ListItemText
-                    primary={`${burial.First_Name} ${burial.Last_Name}`}
-                    secondary={
-                      <Box component="span">
-                        <Typography component="span" variant="body2" display="block">Section: {burial.Section}</Typography>
-                        <Typography component="span" variant="body2" display="block">Lot: {burial.Lot}</Typography>
-                        <Typography component="span" variant="body2" display="block">Tier: {burial.Tier}</Typography>
-                        <Typography component="span" variant="body2" display="block">Grave: {burial.Grave}</Typography>
-                        <Typography component="span" variant="body2" display="block">Birth: {burial.Birth}</Typography>
-                        <Typography component="span" variant="body2" display="block">Death: {burial.Death}</Typography>
-                        {burial.title && (
-                          <Typography 
-                            component="span" 
-                            variant="body2" 
-                            display="block"
-                            sx={{
-                              mt: 1,
-                              color: 'white',
-                              backgroundColor: TOURS[burial.title]?.color || 'grey',
-                              px: 1,
-                              py: 0.5,
-                              borderRadius: 1,
-                              display: 'inline-block'
-                            }}
-                          >
-                            {TOURS[burial.title]?.name || burial.title}
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                        <Box
+                          sx={{
+                            width: isActive || hoveredIndex === index ? '32px' : '24px',
+                            height: isActive || hoveredIndex === index ? '32px' : '24px',
+                            borderRadius: '50%',
+                            backgroundColor: MARKER_COLORS[index % MARKER_COLORS.length],
+                            color: 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 'bold',
+                            fontSize: isActive || hoveredIndex === index ? '16px' : '14px',
+                            border: isActive || hoveredIndex === index ? '3px solid white' : '2px solid white',
+                            boxShadow: isActive || hoveredIndex === index ? '0 0 8px rgba(0,0,0,0.6)' : '0 0 4px rgba(0,0,0,0.4)',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          {index + 1}
+                        </Box>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="subtitle1" sx={{ lineHeight: 1.2 }}>
+                            {formatBurialName(burial)}
                           </Typography>
-                        )}
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            Section {burial.Section}, Lot {burial.Lot}, Tier {burial.Tier}, Grave {burial.Grave}
+                          </Typography>
+                          {(burial.Birth || burial.Death) && (
+                            <Typography variant="body2" color="text.secondary">
+                              {burial.Birth ? `Born ${burial.Birth}` : 'Birth unknown'}
+                              {burial.Death ? ` • Died ${burial.Death}` : ''}
+                            </Typography>
+                          )}
+                          {(isActive || isRouteActive) && (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.75 }}>
+                              {isActive && <Chip size="small" color="primary" label="Active" />}
+                              {isRouteActive && (
+                                <Chip
+                                  size="small"
+                                  label="Route active"
+                                  sx={{
+                                    backgroundColor: 'rgba(18, 94, 74, 0.14)',
+                                    color: 'var(--accent)',
+                                  }}
+                                />
+                              )}
+                            </Box>
+                          )}
+                          {burial.title && (
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                mt: 1,
+                                color: 'white',
+                                backgroundColor: TOURS[burial.title]?.color || 'grey',
+                                px: 1,
+                                py: 0.5,
+                                borderRadius: 1,
+                                display: 'inline-block'
+                              }}
+                            >
+                              {TOURS[burial.title]?.name || burial.title}
+                            </Typography>
+                          )}
+                        </Box>
+                        <IconButton
+                          aria-label="remove"
+                          size="small"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            removeFromResults(burial.OBJECTID);
+                          }}
+                        >
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
                       </Box>
-                    }
-                  />
-                </ListItem>
-              ))}
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.25 }}>
+                        <Button
+                          size="small"
+                          variant={isActive ? 'contained' : 'outlined'}
+                          startIcon={<CenterFocusStrongIcon />}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleResultClick(burial);
+                          }}
+                        >
+                          Center on Map
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          startIcon={<DirectionsIcon />}
+                          onClick={(event) => handleOpenDirectionsMenu(event, burial)}
+                        >
+                          Directions
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="text"
+                          color="inherit"
+                          startIcon={<CloseIcon />}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            removeFromResults(burial.OBJECTID);
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      </Box>
+                    </Box>
+                  </ListItem>
+                );
+              })}
             </List>
           </Box>
         )}
       </Paper>
+
+      <Menu
+        anchorEl={appMenuAnchorEl}
+        open={appMenuOpen}
+        onClose={handleCloseAppMenu}
+      >
+        {isInstalled && <MenuItem disabled>App installed on this device</MenuItem>}
+        {!isInstalled && installPromptEvent && (
+          <MenuItem
+            onClick={async () => {
+              handleCloseAppMenu();
+              await handleInstallApp();
+            }}
+          >
+            <InstallMobileIcon fontSize="small" sx={{ mr: 1 }} />
+            Install on this device
+          </MenuItem>
+        )}
+        {!isInstalled && showIosInstallHint && (
+          <MenuItem disabled>
+            <InstallMobileIcon fontSize="small" sx={{ mr: 1 }} />
+            Safari: Share → Add to Home Screen
+          </MenuItem>
+        )}
+        {!isInstalled && !installPromptEvent && !showIosInstallHint && (
+          <MenuItem disabled>
+            <AppsIcon fontSize="small" sx={{ mr: 1 }} />
+            App install unavailable in this browser
+          </MenuItem>
+        )}
+      </Menu>
+
+      <Menu
+        anchorEl={directionsMenuAnchorEl}
+        open={directionsMenuOpen}
+        onClose={handleCloseDirectionsMenu}
+      >
+        {directionsMenuBurial && (
+          <>
+            <MenuItem
+              onClick={async () => {
+                const burial = directionsMenuBurial;
+                handleCloseDirectionsMenu();
+                if (activeRouteBurialId === burial.OBJECTID) {
+                  stopRouting();
+                  return;
+                }
+                await startRouting(burial);
+              }}
+            >
+              <DirectionsIcon fontSize="small" sx={{ mr: 1 }} />
+              {activeRouteBurialId === directionsMenuBurial.OBJECTID ? 'Stop Route' : 'Route on Map'}
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                const burial = directionsMenuBurial;
+                handleCloseDirectionsMenu();
+                openExternalDirections(burial);
+              }}
+            >
+              <LaunchIcon fontSize="small" sx={{ mr: 1 }} />
+              Open in Maps
+            </MenuItem>
+          </>
+        )}
+      </Menu>
 
       <MapContainer
         center={[42.704180, -73.731980]}
@@ -1916,34 +2202,64 @@ export default function BurialMap() {
             <Marker 
               key={createUniqueKey(burial, index)}
               position={[burial.coordinates[1], burial.coordinates[0]]}
-              icon={createNumberedIcon(index + 1, hoveredIndex === index)}
+              icon={createNumberedIcon(
+                index + 1,
+                hoveredIndex === index || activeBurialId === burial.OBJECTID
+              )}
               eventHandlers={{
                 mouseover: () => setHoveredIndex(index),
                 mouseout: () => setHoveredIndex(null),
-                click: () => handleMarkerClick(burial, index)
+                click: () => handleMarkerClick(burial)
               }}
               zIndexOffset={1000}
             >
               <Popup>
-                <div>
-                  <h3>{burial.First_Name} {burial.Last_Name}</h3>
-                  <p>Section: {burial.Section}</p>
-                  <p>Lot: {burial.Lot}</p>
-                  <p>Tier: {burial.Tier}</p>
-                  <p>Grave: {burial.Grave}</p>
-                  <p>Birth: {burial.Birth}</p>
-                  <p>Death: {burial.Death}</p>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    size="small"
-                    fullWidth
-                    onClick={() => routingDestination ? stopRouting() : startRouting(burial)}
-                    sx={{ mt: 1 }}
-                  >
-                    {routingDestination ? 'Stop Navigation' : 'Get Directions'}
-                  </Button>
-                </div>
+                <Box sx={{ minWidth: 220 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    {formatBurialName(burial)}
+                  </Typography>
+                  <Typography variant="body2">Section: {burial.Section}</Typography>
+                  <Typography variant="body2">Lot: {burial.Lot}</Typography>
+                  <Typography variant="body2">Tier: {burial.Tier}</Typography>
+                  <Typography variant="body2">Grave: {burial.Grave}</Typography>
+                  <Typography variant="body2">Birth: {burial.Birth}</Typography>
+                  <Typography variant="body2">Death: {burial.Death}</Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      size="small"
+                      startIcon={<CenterFocusStrongIcon />}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleResultClick(burial);
+                      }}
+                    >
+                      Center on Map
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="small"
+                      startIcon={<DirectionsIcon />}
+                      onClick={(event) => handleOpenDirectionsMenu(event, burial)}
+                    >
+                      Directions
+                    </Button>
+                    <Button
+                      variant="text"
+                      color="inherit"
+                      size="small"
+                      startIcon={<CloseIcon />}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        removeFromResults(burial.OBJECTID);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </Box>
+                </Box>
               </Popup>
             </Marker>
           ))}

@@ -6,8 +6,15 @@ const NUMBER_PATTERN = /^\d+$/;
 
 const normalize = (value = '') => String(value).toLowerCase().trim();
 
-const tokenize = (value = '') =>
+export const normalizeName = (value = '') =>
   normalize(value)
+    .replace(/['’.]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const tokenize = (value = '') =>
+  normalizeName(value)
     .split(/[^a-z0-9]+/)
     .filter((token) => token.length > 1);
 
@@ -45,18 +52,30 @@ export const buildSearchIndex = (options, { getTourName } = {}) => {
   const byYear = new Map();
   const byToken = new Map();
   const byTourToken = new Map();
+  const byFullName = new Map();
+  const byNameToken = new Map();
 
   options.forEach((option) => {
     const sectionKey = normalize(option.Section);
     const lotKey = normalize(option.Lot);
+    const fullNameNormalized = option.fullNameNormalized || normalizeName(
+      option.fullName ||
+      option.label ||
+      `${option.First_Name || ''} ${option.Last_Name || ''}`
+    );
 
     addToMapArray(bySection, sectionKey, option);
     addToMapArray(byLot, lotKey, option);
+    addToMapArray(byFullName, fullNameNormalized, option);
 
     const birth = String(option.Birth || '');
     const death = String(option.Death || '');
     const years = `${birth} ${death}`.match(/\b\d{4}\b/g) || [];
     years.forEach((year) => addToMapArray(byYear, year, option));
+
+    tokenize(fullNameNormalized).forEach((token) => {
+      addToMapArray(byNameToken, token, option);
+    });
 
     tokenize(option.searchableLabelLower || option.searchableLabel || '').forEach((token) => {
       addToMapArray(byToken, token, option);
@@ -76,6 +95,8 @@ export const buildSearchIndex = (options, { getTourName } = {}) => {
     byYear,
     byToken,
     byTourToken,
+    byFullName,
+    byNameToken,
   };
 };
 
@@ -155,25 +176,76 @@ export const smartSearch = (
   }
 
   const inputTokens = tokenize(input);
+  const normalizedNameQuery = normalizeName(input);
   let candidatePool = options;
 
-  if (inputTokens.length > 0 && index?.byToken) {
-    const tokenPools = inputTokens
-      .map((token) => index.byToken.get(token) || [])
-      .filter((pool) => pool.length > 0)
-      .sort((a, b) => a.length - b.length);
+  if (inputTokens.length > 0) {
+    const indexedCandidates = [];
 
-    if (tokenPools.length > 0) {
-      candidatePool = tokenPools[0];
+    if (normalizedNameQuery && index?.byFullName?.has(normalizedNameQuery)) {
+      indexedCandidates.push(...index.byFullName.get(normalizedNameQuery));
+    }
+
+    inputTokens.forEach((token) => {
+      if (index?.byNameToken?.has(token)) {
+        indexedCandidates.push(...index.byNameToken.get(token));
+      }
+      if (index?.byToken?.has(token)) {
+        indexedCandidates.push(...index.byToken.get(token));
+      }
+      if (index?.byTourToken?.has(token)) {
+        indexedCandidates.push(...index.byTourToken.get(token));
+      }
+    });
+
+    if (indexedCandidates.length > 0) {
+      candidatePool = dedupe(indexedCandidates);
     }
   }
 
   return dedupe(
-    candidatePool.filter((option) => {
-      const label = option.searchableLabelLower || normalize(option.searchableLabel);
-      const nameMatch = label.includes(input);
-      const tourMatch = getTourName ? normalize(getTourName(option)).includes(input) : false;
-      return nameMatch || tourMatch;
-    })
+    candidatePool
+      .map((option) => {
+        const fullNameNormalized =
+          option.fullNameNormalized || normalizeName(
+            option.fullName ||
+            option.label ||
+            `${option.First_Name || ''} ${option.Last_Name || ''}`
+          );
+        const label = option.searchableLabelLower || normalize(option.searchableLabel);
+        const nameTokens = tokenize(fullNameNormalized);
+        const matchedNameTokens = inputTokens.filter((token) => nameTokens.includes(token)).length;
+        const allNameTokensMatch =
+          inputTokens.length > 0 && inputTokens.every((token) => nameTokens.includes(token));
+        const orderedNameMatch =
+          Boolean(normalizedNameQuery) &&
+          (fullNameNormalized === normalizedNameQuery || fullNameNormalized.includes(normalizedNameQuery));
+        const labelMatch = label.includes(input);
+        const allLabelTokensMatch =
+          inputTokens.length > 0 && inputTokens.every((token) => label.includes(token));
+        const tourValue = getTourName ? normalize(getTourName(option)) : '';
+        const tourMatch =
+          Boolean(tourValue) &&
+          (tourValue.includes(input) ||
+            (inputTokens.length > 0 && inputTokens.every((token) => tourValue.includes(token))));
+
+        if (!(orderedNameMatch || allNameTokensMatch || labelMatch || allLabelTokensMatch || tourMatch)) {
+          return null;
+        }
+
+        let score = 0;
+        if (fullNameNormalized === normalizedNameQuery) score += 500;
+        else if (orderedNameMatch) score += 320;
+        if (allNameTokensMatch) score += 220;
+        if (matchedNameTokens > 0) score += matchedNameTokens * 25;
+        if (labelMatch) score += 80;
+        if (allLabelTokensMatch) score += 60;
+        if (tourMatch) score += 40;
+
+        return { option, score };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score)
+      .map(({ option }) => option)
   );
 };

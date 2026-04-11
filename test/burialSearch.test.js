@@ -37,6 +37,17 @@ const options = [
     searchableLabelLower: 'ada lovelace (section 100a, lot 9)',
     title: 'CivilWar',
   },
+  {
+    OBJECTID: 4,
+    First_Name: 'Mary Anne',
+    Last_Name: "O'Neil",
+    Section: '8',
+    Lot: '1',
+    Birth: '1901',
+    Death: '1988',
+    searchableLabel: "Mary Anne O'Neil (Section 8, Lot 1)",
+    searchableLabelLower: "mary anne o'neil (section 8, lot 1)",
+  },
 ];
 
 const getTourName = (option) => {
@@ -78,6 +89,16 @@ describe('smartSearch with index', () => {
   test('matches name fragments with token index', () => {
     const results = smartSearch(options, 'jane doe', { index, getTourName });
     expect(results.map((item) => item.OBJECTID)).toEqual([1]);
+  });
+
+  test('matches full names when token order differs', () => {
+    const results = smartSearch(options, 'oneil mary anne', { index, getTourName });
+    expect(results.map((item) => item.OBJECTID)).toEqual([4]);
+  });
+
+  test('normalizes punctuation in full-name queries', () => {
+    const results = smartSearch(options, 'Mary Anne ONeil', { index, getTourName });
+    expect(results.map((item) => item.OBJECTID)).toEqual([4]);
   });
 
   test('dedupes numeric union queries', () => {
