@@ -2,7 +2,7 @@
 
 `fab` is the source repository for the Albany Rural Cemetery burial-finder experience. It is a React-based web app and installable PWA that gives visitors a map, burial search, tours, and on-site navigation.
 
-If you are new to the project, the shortest accurate summary is:
+If you are new to the project, the shortest summary is:
 
 - `fab` is the main product.
 - `FABFG` is a native wrapper around hosted `fab`.
