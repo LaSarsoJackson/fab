@@ -31,7 +31,7 @@ const dedupe = (items) => {
   const result = [];
 
   items.forEach((item) => {
-    const key = item.OBJECTID ?? item.key ?? `${item.First_Name || ''}_${item.Last_Name || ''}_${item.Section || ''}_${item.Lot || ''}`;
+    const key = item.id ?? item.OBJECTID ?? item.key ?? `${item.First_Name || ''}_${item.Last_Name || ''}_${item.Section || ''}_${item.Lot || ''}`;
     if (seen.has(key)) return;
     seen.add(key);
     result.push(item);
@@ -63,19 +63,26 @@ export const buildSearchIndex = (options, { getTourName } = {}) => {
       option.label ||
       `${option.First_Name || ''} ${option.Last_Name || ''}`
     );
+    const nameVariantsNormalized = Array.from(
+      new Set([
+        fullNameNormalized,
+        ...(option.nameVariantsNormalized || []),
+      ].filter(Boolean))
+    );
 
     addToMapArray(bySection, sectionKey, option);
     addToMapArray(byLot, lotKey, option);
-    addToMapArray(byFullName, fullNameNormalized, option);
+    nameVariantsNormalized.forEach((value) => {
+      addToMapArray(byFullName, value, option);
+      tokenize(value).forEach((token) => {
+        addToMapArray(byNameToken, token, option);
+      });
+    });
 
     const birth = String(option.Birth || '');
     const death = String(option.Death || '');
     const years = `${birth} ${death}`.match(/\b\d{4}\b/g) || [];
     years.forEach((year) => addToMapArray(byYear, year, option));
-
-    tokenize(fullNameNormalized).forEach((token) => {
-      addToMapArray(byNameToken, token, option);
-    });
 
     tokenize(option.searchableLabelLower || option.searchableLabel || '').forEach((token) => {
       addToMapArray(byToken, token, option);
@@ -212,14 +219,27 @@ export const smartSearch = (
             option.label ||
             `${option.First_Name || ''} ${option.Last_Name || ''}`
           );
+        const nameVariantsNormalized = Array.from(
+          new Set([
+            fullNameNormalized,
+            ...(option.nameVariantsNormalized || []),
+          ].filter(Boolean))
+        );
         const label = option.searchableLabelLower || normalize(option.searchableLabel);
-        const nameTokens = tokenize(fullNameNormalized);
-        const matchedNameTokens = inputTokens.filter((token) => nameTokens.includes(token)).length;
-        const allNameTokensMatch =
-          inputTokens.length > 0 && inputTokens.every((token) => nameTokens.includes(token));
+        const nameTokenSets = nameVariantsNormalized.map((value) => tokenize(value));
+        const matchedNameTokens = nameTokenSets.reduce((best, tokens) => (
+          Math.max(best, inputTokens.filter((token) => tokens.includes(token)).length)
+        ), 0);
+        const allNameTokensMatch = inputTokens.length > 0 && nameTokenSets.some((tokens) => (
+          inputTokens.every((token) => tokens.includes(token))
+        ));
+        const exactNameMatch =
+          Boolean(normalizedNameQuery) && nameVariantsNormalized.includes(normalizedNameQuery);
         const orderedNameMatch =
           Boolean(normalizedNameQuery) &&
-          (fullNameNormalized === normalizedNameQuery || fullNameNormalized.includes(normalizedNameQuery));
+          nameVariantsNormalized.some((value) => (
+            value === normalizedNameQuery || value.includes(normalizedNameQuery)
+          ));
         const labelMatch = label.includes(input);
         const allLabelTokensMatch =
           inputTokens.length > 0 && inputTokens.every((token) => label.includes(token));
@@ -234,7 +254,7 @@ export const smartSearch = (
         }
 
         let score = 0;
-        if (fullNameNormalized === normalizedNameQuery) score += 500;
+        if (exactNameMatch) score += 500;
         else if (orderedNameMatch) score += 320;
         if (allNameTokensMatch) score += 220;
         if (matchedNameTokens > 0) score += matchedNameTokens * 25;

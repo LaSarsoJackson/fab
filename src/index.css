@@ -38,6 +38,7 @@ body {
   position: relative;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
 }
 
 .map,
@@ -50,9 +51,10 @@ body {
   position: absolute !important;
   top: 14px;
   left: 14px;
-  z-index: 1000;
+  z-index: 1200;
   width: min(390px, calc(100vw - 28px));
   max-height: calc(100vh - 28px);
+  max-height: calc(100dvh - 28px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -71,6 +73,11 @@ body {
 .left-sidebar .MuiAutocomplete-root {
   background: rgba(255, 255, 255, 0.86);
   border-radius: 10px;
+}
+
+.left-sidebar .MuiButton-root {
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .left-sidebar .MuiButton-contained {
@@ -97,6 +104,30 @@ body {
 
 .left-sidebar ::-webkit-scrollbar-thumb:hover {
   background: rgba(18, 94, 74, 0.68);
+}
+
+.left-sidebar__body {
+  min-height: 0;
+  overflow: auto;
+  flex: 1;
+}
+
+.selected-person-actions .MuiButton-root {
+  min-width: 0;
+}
+
+.left-sidebar__panel--surface {
+  backdrop-filter: blur(10px);
+}
+
+.left-sidebar__results-scroll {
+  overscroll-behavior: contain;
+}
+
+.left-sidebar__chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .section-label {
@@ -147,6 +178,11 @@ body {
   z-index: 1000;
 }
 
+.leaflet-control-attribution,
+.leaflet-control-container .leaflet-bottom.leaflet-right {
+  display: none !important;
+}
+
 @media (max-width: 1024px) {
   .left-sidebar {
     width: min(360px, calc(100vw - 24px));
@@ -154,13 +190,88 @@ body {
 }
 
 @media (max-width: 840px) {
+  .map-container {
+    height: 100vh;
+    height: 100dvh;
+  }
+
   .left-sidebar {
     top: auto;
-    bottom: 10px;
-    left: 10px;
-    right: 10px;
+    bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) + 10px));
+    left: max(10px, calc(env(safe-area-inset-left, 0px) + 10px));
+    right: max(10px, calc(env(safe-area-inset-right, 0px) + 10px));
     width: auto;
-    max-height: 58vh;
-    border-radius: 16px !important;
+    border-radius: 18px !important;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px);
+  }
+
+  .left-sidebar--mobile.left-sidebar--collapsed {
+    max-height: none;
+  }
+
+  .left-sidebar--mobile.left-sidebar--expanded {
+    max-height: min(82dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 12px));
+  }
+
+  .left-sidebar--mobile .left-sidebar__header {
+    padding-bottom: 0.9rem;
+  }
+
+  .left-sidebar--mobile.left-sidebar--collapsed .left-sidebar__header {
+    padding-bottom: 1rem;
+  }
+
+  .left-sidebar--mobile .left-sidebar__header .MuiTypography-overline {
+    font-size: 0.68rem;
+  }
+
+  .left-sidebar--mobile .left-sidebar__header .MuiTypography-h6 {
+    font-size: 1.05rem;
+  }
+
+  .left-sidebar--mobile .left-sidebar__body {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .left-sidebar--mobile .left-sidebar__body--mobile {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .left-sidebar--mobile .left-sidebar__mobile-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding-top: 0.35rem;
+    background:
+      linear-gradient(180deg, rgba(245, 249, 236, 0.96) 0%, rgba(245, 249, 236, 0.92) 74%, rgba(245, 249, 236, 0) 100%);
+    backdrop-filter: blur(12px);
+  }
+
+  .left-sidebar--mobile .left-sidebar__compact-meta {
+    padding-right: 0.25rem;
+  }
+
+  .left-sidebar--mobile .left-sidebar__panel {
+    scroll-margin-top: 12px;
+  }
+
+  .left-sidebar--mobile .left-sidebar__panel--browse,
+  .left-sidebar--mobile .left-sidebar__panel--selected,
+  .left-sidebar--mobile .left-sidebar__panel--selected-summary {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .left-sidebar--mobile .left-sidebar__chip-row {
+    gap: 6px;
+  }
+
+  .left-sidebar--mobile .selected-person-actions--mobile {
+    align-items: stretch;
+  }
+
+  .leaflet-top.leaflet-right {
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    right: calc(env(safe-area-inset-right, 0px) + 12px);
   }
 }
