@@ -62,6 +62,12 @@ import { buildDirectionsLink } from "./lib/navigationLinks";
 import { getPopupViewportPadding } from "./lib/popupViewport";
 import { buildTourLookup, harmonizeBurialBrowseResult } from "./lib/tourMetadata";
 import { parseDeepLinkState } from "./lib/urlState";
+import {
+  getGeoJsonBounds,
+  hasValidGeoJsonCoordinates,
+  isLatLngBoundsExpressionValid,
+} from "./lib/geoJsonBounds";
+import { TOUR_DEFINITIONS } from "./lib/tourDefinitions";
 
 //=============================================================================
 // Constants and Configuration
@@ -157,6 +163,11 @@ const PADDED_BOUNDARY_BOUNDS = [
 const LOCATION_BUFFER_BOUNDARY = turf.buffer(BOUNDARY_POLYGON, 8, { units: 'kilometers' });
 const SLOW_CONNECTION_TYPES = new Set(['slow-2g', '2g', '3g']);
 const NUMBERED_ICON_CACHE = new Map();
+
+const isRenderableBounds = (bounds) => (
+  isLatLngBoundsExpressionValid(bounds) ||
+  (typeof bounds?.isValid === "function" && bounds.isValid())
+);
 
 //=============================================================================
 // React Components
@@ -1031,25 +1042,6 @@ const createTourPopupContent = (browseResult) => {
 //=============================================================================
 
 /**
- * Tour data configuration with associated GeoJSON data
- */
-const TOUR_DEFINITIONS = [
-  { key: 'Lot7', name: "Soldier's Lot (Section 75, Lot 7)", load: () => import("./data/Projected_Sec75_Headstones.json") },
-  { key: 'Sec49', name: "Section 49", load: () => import("./data/Projected_Sec49_Headstones.json") },
-  { key: 'Notable', name: "Notables Tour 2020", load: () => import("./data/NotablesTour20.json") },
-  { key: 'Indep', name: "Independence Tour 2020", load: () => import("./data/IndependenceTour20.json") },
-  { key: 'Afr', name: "African American Tour 2020", load: () => import("./data/AfricanAmericanTour20.json") },
-  { key: 'Art', name: "Artists Tour 2020", load: () => import("./data/ArtistTour20.json") },
-  { key: 'Groups', name: "Associations, Societies, & Groups Tour 2020", load: () => import("./data/AssociationsTour20.json") },
-  { key: 'AuthPub', name: "Authors & Publishers Tour 2020", load: () => import("./data/AuthorsPublishersTour20.json") },
-  { key: 'Business', name: "Business & Finance Tour 2020", load: () => import("./data/BusinessFinanceTour20.json") },
-  { key: 'CivilWar', name: "Civil War Tour 2020", load: () => import("./data/CivilWarTour20.json") },
-  { key: 'Pillars', name: "Pillars of Society Tour 2020", load: () => import("./data/SocietyPillarsTour20.json") },
-  { key: 'MayorsOfAlbany', name: "Mayors of Albany", load: () => import("./data/AlbanyMayors_fixed.json") },
-  { key: 'GAR', name: "Grand Army of the Republic", load: () => import("./data/GAR_fixed.json") }
-];
-
-/**
  * Default style for burial markers
  */
 const markerStyle = {
@@ -1165,6 +1157,7 @@ export default function BurialMap() {
 
   // Map and UI State
   const [overlayMaps, setOverlayMaps] = useState({});
+  const [tourBoundsByName, setTourBoundsByName] = useState({});
   const [tourResultsByName, setTourResultsByName] = useState({});
   const [currentZoom, setCurrentZoom] = useState(14);
   const [hoveredIndex, setHoveredIndex] = useState(null);
@@ -1227,7 +1220,8 @@ export default function BurialMap() {
     () => new Map(
       ARC_Sections.features
         .filter((feature) => feature?.properties?.Section)
-        .map((feature) => [String(feature.properties.Section), L.geoJSON(feature).getBounds()])
+        .map((feature) => [String(feature.properties.Section), getGeoJsonBounds(feature)])
+        .filter(([, bounds]) => isLatLngBoundsExpressionValid(bounds))
     ),
     []
   );
@@ -1255,6 +1249,10 @@ export default function BurialMap() {
   const selectedTourLayer = useMemo(
     () => (selectedTour ? overlayMaps[selectedTour] || null : null),
     [overlayMaps, selectedTour]
+  );
+  const selectedTourBounds = useMemo(
+    () => (selectedTour ? tourBoundsByName[selectedTour] || null : null),
+    [selectedTour, tourBoundsByName]
   );
   const initialDeepLinkRef = useRef(null);
   if (initialDeepLinkRef.current === null && typeof window !== "undefined") {
@@ -2081,7 +2079,7 @@ export default function BurialMap() {
     if (!window.mapInstance || !sectionValue) return;
 
     const sectionBounds = bounds || sectionBoundsById.get(String(sectionValue));
-    if (!sectionBounds?.isValid || !sectionBounds.isValid()) {
+    if (!isRenderableBounds(sectionBounds)) {
       return;
     }
 
@@ -2126,17 +2124,14 @@ export default function BurialMap() {
   const focusTourOnMap = useCallback((tourName) => {
     if (!window.mapInstance || !tourName) return;
 
-    const layer = overlayMaps[tourName];
-    if (!layer?.getBounds) return;
-
-    const bounds = layer.getBounds();
-    if (!bounds?.isValid || !bounds.isValid()) return;
+    const bounds = tourBoundsByName[tourName];
+    if (!isLatLngBoundsExpressionValid(bounds)) return;
 
     window.mapInstance.fitBounds(bounds, {
       padding: [50, 50],
       maxZoom: ZOOM_LEVELS.CLUSTER,
     });
-  }, [overlayMaps]);
+  }, [tourBoundsByName]);
 
   /**
    * Apply URL-driven state once data is available for deep links from the companion app.
@@ -2268,7 +2263,18 @@ export default function BurialMap() {
 
     try {
       const module = await definition.load();
-      const normalizedTourResults = (module.default.features || []).map((feature) => (
+      const sourceFeatures = module.default.features || [];
+      const validFeatures = sourceFeatures.filter((feature) => hasValidGeoJsonCoordinates(feature));
+      const sanitizedGeoJson = {
+        ...module.default,
+        features: validFeatures,
+      };
+
+      if (validFeatures.length !== sourceFeatures.length) {
+        console.warn(`Skipped ${sourceFeatures.length - validFeatures.length} invalid features while loading "${tourName}".`);
+      }
+
+      const normalizedTourResults = validFeatures.map((feature) => (
         resolveTourBrowseResult(
           buildTourBrowseResult(feature, {
             tourKey: definition.key,
@@ -2276,7 +2282,8 @@ export default function BurialMap() {
           })
         )
       ));
-      const layer = L.geoJSON(module.default, {
+      const tourBounds = getGeoJsonBounds(sanitizedGeoJson);
+      const layer = L.geoJSON(sanitizedGeoJson, {
         pointToLayer: createTourMarker(definition.key),
         onEachFeature: createOnEachTourFeature(
           definition.key,
@@ -2295,6 +2302,10 @@ export default function BurialMap() {
       setTourResultsByName((current) => ({
         ...current,
         [tourName]: normalizedTourResults,
+      }));
+      setTourBoundsByName((current) => ({
+        ...current,
+        [tourName]: tourBounds,
       }));
       setOverlayMaps((current) => ({
         ...current,
@@ -2347,9 +2358,9 @@ export default function BurialMap() {
   }, [selectedTour, ensureTourLayerLoaded]);
 
   useEffect(() => {
-    if (!selectedTour || !selectedTourLayer) return;
+    if (!selectedTour || !selectedTourLayer || !selectedTourBounds) return;
     focusTourOnMap(selectedTour);
-  }, [focusTourOnMap, selectedTour, selectedTourLayer]);
+  }, [focusTourOnMap, selectedTour, selectedTourBounds, selectedTourLayer]);
 
   /**
    * Prefetch tour layers in idle time to reduce switching latency.

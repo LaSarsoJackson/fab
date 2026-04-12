@@ -1,0 +1,15 @@
+export const TOUR_DEFINITIONS = [
+  { key: "Lot7", name: "Soldier's Lot (Section 75, Lot 7)", load: () => import("../data/Projected_Sec75_Headstones.json") },
+  { key: "Sec49", name: "Section 49", load: () => import("../data/Projected_Sec49_Headstones.json") },
+  { key: "Notable", name: "Notables Tour 2020", load: () => import("../data/NotablesTour20.json") },
+  { key: "Indep", name: "Independence Tour 2020", load: () => import("../data/IndependenceTour20.json") },
+  { key: "Afr", name: "African American Tour 2020", load: () => import("../data/AfricanAmericanTour20.json") },
+  { key: "Art", name: "Artists Tour 2020", load: () => import("../data/ArtistTour20.json") },
+  { key: "Groups", name: "Associations, Societies, & Groups Tour 2020", load: () => import("../data/AssociationsTour20.json") },
+  { key: "AuthPub", name: "Authors & Publishers Tour 2020", load: () => import("../data/AuthorsPublishersTour20.json") },
+  { key: "Business", name: "Business & Finance Tour 2020", load: () => import("../data/BusinessFinanceTour20.json") },
+  { key: "CivilWar", name: "Civil War Tour 2020", load: () => import("../data/CivilWarTour20.json") },
+  { key: "Pillars", name: "Pillars of Society Tour 2020", load: () => import("../data/SocietyPillarsTour20.json") },
+  { key: "MayorsOfAlbany", name: "Mayors of Albany", load: () => import("../data/AlbanyMayors_fixed.json") },
+  { key: "GAR", name: "Grand Army of the Republic", load: () => import("../data/GAR_fixed.json") },
+];
