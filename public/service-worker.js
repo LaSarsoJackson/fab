@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'fab-static-v1';
-const RUNTIME_CACHE = 'fab-runtime-v1';
+const STATIC_CACHE = 'fab-static-v2';
+const RUNTIME_CACHE = 'fab-runtime-v2';
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -8,6 +8,58 @@ const PRECACHE_URLS = [
   './logo192.png',
   './logo512.png',
 ];
+const SHELL_ASSET_PATTERN = /\.(?:js|css|svg|ico|woff2?)$/i;
+const IMAGE_ASSET_PATTERN = /\.(?:png|jpg|jpeg|gif|webp|avif)$/i;
+const JSON_ASSET_PATTERN = /\.json$/i;
+const LARGE_DATASET_PATTERN = /(Geo_Burials|Burials|ARC_Burials).*\.json$/i;
+const MAX_RUNTIME_CACHE_BYTES = 1_500_000;
+
+const isCacheableResponse = (response) => Boolean(response && response.ok);
+
+const putIfSmallEnough = async (cache, request, response) => {
+  if (!isCacheableResponse(response)) {
+    return response;
+  }
+
+  const contentLength = Number(response.headers.get('content-length') || 0);
+  if (contentLength && contentLength > MAX_RUNTIME_CACHE_BYTES) {
+    return response;
+  }
+
+  await cache.put(request, response.clone());
+  return response;
+};
+
+const networkFirst = async (request, { cacheName = RUNTIME_CACHE, fallbackUrl } = {}) => {
+  const cache = await caches.open(cacheName);
+
+  try {
+    const response = await fetch(request);
+    await putIfSmallEnough(cache, request, response);
+    return response;
+  } catch (error) {
+    const cachedResponse = await cache.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+
+    if (fallbackUrl) {
+      return caches.match(fallbackUrl);
+    }
+
+    throw error;
+  }
+};
+
+const staleWhileRevalidate = async (request, { cacheName = RUNTIME_CACHE } = {}) => {
+  const cache = await caches.open(cacheName);
+  const cachedResponse = await cache.match(request);
+  const networkPromise = fetch(request)
+    .then((response) => putIfSmallEnough(cache, request, response))
+    .catch(() => cachedResponse);
+
+  return cachedResponse || networkPromise;
+};
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -45,29 +97,35 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => caches.match('./index.html'))
+      networkFirst(request, { cacheName: STATIC_CACHE, fallbackUrl: './index.html' })
     );
     return;
   }
 
-  const isCacheableAsset = /\.(?:js|css|json|png|jpg|jpeg|svg|ico|woff2?)$/i.test(requestUrl.pathname);
-  if (!isCacheableAsset) {
+  if (SHELL_ASSET_PATTERN.test(requestUrl.pathname)) {
+    event.respondWith(
+      staleWhileRevalidate(request, { cacheName: RUNTIME_CACHE })
+    );
     return;
   }
 
-  event.respondWith(
-    caches.open(RUNTIME_CACHE).then(async (cache) => {
-      const cachedResponse = await cache.match(request);
-      const networkPromise = fetch(request)
-        .then((response) => {
-          if (response && response.ok) {
-            cache.put(request, response.clone());
-          }
-          return response;
-        })
-        .catch(() => cachedResponse);
+  if (JSON_ASSET_PATTERN.test(requestUrl.pathname)) {
+    if (LARGE_DATASET_PATTERN.test(requestUrl.pathname)) {
+      event.respondWith(
+        fetch(request).catch(() => caches.match(request))
+      );
+      return;
+    }
 
-      return cachedResponse || networkPromise;
-    })
-  );
+    event.respondWith(
+      networkFirst(request, { cacheName: RUNTIME_CACHE })
+    );
+    return;
+  }
+
+  if (IMAGE_ASSET_PATTERN.test(requestUrl.pathname)) {
+    event.respondWith(
+      staleWhileRevalidate(request, { cacheName: RUNTIME_CACHE })
+    );
+  }
 });

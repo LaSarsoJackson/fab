@@ -34,7 +34,9 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts --max_old_space_size=4096 start",
+    "start": "bash ./scripts/dev-start.sh",
+    "start:web": "react-scripts --max_old_space_size=4096 start",
+    "start:images": "python3 -m http.server 8000 --bind 127.0.0.1",
     "start:bun": "bun run start",
     "predeploy": "bun run build",
     "deploy": "gh-pages -d build",

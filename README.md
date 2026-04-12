@@ -127,9 +127,11 @@ Routing uses GraphHopper. If you need turn-by-turn walking routes in development
 
 ```bash
 REACT_APP_GRAPHHOPPER_API_KEY=your_key_here
+REACT_APP_DEV_IMAGE_SERVER_ORIGIN=http://127.0.0.1:8000
 ```
 
-Without that key, most of the app still works, but route calculation will not.
+Without the GraphHopper key, most of the app still works, but route calculation will not.
+The dev image server origin is used for local tour popup portraits, and `bun run start` / `npm run start` now starts that Python static server automatically.
 
 ### Run Locally
 
