@@ -60,6 +60,7 @@ import {
 } from "./lib/browseResults";
 import { buildDirectionsLink } from "./lib/navigationLinks";
 import { getPopupViewportPadding } from "./lib/popupViewport";
+import { buildTourLookup, harmonizeBurialBrowseResult } from "./lib/tourMetadata";
 import { parseDeepLinkState } from "./lib/urlState";
 
 //=============================================================================
@@ -1177,6 +1178,7 @@ export default function BurialMap() {
   const [lotTierFilter, setLotTierFilter] = useState('');
   const [filterType, setFilterType] = useState('lot');
   const [burialFeatures, setBurialFeatures] = useState([]);
+  const [tourMetadataRecords, setTourMetadataRecords] = useState([]);
   const [isBurialDataLoading, setIsBurialDataLoading] = useState(true);
   const [burialDataError, setBurialDataError] = useState('');
   const [tourLayerError, setTourLayerError] = useState('');
@@ -1231,7 +1233,14 @@ export default function BurialMap() {
   );
 
   const getTourName = useCallback(
-    (option) => TOURS[option.title]?.name || option.title || '',
+    (option = {}) => cleanPopupValue(
+      option.tourName ||
+      TOURS[option.title]?.name ||
+      TOURS[option.tourKey]?.name ||
+      option.title ||
+      option.tourKey ||
+      ''
+    ),
     []
   );
 
@@ -1283,9 +1292,24 @@ export default function BurialMap() {
     return true;
   }, [isMobile]);
 
+  const tourMetadataLookup = useMemo(
+    () => buildTourLookup(tourMetadataRecords),
+    [tourMetadataRecords]
+  );
+
   const burialRecords = useMemo(() => (
-    burialFeatures.map((feature) => buildBurialBrowseResult(feature, { getTourName }))
-  ), [burialFeatures, getTourName]);
+    burialFeatures.map((feature) => (
+      harmonizeBurialBrowseResult(
+        buildBurialBrowseResult(feature, { getTourName }),
+        tourMetadataLookup
+      )
+    ))
+  ), [burialFeatures, getTourName, tourMetadataLookup]);
+
+  const burialRecordsById = useMemo(
+    () => new Map(burialRecords.map((record) => [record.id, record])),
+    [burialRecords]
+  );
 
   const burialLookup = useMemo(
     () => buildBurialLookup(burialRecords),
@@ -1788,6 +1812,52 @@ export default function BurialMap() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    let handle;
+
+    const loadTourMetadata = async () => {
+      try {
+        const loadedRecords = await Promise.all(
+          TOUR_DEFINITIONS.map(async (definition) => {
+            const module = await definition.load();
+            return (module.default.features || []).map((feature) => (
+              buildTourBrowseResult(feature, {
+                tourKey: definition.key,
+                tourName: definition.name,
+              })
+            ));
+          })
+        );
+
+        if (!cancelled) {
+          setTourMetadataRecords(loadedRecords.flat());
+        }
+      } catch (error) {
+        console.error("Failed to load tour metadata:", error);
+      }
+    };
+
+    const scheduleLoad = () => {
+      void loadTourMetadata();
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      handle = window.requestIdleCallback(scheduleLoad, { timeout: 1500 });
+    } else {
+      handle = setTimeout(scheduleLoad, 0);
+    }
+
+    return () => {
+      cancelled = true;
+      if (typeof window !== "undefined" && "cancelIdleCallback" in window && typeof handle === "number") {
+        window.cancelIdleCallback(handle);
+      } else {
+        clearTimeout(handle);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     const handleBeforeInstallPrompt = (event) => {
       event.preventDefault();
       setInstallPromptEvent(event);
@@ -1828,6 +1898,44 @@ export default function BurialMap() {
       setActiveBurialId(selectedBurials[0].id);
     }
   }, [activeBurialId, selectedBurials]);
+
+  useEffect(() => {
+    if (!burialRecordsById.size) return;
+
+    setSelectedBurials((prev) => {
+      let changed = false;
+      const next = prev.map((burial) => {
+        if (burial?.source !== "burial") return burial;
+
+        const latest = burialRecordsById.get(burial.id);
+        if (!latest) return burial;
+
+        const needsRefresh = (
+          latest.tourKey !== burial.tourKey ||
+          latest.tourName !== burial.tourName ||
+          latest.extraTitle !== burial.extraTitle ||
+          latest.Bio_Portra !== burial.Bio_Portra ||
+          latest.Bio_Portri !== burial.Bio_Portri ||
+          latest.Bio_portra !== burial.Bio_portra ||
+          latest.Tour_Bio !== burial.Tour_Bio
+        );
+
+        if (!needsRefresh) return burial;
+
+        changed = true;
+        return latest;
+      });
+
+      return changed ? next : prev;
+    });
+
+    setDirectionsMenuBurial((current) => {
+      if (current?.source !== "burial") return current;
+
+      const latest = burialRecordsById.get(current.id);
+      return latest || current;
+    });
+  }, [burialRecordsById]);
 
   useEffect(() => {
     if (activeBurialId === null) return;
