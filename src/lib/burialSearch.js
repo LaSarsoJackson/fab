@@ -6,12 +6,13 @@ const NUMBER_PATTERN = /^\d+$/;
 
 const normalize = (value = '') => String(value).toLowerCase().trim();
 
-export const normalizeName = (value = '') =>
-  normalize(value)
+export const normalizeName = (value = '') => {
+  if (!value) return '';
+  return value.toLowerCase()
     .replace(/['’.]/g, '')
     .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
     .trim();
+};
 
 const tokenize = (value = '') =>
   normalizeName(value)
@@ -20,10 +21,12 @@ const tokenize = (value = '') =>
 
 const addToMapArray = (map, key, item) => {
   if (!key) return;
-  if (!map.has(key)) {
-    map.set(key, []);
+  let arr = map.get(key);
+  if (arr === undefined) {
+    arr = [];
+    map.set(key, arr);
   }
-  map.get(key).push(item);
+  arr.push(item);
 };
 
 const dedupe = (items) => {
@@ -46,14 +49,24 @@ export const sortSectionValues = (a, b) => {
   return `${a}`.localeCompare(`${b}`, undefined, { numeric: true, sensitivity: 'base' });
 };
 
-export const buildSearchIndex = (options, { getTourName } = {}) => {
-  const bySection = new Map();
-  const byLot = new Map();
-  const byYear = new Map();
-  const byToken = new Map();
-  const byTourToken = new Map();
-  const byFullName = new Map();
-  const byNameToken = new Map();
+export const buildSearchIndex = (options, { getTourName, initialIndex } = {}) => {
+  const {
+    bySection,
+    byLot,
+    byYear,
+    byToken,
+    byTourToken,
+    byFullName,
+    byNameToken,
+  } = initialIndex || {
+    bySection: new Map(),
+    byLot: new Map(),
+    byYear: new Map(),
+    byToken: new Map(),
+    byTourToken: new Map(),
+    byFullName: new Map(),
+    byNameToken: new Map(),
+  };
 
   options.forEach((option) => {
     const sectionKey = normalize(option.Section);

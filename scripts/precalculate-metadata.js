@@ -173,7 +173,8 @@ async function precalculate() {
   console.log('Generating minified search index...');
   const searchBurials = burialFeatures.map((feature) => {
     const props = feature.properties;
-    const match = matches[buildBurialBrowseResult(feature, { getTourName }).id];
+    const burialRecord = buildBurialBrowseResult(feature, { getTourName });
+    const match = matches[burialRecord.id];
 
     return {
       i: props.OBJECTID,
@@ -186,7 +187,10 @@ async function precalculate() {
       b: cleanValue(props.Birth),
       d: cleanValue(props.Death),
       tk: match ? match.tourKey : '',
-      c: feature.geometry?.coordinates || null
+      c: feature.geometry?.coordinates || null,
+      n: burialRecord.fullNameNormalized,
+      sl: burialRecord.searchableLabelLower,
+      nv: burialRecord.nameVariantsNormalized
     };
   });
 

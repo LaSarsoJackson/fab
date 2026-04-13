@@ -102,7 +102,7 @@ export const buildBurialBrowseResult = (feature, { getTourName } = {}) => {
     displayName,
     label: displayName,
     fullName,
-    fullNameNormalized: normalizeName(fullName || displayName),
+    fullNameNormalized: properties.fullNameNormalized || normalizeName(fullName || displayName),
     First_Name: firstName,
     Last_Name: lastName,
     Section: section,
@@ -118,7 +118,7 @@ export const buildBurialBrowseResult = (feature, { getTourName } = {}) => {
   };
   const secondaryText = buildBrowseSecondaryText(baseRecord);
   const searchableLabel = buildSearchableLabel(displayName, secondaryText, tourName);
-  const nameVariantsNormalized = buildNameVariantsNormalized(
+  const nameVariantsNormalized = properties.nameVariantsNormalized || buildNameVariantsNormalized(
     fullName,
     `${lastName} ${firstName}`.trim(),
     searchableLabel,
@@ -130,7 +130,7 @@ export const buildBurialBrowseResult = (feature, { getTourName } = {}) => {
     nameVariantsNormalized,
     secondaryText,
     searchableLabel,
-    searchableLabelLower: searchableLabel.toLowerCase(),
+    searchableLabelLower: properties.searchableLabelLower || searchableLabel.toLowerCase(),
   };
 };
 

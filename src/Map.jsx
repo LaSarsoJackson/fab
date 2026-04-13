@@ -216,6 +216,17 @@ const CEMETERY_CLUSTER_GLYPH = `
   </svg>
 `;
 
+/**
+ * Global Leaflet hook to prioritize map tiles for Largest Contentful Paint (LCP)
+ */
+L.TileLayer.addInitHook(function() {
+  this.on("tileloadstart", (event) => {
+    if (event.tile) {
+      event.tile.setAttribute("fetchpriority", "high");
+    }
+  });
+});
+
 const isRenderableBounds = (bounds) => (
   isLatLngBoundsExpressionValid(bounds) ||
   (typeof bounds?.isValid === "function" && bounds.isValid())
@@ -845,10 +856,19 @@ const getLeafletViewportPadding = (map, { basePadding = 16 } = {}) => {
     };
   }
 
-  const sidebar = document.querySelector(".left-sidebar");
+  // Use the cached sidebar reference if available, otherwise query once
+  if (!window._cachedSidebarEl) {
+    window._cachedSidebarEl = document.querySelector(".left-sidebar");
+  }
+  const sidebar = window._cachedSidebarEl;
+
+  // Potential optimization: Check if containerRect can be cached or if dimensions are stable
+  const containerRect = mapContainer.getBoundingClientRect();
+  const overlayRect = sidebar?.getBoundingClientRect?.();
+
   const { topLeft, bottomRight } = getPopupViewportPadding({
-    containerRect: mapContainer.getBoundingClientRect(),
-    overlayRect: sidebar?.getBoundingClientRect?.(),
+    containerRect,
+    overlayRect,
     basePadding,
   });
 
@@ -1589,28 +1609,42 @@ export default function BurialMap() {
 
     let cancelled = false;
     let handle;
+    const CHUNK_SIZE = 5000;
     setIsSearchIndexReady(false);
 
-    const buildIndex = () => {
-      const nextIndex = buildSearchIndex(burialRecords, { getTourName });
-      if (!cancelled) {
+    /**
+     * Build the search index in chunks to avoid blocking the main thread for long tasks (>50ms).
+     * This keeps the interface fluid (especially LCP paint and interactions) while 97k records are indexed.
+     */
+    const indexChunk = (startIndex, currentIndex) => {
+      if (cancelled) return;
+
+      const chunk = burialRecords.slice(startIndex, startIndex + CHUNK_SIZE);
+      const nextIndex = buildSearchIndex(chunk, { getTourName, initialIndex: currentIndex });
+
+      if (startIndex + CHUNK_SIZE < burialRecords.length) {
+        const nextStep = () => indexChunk(startIndex + CHUNK_SIZE, nextIndex);
+        if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+          handle = window.requestIdleCallback(nextStep, { timeout: 2000 });
+        } else {
+          handle = setTimeout(nextStep, 16);
+        }
+      } else {
         setSearchIndex(nextIndex);
         setIsSearchIndexReady(true);
       }
     };
 
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      handle = window.requestIdleCallback(buildIndex, { timeout: 1500 });
-    } else {
-      handle = setTimeout(buildIndex, 0);
-    }
+    indexChunk(0, null);
 
     return () => {
       cancelled = true;
-      if (typeof window !== 'undefined' && 'cancelIdleCallback' in window && typeof handle === 'number') {
-        window.cancelIdleCallback(handle);
-      } else {
-        clearTimeout(handle);
+      if (typeof window !== 'undefined' && typeof handle === 'number') {
+        if ('cancelIdleCallback' in window) {
+          window.cancelIdleCallback(handle);
+        } else {
+          clearTimeout(handle);
+        }
       }
     };
   }, [burialRecords, getTourName]);
@@ -2118,7 +2152,10 @@ export default function BurialMap() {
               Birth: item.b,
               Death: item.d,
               tourKey: item.tk,
-              title: item.tk
+              title: item.tk,
+              fullNameNormalized: item.n,
+              searchableLabelLower: item.sl,
+              nameVariantsNormalized: item.nv
             },
             geometry: item.c ? { type: 'Point', coordinates: item.c } : null
           }));
