@@ -1,4 +1,7 @@
 :root {
+  --app-height: 100vh;
+  --app-width: 100vw;
+  --app-offset-top: 0px;
   --bg-top: #f5f9ec;
   --bg-bottom: #d7e8de;
   --panel-bg: rgba(255, 255, 255, 0.92);
@@ -20,6 +23,11 @@ body,
   margin: 0;
   width: 100%;
   height: 100%;
+  min-height: var(--app-height);
+  background:
+    radial-gradient(1200px 600px at 8% -10%, rgba(255, 245, 211, 0.7), transparent 55%),
+    radial-gradient(1000px 560px at 92% -15%, rgba(178, 218, 189, 0.6), transparent 58%),
+    linear-gradient(165deg, var(--bg-top), var(--bg-bottom));
 }
 
 body {
@@ -32,22 +40,42 @@ body {
     linear-gradient(165deg, var(--bg-top), var(--bg-bottom));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+}
+
+button,
+a,
+[role="button"],
+input,
+textarea,
+select,
+.leaflet-container,
+.leaflet-control a {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .map-container {
   position: relative;
   width: 100vw;
-  height: 100vh;
-  height: 100dvh;
+  height: var(--app-height);
+  min-height: var(--app-height);
+  overflow: clip;
 }
 
 .map,
 .leaflet-container {
   width: 100%;
   height: 100%;
+  background:
+    radial-gradient(720px 520px at 18% 10%, rgba(255, 244, 207, 0.42), transparent 56%),
+    linear-gradient(180deg, rgba(215, 232, 222, 0.92), rgba(201, 221, 212, 0.94));
 }
 
 .left-sidebar {
+  color: var(--text-main);
+}
+
+.left-sidebar--desktop {
   position: absolute !important;
   top: 14px;
   left: 14px;
@@ -60,9 +88,11 @@ body {
   flex-direction: column;
   border-radius: 18px !important;
   border: 1px solid var(--panel-border);
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   background: var(--panel-bg) !important;
   box-shadow: var(--shadow-strong) !important;
+  isolation: isolate;
 }
 
 .left-sidebar .MuiTypography-h6,
@@ -118,6 +148,7 @@ body {
 }
 
 .left-sidebar__panel--surface {
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
 }
 
@@ -126,6 +157,7 @@ body {
 }
 
 .left-sidebar__search-shell {
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
 }
 
@@ -141,11 +173,7 @@ body {
   padding-top: 0.1rem;
 }
 
-.left-sidebar__status-line {
-  align-items: center;
-}
-
-.left-sidebar__status-item {
+.left-sidebar__notice {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
@@ -183,11 +211,14 @@ body {
   background: none;
   border: none;
   box-shadow: none;
+  padding: 0;
+  opacity: 1;
   font-family: 'Fraunces', serif;
   font-size: 13px;
   font-weight: 600;
   color: #f8fffa;
   text-shadow: 0 0 6px rgba(0, 0, 0, 0.75);
+  pointer-events: none;
 }
 
 .custom-popup {
@@ -220,6 +251,45 @@ body {
   background: none !important;
 }
 
+.custom-cluster-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.cemetery-cluster {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  display: block;
+  filter: drop-shadow(0 6px 10px rgba(16, 35, 31, 0.22));
+}
+
+.cemetery-cluster__glyph {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.cemetery-cluster__count {
+  position: absolute;
+  right: -3px;
+  bottom: -1px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 248, 239, 0.88);
+  border: 1px solid rgba(123, 78, 36, 0.22);
+  color: #8e541d;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 10px rgba(16, 35, 31, 0.12);
+}
+
 .tour-marker {
   transition: transform 0.3s ease;
   will-change: transform;
@@ -243,6 +313,8 @@ body {
   border: 1px solid var(--panel-border);
   background: rgba(255, 255, 255, 0.97);
   box-shadow: 0 16px 32px rgba(16, 35, 31, 0.22);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 
 .leaflet-popup-tip {
@@ -339,6 +411,8 @@ body {
   flex-wrap: wrap;
   gap: 0.55rem;
   align-items: center;
+  position: relative;
+  z-index: 1;
 }
 
 .popup-card__action {
@@ -375,21 +449,35 @@ body {
   color: var(--muted-text);
 }
 
+.leaflet-top.leaflet-right .leaflet-control {
+  margin-top: 12px;
+  margin-right: 12px;
+}
+
+.leaflet-top.leaflet-right .leaflet-control + .leaflet-control {
+  margin-top: 10px;
+}
+
 .leaflet-control-layers {
   border: 1px solid var(--panel-border) !important;
-  border-radius: 12px !important;
-  box-shadow: var(--shadow-strong) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 14px 30px rgba(16, 35, 31, 0.18) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  overflow: hidden;
 }
 
 .leaflet-control-layers-toggle {
-  width: 38px !important;
-  height: 38px !important;
+  width: 40px !important;
+  height: 40px !important;
+  background-size: 18px 18px !important;
 }
 
 .leaflet-control-layers-expanded {
   background: rgba(255, 255, 255, 0.95) !important;
-  border-radius: 12px !important;
+  border-radius: 14px !important;
   padding: 10px !important;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 
 .leaflet-control {
@@ -401,85 +489,140 @@ body {
   display: none !important;
 }
 
+.left-sidebar__autocomplete-popper {
+  z-index: 1600 !important;
+}
+
+.left-sidebar__autocomplete-popper .MuiPaper-root,
+.left-sidebar__autocomplete-paper {
+  border-radius: 18px;
+  border: 1px solid rgba(18, 47, 40, 0.14);
+  box-shadow: 0 18px 40px rgba(16, 35, 31, 0.24);
+  background: rgba(255, 255, 255, 0.98);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+.left-sidebar__autocomplete-popper .MuiAutocomplete-listbox {
+  padding: 8px;
+}
+
 @media (max-width: 1024px) {
-  .left-sidebar {
+  .left-sidebar--desktop {
     width: min(360px, calc(100vw - 24px));
   }
 }
 
+/* ── react-spring-bottom-sheet overrides (mobile drawer) ── */
+
+[data-rsbs-overlay] {
+  --rsbs-overlay-rounded: 24px;
+  z-index: 1200 !important;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  background: var(--panel-bg) !important;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow-strong) !important;
+  border: 1px solid var(--panel-border);
+  border-bottom: none;
+  font-family: 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif;
+  color: var(--text-main);
+}
+
+[data-rsbs-header] {
+  padding: 0;
+  box-shadow: none;
+}
+
+/* Grabber "pill" handle at top of the sheet */
+[data-rsbs-header]::before {
+  content: '';
+  display: block;
+  width: 44px;
+  height: 5px;
+  margin: 0.6rem auto 0;
+  border-radius: 999px;
+  background: rgba(18, 47, 40, 0.2);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+[data-rsbs-backdrop] {
+  /* No dimming tint—map always visible */
+  background: transparent !important;
+  pointer-events: none !important;
+}
+
+[data-rsbs-root] {
+  --rsbs-bg: transparent;
+}
+
+[data-rsbs-scroll] {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+[data-rsbs-content] {
+  padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 24px));
+}
+
+/* Ensure the sheet header inherits our existing design tokens */
+.left-sidebar__sheet-header .MuiTypography-overline {
+  font-size: 0.68rem;
+}
+
+.left-sidebar__sheet-header .MuiTypography-h6 {
+  font-size: 1.05rem;
+}
+
+.left-sidebar__sheet-header .left-sidebar__header {
+  padding-top: 0.25rem;
+  padding-bottom: 0.9rem;
+}
+
+/* Ensure our MUI chips, buttons, etc. still look right inside the sheet */
+.left-sidebar--mobile .left-sidebar__panel--browse,
+.left-sidebar--mobile .left-sidebar__panel--selected,
+.left-sidebar--mobile .left-sidebar__panel--selected-summary {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 24px));
+}
+
+.left-sidebar--mobile .left-sidebar__results-scroll {
+  overflow: auto;
+  max-height: min(34svh, 320px);
+  -webkit-overflow-scrolling: touch;
+}
+
+.left-sidebar--mobile .left-sidebar__chip-row {
+  gap: 6px;
+}
+
+.left-sidebar--mobile .selected-person-actions--mobile {
+  align-items: stretch;
+}
+
+/* Autocomplete popper should sit above the sheet */
+.left-sidebar__autocomplete-popper {
+  z-index: 1600 !important;
+}
+
 @media (max-width: 840px) {
   .map-container {
-    height: 100vh;
-    height: 100dvh;
-  }
-
-  .left-sidebar {
-    top: auto;
-    bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) + 10px));
-    left: max(10px, calc(env(safe-area-inset-left, 0px) + 10px));
-    right: max(10px, calc(env(safe-area-inset-right, 0px) + 10px));
-    width: auto;
-    border-radius: 18px !important;
-    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px);
-  }
-
-  .left-sidebar--mobile.left-sidebar--collapsed {
-    max-height: none;
-  }
-
-  .left-sidebar--mobile.left-sidebar--expanded {
-    max-height: min(82dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 12px));
-  }
-
-  .left-sidebar--mobile .left-sidebar__header {
-    padding-bottom: 0.9rem;
-  }
-
-  .left-sidebar--mobile.left-sidebar--collapsed .left-sidebar__header {
-    padding-bottom: 1rem;
-  }
-
-  .left-sidebar--mobile .left-sidebar__header .MuiTypography-overline {
-    font-size: 0.68rem;
-  }
-
-  .left-sidebar--mobile .left-sidebar__header .MuiTypography-h6 {
-    font-size: 1.05rem;
-  }
-
-  .left-sidebar--mobile .left-sidebar__body {
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .left-sidebar--mobile .left-sidebar__body--mobile {
-    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
-  }
-
-  .left-sidebar--mobile .left-sidebar__compact-meta {
-    padding-right: 0.25rem;
-  }
-
-  .left-sidebar--mobile .left-sidebar__panel {
-    scroll-margin-top: 12px;
-  }
-
-  .left-sidebar--mobile .left-sidebar__panel--browse,
-  .left-sidebar--mobile .left-sidebar__panel--selected,
-  .left-sidebar--mobile .left-sidebar__panel--selected-summary {
-    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
-  }
-
-  .left-sidebar--mobile .left-sidebar__chip-row {
-    gap: 6px;
-  }
-
-  .left-sidebar--mobile .selected-person-actions--mobile {
-    align-items: stretch;
+    height: var(--app-height);
+    min-height: var(--app-height);
   }
 
   .leaflet-top.leaflet-right {
     top: calc(env(safe-area-inset-top, 0px) + 10px);
     right: calc(env(safe-area-inset-right, 0px) + 12px);
+  }
+
+  .leaflet-top.leaflet-right .leaflet-control {
+    margin-top: 0;
+    margin-right: 0;
+  }
+
+  .leaflet-top.leaflet-right .leaflet-control + .leaflet-control {
+    margin-top: 10px;
   }
 }

@@ -40,4 +40,4 @@ else
   IMAGE_SERVER_PID=$!
 fi
 
-react-scripts --max_old_space_size=4096 start
+REACT_APP_ENVIRONMENT=development react-scripts --max_old_space_size=4096 start

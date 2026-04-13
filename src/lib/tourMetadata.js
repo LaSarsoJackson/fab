@@ -1,4 +1,5 @@
-import * as turf from "@turf/turf";
+
+
 import { buildBrowseSecondaryText, formatBrowseResultName } from "./browseResults";
 import { normalizeName } from "./burialSearch";
 
@@ -12,85 +13,6 @@ const buildSectionLotKey = (record = {}) => {
   const lot = cleanValue(record.Lot ?? record.lot);
   if (!section || !lot) return "";
   return `${section}::${lot}`;
-};
-
-const getPrimaryNameToken = (value = "") => normalizeName(value).split(" ").find(Boolean) || "";
-
-const getRecordDistanceMeters = (left, right) => {
-  if (!Array.isArray(left?.coordinates) || !Array.isArray(right?.coordinates)) {
-    return Number.POSITIVE_INFINITY;
-  }
-
-  try {
-    return turf.distance(
-      turf.point(left.coordinates),
-      turf.point(right.coordinates),
-      { units: "meters" }
-    );
-  } catch (error) {
-    return Number.POSITIVE_INFINITY;
-  }
-};
-
-const scoreTourBurialMatch = (tourRecord, burialRecord) => {
-  let score = 0;
-  const tourName = cleanValue(tourRecord.fullName || tourRecord.displayName);
-  const burialName = cleanValue(burialRecord.fullName || burialRecord.displayName);
-  const tourNormalized = normalizeName(tourName);
-  const burialNormalized = normalizeName(burialName);
-
-  if (tourNormalized && burialNormalized) {
-    if (tourNormalized === burialNormalized) {
-      score += 10;
-    }
-
-    const tourTokens = tourNormalized.split(" ").filter(Boolean);
-    const burialTokens = burialNormalized.split(" ").filter(Boolean);
-    const sharedTokens = tourTokens.filter((token) => burialTokens.includes(token));
-
-    score += sharedTokens.length * 1.5;
-
-    const tourLast = tourTokens[tourTokens.length - 1];
-    const burialLast = burialTokens[burialTokens.length - 1];
-    if (tourLast && burialLast && tourLast === burialLast) {
-      score += 4;
-    }
-
-    const tourFirst = getPrimaryNameToken(tourNormalized);
-    const burialFirst = getPrimaryNameToken(burialNormalized);
-    if (tourFirst && burialFirst && tourFirst === burialFirst) {
-      score += 3;
-    }
-  }
-
-  if (
-    cleanValue(tourRecord.Grave) &&
-    cleanValue(burialRecord.Grave) &&
-    String(tourRecord.Grave) === String(burialRecord.Grave)
-  ) {
-    score += 2;
-  }
-
-  if (
-    cleanValue(tourRecord.Tier) &&
-    cleanValue(burialRecord.Tier) &&
-    String(tourRecord.Tier) === String(burialRecord.Tier)
-  ) {
-    score += 1;
-  }
-
-  const distance = getRecordDistanceMeters(tourRecord, burialRecord);
-  if (distance <= 4) {
-    score += 6;
-  } else if (distance <= 12) {
-    score += 4;
-  } else if (distance <= 25) {
-    score += 2;
-  } else if (distance <= 50) {
-    score += 1;
-  }
-
-  return score;
 };
 
 export const buildTourLookup = (records = []) => {
@@ -110,28 +32,8 @@ export const buildTourLookup = (records = []) => {
   return { bySectionLot };
 };
 
-const findMatchingTourRecord = (burialRecord, tourLookup) => {
-  if (!burialRecord || burialRecord.source !== "burial") return null;
-
-  const candidates = tourLookup?.bySectionLot?.get(buildSectionLotKey(burialRecord)) || [];
-  if (!candidates.length) return null;
-
-  let bestCandidate = null;
-  let bestScore = -Infinity;
-
-  candidates.forEach((candidate) => {
-    const score = scoreTourBurialMatch(candidate, burialRecord);
-    if (score > bestScore) {
-      bestScore = score;
-      bestCandidate = candidate;
-    }
-  });
-
-  return bestScore >= 7 ? bestCandidate : null;
-};
-
-export const harmonizeBurialBrowseResult = (burialRecord, tourLookup) => {
-  const matchedTour = findMatchingTourRecord(burialRecord, tourLookup);
+export const harmonizeBurialBrowseResult = (burialRecord, tourMatches = {}) => {
+  const matchedTour = tourMatches[burialRecord.id] || null;
   if (!matchedTour) return burialRecord;
 
   const displayName = cleanValue(

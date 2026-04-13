@@ -1,111 +1,60 @@
 # FAB (`fab`)
 
-`fab` is the source repository for the Albany Rural Cemetery burial-finder experience. It is a React-based web app and installable PWA that gives visitors a map, burial search, tours, and on-site navigation.
+`fab` is the main web application for the Albany Rural Cemetery burial-finder experience. It is a React app and installable PWA that provides:
 
-If you are new to the project, the shortest summary is:
+- burial search
+- map browsing by section and tour
+- on-site navigation and directions
+- deep links used by the hosted web app and the native wrapper
 
-- `fab` is the main product.
-- `FABFG` is a native wrapper around hosted `fab`.
-- The iOS app ships that wrapper.
-- GitHub Pages is the repo-controlled test deployment for `fab`.
-- `albany.edu/arce` is the institutional production deployment, promoted from `fab` build artifacts.
+This repository is the core product surface. If the map, search, tours, routing, or shared UI are wrong, the fix usually starts here.
+
+## Relationship To The Other Projects
+
+There are three systems to keep straight:
+
+1. `fab`
+   This repo. It owns the shared web experience, data pipeline, map behavior, deep links, and PWA shell.
+2. `FABFG`
+   A separate native wrapper app that loads hosted `fab` URLs inside a native shell.
+3. `albany.edu/arce`
+   The institutional production host for the promoted static build, plus a source of some legacy content and image assets.
 
 Primary links:
 
 - Source repo: [github.com/LaSarsoJackson/fab](https://github.com/LaSarsoJackson/fab)
-- Hosted dev/test target: [lasarsojackson.github.io/fab](https://lasarsojackson.github.io/fab/)
+- GitHub Pages deploy: [lasarsojackson.github.io/fab](https://lasarsojackson.github.io/fab/)
 - Production site: [albany.edu/arce](https://www.albany.edu/arce/)
 - Native wrapper repo: [github.com/LaSarsoJackson/FABFG](https://github.com/LaSarsoJackson/FABFG)
 - iOS app: [Albany Grave Finder on the App Store](https://apps.apple.com/us/app/albany-grave-finder/id6746413050)
 
-## How The Pieces Fit Together
+How they fit together:
 
 ```mermaid
 flowchart LR
-  FAB["fab repo<br/>React app + PWA source"] --> GH["GitHub Pages<br/>dev/test deployment"]
+  FAB["fab<br/>React app + PWA source"] --> GH["GitHub Pages<br/>repo-controlled hosted build"]
   FAB --> BUILD["build/<br/>static production artifact"]
-  BUILD --> FTP["ARCE FTP upload<br/>manual promotion step"]
-  FTP --> ARCE["albany.edu/arce<br/>production deployment"]
-  GH --> FABFG["FABFG repo<br/>native wrapper during hosted testing"]
-  ARCE --> FABFG
-  FABFG --> IOS["Albany Grave Finder<br/>iOS app"]
-  ARCE -. image assets, bios, reference pages .-> FAB
+  BUILD --> FTP["ARCE FTP upload<br/>manual promotion"]
+  FTP --> PROD["albany.edu/arce<br/>production deployment"]
+  GH --> FABFG["FABFG<br/>native wrapper repo"]
+  PROD --> FABFG
+  FABFG --> IOS["iOS app"]
 ```
 
-In practice:
+Practical rule of thumb:
 
-- Work on `fab` when you need to change the map, burial search, tours, deep links, PWA behavior, or shared UX.
-- Work on `FABFG` when you need to change native tabs, Expo configuration, app packaging, or which hosted `fab` URL the app loads.
-- Work outside this repo when you need to change legacy biography pages, image assets, or other institutional web content hosted at `albany.edu/arce`.
-- Treat GitHub Pages as the fast public validation target, and ARCE as the final promoted production host.
+- Change `fab` for map/search/tour/deep-link/PWA work.
+- Change `FABFG` for native tabs, packaging, or wrapper-level behavior.
+- Change ARCE content separately when the issue is a legacy page, hosted image, or institutional content asset.
 
-## What This Repo Owns
-
-This repo is the underlying development target for the project. It owns the shared browser experience that is:
-
-- run locally during development
-- deployed to GitHub Pages for repo-controlled testing
-- built into static files for production promotion
-- uploaded to ARCE hosting through FTP for the institutional deployment
-- reused by `FABFG` as the hosted experience inside the native app shell
-
-That means many issues reported as "the iPhone app is wrong" still need to be fixed here first, because the app usually displays `fab`, not a separate native reimplementation of the map and search flow.
-
-## What Lives In The Other Systems
-
-### `FABFG`
-
-`FABFG` is a companion Expo app that wraps hosted `fab` URLs in native tabs/webviews. Depending on the release stage, that hosted target may be the GitHub Pages test deployment or the promoted ARCE production deployment. It uses deep links such as:
-
-- base URL for the main experience
-- `?view=burials`
-- `?view=tours`
-
-So the relationship is:
-
-1. `fab` provides the hosted web experience.
-2. GitHub Pages is used to test that hosted experience publicly.
-3. The validated static build is uploaded to ARCE via FTP for production.
-4. `FABFG` points native tabs at the hosted experience appropriate for the environment.
-5. The iOS app distributes `FABFG` through the App Store.
-
-### `albany.edu/arce`
-
-`albany.edu/arce` is both:
-
-- a public production-facing institutional site
-- a legacy content source that `fab` still depends on in places
-
-Today, parts of `fab` still link to ARCE-hosted biographies and image assets. It is also the final production host for the promoted static build generated from this repo. That is important operationally: a change in this repo can affect the shared app shell, but some content still lives elsewhere.
-
-## Tech Stack
-
-- React 17 with `react-scripts`
-- Bun-first package management, with npm fallback
-- Leaflet + Esri basemap integrations for map rendering
-- Local JSON / GeoJSON datasets under `src/data`
-- PWA manifest + service worker in `public/`
-
-## Repo Tour
-
-Start here if you are trying to understand the codebase:
-
-- `src/Map.jsx`: main application shell, map behavior, search results, tours, routing, and external ARCE links
-- `src/lib/burialSearch.js`: burial indexing, normalization, and search logic
-- `src/lib/urlState.js`: deep-link parsing for views, sections, tours, and queries
-- `src/lib/navigationLinks.js`: direction / navigation link helpers
-- `src/data/`: cemetery boundary, roads, sections, burials, tours, and image assets
-- `public/manifest.json`: PWA metadata
-- `public/service-worker.js`: offline/static asset caching
-- `docs/arce-content-upgrade-plan.md`: cross-repo notes about the relationship between `fab`, `FABFG`, and ARCE content
-
-## Quick Start
+## Get Started
 
 ### Prerequisites
 
 - Node `>= 20` from [.nvmrc](./.nvmrc)
 - Bun `>= 1.3`
-- Optional GraphHopper API key for routing
+- Python 3 for the local image server used in development
+- Optional GraphHopper API key if you need full routing behavior locally
 
 ### Install
 
@@ -121,19 +70,21 @@ Fallback:
 npm install
 ```
 
-### Configure Environment
+### Configure Local Environment
 
-Routing uses GraphHopper. If you need turn-by-turn walking routes in development, add a local `.env` file with:
+Create a local `.env` file when you need routing or local portrait/image support:
 
 ```bash
 REACT_APP_GRAPHHOPPER_API_KEY=your_key_here
 REACT_APP_DEV_IMAGE_SERVER_ORIGIN=http://127.0.0.1:8000
 ```
 
-Without the GraphHopper key, most of the app still works, but route calculation will not.
-The dev image server origin is used for local tour popup portraits, and `bun run start` / `npm run start` now starts that Python static server automatically.
+Notes:
 
-### Run Locally
+- Routing will be limited without `REACT_APP_GRAPHHOPPER_API_KEY`.
+- `REACT_APP_DEV_IMAGE_SERVER_ORIGIN` is used for local image references in popups and detail views.
+
+### Run The App
 
 Recommended:
 
@@ -147,9 +98,23 @@ Fallback:
 npm run start
 ```
 
-The app runs on [http://localhost:3000](http://localhost:3000).
+This starts:
 
-## Day-To-Day Commands
+- the React dev server
+- the local image server on `http://127.0.0.1:8000`
+- the app in development mode with `REACT_APP_ENVIRONMENT=development`
+
+Default local URL:
+
+- [http://localhost:3000](http://localhost:3000)
+
+### Most Important Developer Commands
+
+Regenerate derived data after changing source cemetery data:
+
+```bash
+bun run build:data
+```
 
 Run tests:
 
@@ -163,32 +128,197 @@ Create a production build:
 bun run build
 ```
 
-Publish the repo-controlled hosted version to GitHub Pages:
+Deploy the GitHub Pages version:
 
 ```bash
 bun run deploy
 ```
 
-## Deployment Flow
+## How The Project Works
 
-The intended release path for this project is:
+### Runtime Model
 
-1. Develop and test changes locally in `fab`.
-2. Build and publish `fab` to GitHub Pages with `bun run deploy`.
-3. Use the GitHub Pages URL as the public dev/test environment for browser and hosted-wrapper validation.
-4. When that version is approved, treat the generated static site in `build/` as the production artifact.
-5. Upload those static files to the ARCE hosting environment over FTP.
-6. ARCE then becomes the public production deployment of that `fab` build.
+At runtime, `fab` is a client-side React app centered around [src/Map.jsx](./src/Map.jsx).
 
-Important detail:
+The main flows are:
 
-- This repo automates the GitHub Pages deploy.
-- This repo does not currently automate the ARCE FTP publish.
-- The ARCE promotion step is a manual handoff of the built static files.
+- load a lightweight burial search index
+- harmonize those burial records with precomputed tour matches
+- lazily build the client-side search index
+- render map overlays, section browsing, selected markers, and tours
+- open directions and deep links from the same shared record model
 
-## Deep Links
+Key point:
 
-These query parameters matter because the native wrapper and shared links depend on them:
+- marker clusters are the default and canonical rendering path for burial browsing
+- PMTiles is not the default map mode, including in development
+- PMTiles is only available as an explicit dev toggle from the in-app menu for experimentation and validation
+
+### Data Pipeline
+
+The app does not do its heaviest data work on every page load anymore.
+
+Source-of-truth data lives in:
+
+- `src/data/Geo_Burials.json`
+- `src/data/ARC_Sections.json`
+- `src/data/ARC_Roads.json`
+- the tour definition modules referenced by `src/lib/tourDefinitions.js`
+
+Generated artifacts live in:
+
+- `public/data/Search_Burials.json`
+- `src/data/TourMatches.json`
+- `src/lib/constants.js`
+
+`bun run build:data` runs [scripts/precalculate-metadata.js](./scripts/precalculate-metadata.js), which:
+
+1. loads the burial source data
+2. loads tour data
+3. matches tour stops against burial records
+4. writes the minified search index used by the client
+5. writes static bounds/constants used by the app
+
+If you change source cemetery data and do not regenerate these files, the app can behave inconsistently.
+
+### Map Rendering Model
+
+The map has a few distinct rendering paths:
+
+- section polygons
+- roads and cemetery boundary overlays
+- selected/pinned burial markers
+- section-level clustered burial markers when section browsing is active
+- lazily loaded tour layers
+- optional PMTiles experiment in development only
+
+The intended behavior is:
+
+- browsing a section uses the marker-cluster path
+- selecting from search, section, or tour should resolve to the same burial record shape
+- a selection should focus and behave the same regardless of where in the UI it started
+
+If you change selection logic, validate all of these:
+
+- search result click
+- selected-person card click
+- section polygon click
+- section marker click
+- tour stop click
+- deep-link selection
+
+### Tours
+
+Tours are defined through [src/lib/tourDefinitions.js](./src/lib/tourDefinitions.js) and loaded lazily. The app:
+
+- loads tour GeoJSON only when needed
+- precomputes cross-links between burial records and tour records
+- normalizes tour browse results into the same UI model used elsewhere
+
+That means a tour stop and a burial record should feel like the same object from the UI’s point of view, even if they came from different datasets.
+
+### Public Asset Paths
+
+This app is deployed under `/fab` on GitHub Pages, so public assets must be loaded via `process.env.PUBLIC_URL` rather than raw `/data/...` absolute paths.
+
+If you see JSON requests returning `<!DOCTYPE html>`, check whether a data file was accidentally fetched from the wrong base path.
+
+## Repo Tour
+
+Start here when you are orienting yourself:
+
+- [src/Map.jsx](./src/Map.jsx): main app shell, map orchestration, selections, tours, routing, overlays
+- [src/BurialSidebar.jsx](./src/BurialSidebar.jsx): search UI, browse controls, mobile drawer, selected/results panels
+- [src/lib/burialSearch.js](./src/lib/burialSearch.js): indexing, normalization, search helpers
+- [src/lib/browseResults.js](./src/lib/browseResults.js): shared UI result shaping
+- [src/lib/tourMetadata.js](./src/lib/tourMetadata.js): harmonizing burial and tour metadata
+- [src/lib/constants.js](./src/lib/constants.js): generated map bounds and related constants
+- [src/data/](./src/data/): local GeoJSON and generated metadata used at build/runtime
+- [public/data/Search_Burials.json](./public/data/Search_Burials.json): generated lightweight search payload
+- [scripts/precalculate-metadata.js](./scripts/precalculate-metadata.js): data generation script
+- [scripts/dev-start.sh](./scripts/dev-start.sh): development startup wrapper
+- [scripts/build-production.sh](./scripts/build-production.sh): production build wrapper
+- [scripts/deploy-production.sh](./scripts/deploy-production.sh): GitHub Pages deploy wrapper
+
+## Development Workflow
+
+### Common Change Types
+
+If you change source data:
+
+1. edit the relevant files in `src/data/`
+2. run `bun run build:data`
+3. test search, section browse, and tours
+
+If you change map UI or selection behavior:
+
+1. test desktop and mobile
+2. test section browse and tour flows
+3. test that selected markers and popups still match the clicked record
+
+If you change anything under `public/` or public data fetching:
+
+1. verify it still works under `localhost`
+2. verify it still works under the `/fab` GitHub Pages base path
+
+### Mobile Drawer Expectations
+
+The mobile sidebar is a bottom drawer, not a desktop card squeezed onto a phone screen.
+
+The intended model is:
+
+- collapsed: minimal search shell
+- peek: search plus browse controls
+- full: selected people and results work area
+
+If you touch `src/BurialSidebar.jsx` or related CSS, validate that the drawer still behaves like a drawer and not just a styled panel.
+
+### Dev vs Production
+
+Environment mode is driven by `REACT_APP_ENVIRONMENT`.
+
+- `scripts/dev-start.sh` starts the app as `development`
+- `scripts/build-production.sh` builds as `production`
+- `scripts/deploy-production.sh` always deploys the production build
+
+Production should not expose developer-only chrome. Development can show lightweight dev context where it helps.
+
+## Deployment
+
+The deployment flow is intentionally split into two environments.
+
+### 1. GitHub Pages
+
+Use this for repo-controlled public validation:
+
+```bash
+bun run deploy
+```
+
+This runs the production build and publishes `build/` to GitHub Pages.
+
+### 2. ARCE Production
+
+This repo does not currently automate the institutional production publish.
+
+Current flow:
+
+1. build and validate the release candidate
+2. publish to GitHub Pages for validation
+3. promote the approved static build from `build/`
+4. upload the static files to the ARCE FTP host
+
+Important:
+
+- GitHub Pages is the easiest public validation target
+- ARCE is the real production deployment
+- a change here can affect both the hosted web app and the native wrapper app
+
+## Deep Links And Wrapper Integration
+
+The native wrapper and shared URLs depend on query-driven state in `fab`.
+
+Important patterns include:
 
 - `?view=burials`
 - `?view=tours`
@@ -196,42 +326,41 @@ These query parameters matter because the native wrapper and shared links depend
 - `?tour=<name fragment>`
 - `?q=<search text>`
 
-When you change view or navigation behavior here, check whether `FABFG` also needs an update.
+If you change deep-link handling, verify whether `FABFG` needs a corresponding update.
 
-## Where To Make A Change
+## Troubleshooting
 
-Use this as a rule of thumb:
+### Burial data fails to load and JSON parsing complains about HTML
 
-| If you need to change... | Start here |
-| --- | --- |
-| map behavior, burial search, tours, PWA shell, deep links | `fab` |
-| native tab layout, Expo config, app icons, app packaging | `FABFG` |
-| GitHub Pages test deployment | `fab` |
-| production static files that will be uploaded to ARCE FTP | `fab` |
-| hosted app URL loaded by the wrapper | `FABFG`, after validating which hosted `fab` environment should be used |
-| biographies, legacy pages, ARCE-hosted images/content | `albany.edu/arce` content pipeline, outside this repo |
+Usually means a public asset path is wrong for the current host base path. Check any `fetch()` or static asset URL that starts with `/`.
 
-## Suggested Workflow For New Contributors
+### Tours or search results do not match the right burial record
 
-1. Make the shared experience change in `fab`.
-2. Run it locally and test the relevant deep link.
-3. Deploy to GitHub Pages and smoke-test the hosted version there.
-4. If approved for release, build or reuse the validated static output and upload it to ARCE via FTP.
-5. If the change affects native tabs or hosted URL wiring, update `FABFG`.
-6. If the feature touches biographies or legacy image assets, validate that the ARCE content it depends on still exists.
+Regenerate derived data with:
 
-## Operational Notes
+```bash
+bun run build:data
+```
 
-- GitHub Pages is the easiest public environment for validating a candidate `fab` build before production promotion.
-- ARCE production is the result of uploading the built static site to the institutional FTP host.
-- A bug in `fab` can affect both the web experience and the iOS app because the iOS app is usually loading this hosted web app.
-- A bug in `FABFG` is more likely to be about native shell behavior than cemetery data, map logic, or search behavior.
-- A bug involving missing biographies or images may be outside this repo if the broken asset is hosted on `albany.edu/arce`.
+Then retest the selection flow from:
 
-## Related Project Context
+- search
+- section browse
+- tours
+- deep links
 
-See [docs/arce-content-upgrade-plan.md](./docs/arce-content-upgrade-plan.md) for the current migration direction between:
+### A change works on the web but not in the iOS app
+
+Decide whether the problem is:
+
+- the shared hosted experience in `fab`
+- the native shell behavior in `FABFG`
+- an external ARCE-hosted content dependency
+
+## Additional Context
+
+See [docs/arce-content-upgrade-plan.md](./docs/arce-content-upgrade-plan.md) for broader migration and cross-project notes involving:
 
 - the legacy ARCE web presence
-- the `fab` PWA
-- the `FABFG` native wrapper
+- `fab`
+- `FABFG`

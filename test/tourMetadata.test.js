@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildBurialBrowseResult, buildTourBrowseResult } from "../src/lib/browseResults";
-import { buildTourLookup, harmonizeBurialBrowseResult } from "../src/lib/tourMetadata";
+import { harmonizeBurialBrowseResult } from "../src/lib/tourMetadata";
 
 describe("harmonizeBurialBrowseResult", () => {
   test("enriches search records with matching tour metadata", () => {
@@ -50,7 +50,7 @@ describe("harmonizeBurialBrowseResult", () => {
 
     const result = harmonizeBurialBrowseResult(
       burialRecord,
-      buildTourLookup([tourRecord])
+      { [burialRecord.id]: tourRecord }
     );
 
     expect(result).toMatchObject({
@@ -82,7 +82,7 @@ describe("harmonizeBurialBrowseResult", () => {
 
     const result = harmonizeBurialBrowseResult(
       burialRecord,
-      buildTourLookup([])
+      {}
     );
 
     expect(result).toEqual(burialRecord);

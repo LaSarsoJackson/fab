@@ -11,7 +11,9 @@ import {
   InputAdornment,
   List,
   ListItem,
+  MenuItem,
   Paper,
+  Select,
   TextField,
   Typography,
 } from "@mui/material";
@@ -22,8 +24,9 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import PinDropIcon from "@mui/icons-material/PinDrop";
 import AppsIcon from "@mui/icons-material/Apps";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import InstallMobileIcon from "@mui/icons-material/InstallMobile";
 import DirectionsIcon from "@mui/icons-material/Directions";
+import { BottomSheet } from "react-spring-bottom-sheet";
+import "react-spring-bottom-sheet/dist/style.css";
 import {
   buildBrowseResults,
   buildLocationSummary,
@@ -31,10 +34,11 @@ import {
   getBrowseSourceMode,
   MIN_BROWSE_QUERY_LENGTH,
 } from "./lib/browseResults";
+import { getRuntimeEnv } from "./lib/runtimeEnv";
 
 const rowShellStyles = {
   cursor: "pointer",
-  transition: "all 0.2s ease",
+  transition: "background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease",
   borderRadius: 2,
   p: 1.5,
   contentVisibility: "auto",
@@ -53,8 +57,66 @@ const BROWSE_SOURCE_OPTIONS = [
   { key: "tour", label: "Tour" },
 ];
 
-const MOBILE_RESULT_BATCH_SIZE = 40;
-const DESKTOP_RESULT_BATCH_SIZE = 80;
+const DEFAULT_RESULT_LIMIT = 10;
+const RESULT_LIMIT_OPTIONS = [10, 25, 50];
+const DEFAULT_LOCATION_STATUS = "Location inactive";
+const MOBILE_SHEET_STATES = {
+  COLLAPSED: "collapsed",
+  PEEK: "peek",
+  FULL: "full",
+};
+
+const getInitialMobileSheetState = ({ isMobile, hasContext, selectedCount }) => {
+  if (!isMobile) return MOBILE_SHEET_STATES.FULL;
+  if (selectedCount > 0) return MOBILE_SHEET_STATES.FULL;
+  if (hasContext) return MOBILE_SHEET_STATES.PEEK;
+  return MOBILE_SHEET_STATES.COLLAPSED;
+};
+
+const formatLocationNoticeLabel = (status) => {
+  if (status === "Location active") {
+    return "Using your current location for directions.";
+  }
+
+  if (status === "Locating...") {
+    return "Finding your location…";
+  }
+
+  return status;
+};
+
+const getLocationNoticeTone = (status) => {
+  if (status === "Location active") return "success";
+  if (status === "Locating...") return "neutral";
+  return "warning";
+};
+
+const getSearchShellNoticeStyles = (tone) => {
+  if (tone === "success") {
+    return {
+      backgroundColor: "rgba(18, 94, 74, 0.12)",
+      border: "1px solid rgba(18, 94, 74, 0.18)",
+      color: "var(--accent)",
+      dotColor: "var(--accent)",
+    };
+  }
+
+  if (tone === "warning") {
+    return {
+      backgroundColor: "rgba(154, 108, 25, 0.12)",
+      border: "1px solid rgba(154, 108, 25, 0.18)",
+      color: "#7a5613",
+      dotColor: "#9a6c19",
+    };
+  }
+
+  return {
+    backgroundColor: "rgba(16, 35, 31, 0.05)",
+    border: "1px solid rgba(16, 35, 31, 0.08)",
+    color: "var(--muted-text)",
+    dotColor: "rgba(18, 47, 40, 0.48)",
+  };
+};
 
 const getBrowseSourceLabel = (browseSource) => {
   if (browseSource === "section") return "Section";
@@ -121,16 +183,18 @@ const getBrowseEmptyState = ({
 
 function BrowseResultsPanel({
   activeBurialId,
+  batchSize,
   browseResults,
-  browseSourceChip,
   browseSource,
   isExpanded,
   isMobile,
   isBrowsePending,
   isCurrentTourLoading,
   onBrowseResultSelect,
+  onResultLimitChange,
   onToggleExpanded,
   query,
+  resultLimit,
   sectionFilter,
   selectedBurials,
   selectedTour,
@@ -143,23 +207,24 @@ function BrowseResultsPanel({
     selectedTour,
     isCurrentTourLoading,
   });
-  const batchSize = isMobile ? MOBILE_RESULT_BATCH_SIZE : DESKTOP_RESULT_BATCH_SIZE;
   const selectedBurialIds = useMemo(
     () => new Set(selectedBurials.map((item) => item.id)),
     [selectedBurials]
   );
-  const [visibleCount, setVisibleCount] = useState(batchSize);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    setVisibleCount(batchSize);
+    setCurrentPage(1);
   }, [batchSize, browseResults.length, browseSource, query, sectionFilter, selectedTour]);
 
+  const pageCount = Math.max(1, Math.ceil(browseResults.length / batchSize));
+  const pageStart = (currentPage - 1) * batchSize;
+  const pageEnd = pageStart + batchSize;
   const visibleResults = useMemo(
-    () => browseResults.slice(0, visibleCount),
-    [browseResults, visibleCount]
+    () => browseResults.slice(pageStart, pageEnd),
+    [browseResults, pageEnd, pageStart]
   );
-  const hasMoreResults = visibleCount < browseResults.length;
-  const isTrimmed = browseResults.length > batchSize;
+  const isPaginated = browseResults.length > batchSize;
 
   return (
     <Box
@@ -174,7 +239,6 @@ function BrowseResultsPanel({
         <Typography variant="subtitle2" sx={{ lineHeight: 1.2 }}>
           Results
         </Typography>
-        <Chip size="small" label={browseSourceChip} sx={{ maxWidth: "100%" }} />
         {browseResults.length > 0 && (
           <Chip
             size="small"
@@ -184,6 +248,18 @@ function BrowseResultsPanel({
         )}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: "auto" }}>
           {isBrowsePending && <CircularProgress size={14} />}
+          <Select
+            size="small"
+            value={resultLimit}
+            onChange={(e) => onResultLimitChange(e.target.value)}
+            variant="outlined"
+            inputProps={{ "aria-label": "Results per page" }}
+            sx={{ fontSize: "0.75rem", minWidth: 90, height: 28 }}
+          >
+            {RESULT_LIMIT_OPTIONS.map((n) => (
+              <MenuItem key={n} value={n} sx={{ fontSize: "0.75rem" }}>{n} results</MenuItem>
+            ))}
+          </Select>
           <Button
             size="small"
             color="inherit"
@@ -196,8 +272,8 @@ function BrowseResultsPanel({
       </Box>
       <Typography variant="body2" sx={{ color: "var(--muted-text)", mb: 1.25 }}>
         {browseResults.length
-          ? isTrimmed
-            ? `Showing ${visibleResults.length.toLocaleString()} of ${browseResults.length.toLocaleString()} result${browseResults.length === 1 ? "" : "s"}`
+          ? isPaginated
+            ? `Showing ${pageStart + 1}-${Math.min(pageEnd, browseResults.length)} of ${browseResults.length.toLocaleString()} result${browseResults.length === 1 ? "" : "s"}`
             : `${browseResults.length.toLocaleString()} result${browseResults.length === 1 ? "" : "s"}`
           : emptyMessage}
       </Typography>
@@ -270,35 +346,27 @@ function BrowseResultsPanel({
               })}
             </List>
           </Box>
-          {isTrimmed && (
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1.25 }}>
-              {hasMoreResults && (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => setVisibleCount((current) => Math.min(current + batchSize, browseResults.length))}
-                >
-                  Show {Math.min(batchSize, browseResults.length - visibleCount)} more
-                </Button>
-              )}
-              {hasMoreResults && (
-                <Button
-                  size="small"
-                  color="inherit"
-                  onClick={() => setVisibleCount(browseResults.length)}
-                >
-                  Show all
-                </Button>
-              )}
-              {!hasMoreResults && visibleCount > batchSize && (
-                <Button
-                  size="small"
-                  color="inherit"
-                  onClick={() => setVisibleCount(batchSize)}
-                >
-                  Collapse list
-                </Button>
-              )}
+          {isPaginated && (
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mt: 1.25 }}>
+              <Button
+                size="small"
+                color="inherit"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              >
+                Previous
+              </Button>
+              <Typography variant="caption" sx={{ color: "var(--muted-text)", textAlign: "center" }}>
+                Page {currentPage} of {pageCount}
+              </Typography>
+              <Button
+                size="small"
+                variant="outlined"
+                disabled={currentPage >= pageCount}
+                onClick={() => setCurrentPage((page) => Math.min(pageCount, page + 1))}
+              >
+                Next
+              </Button>
             </Box>
           )}
         </>
@@ -378,7 +446,7 @@ function SelectedPeopleList({
                     boxShadow: isActive || hoveredIndex === index
                       ? "0 0 8px rgba(0,0,0,0.6)"
                       : "0 0 4px rgba(0,0,0,0.4)",
-                    transition: "all 0.2s ease",
+                    transition: "width 0.2s ease, height 0.2s ease, font-size 0.2s ease, border-width 0.2s ease, box-shadow 0.2s ease",
                   }}
                 >
                   {index + 1}
@@ -633,7 +701,6 @@ function BurialSidebar({
   getTourName,
   hoveredIndex,
   initialQuery,
-  installPromptEvent,
   isBurialDataLoading,
   isInstalled,
   isMobile,
@@ -670,15 +737,14 @@ function BurialSidebar({
   tourStyles,
   uniqueSections,
 }) {
+  const { isDev } = getRuntimeEnv();
   const initialBrowseSource = useMemo(
     () => getBrowseSourceMode({ sectionFilter, selectedTour }),
     [sectionFilter, selectedTour]
   );
-  const initialMobileContext = Boolean(
-    (initialQuery || "").trim() || initialBrowseSource !== "all" || selectedBurials.length
-  );
   const [browseSource, setBrowseSource] = useState(initialBrowseSource);
   const [browseQuery, setBrowseQuery] = useState(initialQuery || "");
+  const [resultLimit, setResultLimit] = useState(DEFAULT_RESULT_LIMIT);
   const [browseResults, setBrowseResults] = useState(() => (
     buildBrowseResults({
       browseSource: initialBrowseSource,
@@ -694,15 +760,22 @@ function BurialSidebar({
     }).results
   ));
   const [isBrowsePending, setIsBrowsePending] = useState(false);
-  const [isMobileSheetExpanded, setIsMobileSheetExpanded] = useState(
-    () => isMobile && initialMobileContext
+  const initialMobileContext = Boolean(
+    (initialQuery || "").trim() || initialBrowseSource !== "all" || selectedBurials.length
   );
+  const initialMobileSheetState = getInitialMobileSheetState({
+    isMobile,
+    hasContext: initialMobileContext,
+    selectedCount: selectedBurials.length,
+  });
+  const [mobileSheetState, setMobileSheetState] = useState(() => initialMobileSheetState);
   const [isResultsExpanded, setIsResultsExpanded] = useState(true);
   const [isSelectedSummaryExpanded, setIsSelectedSummaryExpanded] = useState(
     () => selectedBurials.length > 0
   );
+  const sheetRef = useRef(null);
   const previousSelectedCountRef = useRef(selectedBurials.length);
-  const previousIsMobileRef = useRef(isMobile);
+  const didSyncInitialMobileSnapRef = useRef(false);
   const browseSourceChip = useMemo(
     () => getBrowseSourceChip({ browseSource }),
     [browseSource]
@@ -711,9 +784,50 @@ function BurialSidebar({
     () => Boolean(browseQuery.trim() || lotTierFilter || sectionFilter || selectedTour || browseSource !== "all"),
     [browseQuery, browseSource, lotTierFilter, sectionFilter, selectedTour]
   );
+  const previousHasActiveBrowseContextRef = useRef(hasActiveBrowseContext);
+  const hasClearableState = hasActiveBrowseContext || selectedBurials.length > 0;
   const isCurrentTourLoading = Boolean(
     selectedTour && loadingTourName === selectedTour && tourResults.length === 0
   );
+  const isMobileSheetCollapsed = isMobile && mobileSheetState === MOBILE_SHEET_STATES.COLLAPSED;
+
+  const SNAP_COLLAPSED_FRACTION = 0.22;
+  const SNAP_PEEK_FRACTION = 0.50;
+  const SNAP_FULL_FRACTION = 0.92;
+
+  const mobileSnapPoints = useCallback(({ maxHeight }) => [
+    maxHeight * SNAP_COLLAPSED_FRACTION,
+    maxHeight * SNAP_PEEK_FRACTION,
+    maxHeight * SNAP_FULL_FRACTION,
+  ], []);
+
+  const mobileDefaultSnap = useCallback(({ maxHeight, snapPoints }) => {
+    if (mobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
+      return snapPoints[0] || maxHeight * SNAP_COLLAPSED_FRACTION;
+    }
+
+    if (mobileSheetState === MOBILE_SHEET_STATES.FULL) {
+      return snapPoints[2] || maxHeight * SNAP_FULL_FRACTION;
+    }
+
+    return snapPoints[1] || maxHeight * SNAP_PEEK_FRACTION;
+  }, [mobileSheetState]);
+
+  const handleSheetSpringEnd = useCallback((event) => {
+    if (event.type !== "SNAP" && event.type !== "OPEN") return;
+    if (!sheetRef.current) return;
+    const height = sheetRef.current.height;
+    const windowHeight = window.innerHeight;
+    const collapsedThreshold = windowHeight * (SNAP_COLLAPSED_FRACTION + SNAP_PEEK_FRACTION) / 2;
+    const peekThreshold = windowHeight * (SNAP_PEEK_FRACTION + SNAP_FULL_FRACTION) / 2;
+    if (height < collapsedThreshold) {
+      setMobileSheetState(MOBILE_SHEET_STATES.COLLAPSED);
+    } else if (height < peekThreshold) {
+      setMobileSheetState(MOBILE_SHEET_STATES.PEEK);
+    } else {
+      setMobileSheetState(MOBILE_SHEET_STATES.FULL);
+    }
+  }, [SNAP_COLLAPSED_FRACTION, SNAP_FULL_FRACTION, SNAP_PEEK_FRACTION]);
 
   useEffect(() => {
     if (selectedTour) {
@@ -782,44 +896,101 @@ function BurialSidebar({
     tourResults,
   ]);
 
-  useEffect(() => {
-    if (isMobile !== previousIsMobileRef.current && isMobile) {
-      setIsMobileSheetExpanded(Boolean(selectedBurials.length || hasActiveBrowseContext));
-      setIsSelectedSummaryExpanded(selectedBurials.length > 0);
+  const maximizeMobileSheet = useCallback(() => {
+    if (!isMobile) return;
+    setMobileSheetState(MOBILE_SHEET_STATES.FULL);
+    if (sheetRef.current) {
+      sheetRef.current.snapTo(({ maxHeight }) => maxHeight * SNAP_FULL_FRACTION);
     }
-
-    previousIsMobileRef.current = isMobile;
-  }, [hasActiveBrowseContext, isMobile, selectedBurials.length]);
-
-  useEffect(() => {
-    if (!isMobile) {
-      previousSelectedCountRef.current = selectedBurials.length;
-      return;
-    }
-
-    const previousCount = previousSelectedCountRef.current;
-
-    if (selectedBurials.length > 0 && previousCount === 0) {
-      setIsMobileSheetExpanded(true);
-      setIsSelectedSummaryExpanded(true);
-    } else if (selectedBurials.length === 0 && previousCount > 0) {
-      setIsSelectedSummaryExpanded(false);
-    }
-
-    previousSelectedCountRef.current = selectedBurials.length;
-  }, [isMobile, selectedBurials.length]);
+  }, [isMobile]);
 
   const expandMobileSheet = useCallback(() => {
-    if (isMobile) {
-      setIsMobileSheetExpanded(true);
+    if (!isMobile) return;
+    setMobileSheetState(MOBILE_SHEET_STATES.PEEK);
+    if (sheetRef.current) {
+      sheetRef.current.snapTo(({ maxHeight }) => maxHeight * SNAP_PEEK_FRACTION);
     }
   }, [isMobile]);
 
   const collapseMobileSheet = useCallback(() => {
-    if (isMobile) {
-      setIsMobileSheetExpanded(false);
+    if (!isMobile) return;
+    setMobileSheetState(MOBILE_SHEET_STATES.COLLAPSED);
+    if (sheetRef.current) {
+      sheetRef.current.snapTo(({ maxHeight }) => maxHeight * SNAP_COLLAPSED_FRACTION);
     }
   }, [isMobile]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      didSyncInitialMobileSnapRef.current = false;
+      return;
+    }
+
+    if (didSyncInitialMobileSnapRef.current) return;
+    if (typeof window === "undefined") return;
+
+    const frame = window.requestAnimationFrame(() => {
+      didSyncInitialMobileSnapRef.current = true;
+
+      if (mobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
+        collapseMobileSheet();
+        return;
+      }
+
+      if (mobileSheetState === MOBILE_SHEET_STATES.FULL) {
+        maximizeMobileSheet();
+        return;
+      }
+
+      expandMobileSheet();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    collapseMobileSheet,
+    expandMobileSheet,
+    isMobile,
+    maximizeMobileSheet,
+    mobileSheetState,
+  ]);
+
+  useEffect(() => {
+    const previousSelectedCount = previousSelectedCountRef.current;
+    const previousHasActiveBrowseContext = previousHasActiveBrowseContextRef.current;
+
+    if (!isMobile) {
+      previousSelectedCountRef.current = selectedBurials.length;
+      previousHasActiveBrowseContextRef.current = hasActiveBrowseContext;
+      return;
+    }
+
+    if (selectedBurials.length > previousSelectedCount) {
+      setIsSelectedSummaryExpanded(true);
+      maximizeMobileSheet();
+    } else if (selectedBurials.length === 0 && previousSelectedCount > 0) {
+      setIsSelectedSummaryExpanded(false);
+      if (hasActiveBrowseContext) {
+        expandMobileSheet();
+      } else {
+        collapseMobileSheet();
+      }
+    } else if (!previousHasActiveBrowseContext && hasActiveBrowseContext) {
+      expandMobileSheet();
+    } else if (previousHasActiveBrowseContext && !hasActiveBrowseContext && selectedBurials.length === 0) {
+      setIsSelectedSummaryExpanded(false);
+      collapseMobileSheet();
+    }
+
+    previousSelectedCountRef.current = selectedBurials.length;
+    previousHasActiveBrowseContextRef.current = hasActiveBrowseContext;
+  }, [
+    collapseMobileSheet,
+    expandMobileSheet,
+    hasActiveBrowseContext,
+    isMobile,
+    maximizeMobileSheet,
+    selectedBurials.length,
+  ]);
 
   const toggleSelectedSummary = useCallback(() => {
     setIsSelectedSummaryExpanded((current) => !current);
@@ -832,8 +1003,8 @@ function BurialSidebar({
   const handleBrowseQueryChange = useCallback((event) => {
     setBrowseQuery(event.target.value);
     setIsResultsExpanded(true);
-    expandMobileSheet();
-  }, [expandMobileSheet]);
+    maximizeMobileSheet();
+  }, [maximizeMobileSheet]);
 
   const handleClearBrowseQuery = useCallback(() => {
     setBrowseQuery("");
@@ -842,48 +1013,48 @@ function BurialSidebar({
   const handleBrowseResultSelect = useCallback((result) => {
     onBrowseResultSelect(result);
     if (isMobile) {
-      setIsMobileSheetExpanded(true);
+      maximizeMobileSheet();
       if (selectedBurials.length === 0) {
         setIsSelectedSummaryExpanded(true);
       }
     }
-  }, [isMobile, onBrowseResultSelect, selectedBurials.length]);
+  }, [isMobile, maximizeMobileSheet, onBrowseResultSelect, selectedBurials.length]);
 
   const handleSectionSelection = useCallback((nextSection) => {
     setBrowseSource("section");
     setIsResultsExpanded(true);
     onSectionChange(nextSection || "");
-    expandMobileSheet();
-  }, [expandMobileSheet, onSectionChange]);
+    maximizeMobileSheet();
+  }, [maximizeMobileSheet, onSectionChange]);
 
   const handleToggleSectionMarkers = useCallback(() => {
     onToggleSectionMarkers();
-    expandMobileSheet();
-  }, [expandMobileSheet, onToggleSectionMarkers]);
+    maximizeMobileSheet();
+  }, [maximizeMobileSheet, onToggleSectionMarkers]);
 
   const handleFilterTypeSelection = useCallback((nextFilterType) => {
     setIsResultsExpanded(true);
     onFilterTypeChange(nextFilterType);
-    expandMobileSheet();
-  }, [expandMobileSheet, onFilterTypeChange]);
+    maximizeMobileSheet();
+  }, [maximizeMobileSheet, onFilterTypeChange]);
 
   const handleLotTierChange = useCallback((nextValue) => {
     setIsResultsExpanded(true);
     onLotTierFilterChange(nextValue);
-    expandMobileSheet();
-  }, [expandMobileSheet, onLotTierFilterChange]);
+    maximizeMobileSheet();
+  }, [maximizeMobileSheet, onLotTierFilterChange]);
 
   const handleClearSectionFilters = useCallback(() => {
     onClearSectionFilters();
-    expandMobileSheet();
-  }, [expandMobileSheet, onClearSectionFilters]);
+    maximizeMobileSheet();
+  }, [maximizeMobileSheet, onClearSectionFilters]);
 
   const handleTourSelection = useCallback((tourName) => {
     setBrowseSource("tour");
     setIsResultsExpanded(true);
     onTourChange(tourName);
-    expandMobileSheet();
-  }, [expandMobileSheet, onTourChange]);
+    maximizeMobileSheet();
+  }, [maximizeMobileSheet, onTourChange]);
 
   const handleBrowseSourceChange = useCallback((nextSource) => {
     if (!nextSource || nextSource === browseSource) {
@@ -909,7 +1080,7 @@ function BurialSidebar({
       if (selectedTour) {
         onTourChange(null);
       }
-      expandMobileSheet();
+      maximizeMobileSheet();
       return;
     }
 
@@ -917,10 +1088,11 @@ function BurialSidebar({
       onClearSectionFilters();
     }
 
-    expandMobileSheet();
+    maximizeMobileSheet();
   }, [
     browseSource,
     expandMobileSheet,
+    maximizeMobileSheet,
     lotTierFilter,
     onClearSectionFilters,
     onTourChange,
@@ -930,8 +1102,7 @@ function BurialSidebar({
 
   const handleLocateUser = useCallback(() => {
     onLocateMarker();
-    expandMobileSheet();
-  }, [expandMobileSheet, onLocateMarker]);
+  }, [onLocateMarker]);
 
   const handleClearAllBrowseState = useCallback(() => {
     setBrowseQuery("");
@@ -950,7 +1121,9 @@ function BurialSidebar({
     }
 
     onClearSelectedBurials();
+    collapseMobileSheet();
   }, [
+    collapseMobileSheet,
     lotTierFilter,
     onClearSectionFilters,
     onClearSelectedBurials,
@@ -1036,62 +1209,108 @@ function BurialSidebar({
     selectedTour,
   ]);
 
-  const showSidebarBody = !isMobile || isMobileSheetExpanded;
-  const sidebarClassName = [
-    "left-sidebar",
-    isMobile ? "left-sidebar--mobile" : "left-sidebar--desktop",
-    isMobile ? (isMobileSheetExpanded ? "left-sidebar--expanded" : "left-sidebar--collapsed") : "",
-  ].filter(Boolean).join(" ");
+  const sidebarClassName = isMobile
+    ? "left-sidebar left-sidebar--mobile"
+    : [
+        "left-sidebar",
+        "left-sidebar--desktop",
+      ].join(" ");
   const autocompleteListboxProps = isMobile
     ? {
       sx: {
-        maxHeight: 240,
+        maxHeight: "min(40svh, 320px)",
+        py: 0.75,
       },
     }
-    : undefined;
+    : {
+      sx: {
+        maxHeight: 240,
+      },
+    };
+  const autocompleteComponentsProps = useMemo(
+    () => ({
+      popper: {
+        className: "left-sidebar__autocomplete-popper",
+        placement: isMobile ? "auto-start" : "bottom-start",
+      },
+      paper: {
+        elevation: 8,
+        className: "left-sidebar__autocomplete-paper",
+      },
+    }),
+    [isMobile]
+  );
+  const selectedSectionOption = useMemo(
+    () => uniqueSections.find((option) => `${option}` === `${sectionFilter}`) ?? null,
+    [sectionFilter, uniqueSections]
+  );
   const searchPlaceholder = getSearchPlaceholder({
     browseSource,
     isBurialDataLoading,
     sectionFilter,
     selectedTour,
   });
+  const locationNotice = useMemo(() => {
+    const nextStatus = (status || "").trim();
 
-  const statusItems = [
-    {
-      key: "records",
-      label: isBurialDataLoading
-        ? "Loading records"
-        : burialDataError
-          ? "Record load failed"
-          : isSearchIndexReady
-            ? "Records ready"
-            : "Indexing records",
-      tone: burialDataError
-        ? "#b04b3f"
-        : (isBurialDataLoading || !isSearchIndexReady)
-          ? "#9a6c19"
-          : "var(--accent)",
-    },
-    {
-      key: "connectivity",
-      label: isOnline ? "Online" : "Offline",
-      tone: isOnline ? "var(--accent)" : "#9a6c19",
-    },
-    ...(loadingTourName
-      ? [{
-        key: "tour",
-        label: `Loading ${loadingTourName}`,
-        tone: "#9a6c19",
-      }]
-      : []),
-    ...((isInstalled || installPromptEvent || showIosInstallHint)
-      ? [{
+    if (!nextStatus || nextStatus === DEFAULT_LOCATION_STATUS) {
+      return null;
+    }
+
+    return {
+      key: "location",
+      tone: getLocationNoticeTone(nextStatus),
+      label: formatLocationNoticeLabel(nextStatus),
+    };
+  }, [status]);
+  const runtimeNotice = useMemo(() => {
+    if (!isOnline) {
+      return {
+        key: "offline",
+        tone: "warning",
+        label: "Offline. Search stays available, but live links may be limited.",
+      };
+    }
+
+    if (isBurialDataLoading) {
+      return {
+        key: "records-loading",
+        tone: "neutral",
+        label: "Loading burial records…",
+      };
+    }
+
+    if (!isSearchIndexReady) {
+      return {
+        key: "search-readying",
+        tone: "neutral",
+        label: "Preparing fast search…",
+      };
+    }
+
+    if (loadingTourName) {
+      return {
+        key: "tour-loading",
+        tone: "neutral",
+        label: `Loading ${loadingTourName}…`,
+      };
+    }
+
+    return null;
+  }, [isBurialDataLoading, isOnline, isSearchIndexReady, loadingTourName]);
+  const searchShellNotices = useMemo(() => {
+    const nextNotices = [locationNotice, runtimeNotice];
+
+    if (!isInstalled && showIosInstallHint) {
+      nextNotices.push({
         key: "install",
-        label: isInstalled ? "Installed" : "Install available",
-        tone: isInstalled ? "var(--accent)" : "rgba(18, 94, 74, 0.72)",
-      }]
-      : []),
-  ];
+        tone: "neutral",
+        label: "Safari: Share → Add to Home Screen",
+      });
+    }
+
+    return nextNotices.filter(Boolean).slice(0, 2);
+  }, [isInstalled, locationNotice, runtimeNotice, showIosInstallHint]);
   const activeFilterCount = activeBrowseChips.length;
 
   const appMenuButton = (
@@ -1112,17 +1331,7 @@ function BurialSidebar({
       className="left-sidebar__panel left-sidebar__panel--active-filters left-sidebar__panel--surface"
       sx={{ ...panelSurfaceStyles, p: 2 }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mb: 1 }}>
-        <Typography variant="subtitle2">Active Filters</Typography>
-        <Button
-          size="small"
-          color="inherit"
-          onClick={handleClearAllBrowseState}
-          aria-label="Clear all browse filters"
-        >
-          Clear all
-        </Button>
-      </Box>
+      <Typography variant="subtitle2" sx={{ mb: 1 }}>Active Filters</Typography>
       <Box className="left-sidebar__chip-row">
         {activeBrowseChips.map((chip) => (
           <Chip
@@ -1150,7 +1359,9 @@ function BurialSidebar({
           {activeFilterCount > 0 && (
             <Chip size="small" color="primary" label={`${activeFilterCount} active`} />
           )}
-          <Chip size="small" variant="outlined" label={browseSourceChip} />
+          {browseSource !== "all" && (
+            <Chip size="small" variant="outlined" label={browseSourceChip} />
+          )}
         </Box>
       </Box>
 
@@ -1197,10 +1408,10 @@ function BurialSidebar({
             Choose section
           </Typography>
           <Autocomplete
-            disablePortal={isMobile}
             ListboxProps={autocompleteListboxProps}
+            componentsProps={autocompleteComponentsProps}
             options={uniqueSections}
-            value={sectionFilter || null}
+            value={selectedSectionOption}
             disabled={isBurialDataLoading || !!burialDataError}
             onChange={(event, newValue) => handleSectionSelection(newValue)}
             renderInput={(params) => (
@@ -1217,7 +1428,7 @@ function BurialSidebar({
               </li>
             )}
             getOptionLabel={(option) => `Section ${option}`}
-            isOptionEqualToValue={(option, value) => option === value}
+            isOptionEqualToValue={(option, value) => `${option}` === `${value}`}
           />
         </Box>
       )}
@@ -1287,8 +1498,8 @@ function BurialSidebar({
             Choose tour
           </Typography>
           <Autocomplete
-            disablePortal={isMobile}
             ListboxProps={autocompleteListboxProps}
+            componentsProps={autocompleteComponentsProps}
             options={tourDefinitions}
             value={tourDefinitions.find((definition) => definition.name === selectedTour) || null}
             disabled={isBurialDataLoading || !!burialDataError}
@@ -1325,81 +1536,75 @@ function BurialSidebar({
     </Box>
   );
 
-  const browseControlsPanel = (
-    <Box
-      className="left-sidebar__panel left-sidebar__panel--tools left-sidebar__panel--surface"
-      sx={{
-        ...panelSurfaceStyles,
-        p: 2,
-      }}
-    >
-      {browseToolsContent}
-    </Box>
-  );
-
-  return (
-    <Paper elevation={3} className={sidebarClassName}>
-      <Box className="left-sidebar__header" sx={{ p: isMobile ? 1.5 : 2 }}>
-        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, mb: 1.25 }}>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              variant="overline"
-              sx={{ display: "block", letterSpacing: 1.2, color: "var(--muted-text)", lineHeight: 1.1 }}
-            >
-              Albany Rural Cemetery
-            </Typography>
+  const headerContent = (
+    <Box className="left-sidebar__header" sx={{ p: !isMobile ? 2 : (isMobileSheetCollapsed ? 1.25 : 1.5) }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 1.5,
+          mb: isMobileSheetCollapsed ? 0.75 : 1.25,
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            variant="overline"
+            sx={{ display: "block", letterSpacing: 1.2, color: "var(--muted-text)", lineHeight: 1.1 }}
+          >
+            Albany Rural Cemetery
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.35 }}>
             <Box
               component="a"
               href="https://www.albany.edu/arce/"
-              sx={{ color: "inherit", display: "inline-block", textDecoration: "none", mt: 0.35 }}
+              sx={{ color: "inherit", display: "inline-block", textDecoration: "none" }}
             >
               <Typography variant="h6" sx={{ lineHeight: 1.2 }}>
                 Burial Finder
               </Typography>
             </Box>
+            {isDev && (
+              <Chip
+                size="small"
+                label="Dev"
+                sx={{
+                  height: 18,
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                  letterSpacing: 0.5,
+                  backgroundColor: "rgba(154, 108, 25, 0.15)",
+                  color: "#9a6c19",
+                  border: "1px solid rgba(154, 108, 25, 0.35)",
+                }}
+              />
+            )}
           </Box>
-
-          {isMobile && (
-            <Button
-              size="small"
-              color="inherit"
-              variant={isMobileSheetExpanded ? "text" : "outlined"}
-              onClick={isMobileSheetExpanded ? collapseMobileSheet : expandMobileSheet}
-              endIcon={(
-                <ArrowDropDownIcon
-                  sx={{
-                    transform: isMobileSheetExpanded ? "rotate(180deg)" : "rotate(0deg)",
-                    transition: "transform 0.2s ease",
-                  }}
-                />
-              )}
-            >
-              {isMobileSheetExpanded ? "Collapse" : "Expand"}
-          </Button>
-        )}
         </Box>
+      </Box>
 
-        {burialDataError && (
-          <Typography variant="body2" color="error" sx={{ mb: 1 }}>
-            {burialDataError}
-          </Typography>
-        )}
-        {tourLayerError && (
-          <Typography variant="body2" color="error" sx={{ mb: 1 }}>
-            {tourLayerError}
-          </Typography>
-        )}
+      {burialDataError && (
+        <Typography variant="body2" color="error" sx={{ mb: 1 }}>
+          {burialDataError}
+        </Typography>
+      )}
+      {tourLayerError && (
+        <Typography variant="body2" color="error" sx={{ mb: 1 }}>
+          {tourLayerError}
+        </Typography>
+      )}
 
-        <Box
-          className="left-sidebar__search-shell"
-          sx={{
-            mt: 1,
-            p: 1.5,
-            borderRadius: 3,
-            border: "1px solid rgba(18, 47, 40, 0.12)",
-            background: "linear-gradient(180deg, rgba(255,255,255,0.84), rgba(255,255,255,0.72))",
-          }}
-        >
+      <Box
+        className="left-sidebar__search-shell"
+        sx={{
+          mt: isMobileSheetCollapsed ? 0.5 : 1,
+          p: isMobileSheetCollapsed ? 1 : 1.5,
+          borderRadius: 3,
+          border: "1px solid rgba(18, 47, 40, 0.12)",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.84), rgba(255,255,255,0.72))",
+        }}
+      >
+        {!isMobileSheetCollapsed && (
           <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, mb: 1.1 }}>
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="subtitle2">Search</Typography>
@@ -1408,55 +1613,59 @@ function BurialSidebar({
               </Typography>
             </Box>
             <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 0.75 }}>
-              <Chip size="small" variant="outlined" label={browseSourceChip} />
+              {browseSource !== "all" && (
+                <Chip size="small" variant="outlined" label={browseSourceChip} />
+              )}
               {selectedBurials.length > 0 && (
                 <Chip size="small" color="primary" label={`${selectedBurials.length} selected`} />
               )}
             </Box>
           </Box>
+        )}
 
-          <TextField
-            fullWidth
-            placeholder={searchPlaceholder}
-            variant="outlined"
-            size="small"
-            value={browseQuery}
-            disabled={isBurialDataLoading || !!burialDataError}
-            onChange={handleBrowseQueryChange}
-            onClick={expandMobileSheet}
-            onFocus={expandMobileSheet}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-              endAdornment: (
-                <>
-                  {(isBurialDataLoading || isBrowsePending) ? <CircularProgress size={16} /> : null}
-                  {browseQuery && (
-                    <InputAdornment position="end">
-                      <IconButton
-                        size="small"
-                        onClick={handleClearBrowseQuery}
-                        aria-label="Clear search query"
-                      >
-                        <CloseIcon fontSize="small" />
-                      </IconButton>
-                    </InputAdornment>
-                  )}
-                </>
-              ),
-            }}
-          />
+        <TextField
+          fullWidth
+          placeholder={searchPlaceholder}
+          variant="outlined"
+          size="small"
+          value={browseQuery}
+          disabled={isBurialDataLoading || !!burialDataError}
+          onChange={handleBrowseQueryChange}
+          onClick={maximizeMobileSheet}
+          onFocus={maximizeMobileSheet}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <>
+                {(isBurialDataLoading || isBrowsePending) ? <CircularProgress size={16} /> : null}
+                {browseQuery && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={handleClearBrowseQuery}
+                      aria-label="Clear search query"
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                )}
+              </>
+            ),
+          }}
+        />
 
+        {!isMobileSheetCollapsed && (
           <Box
             className="left-sidebar__utility-row"
             sx={{
               display: "flex",
               flexWrap: "wrap",
               alignItems: "center",
-              justifyContent: "space-between",
+              justifyContent: "flex-start",
               gap: 1,
               mt: 1.25,
             }}
@@ -1471,139 +1680,174 @@ function BurialSidebar({
               >
                 My location
               </Button>
+              {hasClearableState && (
+                <Button
+                  onClick={handleClearAllBrowseState}
+                  variant="text"
+                  color="inherit"
+                  size="small"
+                  startIcon={<CloseIcon />}
+                  aria-label="Clear all browse filters"
+                >
+                  Clear
+                </Button>
+              )}
               {appMenuButton}
             </Box>
-            <Typography variant="caption" sx={{ color: "var(--muted-text)" }}>
-              {status}
-            </Typography>
           </Box>
+        )}
 
-          <Box className="left-sidebar__status-line" sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}>
-            {statusItems.map((item) => (
-              <Box
-                key={item.key}
-                className="left-sidebar__status-item"
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 0.75,
-                  px: 1,
-                  py: 0.55,
-                  borderRadius: 999,
-                  backgroundColor: "rgba(255, 255, 255, 0.62)",
-                  border: "1px solid rgba(18, 47, 40, 0.08)",
-                }}
-              >
+        {!isMobileSheetCollapsed && searchShellNotices.length > 0 && (
+          <Box className="left-sidebar__notice-stack" sx={{ display: "grid", gap: 0.75, mt: 1 }}>
+            {searchShellNotices.map((notice) => {
+              const styles = getSearchShellNoticeStyles(notice.tone);
+
+              return (
                 <Box
-                  component="span"
+                  key={notice.key}
+                  className="left-sidebar__notice"
                   sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    backgroundColor: item.tone,
-                    flexShrink: 0,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 0.75,
+                    px: 1,
+                    py: 0.8,
+                    borderRadius: 2,
+                    backgroundColor: styles.backgroundColor,
+                    border: styles.border,
+                    color: styles.color,
                   }}
-                />
-                <Typography variant="caption" sx={{ color: "var(--muted-text)" }}>
-                  {item.label}
-                </Typography>
-              </Box>
-            ))}
+                >
+                  <Box
+                    component="span"
+                    sx={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: "50%",
+                      backgroundColor: styles.dotColor,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Typography variant="caption" sx={{ color: "inherit", fontSize: "0.75rem", fontWeight: 500 }}>
+                    {notice.label}
+                  </Typography>
+                </Box>
+              );
+            })}
           </Box>
-
-          {!isInstalled && showIosInstallHint && (
-            <Typography variant="caption" sx={{ display: "block", color: "var(--muted-text)", mt: 1 }}>
-              <InstallMobileIcon fontSize="inherit" sx={{ verticalAlign: "text-bottom", mr: 0.5 }} />
-              Safari: Share → Add to Home Screen
-            </Typography>
-          )}
-
-          {isMobile && !isMobileSheetExpanded && (
-            <Box className="left-sidebar__compact-meta" sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1.25 }}>
-              {selectedBurials.length > 0 && (
-                <Chip size="small" color="primary" label={`${selectedBurials.length} selected`} />
-              )}
-              {hasActiveBrowseContext && activeBrowseChips.map((chip) => (
-                <Chip key={`compact-${chip.key}`} size="small" label={chip.label} />
-              ))}
-              {!hasActiveBrowseContext && selectedBurials.length === 0 && (
-                <Chip size="small" label={browseSourceChip} />
-              )}
-            </Box>
-          )}
-        </Box>
+        )}
       </Box>
+    </Box>
+  );
 
-      {showSidebarBody && <Divider />}
+  const bodyContent = (
+    <Box sx={{ p: 1.5, display: "grid", gap: 1.5 }}>
+      {browseToolsContent}
 
-      {showSidebarBody && (
+      {activeBrowseChipsContent}
+
+      {selectedBurials.length > 0 && (
+        isMobile ? (
+          <SelectedSummaryPanel
+            activeBurialId={activeBurialId}
+            activeRouteBurialId={activeRouteBurialId}
+            hoveredIndex={hoveredIndex}
+            isExpanded={isSelectedSummaryExpanded}
+            markerColors={markerColors}
+            onClearSelectedBurials={onClearSelectedBurials}
+            onFocusSelectedBurial={onFocusSelectedBurial}
+            onHoverIndexChange={onHoverIndexChange}
+            onOpenDirectionsMenu={onOpenDirectionsMenu}
+            onRemoveSelectedBurial={onRemoveSelectedBurial}
+            onToggleExpanded={toggleSelectedSummary}
+            selectedBurialRefs={selectedBurialRefs}
+            selectedBurials={selectedBurials}
+            tourStyles={tourStyles}
+          />
+        ) : (
+          <SelectedPeoplePanel
+            activeBurialId={activeBurialId}
+            activeRouteBurialId={activeRouteBurialId}
+            hoveredIndex={hoveredIndex}
+            isMobile={isMobile}
+            markerColors={markerColors}
+            onClearSelectedBurials={onClearSelectedBurials}
+            onFocusSelectedBurial={onFocusSelectedBurial}
+            onHoverIndexChange={onHoverIndexChange}
+            onOpenDirectionsMenu={onOpenDirectionsMenu}
+            onRemoveSelectedBurial={onRemoveSelectedBurial}
+            selectedBurialRefs={selectedBurialRefs}
+            selectedBurials={selectedBurials}
+            tourStyles={tourStyles}
+          />
+        )
+      )}
+
+      <BrowseResultsPanel
+        activeBurialId={activeBurialId}
+        batchSize={resultLimit}
+        browseResults={browseResults}
+        browseSource={browseSource}
+        isExpanded={isResultsExpanded}
+        isBrowsePending={isBrowsePending}
+        isCurrentTourLoading={isCurrentTourLoading}
+        isMobile={isMobile}
+        onBrowseResultSelect={handleBrowseResultSelect}
+        onResultLimitChange={setResultLimit}
+        onToggleExpanded={toggleResultsExpanded}
+        query={browseQuery}
+        resultLimit={resultLimit}
+        sectionFilter={sectionFilter}
+        selectedBurials={selectedBurials}
+        selectedTour={selectedTour}
+        tourStyles={tourStyles}
+      />
+    </Box>
+  );
+
+  // -- Desktop render --
+  if (!isMobile) {
+    return (
+      <Paper elevation={3} className={sidebarClassName}>
+        {headerContent}
+        <Divider />
         <Box
-          className={`left-sidebar__body ${isMobile ? "left-sidebar__body--mobile" : ""}`}
+          className="left-sidebar__body"
           sx={{ minHeight: 0, overflow: "auto", flex: 1 }}
         >
-          <Box sx={{ p: 1.5, display: "grid", gap: 1.5 }}>
-            {browseControlsPanel}
-
-            {activeBrowseChipsContent}
-
-            {selectedBurials.length > 0 && (
-              isMobile ? (
-                <SelectedSummaryPanel
-                  activeBurialId={activeBurialId}
-                  activeRouteBurialId={activeRouteBurialId}
-                  hoveredIndex={hoveredIndex}
-                  isExpanded={isSelectedSummaryExpanded}
-                  markerColors={markerColors}
-                  onClearSelectedBurials={onClearSelectedBurials}
-                  onFocusSelectedBurial={onFocusSelectedBurial}
-                  onHoverIndexChange={onHoverIndexChange}
-                  onOpenDirectionsMenu={onOpenDirectionsMenu}
-                  onRemoveSelectedBurial={onRemoveSelectedBurial}
-                  onToggleExpanded={toggleSelectedSummary}
-                  selectedBurialRefs={selectedBurialRefs}
-                  selectedBurials={selectedBurials}
-                  tourStyles={tourStyles}
-                />
-              ) : (
-                <SelectedPeoplePanel
-                  activeBurialId={activeBurialId}
-                  activeRouteBurialId={activeRouteBurialId}
-                  hoveredIndex={hoveredIndex}
-                  isMobile={isMobile}
-                  markerColors={markerColors}
-                  onClearSelectedBurials={onClearSelectedBurials}
-                  onFocusSelectedBurial={onFocusSelectedBurial}
-                  onHoverIndexChange={onHoverIndexChange}
-                  onOpenDirectionsMenu={onOpenDirectionsMenu}
-                  onRemoveSelectedBurial={onRemoveSelectedBurial}
-                  selectedBurialRefs={selectedBurialRefs}
-                  selectedBurials={selectedBurials}
-                  tourStyles={tourStyles}
-                />
-              )
-            )}
-
-            <BrowseResultsPanel
-              activeBurialId={activeBurialId}
-              browseResults={browseResults}
-              browseSourceChip={browseSourceChip}
-              browseSource={browseSource}
-              isExpanded={isResultsExpanded}
-              isBrowsePending={isBrowsePending}
-              isCurrentTourLoading={isCurrentTourLoading}
-              isMobile={isMobile}
-              onBrowseResultSelect={handleBrowseResultSelect}
-              onToggleExpanded={toggleResultsExpanded}
-              query={browseQuery}
-              sectionFilter={sectionFilter}
-              selectedBurials={selectedBurials}
-              selectedTour={selectedTour}
-              tourStyles={tourStyles}
-            />
-          </Box>
+          {bodyContent}
         </Box>
-      )}
-    </Paper>
+      </Paper>
+    );
+  }
+
+  // -- Mobile render: Apple Maps-style BottomSheet --
+  const mobileSheetHeader = (
+    <div className="left-sidebar__sheet-header">
+      {headerContent}
+    </div>
+  );
+
+  const mobileSheetBody = mobileSheetState === MOBILE_SHEET_STATES.COLLAPSED
+    ? null
+    : bodyContent;
+
+  return (
+    <BottomSheet
+      ref={sheetRef}
+      open
+      blocking={false}
+      scrollLocking={false}
+      skipInitialTransition
+      className="left-sidebar left-sidebar--mobile"
+      snapPoints={mobileSnapPoints}
+      defaultSnap={mobileDefaultSnap}
+      header={mobileSheetHeader}
+      expandOnContentDrag
+      onSpringEnd={handleSheetSpringEnd}
+    >
+      {mobileSheetBody}
+    </BottomSheet>
   );
 }
 

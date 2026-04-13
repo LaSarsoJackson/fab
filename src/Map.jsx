@@ -13,6 +13,7 @@
 
 // React and Core Dependencies
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import ReactDOM from "react-dom";
 
 // Leaflet and Map-related Dependencies
 import { MapContainer, Popup, Marker, GeoJSON, LayersControl, LayerGroup, useMap } from "react-leaflet";
@@ -33,7 +34,6 @@ import {
   IconButton,
   Box,
   Typography,
-  ButtonGroup,
   Menu,
   MenuItem,
   useMediaQuery,
@@ -60,7 +60,9 @@ import {
 } from "./lib/browseResults";
 import { buildDirectionsLink } from "./lib/navigationLinks";
 import { getPopupViewportPadding } from "./lib/popupViewport";
-import { buildTourLookup, harmonizeBurialBrowseResult } from "./lib/tourMetadata";
+import { shouldIgnoreSectionBackgroundSelection } from "./lib/sectionSelection";
+import { harmonizeBurialBrowseResult } from "./lib/tourMetadata";
+import { getRuntimeEnv } from "./lib/runtimeEnv";
 import { parseDeepLinkState } from "./lib/urlState";
 import {
   getGeoJsonBounds,
@@ -68,6 +70,7 @@ import {
   isLatLngBoundsExpressionValid,
 } from "./lib/geoJsonBounds";
 import { TOUR_DEFINITIONS } from "./lib/tourDefinitions";
+import { BOUNDARY_BBOX, LOCATION_BUFFER_BOUNDARY } from './lib/constants';
 
 //=============================================================================
 // Constants and Configuration
@@ -145,24 +148,73 @@ const roadStyle = {
   fillOpacity: 0.1
 };
 
+const DESKTOP_MAP_CONTROL_RIGHT = '12px';
+const DESKTOP_HOME_CONTROL_TOP = '60px';
+const DESKTOP_ZOOM_CONTROL_TOP = '110px';
 const MOBILE_MAP_CONTROL_RIGHT = 'calc(env(safe-area-inset-right, 0px) + 12px)';
-const MOBILE_ZOOM_CONTROL_TOP = 'calc(env(safe-area-inset-top, 0px) + 86px)';
-const MOBILE_DEFAULT_EXTENT_TOP = 'calc(env(safe-area-inset-top, 0px) + 156px)';
+const MOBILE_DEFAULT_EXTENT_TOP = 'calc(env(safe-area-inset-top, 0px) + 60px)';
 const ARCE_IMAGE_BASE_URL = 'https://www.albany.edu/arce/images';
 const DEV_IMAGE_SERVER_ORIGIN = (process.env.REACT_APP_DEV_IMAGE_SERVER_ORIGIN || '').trim().replace(/\/+$/, '');
 const DEFAULT_VIEW_BOUNDS = [
   [42.694180, -73.741980],
   [42.714180, -73.721980]
 ];
-const BOUNDARY_POLYGON = ARC_Boundary.features[0];
-const BOUNDARY_BBOX = turf.bbox(BOUNDARY_POLYGON);
 const PADDED_BOUNDARY_BOUNDS = [
   [BOUNDARY_BBOX[1] - 0.01, BOUNDARY_BBOX[0] - 0.01],
   [BOUNDARY_BBOX[3] + 0.01, BOUNDARY_BBOX[2] + 0.01]
 ];
-const LOCATION_BUFFER_BOUNDARY = turf.buffer(BOUNDARY_POLYGON, 8, { units: 'kilometers' });
 const SLOW_CONNECTION_TYPES = new Set(['slow-2g', '2g', '3g']);
 const NUMBERED_ICON_CACHE = new Map();
+const PMTILES_EXPERIMENT_STORAGE_KEY = 'fab:enablePmtilesExperiment';
+
+const getPublicAssetUrl = (path) => {
+  const base = process.env.PUBLIC_URL || '';
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${normalizedPath}`;
+};
+
+const mapControlShellSx = {
+  position: 'absolute',
+  zIndex: 1100,
+  borderRadius: '14px',
+  border: '1px solid rgba(18, 47, 40, 0.14)',
+  background: 'rgba(255, 255, 255, 0.9)',
+  boxShadow: '0 14px 30px rgba(16, 35, 31, 0.18)',
+  backdropFilter: 'blur(14px)',
+  WebkitBackdropFilter: 'blur(14px)',
+  overflow: 'hidden',
+};
+
+const mapControlButtonSx = {
+  width: 40,
+  height: 40,
+  borderRadius: 0,
+  color: 'var(--text-main)',
+};
+const CEMETERY_CLUSTER_GLYPH = `
+  <svg class="cemetery-cluster__glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+    <path
+      d="M10 27V12.5C10 8.91 12.91 6 16.5 6S23 8.91 23 12.5V27H25.5V29H7.5V27H10Z"
+      fill="#d97b2b"
+      fill-opacity="0.76"
+      stroke="rgba(102, 58, 18, 0.82)"
+      stroke-width="1.4"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M13.2 12.2H19.8"
+      stroke="rgba(255,255,255,0.75)"
+      stroke-width="1.4"
+      stroke-linecap="round"
+    />
+    <path
+      d="M16.5 9.4V15"
+      stroke="rgba(255,255,255,0.75)"
+      stroke-width="1.4"
+      stroke-linecap="round"
+    />
+  </svg>
+`;
 
 const isRenderableBounds = (bounds) => (
   isLatLngBoundsExpressionValid(bounds) ||
@@ -180,32 +232,28 @@ const isRenderableBounds = (bounds) => (
 function CustomZoomControl({ isMobile }) {
   const map = useMap();
 
+  if (isMobile) {
+    return null;
+  }
+
   return (
     <Paper
-      elevation={3}
+      elevation={0}
       sx={{
-        position: 'absolute',
-        top: isMobile
-          ? MOBILE_ZOOM_CONTROL_TOP
-          : '80px',
-        right: isMobile
-          ? MOBILE_MAP_CONTROL_RIGHT
-          : '10px',
-        zIndex: 1100,
+        ...mapControlShellSx,
+        top: DESKTOP_ZOOM_CONTROL_TOP,
+        right: DESKTOP_MAP_CONTROL_RIGHT,
       }}
     >
-      <ButtonGroup
-        orientation="vertical"
-        variant="contained"
-        size="small"
-      >
-        <IconButton onClick={() => map.zoomIn()} size="small">
-          <AddIcon />
+      <Box sx={{ display: 'grid' }}>
+        <IconButton onClick={() => map.zoomIn()} size="small" sx={mapControlButtonSx} title="Zoom in">
+          <AddIcon fontSize="small" />
         </IconButton>
-        <IconButton onClick={() => map.zoomOut()} size="small">
-          <RemoveIcon />
+        <Box sx={{ height: 1, backgroundColor: 'rgba(18, 47, 40, 0.1)' }} />
+        <IconButton onClick={() => map.zoomOut()} size="small" sx={mapControlButtonSx} title="Zoom out">
+          <RemoveIcon fontSize="small" />
         </IconButton>
-      </ButtonGroup>
+      </Box>
     </Paper>
   );
 }
@@ -260,6 +308,89 @@ function MapController() {
 }
 
 /**
+ * Optional PMTiles experiment for validating vector rendering in development.
+ * This stays off the main path so Leaflet clustering remains the default UX.
+ */
+function ExperimentalVectorBurialLayer({ burialRecordsByObjectId, onSelectBurial }) {
+  const map = useMap();
+  const layerRef = useRef(null);
+
+  useEffect(() => {
+    if (!map) return undefined;
+
+    let ignore = false;
+
+    const loadExperimentalLayer = async () => {
+      try {
+        const protomaps = await import("protomaps-leaflet");
+        if (ignore) return;
+
+        const layer = protomaps.leafletLayer({
+          url: getPublicAssetUrl("/data/geo_burials.pmtiles"),
+          pane: "overlayPane",
+          paintRules: [
+            {
+              dataLayer: "burials",
+              symbolizer: new protomaps.CircleSymbolizer({
+                radius: 3,
+                fill: "#125e4a",
+                opacity: 0.72,
+                stroke: "#ffffff",
+                width: 1,
+              }),
+            },
+          ],
+        });
+
+        layer.addTo(map);
+        layerRef.current = layer;
+      } catch (error) {
+        console.error("Failed to load PMTiles experiment:", error);
+      }
+    };
+
+    const handleMapClick = (event) => {
+      const layer = layerRef.current;
+      if (!layer?.queryTileFeaturesDebug) return;
+
+      const pickedFeatures = layer.queryTileFeaturesDebug(
+        event.latlng.lng,
+        event.latlng.lat,
+        12
+      ).get("") || [];
+
+      const pickedBurial = pickedFeatures.find((entry) => entry.layerName === "burials");
+      const objectId = String(
+        pickedBurial?.feature?.props?.OBJECTID ??
+        pickedBurial?.feature?.props?.objectid ??
+        ""
+      );
+
+      if (!objectId) return;
+
+      const burialRecord = burialRecordsByObjectId.get(objectId);
+      if (burialRecord) {
+        onSelectBurial(burialRecord);
+      }
+    };
+
+    void loadExperimentalLayer();
+    map.on("click", handleMapClick);
+
+    return () => {
+      ignore = true;
+      map.off("click", handleMapClick);
+      if (layerRef.current) {
+        layerRef.current.remove();
+        layerRef.current = null;
+      }
+    };
+  }, [burialRecordsByObjectId, map, onSelectBurial]);
+
+  return null;
+}
+
+/**
  * Button component that resets the map view to the default extent
  */
 function DefaultExtentButton({ isMobile }) {
@@ -271,20 +402,24 @@ function DefaultExtentButton({ isMobile }) {
 
   return (
     <Paper
-      elevation={3}
+      elevation={0}
       sx={{
-        position: 'absolute',
+        ...mapControlShellSx,
         top: isMobile
           ? MOBILE_DEFAULT_EXTENT_TOP
-          : '150px',
+          : DESKTOP_HOME_CONTROL_TOP,
         right: isMobile
           ? MOBILE_MAP_CONTROL_RIGHT
-          : '10px',
-        zIndex: 1100,
+          : DESKTOP_MAP_CONTROL_RIGHT,
       }}
     >
-      <IconButton onClick={handleClick} size="small" title="Return to Default Extent">
-        <HomeIcon />
+      <IconButton
+        onClick={handleClick}
+        size="small"
+        title="Return to Default Extent"
+        sx={mapControlButtonSx}
+      >
+        <HomeIcon fontSize="small" />
       </IconButton>
     </Paper>
   );
@@ -555,22 +690,6 @@ const cleanPopupValue = (value) => {
   return String(value).trim();
 };
 
-const escapeHtml = (value = "") => String(value)
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/"/g, "&quot;")
-  .replace(/'/g, "&#39;");
-
-const buildPopupActionIds = (browseId = "", prefix = "popup") => {
-  const safeId = String(browseId).replace(/[^a-zA-Z0-9_-]/g, "_");
-  return {
-    route: `${prefix}-route-${safeId}`,
-    external: `${prefix}-external-${safeId}`,
-    remove: `${prefix}-remove-${safeId}`,
-  };
-};
-
 const normalizeArcePageLink = (value = "") => {
   const normalized = cleanPopupValue(value);
   if (!normalized || /^(none|unknown)$/i.test(normalized)) {
@@ -717,94 +836,6 @@ const buildPopupViewModel = (record = {}) => {
   };
 };
 
-const buildLeafletPopupContent = (record = {}, actionIds) => {
-  const viewModel = buildPopupViewModel(record);
-  const rowsHtml = viewModel.rows
-    .map(({ label, value }) => (
-      `<div class="popup-card__row"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`
-    ))
-    .join("");
-  const imageHtml = viewModel.imageUrl
-    ? `
-      <div class="popup-card__media">
-        ${viewModel.imageHint ? `<p class="popup-card__hint">${escapeHtml(viewModel.imageHint)}</p>` : ""}
-        ${viewModel.biographyLink
-          ? `
-            <a class="popup-card__image-link" href="${escapeHtml(viewModel.biographyLink)}" target="_blank" rel="noopener noreferrer">
-              <img
-                class="popup-card__image"
-                src="${escapeHtml(viewModel.imageUrl)}"
-                alt="${escapeHtml(viewModel.imageAlt)}"
-                loading="lazy"
-                onerror="this.onerror=null; this.src='https://www.albany.edu/arce/images/no-image.jpg';"
-              />
-            </a>
-          `
-          : `
-            <img
-              class="popup-card__image"
-              src="${escapeHtml(viewModel.imageUrl)}"
-              alt="${escapeHtml(viewModel.imageAlt)}"
-              loading="lazy"
-              onerror="this.onerror=null; this.src='https://www.albany.edu/arce/images/no-image.jpg';"
-            />
-          `
-        }
-      </div>
-    `
-    : "";
-
-  return `
-    <div class="popup-card">
-      ${viewModel.sourceLabel ? `<p class="popup-card__eyebrow">${escapeHtml(viewModel.sourceLabel)}</p>` : ""}
-      <h3 class="popup-card__title">${escapeHtml(viewModel.heading)}</h3>
-      <dl class="popup-card__details">${rowsHtml}</dl>
-      ${imageHtml}
-      <div class="popup-card__actions">
-        <button id="${actionIds.route}" type="button" class="popup-card__action popup-card__action--primary">
-          Directions
-        </button>
-        <button id="${actionIds.remove}" type="button" class="popup-card__action popup-card__action--ghost">
-          Remove
-        </button>
-      </div>
-    </div>
-  `;
-};
-
-const stopLeafletPopupPropagation = (event) => {
-  if (!event) return;
-  if (typeof event.stopPropagation === "function") {
-    event.stopPropagation();
-  }
-  L.DomEvent.stopPropagation(event);
-};
-
-const bindLeafletPopupInteraction = (
-  element,
-  handler,
-  { preventDefault = true } = {}
-) => {
-  if (!element) return;
-
-  const stopPointerEvent = (event) => {
-    stopLeafletPopupPropagation(event);
-  };
-
-  element.onpointerdown = stopPointerEvent;
-  element.onmousedown = stopPointerEvent;
-  element.ontouchstart = stopPointerEvent;
-  element.onclick = (event) => {
-    if (preventDefault && typeof event.preventDefault === "function") {
-      event.preventDefault();
-    }
-    stopLeafletPopupPropagation(event);
-    if (handler) {
-      handler(event);
-    }
-  };
-};
-
 const keepLeafletPopupInView = (popup) => {
   const map = popup?._map;
   const mapContainer = map?.getContainer?.();
@@ -824,32 +855,162 @@ const keepLeafletPopupInView = (popup) => {
   }
 };
 
-const wireLeafletPopupInteractions = ({
-  popup,
-  actionIds,
+const scheduleLeafletPopupInView = (popup) => {
+  if (!popup) return;
+
+  if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+    keepLeafletPopupInView(popup);
+    return;
+  }
+
+  window.requestAnimationFrame(() => {
+    keepLeafletPopupInView(popup);
+  });
+};
+
+function PopupCardContent({
+  record,
+  onOpenDirectionsMenu,
+  onRemove,
+  getPopup,
+}) {
+  const popupView = buildPopupViewModel(record);
+  const popupKey = record?.id || createUniqueKey(record, 0);
+  const handlePopupLayoutChange = () => {
+    scheduleLeafletPopupInView(getPopup?.());
+  };
+
+  return (
+    <Box className="popup-card">
+      {popupView.sourceLabel && (
+        <Box component="p" className="popup-card__eyebrow">
+          {popupView.sourceLabel}
+        </Box>
+      )}
+      <Box component="h3" className="popup-card__title">
+        {popupView.heading}
+      </Box>
+      <Box component="dl" className="popup-card__details">
+        {popupView.rows.map(({ label, value }) => (
+          <Box key={`${popupKey}-${label}`} className="popup-card__row">
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </Box>
+        ))}
+      </Box>
+      {popupView.imageUrl && (
+        <Box className="popup-card__media">
+          {popupView.imageHint && (
+            <Box component="p" className="popup-card__hint">
+              {popupView.imageHint}
+            </Box>
+          )}
+          {popupView.biographyLink ? (
+            <a
+              className="popup-card__image-link"
+              href={popupView.biographyLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
+            >
+              <img
+                className="popup-card__image"
+                src={popupView.imageUrl}
+                alt={popupView.imageAlt}
+                loading="lazy"
+                onLoad={handlePopupLayoutChange}
+                onError={(event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = "https://www.albany.edu/arce/images/no-image.jpg";
+                  handlePopupLayoutChange();
+                }}
+              />
+            </a>
+          ) : (
+            <img
+              className="popup-card__image"
+              src={popupView.imageUrl}
+              alt={popupView.imageAlt}
+              loading="lazy"
+              onLoad={handlePopupLayoutChange}
+              onError={(event) => {
+                event.currentTarget.onerror = null;
+                event.currentTarget.src = "https://www.albany.edu/arce/images/no-image.jpg";
+                handlePopupLayoutChange();
+              }}
+            />
+          )}
+        </Box>
+      )}
+      <Box className="popup-card__actions">
+        <button
+          type="button"
+          className="popup-card__action popup-card__action--primary"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenDirectionsMenu?.(event);
+          }}
+        >
+          Directions
+        </button>
+        <button
+          type="button"
+          className="popup-card__action popup-card__action--ghost"
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove?.();
+          }}
+        >
+          Remove
+        </button>
+      </Box>
+    </Box>
+  );
+}
+
+const bindReactPopup = ({
+  layer,
+  record,
   onOpenDirectionsMenu,
   onRemove,
 }) => {
-  const popupElement = popup?.getElement?.();
-  if (!popupElement) return;
+  if (!layer || typeof document === "undefined") return;
 
-  L.DomEvent.disableClickPropagation(popupElement);
-  L.DomEvent.disableScrollPropagation(popupElement);
-  keepLeafletPopupInView(popup);
+  const popupContainer = document.createElement("div");
 
-  bindLeafletPopupInteraction(
-    popupElement.querySelector(".popup-card__image-link"),
-    null,
-    { preventDefault: false }
-  );
-  bindLeafletPopupInteraction(
-    popupElement.querySelector(`#${actionIds.route}`),
-    onOpenDirectionsMenu
-  );
-  bindLeafletPopupInteraction(
-    popupElement.querySelector(`#${actionIds.remove}`),
-    onRemove
-  );
+  layer.bindPopup(popupContainer, {
+    maxWidth: 300,
+    className: "custom-popup",
+  });
+
+  const renderPopup = () => {
+    ReactDOM.render(
+      (
+        <PopupCardContent
+          record={record}
+          onOpenDirectionsMenu={onOpenDirectionsMenu}
+          onRemove={onRemove}
+          getPopup={() => layer.getPopup?.()}
+        />
+      ),
+      popupContainer
+    );
+  };
+
+  const unmountPopup = () => {
+    if (popupContainer.hasChildNodes()) {
+      ReactDOM.unmountComponentAtNode(popupContainer);
+    }
+  };
+
+  layer.on("popupopen", ({ popup }) => {
+    renderPopup();
+    scheduleLeafletPopupInView(popup);
+  });
+  layer.on("popupclose", unmountPopup);
+  layer.on("remove", unmountPopup);
 };
 
 const buildSectionLotKey = (record = {}) => {
@@ -1028,15 +1189,6 @@ const harmonizeTourBrowseResult = (tourRecord, burialLookup) => {
   };
 };
 
-const createTourPopupContent = (browseResult) => {
-  const actionIds = buildPopupActionIds(browseResult.id, "tour-popup");
-
-  return {
-    content: buildLeafletPopupContent(browseResult, actionIds),
-    actionIds,
-  };
-};
-
 //=============================================================================
 // Data Structures
 //=============================================================================
@@ -1109,30 +1261,26 @@ const createOnEachTourFeature = (
     const browseResult = resolveTourBrowseResult
       ? resolveTourBrowseResult(baseBrowseResult)
       : baseBrowseResult;
-    const popupPayload = createTourPopupContent(browseResult);
-
-    layer.bindPopup(popupPayload.content, {
-      maxWidth: 300,
-      className: 'custom-popup'
+    bindReactPopup({
+      layer,
+      record: browseResult,
+      onOpenDirectionsMenu: (event) => {
+        onOpenDirectionsMenu(event, browseResult);
+      },
+      onRemove: () => {
+        onRemoveResult(browseResult.id);
+        layer.closePopup();
+      },
     });
     if (onRegisterLayer) {
       onRegisterLayer(browseResult, layer);
     }
-    layer.on('popupopen', ({ popup }) => {
-      wireLeafletPopupInteractions({
-        popup,
-        actionIds: popupPayload.actionIds,
-        onOpenDirectionsMenu: (event) => {
-          onOpenDirectionsMenu(event, browseResult);
-        },
-        onRemove: () => {
-          onRemoveResult(browseResult.id);
-          layer.closePopup();
-        },
-      });
-    });
     layer.on('click', () => {
-      onSelect(browseResult, { animate: false, openTourPopup: true });
+      onSelect(browseResult, {
+        animate: false,
+        openTourPopup: true,
+        preserveViewport: true,
+      });
     });
   }
 };
@@ -1151,6 +1299,7 @@ const createOnEachTourFeature = (
  * - Turn-by-turn navigation to burial sites
  */
 export default function BurialMap() {
+  const { isDev } = getRuntimeEnv();
   //-----------------------------------------------------------------------------
   // State Management
   //-----------------------------------------------------------------------------
@@ -1171,7 +1320,7 @@ export default function BurialMap() {
   const [lotTierFilter, setLotTierFilter] = useState('');
   const [filterType, setFilterType] = useState('lot');
   const [burialFeatures, setBurialFeatures] = useState([]);
-  const [tourMetadataRecords, setTourMetadataRecords] = useState([]);
+  const [tourMatches, setTourMatches] = useState({});
   const [isBurialDataLoading, setIsBurialDataLoading] = useState(true);
   const [burialDataError, setBurialDataError] = useState('');
   const [tourLayerError, setTourLayerError] = useState('');
@@ -1181,6 +1330,7 @@ export default function BurialMap() {
   const [installPromptEvent, setInstallPromptEvent] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
+  const [isPmtilesEnabled, setIsPmtilesEnabled] = useState(false);
 
   // Location and Routing State
   const [lat, setLat] = useState(null);
@@ -1201,12 +1351,15 @@ export default function BurialMap() {
   const sectionMarkersByIdRef = useRef(new Map());
   const activeSectionMarkerIdRef = useRef(null);
   const activeBurialIdRef = useRef(null);
+  const hoveredSectionIdRef = useRef(null);
   const sectionTooltipSyncFrameRef = useRef(null);
   const didApplyUrlStateRef = useRef(false);
   const loadedTourNamesRef = useRef(new Set());
   const loadingTourNamesRef = useRef(new Set());
   const selectedBurialRefs = useRef(new Map());
+  const selectedMarkerLayersRef = useRef(new Map());
   const tourFeatureLayersRef = useRef(new Map());
+  const pendingPopupBurialRef = useRef(null);
 
   //-----------------------------------------------------------------------------
   // Memoized Values
@@ -1290,22 +1443,42 @@ export default function BurialMap() {
     return true;
   }, [isMobile]);
 
-  const tourMetadataLookup = useMemo(
-    () => buildTourLookup(tourMetadataRecords),
-    [tourMetadataRecords]
-  );
+  useEffect(() => {
+    if (!isDev || typeof window === 'undefined') {
+      setIsPmtilesEnabled(false);
+      return;
+    }
+
+    const storedValue = window.localStorage.getItem(PMTILES_EXPERIMENT_STORAGE_KEY);
+    setIsPmtilesEnabled(storedValue === 'true');
+  }, [isDev]);
+
+  useEffect(() => {
+    if (!isDev || typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(
+      PMTILES_EXPERIMENT_STORAGE_KEY,
+      isPmtilesEnabled ? 'true' : 'false'
+    );
+  }, [isDev, isPmtilesEnabled]);
 
   const burialRecords = useMemo(() => (
-    burialFeatures.map((feature) => (
-      harmonizeBurialBrowseResult(
-        buildBurialBrowseResult(feature, { getTourName }),
-        tourMetadataLookup
-      )
-    ))
-  ), [burialFeatures, getTourName, tourMetadataLookup]);
+    burialFeatures.map((feature) => {
+      const baseRecord = buildBurialBrowseResult(feature, { getTourName });
+      return harmonizeBurialBrowseResult(baseRecord, tourMatches);
+    })
+  ), [burialFeatures, getTourName, tourMatches]);
 
   const burialRecordsById = useMemo(
     () => new Map(burialRecords.map((record) => [record.id, record])),
+    [burialRecords]
+  );
+  const burialRecordsByObjectId = useMemo(
+    () => new Map(
+      burialRecords.map((record) => [String(record.OBJECTID), record])
+    ),
     [burialRecords]
   );
 
@@ -1449,14 +1622,36 @@ export default function BurialMap() {
     setWatchId(id);
   }, [handleLocationError, requestCurrentLocation, updateLocationFromPosition, watchId]);
 
-  const focusTourLayerPopup = useCallback((burial, map) => {
-    if (!burial || burial.source !== "tour") return;
+  const getPopupLayerForBurial = useCallback((burial) => {
+    if (!burial) return null;
 
-    const layer = tourFeatureLayersRef.current.get(burial.id);
-    if (!layer?.openPopup) return;
+    if (burial.source === "tour") {
+      return tourFeatureLayersRef.current.get(burial.id) || null;
+    }
+
+    return selectedMarkerLayersRef.current.get(burial.id) || null;
+  }, []);
+
+  const openPopupForBurial = useCallback((burial) => {
+    const layer = getPopupLayerForBurial(burial);
+    if (!layer?.openPopup) {
+      return false;
+    }
+
+    layer.openPopup();
+    scheduleLeafletPopupInView(layer.getPopup?.());
+    return true;
+  }, [getPopupLayerForBurial]);
+
+  const focusBurialPopup = useCallback((burial, map) => {
+    if (!burial) return;
 
     const openPopup = () => {
-      layer.openPopup();
+      if (!openPopupForBurial(burial)) {
+        pendingPopupBurialRef.current = burial;
+      } else {
+        pendingPopupBurialRef.current = null;
+      }
     };
 
     if (map) {
@@ -1465,7 +1660,7 @@ export default function BurialMap() {
     }
 
     openPopup();
-  }, []);
+  }, [openPopupForBurial]);
 
   /**
    * Focuses a burial consistently regardless of whether it was found by search or map click.
@@ -1476,6 +1671,7 @@ export default function BurialMap() {
       addToSelection = false,
       animate = true,
       openTourPopup = true,
+      preserveViewport = false,
     } = {}
   ) => {
     if (!burial) return;
@@ -1493,30 +1689,38 @@ export default function BurialMap() {
     if (window.mapInstance && Array.isArray(burial.coordinates)) {
       const map = window.mapInstance;
       const targetLatLng = L.latLng(burial.coordinates[1], burial.coordinates[0]);
+
+      if (preserveViewport) {
+        if (openTourPopup) {
+          focusBurialPopup(burial);
+        }
+        return;
+      }
+
       const targetZoom = Math.max(map.getZoom(), ZOOM_LEVEL);
       const currentCenter = map.getCenter();
       const distance = map.distance(currentCenter, targetLatLng);
       const shouldAnimate = animate && distance > 24;
 
-      map.stop();
-
       if (!shouldAnimate) {
         map.setView(targetLatLng, targetZoom, { animate: false });
         if (openTourPopup) {
-          focusTourLayerPopup(burial);
+          focusBurialPopup(burial);
         }
         return;
       }
 
+      map.stop();
+
       if (openTourPopup) {
-        focusTourLayerPopup(burial, map);
+        focusBurialPopup(burial, map);
       }
 
       map.flyTo(
         targetLatLng,
         targetZoom,
         {
-          duration: 0.65,
+          duration: 0.5,
           easeLinearity: 0.2,
         }
       );
@@ -1524,9 +1728,9 @@ export default function BurialMap() {
     }
 
     if (openTourPopup) {
-      focusTourLayerPopup(burial);
+      focusBurialPopup(burial);
     }
-  }, [focusTourLayerPopup]);
+  }, [focusBurialPopup]);
 
   const selectBurial = useCallback((burial, options = {}) => {
     focusBurial(burial, { addToSelection: true, ...options });
@@ -1571,6 +1775,10 @@ export default function BurialMap() {
     setAppMenuAnchorEl(null);
   }, []);
 
+  const handleTogglePmtilesExperiment = useCallback(() => {
+    setIsPmtilesEnabled((current) => !current);
+  }, []);
+
   const handleInstallApp = useCallback(async () => {
     if (!installPromptEvent) return;
     installPromptEvent.prompt();
@@ -1578,9 +1786,10 @@ export default function BurialMap() {
     setInstallPromptEvent(null);
   }, [installPromptEvent]);
 
-  const handleOpenDirectionsMenu = useCallback((event, burial) => {
-    event.stopPropagation();
-    setDirectionsMenuAnchorEl(event.currentTarget);
+  const handleOpenDirectionsMenu = useCallback((anchorOrEvent, burial) => {
+    anchorOrEvent?.stopPropagation?.();
+    const anchorEl = anchorOrEvent?.currentTarget || anchorOrEvent || null;
+    setDirectionsMenuAnchorEl(anchorEl);
     setDirectionsMenuBurial(burial);
   }, []);
 
@@ -1600,7 +1809,11 @@ export default function BurialMap() {
    * Handles clicking on a marker
    */
   const handleMarkerClick = useCallback((burial) => {
-    selectBurial(burial);
+    selectBurial(burial, {
+      animate: false,
+      openTourPopup: true,
+      preserveViewport: true,
+    });
   }, [selectBurial]);
 
   /**
@@ -1618,20 +1831,15 @@ export default function BurialMap() {
       iconCreateFunction: (cluster) => {
         const count = cluster.getChildCount();
         return L.divIcon({
-          html: `<div style="
-            background-color: rgba(0,123,255,0.6);
-            border: none;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 14px;
-          ">${count}</div>`,
+          html: `
+            <div class="cemetery-cluster">
+              ${CEMETERY_CLUSTER_GLYPH}
+              <span class="cemetery-cluster__count">${count > 99 ? '99+' : count}</span>
+            </div>
+          `,
           className: 'custom-cluster-icon',
-          iconSize: [30, 30]
+          iconSize: [34, 34],
+          iconAnchor: [17, 17],
         });
       }
     });
@@ -1666,8 +1874,11 @@ export default function BurialMap() {
 
     const zoom = window.mapInstance.getZoom();
     sectionFeatureLayersRef.current.forEach(({ layer, tooltip, sectionValue, label }) => {
+      const isHovered = hoveredSectionIdRef.current === String(sectionValue);
       const shouldShowTooltip =
-        zoom >= ZOOM_LEVELS.SECTION || `${sectionValue}` === `${sectionFilter}`;
+        isHovered ||
+        zoom >= ZOOM_LEVELS.SECTION ||
+        `${sectionValue}` === `${sectionFilter}`;
 
       if (shouldShowTooltip) {
         tooltip.setContent(label);
@@ -1678,8 +1889,15 @@ export default function BurialMap() {
         return;
       }
 
+      if (typeof layer.closeTooltip === 'function') {
+        layer.closeTooltip();
+      }
       if (layer.getTooltip()) {
         layer.unbindTooltip();
+      }
+      // Ensure the tooltip DOM element is removed for permanent tooltips
+      if (tooltip && tooltip._container && tooltip._container.parentNode) {
+        tooltip._container.parentNode.removeChild(tooltip._container);
       }
     });
   }, [sectionFilter]);
@@ -1699,6 +1917,22 @@ export default function BurialMap() {
       syncSectionTooltips();
     });
   }, [syncSectionTooltips]);
+
+  const clearHoveredSection = useCallback(() => {
+    const hoveredSectionId = hoveredSectionIdRef.current;
+    if (!hoveredSectionId) return;
+
+    hoveredSectionIdRef.current = null;
+
+    const hoveredSection = sectionFeatureLayersRef.current.get(String(hoveredSectionId));
+    if (hoveredSection?.layer) {
+      hoveredSection.layer.setStyle({
+        weight: `${hoveredSection.sectionValue}` === `${sectionFilter}` ? 2 : 1,
+      });
+    }
+
+    scheduleSectionTooltipSync();
+  }, [scheduleSectionTooltipSync, sectionFilter]);
 
   //=============================================================================
   // Routing Functions
@@ -1778,7 +2012,7 @@ export default function BurialMap() {
   //-----------------------------------------------------------------------------
 
   /**
-   * Load the largest burial dataset asynchronously so the app shell renders first.
+   * Load the lightweight burial search index asynchronously.
    */
   useEffect(() => {
     let ignore = false;
@@ -1787,9 +2021,31 @@ export default function BurialMap() {
       setIsBurialDataLoading(true);
       setBurialDataError('');
       try {
-        const module = await import('./data/Geo_Burials.json');
+        // Fetch the lightweight search index from public directory
+        const response = await fetch(getPublicAssetUrl('/data/Search_Burials.json'));
+        if (!response.ok) throw new Error('Failed to fetch search index');
+        const minifiedData = await response.json();
+
         if (!ignore) {
-          setBurialFeatures(module.default.features || []);
+          // Remap minified keys to full property names for app compatibility
+          const features = minifiedData.map(item => ({
+            id: item.i,
+            properties: {
+              OBJECTID: item.i,
+              First_Name: item.f,
+              Last_Name: item.l,
+              Section: item.s,
+              Lot: item.lo,
+              Grave: item.g,
+              Tier: item.t,
+              Birth: item.b,
+              Death: item.d,
+              tourKey: item.tk,
+              title: item.tk
+            },
+            geometry: item.c ? { type: 'Point', coordinates: item.c } : null
+          }));
+          setBurialFeatures(features);
         }
       } catch (error) {
         console.error('Failed to load burial data:', error);
@@ -1815,20 +2071,9 @@ export default function BurialMap() {
 
     const loadTourMetadata = async () => {
       try {
-        const loadedRecords = await Promise.all(
-          TOUR_DEFINITIONS.map(async (definition) => {
-            const module = await definition.load();
-            return (module.default.features || []).map((feature) => (
-              buildTourBrowseResult(feature, {
-                tourKey: definition.key,
-                tourName: definition.name,
-              })
-            ));
-          })
-        );
-
+        const module = await import('./data/TourMatches.json');
         if (!cancelled) {
-          setTourMetadataRecords(loadedRecords.flat());
+          setTourMatches(module.default || module);
         }
       } catch (error) {
         console.error("Failed to load tour metadata:", error);
@@ -1857,7 +2102,6 @@ export default function BurialMap() {
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event) => {
-      event.preventDefault();
       setInstallPromptEvent(event);
     };
 
@@ -1981,27 +2225,22 @@ export default function BurialMap() {
         [burial.coordinates[1], burial.coordinates[0]],
         getSectionMarkerStyle(activeBurialIdRef.current === burial.id)
       );
-      const actionIds = buildPopupActionIds(burial.id || createUniqueKey(burial, 0), "section-popup");
-      const popupContent = buildLeafletPopupContent(burial, actionIds);
-
-      marker.bindPopup(popupContent, {
-        maxWidth: 300,
-        className: 'custom-popup'
+      bindReactPopup({
+        layer: marker,
+        record: burial,
+        onOpenDirectionsMenu: (event) => {
+          handleOpenDirectionsMenu(event, burial);
+        },
+        onRemove: () => {
+          removeFromResults(burial.id);
+          marker.closePopup();
+        },
       });
       marker.on('click', () => {
-        selectBurial(burial);
-      });
-      marker.on('popupopen', ({ popup }) => {
-        wireLeafletPopupInteractions({
-          popup,
-          actionIds,
-          onOpenDirectionsMenu: (event) => {
-            handleOpenDirectionsMenu(event, burial);
-          },
-          onRemove: () => {
-            removeFromResults(burial.id);
-            marker.closePopup();
-          },
+        selectBurial(burial, {
+          animate: false,
+          openTourPopup: true,
+          preserveViewport: true,
         });
       });
 
@@ -2040,6 +2279,15 @@ export default function BurialMap() {
     syncActiveSectionMarker(activeBurialId);
   }, [activeBurialId, syncActiveSectionMarker]);
 
+  useEffect(() => {
+    const pendingBurial = pendingPopupBurialRef.current;
+    if (!pendingBurial) return;
+
+    if (openPopupForBurial(pendingBurial)) {
+      pendingPopupBurialRef.current = null;
+    }
+  }, [activeBurialId, openPopupForBurial, selectedBurials, selectedTour]);
+
   /**
    * Handle map zoom changes
    */
@@ -2068,6 +2316,30 @@ export default function BurialMap() {
       }
     };
   }, [currentZoom, scheduleSectionTooltipSync, sectionFilter]);
+
+  useEffect(() => {
+    if (!window.mapInstance) return undefined;
+
+    const map = window.mapInstance;
+    const container = typeof map.getContainer === 'function' ? map.getContainer() : null;
+    const handleInterruptedSectionHover = () => {
+      clearHoveredSection();
+    };
+
+    map.on('movestart', handleInterruptedSectionHover);
+    map.on('zoomstart', handleInterruptedSectionHover);
+    container?.addEventListener('pointerleave', handleInterruptedSectionHover);
+    container?.addEventListener('mouseleave', handleInterruptedSectionHover);
+    window.addEventListener('blur', handleInterruptedSectionHover);
+
+    return () => {
+      map.off('movestart', handleInterruptedSectionHover);
+      map.off('zoomstart', handleInterruptedSectionHover);
+      container?.removeEventListener('pointerleave', handleInterruptedSectionHover);
+      container?.removeEventListener('mouseleave', handleInterruptedSectionHover);
+      window.removeEventListener('blur', handleInterruptedSectionHover);
+    };
+  }, [clearHoveredSection]);
 
   const resetMapToDefaultBounds = useCallback(() => {
     if (!window.mapInstance) return;
@@ -2191,7 +2463,6 @@ export default function BurialMap() {
 
     const sectionValue = feature.properties.Section;
     const tooltip = L.tooltip({
-      permanent: true,
       direction: 'center',
       className: 'section-label'
     });
@@ -2206,48 +2477,55 @@ export default function BurialMap() {
 
     layer.on({
       click: (event) => {
+        if (shouldIgnoreSectionBackgroundSelection({
+          clickedSection: sectionValue,
+          activeSection: sectionFilter,
+        })) {
+          L.DomEvent.stopPropagation(event);
+          return;
+        }
+
         activateSectionBrowse(sectionValue, layer.getBounds());
         L.DomEvent.stopPropagation(event);
       },
       mouseover: () => {
+        hoveredSectionIdRef.current = String(sectionValue);
         layer.setStyle({ weight: 6 });
-        const zoom = window.mapInstance ? window.mapInstance.getZoom() : 0;
-
-        if (`${sectionValue}` !== `${sectionFilter}` && zoom < ZOOM_LEVELS.SECTION) {
-          tooltip.setContent(label);
-          if (!layer.getTooltip()) {
-            layer.bindTooltip(tooltip);
-          }
-          layer.openTooltip();
+        tooltip.setContent(label);
+        if (!layer.getTooltip()) {
+          layer.bindTooltip(tooltip);
         }
+        layer.openTooltip();
+        scheduleSectionTooltipSync();
       },
       mouseout: () => {
+        clearHoveredSection();
         layer.setStyle({ weight: `${sectionValue}` === `${sectionFilter}` ? 2 : 1 });
-        const zoom = window.mapInstance ? window.mapInstance.getZoom() : 0;
-
-        if (`${sectionValue}` !== `${sectionFilter}` && zoom < ZOOM_LEVELS.SECTION && layer.getTooltip()) {
+      },
+      add: () => {
+        if (typeof layer.closeTooltip === 'function') {
+          layer.closeTooltip();
+        }
+        if (layer.getTooltip()) {
           layer.unbindTooltip();
         }
+        scheduleSectionTooltipSync();
       },
-      add: scheduleSectionTooltipSync,
       remove: () => {
+        if (hoveredSectionIdRef.current === String(sectionValue)) {
+          hoveredSectionIdRef.current = null;
+        }
+        if (typeof layer.closeTooltip === 'function') {
+          layer.closeTooltip();
+        }
+        if (layer.getTooltip()) {
+          layer.unbindTooltip();
+        }
         sectionFeatureLayersRef.current.delete(String(sectionValue));
+        scheduleSectionTooltipSync();
       },
     });
-  }, [activateSectionBrowse, scheduleSectionTooltipSync, sectionFilter]);
-
-  const onEachSection = useCallback((feature, layer) => {
-    if (feature.properties && feature.properties.Section) {
-      layer.on('mouseover', () => {
-        layer.setStyle({ weight: 6 });
-      });
-      layer.on('mouseout', () => {
-        layer.setStyle({ weight: 2 });
-      });
-      const list = `<dl><dt><b>Section ${feature.properties.Section}</b></dt></dl>`;
-      layer.bindPopup(list);
-    }
-  }, []);
+  }, [activateSectionBrowse, clearHoveredSection, scheduleSectionTooltipSync, sectionFilter]);
 
   const ensureTourLayerLoaded = useCallback(async (tourName) => {
     if (!tourName) return;
@@ -2336,7 +2614,7 @@ export default function BurialMap() {
       const baseLayers = {
         boundary: L.geoJSON(ARC_Boundary, { style: exteriorStyle }),
         roads: L.geoJSON(ARC_Roads, { style: roadStyle }),
-        sections: L.geoJSON(ARC_Sections, { onEachFeature: onEachSection })
+        sections: L.geoJSON(ARC_Sections, { onEachFeature: onEachSectionFeature })
       };
 
       setOverlayMaps({
@@ -2347,7 +2625,7 @@ export default function BurialMap() {
     } catch (error) {
       console.error('Error loading base GeoJSON data:', error);
     }
-  }, [onEachSection]);
+  }, [onEachSectionFeature]);
 
   /**
    * Load the selected tour layer on demand.
@@ -2456,6 +2734,16 @@ export default function BurialMap() {
         open={appMenuOpen}
         onClose={handleCloseAppMenu}
       >
+        {isDev && (
+          <MenuItem
+            onClick={() => {
+              handleCloseAppMenu();
+              handleTogglePmtilesExperiment();
+            }}
+          >
+            {isPmtilesEnabled ? 'Disable PMTiles experiment' : 'Enable PMTiles experiment'}
+          </MenuItem>
+        )}
         {isInstalled && <MenuItem disabled>App installed on this device</MenuItem>}
         {!isInstalled && installPromptEvent && (
           <MenuItem
@@ -2522,6 +2810,12 @@ export default function BurialMap() {
         preferCanvas
       >
         <CustomZoomControl isMobile={isMobile} />
+        {isDev && isPmtilesEnabled && (
+          <ExperimentalVectorBurialLayer
+            burialRecordsByObjectId={burialRecordsByObjectId}
+            onSelectBurial={selectBurial}
+          />
+        )}
         <DefaultExtentButton isMobile={isMobile} />
         <MapBounds />
         <MapController />
@@ -2572,6 +2866,13 @@ export default function BurialMap() {
           {selectedBurials.map((burial, index) => (
             <Marker
               key={createUniqueKey(burial, index)}
+              ref={(layer) => {
+                if (layer) {
+                  selectedMarkerLayersRef.current.set(burial.id, layer);
+                } else {
+                  selectedMarkerLayersRef.current.delete(burial.id);
+                }
+              }}
               position={[burial.coordinates[1], burial.coordinates[0]]}
               icon={createNumberedIcon(
                 index + 1,
@@ -2580,97 +2881,23 @@ export default function BurialMap() {
               eventHandlers={{
                 mouseover: () => setHoveredIndex(index),
                 mouseout: () => setHoveredIndex(null),
-                click: () => handleMarkerClick(burial)
+                click: () => handleMarkerClick(burial),
+                popupopen: ({ popup }) => {
+                  scheduleLeafletPopupInView(popup);
+                },
               }}
               zIndexOffset={1000}
             >
               {burial.source !== "tour" && (
                 <Popup>
-                  {(() => {
-                    const popupView = buildPopupViewModel(burial);
-
-                    return (
-                      <Box className="popup-card">
-                        {popupView.sourceLabel && (
-                          <Box component="p" className="popup-card__eyebrow">
-                            {popupView.sourceLabel}
-                          </Box>
-                        )}
-                        <Box component="h3" className="popup-card__title">
-                          {popupView.heading}
-                        </Box>
-                        <Box component="dl" className="popup-card__details">
-                          {popupView.rows.map(({ label, value }) => (
-                            <Box key={`${burial.id}-${label}`} className="popup-card__row">
-                              <dt>{label}</dt>
-                              <dd>{value}</dd>
-                            </Box>
-                          ))}
-                        </Box>
-                        {popupView.imageUrl && (
-                          <Box className="popup-card__media">
-                            {popupView.imageHint && (
-                              <Box component="p" className="popup-card__hint">
-                                {popupView.imageHint}
-                              </Box>
-                            )}
-                            {popupView.biographyLink ? (
-                              <a
-                                className="popup-card__image-link"
-                                href={popupView.biographyLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                }}
-                              >
-                                <img
-                                  className="popup-card__image"
-                                  src={popupView.imageUrl}
-                                  alt={popupView.imageAlt}
-                                  loading="lazy"
-                                  onError={(event) => {
-                                    event.currentTarget.onerror = null;
-                                    event.currentTarget.src = "https://www.albany.edu/arce/images/no-image.jpg";
-                                  }}
-                                />
-                              </a>
-                            ) : (
-                              <img
-                                className="popup-card__image"
-                                src={popupView.imageUrl}
-                                alt={popupView.imageAlt}
-                                loading="lazy"
-                                onError={(event) => {
-                                  event.currentTarget.onerror = null;
-                                  event.currentTarget.src = "https://www.albany.edu/arce/images/no-image.jpg";
-                                }}
-                              />
-                            )}
-                          </Box>
-                        )}
-                        <Box className="popup-card__actions">
-                          <button
-                            type="button"
-                            className="popup-card__action popup-card__action--primary"
-                            onClick={(event) => handleOpenDirectionsMenu(event, burial)}
-                          >
-                            Directions
-                          </button>
-                          <button
-                            type="button"
-                            className="popup-card__action popup-card__action--ghost"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              removeFromResults(burial.id);
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </Box>
-                      </Box>
-                    );
-                  })()}
+                  <PopupCardContent
+                    record={burial}
+                    onOpenDirectionsMenu={(event) => handleOpenDirectionsMenu(event, burial)}
+                    onRemove={() => {
+                      removeFromResults(burial.id);
+                    }}
+                    getPopup={() => selectedMarkerLayersRef.current.get(burial.id)?.getPopup?.()}
+                  />
                 </Popup>
               )}
             </Marker>

@@ -166,11 +166,13 @@ describe("BurialSidebar", () => {
     renderSidebar({ isMobile: true });
 
     expect(screen.queryByText("Browse")).not.toBeInTheDocument();
+    expect(screen.queryByText("Find people, graves, sections, and tour stops.")).not.toBeInTheDocument();
 
     const input = screen.getByPlaceholderText(/Search all burial records/i);
     fireEvent.focus(input);
 
     expect(screen.getByText("Browse")).toBeInTheDocument();
+    expect(screen.getByText("Find people, graves, sections, and tour stops.")).toBeInTheDocument();
 
     fireEvent.change(input, { target: { value: "anna" } });
     flushBrowseTimers();
@@ -328,5 +330,27 @@ describe("BurialSidebar", () => {
     fireEvent.click(screen.getByText("Clear"));
 
     expect(onClearSelectedBurials).toHaveBeenCalled();
+  });
+
+  domTest("defaults the results selector to 10 and removes always-on status pills", () => {
+    renderSidebar({ sectionFilter: "99", showAllBurials: true });
+
+    flushBrowseTimers();
+
+    expect(screen.getByText("10 results")).toBeInTheDocument();
+    expect(screen.queryByText("Online")).not.toBeInTheDocument();
+    expect(screen.queryByText("Records ready")).not.toBeInTheDocument();
+  });
+
+  domTest("shows contextual offline and location notices in the search shell", () => {
+    renderSidebar({
+      isOnline: false,
+      status: "Location active",
+    });
+
+    flushBrowseTimers();
+
+    expect(screen.getByText("Using your current location for directions.")).toBeInTheDocument();
+    expect(screen.getByText("Offline. Search stays available, but live links may be limited.")).toBeInTheDocument();
   });
 });
