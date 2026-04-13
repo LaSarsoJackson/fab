@@ -3,6 +3,31 @@
 import React from "react";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
+
+const mockBottomSheetState = { lastProps: null };
+
+jest.mock("react-spring-bottom-sheet", () => {
+  const React = require("react");
+
+  return {
+    BottomSheet: React.forwardRef(function MockBottomSheet(props, ref) {
+      mockBottomSheetState.lastProps = props;
+
+      React.useImperativeHandle(ref, () => ({
+        height: 0,
+        snapTo: jest.fn(),
+      }), []);
+
+      return (
+        <div data-testid="mock-bottom-sheet">
+          <div data-testid="mock-bottom-sheet-header">{props.header}</div>
+          <div data-testid="mock-bottom-sheet-body">{props.children}</div>
+        </div>
+      );
+    }),
+  };
+});
+
 import BurialSidebar from "./BurialSidebar";
 import { buildSearchIndex } from "./lib/burialSearch";
 import { buildBurialBrowseResult } from "./lib/browseResults";
@@ -110,11 +135,32 @@ const flushBrowseTimers = () => {
   });
 };
 
+const getCurrentMobileSheetSnap = (maxHeight = 1000) => {
+  const { defaultSnap, snapPoints } = mockBottomSheetState.lastProps;
+  const resolvedSnapPoints = snapPoints({ maxHeight });
+  return defaultSnap({ maxHeight, snapPoints: resolvedSnapPoints });
+};
+
 const renderSidebar = (props = {}) => render(<BurialSidebar {...createBaseProps()} {...props} />);
 
 describe("BurialSidebar", () => {
   beforeEach(() => {
     jest.useFakeTimers();
+    mockBottomSheetState.lastProps = null;
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: jest.fn().mockImplementation((query) => ({
+        matches: query === "(prefers-reduced-motion: reduce)" ? false : false,
+        media: query,
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+      })),
+    });
   });
 
   afterEach(() => {
@@ -122,6 +168,7 @@ describe("BurialSidebar", () => {
       jest.runOnlyPendingTimers();
     });
     jest.useRealTimers();
+    mockBottomSheetState.lastProps = null;
     jest.clearAllMocks();
   });
 
@@ -162,17 +209,14 @@ describe("BurialSidebar", () => {
     );
   });
 
-  domTest("expands the mobile sheet on focus and supports query chip clearing", () => {
+  domTest("supports mobile query entry and query chip clearing without forcing drawer expansion", () => {
     renderSidebar({ isMobile: true });
-
-    expect(screen.queryByText("Browse")).not.toBeInTheDocument();
-    expect(screen.queryByText("Find people, graves, sections, and tour stops.")).not.toBeInTheDocument();
-
-    const input = screen.getByPlaceholderText(/Search all burial records/i);
-    fireEvent.focus(input);
 
     expect(screen.getByText("Browse")).toBeInTheDocument();
     expect(screen.getByText("Find people, graves, sections, and tour stops.")).toBeInTheDocument();
+
+    const input = screen.getByPlaceholderText(/Search all burial records/i);
+    fireEvent.focus(input);
 
     fireEvent.change(input, { target: { value: "anna" } });
     flushBrowseTimers();
@@ -184,6 +228,50 @@ describe("BurialSidebar", () => {
     fireEvent.click(screen.getByTestId("clear-query-chip"));
 
     expect(input).toHaveValue("");
+  });
+
+  domTest("keeps the mobile drawer collapsed when a point selection arrives without browse context", () => {
+    const rerenderProps = createBaseProps();
+    const { rerender } = renderSidebar({ isMobile: true });
+
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(220);
+
+    rerender(
+      <BurialSidebar
+        {...rerenderProps}
+        isMobile
+        activeBurialId={burialRecords[0].id}
+        selectedBurials={[burialRecords[0]]}
+      />
+    );
+
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(220);
+  });
+
+  domTest("keeps the mobile drawer at peek when a browse result is selected", () => {
+    const onBrowseResultSelect = jest.fn();
+
+    renderSidebar({
+      isMobile: true,
+      onBrowseResultSelect,
+      sectionFilter: "99",
+      showAllBurials: true,
+    });
+
+    flushBrowseTimers();
+
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
+
+    fireEvent.click(screen.getByText("Anna Tracy"));
+
+    expect(onBrowseResultSelect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        displayName: "Anna Tracy",
+        Section: "99",
+        Lot: "18",
+      })
+    );
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
   });
 
   domTest("clears active browse chips through shared callbacks", () => {
@@ -327,9 +415,31 @@ describe("BurialSidebar", () => {
     expect(screen.queryByText("Directions")).not.toBeInTheDocument();
     expect(screen.getByText("Results")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("Clear"));
+    fireEvent.click(within(selectedSummary).getByRole("button", { name: "Clear" }));
 
     expect(onClearSelectedBurials).toHaveBeenCalled();
+  });
+
+  domTest("shows the mobile drawer content immediately when the layout switches to mobile", () => {
+    const rerenderProps = createBaseProps();
+    const { rerender } = renderSidebar({
+      activeBurialId: burialRecords[0].id,
+      selectedBurials: [burialRecords[0]],
+    });
+
+    rerender(
+      <BurialSidebar
+        {...rerenderProps}
+        isMobile
+        activeBurialId={burialRecords[0].id}
+        selectedBurials={[burialRecords[0]]}
+      />
+    );
+
+    expect(screen.getByText("Selected People")).toBeInTheDocument();
+    expect(screen.getByText("Directions")).toBeInTheDocument();
+
+    flushBrowseTimers();
   });
 
   domTest("defaults the results selector to 10 and removes always-on status pills", () => {

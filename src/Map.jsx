@@ -12,7 +12,7 @@
 //=============================================================================
 
 // React and Core Dependencies
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from "react";
 import ReactDOM from "react-dom";
 
 // Leaflet and Map-related Dependencies
@@ -273,7 +273,7 @@ function MapBounds() {
 
     // Initial fit to bounds
     map.whenReady(() => {
-      map.fitBounds(PADDED_BOUNDARY_BOUNDS);
+      fitMapBoundsInVisibleViewport(map, PADDED_BOUNDARY_BOUNDS);
     });
   }, [map]);
 
@@ -397,7 +397,7 @@ function DefaultExtentButton({ isMobile }) {
   const map = useMap();
 
   const handleClick = () => {
-    map.fitBounds(DEFAULT_VIEW_BOUNDS);
+    fitMapBoundsInVisibleViewport(map, DEFAULT_VIEW_BOUNDS);
   };
 
   return (
@@ -836,35 +836,92 @@ const buildPopupViewModel = (record = {}) => {
   };
 };
 
-const keepLeafletPopupInView = (popup) => {
-  const map = popup?._map;
+const getLeafletViewportPadding = (map, { basePadding = 16 } = {}) => {
   const mapContainer = map?.getContainer?.();
-  if (!map || !mapContainer || typeof document === "undefined") return;
+  if (!mapContainer || typeof document === "undefined") {
+    return {
+      paddingTopLeft: L.point(basePadding, basePadding),
+      paddingBottomRight: L.point(basePadding, basePadding),
+    };
+  }
 
   const sidebar = document.querySelector(".left-sidebar");
   const { topLeft, bottomRight } = getPopupViewportPadding({
     containerRect: mapContainer.getBoundingClientRect(),
     overlayRect: sidebar?.getBoundingClientRect?.(),
+    basePadding,
   });
 
-  popup.options.autoPanPaddingTopLeft = L.point(topLeft[0], topLeft[1]);
-  popup.options.autoPanPaddingBottomRight = L.point(bottomRight[0], bottomRight[1]);
+  return {
+    paddingTopLeft: L.point(topLeft[0], topLeft[1]),
+    paddingBottomRight: L.point(bottomRight[0], bottomRight[1]),
+  };
+};
+
+const fitMapBoundsInVisibleViewport = (map, bounds, options = {}) => {
+  if (!map || !bounds) return;
+
+  const { paddingTopLeft, paddingBottomRight } = getLeafletViewportPadding(map, {
+    basePadding: 24,
+  });
+
+  map.fitBounds(bounds, {
+    ...options,
+    paddingTopLeft,
+    paddingBottomRight,
+  });
+};
+
+const panMapIntoVisibleViewport = (map, latLng, options = {}) => {
+  if (!map || !latLng) return;
+
+  const { paddingTopLeft, paddingBottomRight } = getLeafletViewportPadding(map, {
+    basePadding: 24,
+  });
+
+  map.panInside(latLng, {
+    ...options,
+    paddingTopLeft,
+    paddingBottomRight,
+  });
+};
+
+const keepLeafletPopupInView = (popup) => {
+  const map = popup?._map;
+  if (!map) return;
+
+  const { paddingTopLeft, paddingBottomRight } = getLeafletViewportPadding(map, {
+    basePadding: 16,
+  });
+
+  popup.options.autoPanPaddingTopLeft = paddingTopLeft;
+  popup.options.autoPanPaddingBottomRight = paddingBottomRight;
 
   if (typeof popup._adjustPan === "function") {
     popup._adjustPan();
   }
 };
 
+const syncLeafletPopupLayout = (popup) => {
+  if (!popup) return;
+
+  if (typeof popup.update === "function") {
+    popup.update();
+  }
+
+  keepLeafletPopupInView(popup);
+};
+
 const scheduleLeafletPopupInView = (popup) => {
   if (!popup) return;
 
   if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
-    keepLeafletPopupInView(popup);
+    syncLeafletPopupLayout(popup);
     return;
   }
 
   window.requestAnimationFrame(() => {
-    keepLeafletPopupInView(popup);
+    syncLeafletPopupLayout(popup);
   });
 };
 
@@ -876,9 +933,28 @@ function PopupCardContent({
 }) {
   const popupView = buildPopupViewModel(record);
   const popupKey = record?.id || createUniqueKey(record, 0);
-  const handlePopupLayoutChange = () => {
+  const handlePopupLayoutChange = useCallback(() => {
     scheduleLeafletPopupInView(getPopup?.());
-  };
+  }, [getPopup]);
+
+  useLayoutEffect(() => {
+    handlePopupLayoutChange();
+
+    if (typeof document === "undefined" || !document.fonts?.ready) {
+      return undefined;
+    }
+
+    let isCancelled = false;
+    document.fonts.ready.then(() => {
+      if (!isCancelled) {
+        handlePopupLayoutChange();
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [popupKey, handlePopupLayoutChange]);
 
   return (
     <Box className="popup-card">
@@ -1701,20 +1777,21 @@ export default function BurialMap() {
       const currentCenter = map.getCenter();
       const distance = map.distance(currentCenter, targetLatLng);
       const shouldAnimate = animate && distance > 24;
-
-      if (!shouldAnimate) {
-        map.setView(targetLatLng, targetZoom, { animate: false });
+      const finalizeViewport = () => {
+        panMapIntoVisibleViewport(map, targetLatLng, { animate: false });
         if (openTourPopup) {
           focusBurialPopup(burial);
         }
+      };
+
+      if (!shouldAnimate) {
+        map.setView(targetLatLng, targetZoom, { animate: false });
+        finalizeViewport();
         return;
       }
 
       map.stop();
-
-      if (openTourPopup) {
-        focusBurialPopup(burial, map);
-      }
+      map.once("moveend", finalizeViewport);
 
       map.flyTo(
         targetLatLng,
@@ -2344,7 +2421,7 @@ export default function BurialMap() {
   const resetMapToDefaultBounds = useCallback(() => {
     if (!window.mapInstance) return;
 
-    window.mapInstance.fitBounds(DEFAULT_VIEW_BOUNDS);
+    fitMapBoundsInVisibleViewport(window.mapInstance, DEFAULT_VIEW_BOUNDS);
   }, []);
 
   const focusSectionOnMap = useCallback((sectionValue, bounds) => {
@@ -2355,8 +2432,7 @@ export default function BurialMap() {
       return;
     }
 
-    window.mapInstance.fitBounds(sectionBounds, {
-      padding: [50, 50],
+    fitMapBoundsInVisibleViewport(window.mapInstance, sectionBounds, {
       maxZoom: ZOOM_LEVELS.CLUSTER,
     });
   }, [sectionBoundsById]);
@@ -2399,8 +2475,7 @@ export default function BurialMap() {
     const bounds = tourBoundsByName[tourName];
     if (!isLatLngBoundsExpressionValid(bounds)) return;
 
-    window.mapInstance.fitBounds(bounds, {
-      padding: [50, 50],
+    fitMapBoundsInVisibleViewport(window.mapInstance, bounds, {
       maxZoom: ZOOM_LEVELS.CLUSTER,
     });
   }, [tourBoundsByName]);

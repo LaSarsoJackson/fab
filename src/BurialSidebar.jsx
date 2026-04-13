@@ -66,9 +66,8 @@ const MOBILE_SHEET_STATES = {
   FULL: "full",
 };
 
-const getInitialMobileSheetState = ({ isMobile, hasContext, selectedCount }) => {
+const getInitialMobileSheetState = ({ isMobile, hasContext }) => {
   if (!isMobile) return MOBILE_SHEET_STATES.FULL;
-  if (selectedCount > 0) return MOBILE_SHEET_STATES.FULL;
   if (hasContext) return MOBILE_SHEET_STATES.PEEK;
   return MOBILE_SHEET_STATES.COLLAPSED;
 };
@@ -761,12 +760,11 @@ function BurialSidebar({
   ));
   const [isBrowsePending, setIsBrowsePending] = useState(false);
   const initialMobileContext = Boolean(
-    (initialQuery || "").trim() || initialBrowseSource !== "all" || selectedBurials.length
+    (initialQuery || "").trim() || initialBrowseSource !== "all"
   );
   const initialMobileSheetState = getInitialMobileSheetState({
     isMobile,
     hasContext: initialMobileContext,
-    selectedCount: selectedBurials.length,
   });
   const [mobileSheetState, setMobileSheetState] = useState(() => initialMobileSheetState);
   const [isResultsExpanded, setIsResultsExpanded] = useState(true);
@@ -775,6 +773,7 @@ function BurialSidebar({
   );
   const sheetRef = useRef(null);
   const previousSelectedCountRef = useRef(selectedBurials.length);
+  const previousIsMobileRef = useRef(isMobile);
   const didSyncInitialMobileSnapRef = useRef(false);
   const browseSourceChip = useMemo(
     () => getBrowseSourceChip({ browseSource }),
@@ -789,7 +788,13 @@ function BurialSidebar({
   const isCurrentTourLoading = Boolean(
     selectedTour && loadingTourName === selectedTour && tourResults.length === 0
   );
-  const isMobileSheetCollapsed = isMobile && mobileSheetState === MOBILE_SHEET_STATES.COLLAPSED;
+  const currentMobileSheetState = getInitialMobileSheetState({
+    isMobile,
+    hasContext: hasActiveBrowseContext,
+  });
+  const resolvedMobileSheetState = isMobile && !previousIsMobileRef.current
+    ? currentMobileSheetState
+    : mobileSheetState;
 
   const SNAP_COLLAPSED_FRACTION = 0.22;
   const SNAP_PEEK_FRACTION = 0.50;
@@ -802,16 +807,16 @@ function BurialSidebar({
   ], []);
 
   const mobileDefaultSnap = useCallback(({ maxHeight, snapPoints }) => {
-    if (mobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
+    if (resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
       return snapPoints[0] || maxHeight * SNAP_COLLAPSED_FRACTION;
     }
 
-    if (mobileSheetState === MOBILE_SHEET_STATES.FULL) {
+    if (resolvedMobileSheetState === MOBILE_SHEET_STATES.FULL) {
       return snapPoints[2] || maxHeight * SNAP_FULL_FRACTION;
     }
 
     return snapPoints[1] || maxHeight * SNAP_PEEK_FRACTION;
-  }, [mobileSheetState]);
+  }, [resolvedMobileSheetState]);
 
   const handleSheetSpringEnd = useCallback((event) => {
     if (event.type !== "SNAP" && event.type !== "OPEN") return;
@@ -921,9 +926,20 @@ function BurialSidebar({
   }, [isMobile]);
 
   useEffect(() => {
+    const wasMobile = previousIsMobileRef.current;
+    previousIsMobileRef.current = isMobile;
+
     if (!isMobile) {
       didSyncInitialMobileSnapRef.current = false;
       return;
+    }
+
+    if (!wasMobile) {
+      didSyncInitialMobileSnapRef.current = false;
+      if (mobileSheetState !== currentMobileSheetState) {
+        setMobileSheetState(currentMobileSheetState);
+        return;
+      }
     }
 
     if (didSyncInitialMobileSnapRef.current) return;
@@ -934,20 +950,17 @@ function BurialSidebar({
 
       if (mobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
         collapseMobileSheet();
-        return;
-      }
-
-      if (mobileSheetState === MOBILE_SHEET_STATES.FULL) {
+      } else if (mobileSheetState === MOBILE_SHEET_STATES.FULL) {
         maximizeMobileSheet();
-        return;
+      } else {
+        expandMobileSheet();
       }
-
-      expandMobileSheet();
     });
 
     return () => window.cancelAnimationFrame(frame);
   }, [
     collapseMobileSheet,
+    currentMobileSheetState,
     expandMobileSheet,
     isMobile,
     maximizeMobileSheet,
@@ -966,7 +979,6 @@ function BurialSidebar({
 
     if (selectedBurials.length > previousSelectedCount) {
       setIsSelectedSummaryExpanded(true);
-      maximizeMobileSheet();
     } else if (selectedBurials.length === 0 && previousSelectedCount > 0) {
       setIsSelectedSummaryExpanded(false);
       if (hasActiveBrowseContext) {
@@ -988,7 +1000,6 @@ function BurialSidebar({
     expandMobileSheet,
     hasActiveBrowseContext,
     isMobile,
-    maximizeMobileSheet,
     selectedBurials.length,
   ]);
 
@@ -1003,8 +1014,7 @@ function BurialSidebar({
   const handleBrowseQueryChange = useCallback((event) => {
     setBrowseQuery(event.target.value);
     setIsResultsExpanded(true);
-    maximizeMobileSheet();
-  }, [maximizeMobileSheet]);
+  }, []);
 
   const handleClearBrowseQuery = useCallback(() => {
     setBrowseQuery("");
@@ -1013,12 +1023,11 @@ function BurialSidebar({
   const handleBrowseResultSelect = useCallback((result) => {
     onBrowseResultSelect(result);
     if (isMobile) {
-      maximizeMobileSheet();
       if (selectedBurials.length === 0) {
         setIsSelectedSummaryExpanded(true);
       }
     }
-  }, [isMobile, maximizeMobileSheet, onBrowseResultSelect, selectedBurials.length]);
+  }, [isMobile, onBrowseResultSelect, selectedBurials.length]);
 
   const handleSectionSelection = useCallback((nextSection) => {
     setBrowseSource("section");
@@ -1537,14 +1546,14 @@ function BurialSidebar({
   );
 
   const headerContent = (
-    <Box className="left-sidebar__header" sx={{ p: !isMobile ? 2 : (isMobileSheetCollapsed ? 1.25 : 1.5) }}>
+    <Box className="left-sidebar__header" sx={{ p: !isMobile ? 2 : 1.5 }}>
       <Box
         sx={{
           display: "flex",
           alignItems: "flex-start",
           justifyContent: "space-between",
           gap: 1.5,
-          mb: isMobileSheetCollapsed ? 0.75 : 1.25,
+          mb: 1.25,
         }}
       >
         <Box sx={{ minWidth: 0 }}>
@@ -1597,31 +1606,37 @@ function BurialSidebar({
       <Box
         className="left-sidebar__search-shell"
         sx={{
-          mt: isMobileSheetCollapsed ? 0.5 : 1,
-          p: isMobileSheetCollapsed ? 1 : 1.5,
+          mt: 1,
+          p: 1.5,
           borderRadius: 3,
           border: "1px solid rgba(18, 47, 40, 0.12)",
           background: "linear-gradient(180deg, rgba(255,255,255,0.84), rgba(255,255,255,0.72))",
         }}
       >
-        {!isMobileSheetCollapsed && (
-          <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, mb: 1.1 }}>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle2">Search</Typography>
-              <Typography variant="caption" sx={{ display: "block", color: "var(--muted-text)", mt: 0.4 }}>
-                Find people, graves, sections, and tour stops.
-              </Typography>
-            </Box>
-            <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 0.75 }}>
-              {browseSource !== "all" && (
-                <Chip size="small" variant="outlined" label={browseSourceChip} />
-              )}
-              {selectedBurials.length > 0 && (
-                <Chip size="small" color="primary" label={`${selectedBurials.length} selected`} />
-              )}
-            </Box>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 1.5,
+            mb: 1.1,
+          }}
+        >
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle2">Search</Typography>
+            <Typography variant="caption" sx={{ display: "block", color: "var(--muted-text)", mt: 0.4 }}>
+              Find people, graves, sections, and tour stops.
+            </Typography>
           </Box>
-        )}
+          <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 0.75 }}>
+            {browseSource !== "all" && (
+              <Chip size="small" variant="outlined" label={browseSourceChip} />
+            )}
+            {selectedBurials.length > 0 && (
+              <Chip size="small" color="primary" label={`${selectedBurials.length} selected`} />
+            )}
+          </Box>
+        </Box>
 
         <TextField
           fullWidth
@@ -1631,8 +1646,6 @@ function BurialSidebar({
           value={browseQuery}
           disabled={isBurialDataLoading || !!burialDataError}
           onChange={handleBrowseQueryChange}
-          onClick={maximizeMobileSheet}
-          onFocus={maximizeMobileSheet}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -1658,84 +1671,91 @@ function BurialSidebar({
           }}
         />
 
-        {!isMobileSheetCollapsed && (
-          <Box
-            className="left-sidebar__utility-row"
-            sx={{
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "flex-start",
-              gap: 1,
-              mt: 1.25,
-            }}
-          >
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+        <Box
+          className="left-sidebar__utility-row"
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            gap: 1,
+            mt: 1.25,
+          }}
+        >
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+            <Button
+              onClick={handleLocateUser}
+              variant="text"
+              color="inherit"
+              size="small"
+              startIcon={<PinDropIcon />}
+            >
+              My location
+            </Button>
+            {hasClearableState && (
               <Button
-                onClick={handleLocateUser}
+                onClick={handleClearAllBrowseState}
                 variant="text"
                 color="inherit"
                 size="small"
-                startIcon={<PinDropIcon />}
+                startIcon={<CloseIcon />}
+                aria-label="Clear all browse filters"
               >
-                My location
+                Clear
               </Button>
-              {hasClearableState && (
-                <Button
-                  onClick={handleClearAllBrowseState}
-                  variant="text"
-                  color="inherit"
-                  size="small"
-                  startIcon={<CloseIcon />}
-                  aria-label="Clear all browse filters"
-                >
-                  Clear
-                </Button>
-              )}
-              {appMenuButton}
-            </Box>
+            )}
+            {appMenuButton}
           </Box>
-        )}
+        </Box>
 
-        {!isMobileSheetCollapsed && searchShellNotices.length > 0 && (
-          <Box className="left-sidebar__notice-stack" sx={{ display: "grid", gap: 0.75, mt: 1 }}>
-            {searchShellNotices.map((notice) => {
-              const styles = getSearchShellNoticeStyles(notice.tone);
+        <Box
+          className="left-sidebar__notice-stack"
+          sx={{
+            display: "grid",
+            gap: 0.75,
+            mt: searchShellNotices.length === 0 ? 0 : 1,
+            maxHeight: searchShellNotices.length === 0 ? 0 : 120,
+            opacity: searchShellNotices.length === 0 ? 0 : 1,
+            overflow: "hidden",
+            transition: "max-height 0.18s ease, opacity 0.16s ease, margin-top 0.18s ease",
+          }}
+        >
+          {searchShellNotices.map((notice) => {
+            const styles = getSearchShellNoticeStyles(notice.tone);
 
-              return (
+            return (
+              <Box
+                key={notice.key}
+                className="left-sidebar__notice"
+                sx={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0.75,
+                  px: 1,
+                  py: 0.8,
+                  borderRadius: 2,
+                  backgroundColor: styles.backgroundColor,
+                  border: styles.border,
+                  color: styles.color,
+                }}
+              >
                 <Box
-                  key={notice.key}
-                  className="left-sidebar__notice"
+                  component="span"
                   sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 0.75,
-                    px: 1,
-                    py: 0.8,
-                    borderRadius: 2,
-                    backgroundColor: styles.backgroundColor,
-                    border: styles.border,
-                    color: styles.color,
+                    width: 7,
+                    height: 7,
+                    borderRadius: "50%",
+                    backgroundColor: styles.dotColor,
+                    flexShrink: 0,
                   }}
-                >
-                  <Box
-                    component="span"
-                    sx={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: "50%",
-                      backgroundColor: styles.dotColor,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <Typography variant="caption" sx={{ color: "inherit", fontSize: "0.75rem", fontWeight: 500 }}>
-                    {notice.label}
-                  </Typography>
-                </Box>
-              );
-            })}
-          </Box>
-        )}
+                />
+                <Typography variant="caption" sx={{ color: "inherit", fontSize: "0.75rem", fontWeight: 500 }}>
+                  {notice.label}
+                </Typography>
+              </Box>
+            );
+          })}
+        </Box>
       </Box>
     </Box>
   );
@@ -1822,15 +1842,16 @@ function BurialSidebar({
   }
 
   // -- Mobile render: Apple Maps-style BottomSheet --
-  const mobileSheetHeader = (
-    <div className="left-sidebar__sheet-header">
-      {headerContent}
-    </div>
-  );
+  const mobileSheetHandle = <div aria-hidden="true" />;
 
-  const mobileSheetBody = mobileSheetState === MOBILE_SHEET_STATES.COLLAPSED
-    ? null
-    : bodyContent;
+  const mobileSheetBody = (
+    <Box className="left-sidebar__mobile-body">
+      <div className="left-sidebar__sheet-header">
+        {headerContent}
+      </div>
+      {bodyContent}
+    </Box>
+  );
 
   return (
     <BottomSheet
@@ -1842,7 +1863,7 @@ function BurialSidebar({
       className="left-sidebar left-sidebar--mobile"
       snapPoints={mobileSnapPoints}
       defaultSnap={mobileDefaultSnap}
-      header={mobileSheetHeader}
+      header={mobileSheetHandle}
       expandOnContentDrag
       onSpringEnd={handleSheetSpringEnd}
     >
