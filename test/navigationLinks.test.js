@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { buildDirectionsLink } from '../src/lib/navigationLinks';
+import { buildDirectionsLink } from "../src/features/navigation";
 
 describe('buildDirectionsLink', () => {
   test('builds an Apple Maps link for Apple platforms', () => {

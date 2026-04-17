@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { parseDeepLinkState } from '../src/lib/urlState';
+import { encodeFieldPacket, parseDeepLinkState } from "../src/features/deeplinks";
 
 describe('parseDeepLinkState', () => {
   test('parses view, query, and section', () => {
@@ -29,5 +29,50 @@ describe('parseDeepLinkState', () => {
     expect(state.selectedTourName).toBeNull();
     expect(state.showBurialsView).toBe(false);
     expect(state.showToursView).toBe(false);
+    expect(state.fieldPacket).toBeNull();
+  });
+
+  test('parses a field packet from the URL', () => {
+    const encodedPacket = encodeFieldPacket({
+      name: 'Section 99 field packet',
+      note: 'Verify the headstones near the lane.',
+      activeBurialId: 'burial:1:99:18',
+      selectedRecords: [
+        {
+          id: 'burial:1:99:18',
+          source: 'burial',
+          displayName: 'Anna Tracy',
+          Section: '99',
+          Lot: '18',
+          coordinates: [-73.733659, 42.711919],
+        },
+      ],
+      sectionFilter: '99',
+    });
+
+    const state = parseDeepLinkState(`?packet=${encodedPacket}`);
+
+    expect(state.fieldPacket).toEqual({
+      version: 1,
+      name: 'Section 99 field packet',
+      note: 'Verify the headstones near the lane.',
+      activeBurialId: 'burial:1:99:18',
+      selectedBurialIds: ['burial:1:99:18'],
+      selectedRecords: [
+        {
+          id: 'burial:1:99:18',
+          source: 'burial',
+          displayName: 'Anna Tracy',
+          label: 'Anna Tracy',
+          fullName: 'Anna Tracy',
+          Section: '99',
+          Lot: '18',
+          coordinates: [-73.733659, 42.711919],
+        },
+      ],
+      sectionFilter: '99',
+      selectedTour: '',
+      mapBounds: null,
+    });
   });
 });

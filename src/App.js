@@ -1,9 +1,59 @@
-import React, { Suspense, lazy, useEffect } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
+import { APP_PROFILE } from "./config/appProfile";
 import "./App.css";
 
 const BurialMap = lazy(() => import("./Map"));
+const AdminApp = lazy(() => import("./AdminApp"));
+const PRIMARY_ACCENT = "#2f6b57";
+const PRIMARY_ACCENT_DARK = "#255544";
+const PRIMARY_ACCENT_TINT = "#d9e8e0";
+const PANEL_BORDER = "rgba(20, 33, 43, 0.12)";
+
 const appTheme = createTheme({
+  palette: {
+    primary: {
+      main: PRIMARY_ACCENT,
+      dark: PRIMARY_ACCENT_DARK,
+      light: PRIMARY_ACCENT_TINT,
+      contrastText: "#ffffff",
+    },
+    background: {
+      default: "#f5f5f7",
+      paper: "rgba(255, 255, 255, 0.92)",
+    },
+    text: {
+      primary: "#18212b",
+      secondary: "#677381",
+    },
+  },
+  shape: {
+    borderRadius: 16,
+  },
+  typography: {
+    fontFamily: "'Manrope', -apple-system, BlinkMacSystemFont, 'Avenir Next', 'Segoe UI', sans-serif",
+    h6: {
+      fontWeight: 700,
+      letterSpacing: "-0.02em",
+    },
+    subtitle1: {
+      fontWeight: 700,
+      letterSpacing: "-0.01em",
+    },
+    subtitle2: {
+      fontWeight: 700,
+      letterSpacing: "-0.01em",
+    },
+    button: {
+      fontWeight: 600,
+      letterSpacing: 0,
+      textTransform: "none",
+    },
+    overline: {
+      fontWeight: 700,
+      letterSpacing: "0.12em",
+    },
+  },
   components: {
     MuiButtonBase: {
       defaultProps: {
@@ -11,8 +61,88 @@ const appTheme = createTheme({
         disableTouchRipple: true,
       },
     },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundImage: "none",
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 999,
+          paddingInline: 14,
+        },
+        containedPrimary: {
+          background: PRIMARY_ACCENT,
+          boxShadow: "0 10px 22px rgba(47, 107, 87, 0.18)",
+          "&:hover": {
+            background: PRIMARY_ACCENT_DARK,
+            boxShadow: "0 12px 24px rgba(47, 107, 87, 0.22)",
+          },
+        },
+        outlined: {
+          borderColor: PANEL_BORDER,
+          backgroundColor: "rgba(255, 255, 255, 0.68)",
+          "&:hover": {
+            borderColor: PANEL_BORDER,
+            backgroundColor: "rgba(255, 255, 255, 0.86)",
+          },
+        },
+        text: {
+          color: "#5f6c79",
+          "&:hover": {
+            backgroundColor: "rgba(20, 33, 43, 0.05)",
+          },
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          borderRadius: 999,
+          fontWeight: 600,
+        },
+        colorPrimary: {
+          backgroundColor: PRIMARY_ACCENT_TINT,
+          color: PRIMARY_ACCENT_DARK,
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "rgba(255, 255, 255, 0.84)",
+          "& .MuiOutlinedInput-notchedOutline": {
+            borderColor: PANEL_BORDER,
+          },
+          "&:hover .MuiOutlinedInput-notchedOutline": {
+            borderColor: "rgba(47, 107, 87, 0.28)",
+          },
+          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+            borderColor: PRIMARY_ACCENT,
+            borderWidth: 1,
+          },
+        },
+      },
+    },
+    MuiDivider: {
+      styleOverrides: {
+        root: {
+          borderColor: PANEL_BORDER,
+        },
+      },
+    },
   },
 });
+const {
+  adminLoadingMessage,
+  adminLoadingTitle,
+  appName,
+  mapLoadingMessage,
+  mapLoadingTitle,
+} = APP_PROFILE.brand;
 
 const syncViewportMetrics = () => {
   if (typeof document === "undefined" || typeof window === "undefined") return;
@@ -26,6 +156,10 @@ const syncViewportMetrics = () => {
 };
 
 export default function App() {
+  const [isAdminMode, setIsAdminMode] = useState(() => (
+    typeof window !== "undefined" && window.location.hash.startsWith("#/admin")
+  ));
+
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
 
@@ -43,18 +177,38 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const syncHashMode = () => {
+      setIsAdminMode(window.location.hash.startsWith("#/admin"));
+    };
+
+    syncHashMode();
+    window.addEventListener("hashchange", syncHashMode);
+
+    return () => {
+      window.removeEventListener("hashchange", syncHashMode);
+    };
+  }, []);
+
   return (
     <ThemeProvider theme={appTheme}>
-      <Suspense
-        fallback={
-          <div className="app-shell-loading">
-            <h1>Albany Rural Cemetery</h1>
-            <p>Loading map experience…</p>
-          </div>
-        }
-      >
-        <BurialMap />
-      </Suspense>
+      <a className="app-skip-link" href="#app-main">
+        Skip to main content
+      </a>
+      <main id="app-main" className="app-shell-main" tabIndex={-1}>
+        <Suspense
+          fallback={
+            <div className="app-shell-loading" role="status" aria-live="polite">
+              <h1>{isAdminMode ? adminLoadingTitle : mapLoadingTitle || appName}</h1>
+              <p>{isAdminMode ? adminLoadingMessage : mapLoadingMessage}</p>
+            </div>
+          }
+        >
+          {isAdminMode ? <AdminApp /> : <BurialMap />}
+        </Suspense>
+      </main>
     </ThemeProvider>
   );
 }

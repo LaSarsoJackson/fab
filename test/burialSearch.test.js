@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { buildSearchIndex, smartSearch, sortSectionValues } from '../src/lib/burialSearch';
+import { buildSearchIndex, smartSearch, sortSectionValues } from "../src/features/browse";
 
 const options = [
   {

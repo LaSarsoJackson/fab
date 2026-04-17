@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { buildBurialBrowseResult, buildTourBrowseResult } from "../src/lib/browseResults";
-import { harmonizeBurialBrowseResult } from "../src/lib/tourMetadata";
+import { buildBurialBrowseResult, buildTourBrowseResult } from "../src/features/browse";
+import { harmonizeBurialBrowseResult } from "../src/features/tours";
 
 describe("harmonizeBurialBrowseResult", () => {
   test("enriches search records with matching tour metadata", () => {

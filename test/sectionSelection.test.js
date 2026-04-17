@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { shouldIgnoreSectionBackgroundSelection } from "../src/lib/sectionSelection";
+import { shouldIgnoreSectionBackgroundSelection } from "../src/features/map";
 
 describe("shouldIgnoreSectionBackgroundSelection", () => {
   test("ignores background clicks on the already active section", () => {

@@ -12,21 +12,22 @@
 //=============================================================================
 
 // React and Core Dependencies
-import React, { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from "react";
+import React, { memo, useState, useEffect, useMemo, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
 
 // Leaflet and Map-related Dependencies
-import { MapContainer, Popup, Marker, GeoJSON, LayersControl, LayerGroup, useMap } from "react-leaflet";
+import { MapContainer, Popup, Marker, GeoJSON, useMap } from "react-leaflet";
 import L from 'leaflet';  // Core Leaflet library for map functionality
 import "./index.css";
 import 'leaflet.markercluster/dist/leaflet.markercluster';  // Clustering support for markers
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import 'leaflet-routing-machine';  // Routing capabilities
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
-import 'lrm-graphhopper';  // GraphHopper routing integration
-import * as turf from '@turf/turf';  // Geospatial calculations library
 import { BasemapLayer } from 'react-esri-leaflet';  // ESRI basemap integration
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
+import distance from '@turf/distance';
+import { point } from '@turf/helpers';
+import nearestPointOnLine from '@turf/nearest-point-on-line';
 
 // Material-UI Components and Icons
 import {
@@ -36,41 +37,67 @@ import {
   Typography,
   Menu,
   MenuItem,
+  ClickAwayListener,
+  Divider,
   useMediaQuery,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import CheckBoxIcon from "@mui/icons-material/CheckBox";
+import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import HomeIcon from '@mui/icons-material/Home';
+import LayersIcon from "@mui/icons-material/Layers";
+import MyLocationIcon from "@mui/icons-material/MyLocation";
+import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import RemoveIcon from "@mui/icons-material/Remove";
 import DirectionsIcon from '@mui/icons-material/Directions';
 import LaunchIcon from '@mui/icons-material/Launch';
 
 // Local Data and Styles
-import ARC_Roads from "./data/ARC_Roads.json";
-import ARC_Boundary from "./data/ARC_Boundary.json";
-import ARC_Sections from "./data/ARC_Sections.json";
+import { APP_PROFILE } from "./config/appProfile";
 import BurialSidebar from "./BurialSidebar";
-import { buildSearchIndex, normalizeName, smartSearch, sortSectionValues } from "./lib/burialSearch";
 import {
-  buildBrowseSecondaryText,
+  buildBurialSectionIndex,
   buildBurialBrowseResult,
-  buildLocationSummary,
+  buildSearchIndex,
   buildTourBrowseResult,
   filterBurialRecordsBySection,
   formatBrowseResultName,
-} from "./lib/browseResults";
-import { buildDirectionsLink } from "./lib/navigationLinks";
-import { getPopupViewportPadding } from "./lib/popupViewport";
-import { shouldIgnoreSectionBackgroundSelection } from "./lib/sectionSelection";
-import { harmonizeBurialBrowseResult } from "./lib/tourMetadata";
-import { getRuntimeEnv } from "./lib/runtimeEnv";
-import { parseDeepLinkState } from "./lib/urlState";
+  smartSearch,
+  sortSectionValues,
+} from "./features/browse";
 import {
-  getGeoJsonBounds,
-  hasValidGeoJsonCoordinates,
-  isLatLngBoundsExpressionValid,
-} from "./lib/geoJsonBounds";
-import { TOUR_DEFINITIONS } from "./lib/tourDefinitions";
-import { BOUNDARY_BBOX, LOCATION_BUFFER_BOUNDARY } from './lib/constants';
+  createMapRecordKey,
+  cleanRecordValue,
+  inferPointerType,
+  isTouchLikePointerType,
+  PopupCardContent,
+  shouldHandleSectionHover,
+  shouldIgnoreSectionBackgroundSelection,
+} from "./features/map";
+import { CustomMapSurface } from "./features/map/engine/CustomMapSurface";
+import { createLeafletMapRuntime } from "./features/map/engine";
+import {
+  fitBoundsInVisibleViewport,
+  panIntoVisibleViewport,
+  schedulePopupInView,
+} from "./features/map/leafletViewport";
+import { buildDirectionsLink } from "./features/navigation";
+import { buildFieldPacketShareUrl, buildFieldPacketState, parseDeepLinkState } from "./features/deeplinks";
+import {
+  buildBurialLookup,
+  harmonizeBurialBrowseResult,
+  harmonizeTourBrowseResult,
+  TOUR_DEFINITIONS,
+  TOUR_STYLES,
+} from "./features/tours";
+import { getGeoJsonBounds, hasValidGeoJsonCoordinates, isLatLngBoundsExpressionValid } from "./shared/geo";
+import {
+  cancelIdleTask,
+  getRuntimeEnv,
+  scheduleIdleTask,
+  setStoredCustomMapEngineOverride,
+} from "./shared/runtime";
 
 //=============================================================================
 // Constants and Configuration
@@ -106,25 +133,6 @@ const MARKER_COLORS = [
  */
 const ZOOM_LEVEL = 18;
 
-/**
- * Tour definitions with associated colors and display names
- */
-const TOURS = {
-  Lot7: { name: "Soldier's Lot (Section 75, Lot 7)", color: '#7587ff' },
-  Sec49: { name: "Section 49", color: '#75ff87' },
-  Notable: { name: "Notables Tour 2020", color: '#ff7700' },
-  Indep: { name: "Independence Tour 2020", color: '#7700ff' },
-  Afr: { name: "African American Tour 2020", color: '#eedd00' },
-  Art: { name: "Artists Tour 2020", color: '#ff4277' },
-  Groups: { name: "Associations, Societies, & Groups Tour 2020", color: '#86cece' },
-  AuthPub: { name: "Authors & Publishers Tour 2020", color: '#996038' },
-  Business: { name: "Business & Finance Tour 2020", color: '#558e76' },
-  CivilWar: { name: "Civil War Tour 2020", color: '#a0a0a0' },
-  Pillars: { name: "Pillars of Society Tour 2020", color: '#d10008' },
-  MayorsOfAlbany: { name: "Mayors of Albany", color: '#ff00dd' },
-  GAR: { name: "Grand Army of the Republic", color: '#000080' }
-};
-
 //=============================================================================
 // Style Definitions
 //=============================================================================
@@ -149,23 +157,40 @@ const roadStyle = {
 };
 
 const DESKTOP_MAP_CONTROL_RIGHT = '12px';
-const DESKTOP_HOME_CONTROL_TOP = '60px';
-const DESKTOP_ZOOM_CONTROL_TOP = '110px';
+const DESKTOP_MAP_CONTROL_TOP = '12px';
 const MOBILE_MAP_CONTROL_RIGHT = 'calc(env(safe-area-inset-right, 0px) + 12px)';
-const MOBILE_DEFAULT_EXTENT_TOP = 'calc(env(safe-area-inset-top, 0px) + 60px)';
-const ARCE_IMAGE_BASE_URL = 'https://www.albany.edu/arce/images';
-const DEV_IMAGE_SERVER_ORIGIN = (process.env.REACT_APP_DEV_IMAGE_SERVER_ORIGIN || '').trim().replace(/\/+$/, '');
-const DEFAULT_VIEW_BOUNDS = [
-  [42.694180, -73.741980],
-  [42.714180, -73.721980]
-];
-const PADDED_BOUNDARY_BOUNDS = [
-  [BOUNDARY_BBOX[1] - 0.01, BOUNDARY_BBOX[0] - 0.01],
-  [BOUNDARY_BBOX[3] + 0.01, BOUNDARY_BBOX[2] + 0.01]
-];
+const MOBILE_MAP_CONTROL_TOP = 'calc(env(safe-area-inset-top, 0px) + 10px)';
+const DEFAULT_VIEW_BOUNDS = APP_PROFILE.map.defaultViewBounds;
+const PADDED_BOUNDARY_BOUNDS = APP_PROFILE.map.paddedBoundaryBounds;
+const MAP_BOUNDARY = APP_PROFILE.map.boundaryData;
+const MAP_ROADS = APP_PROFILE.map.roadsData;
+const MAP_SECTIONS = APP_PROFILE.map.sectionsData;
+const MAP_CENTER = APP_PROFILE.map.center;
+const MAP_ZOOM = APP_PROFILE.map.zoom;
+const LOCATION_BUFFER_BOUNDARY = APP_PROFILE.map.locationBufferBoundary;
+const LOCATION_MESSAGES = APP_PROFILE.map.locationMessages;
 const SLOW_CONNECTION_TYPES = new Set(['slow-2g', '2g', '3g']);
 const NUMBERED_ICON_CACHE = new Map();
-const PMTILES_EXPERIMENT_STORAGE_KEY = 'fab:enablePmtilesExperiment';
+const PMTILES_EXPERIMENT_STORAGE_KEY = APP_PROFILE.map.pmtilesExperimentStorageKey;
+const SECTION_MARKER_AUTO_SHOW_LIMIT = 250;
+const SECTION_MARKER_BATCH_SIZE = 300;
+const SEARCH_INDEX_PUBLIC_PATH = APP_PROFILE.artifacts.searchIndexPublicPath;
+const EMPTY_TOUR_DEFINITIONS = [];
+const EMPTY_TOUR_STYLES = {};
+const EMPTY_TOUR_RESULTS = [];
+const BASEMAP_KEEP_BUFFER = 1;
+const MAP_BASEMAPS = APP_PROFILE.map.basemaps || [];
+const MAP_CONTROLLED_BASEMAPS = MAP_BASEMAPS.filter((basemap) => basemap.type !== "pmtiles-vector");
+const DEFAULT_BASEMAP_ID = APP_PROFILE.map.defaultBasemapId || MAP_BASEMAPS[0]?.id || "";
+const MAP_OVERLAY_OPTIONS = [
+  { id: "roads", label: "Roads", defaultVisible: false },
+  { id: "boundary", label: "Boundary", defaultVisible: true },
+  { id: "sections", label: "Sections", defaultVisible: true },
+];
+const DEFAULT_MAP_OVERLAY_VISIBILITY = MAP_OVERLAY_OPTIONS.reduce((visibility, option) => ({
+  ...visibility,
+  [option.id]: option.defaultVisible,
+}), {});
 
 const getPublicAssetUrl = (path) => {
   const base = process.env.PUBLIC_URL || '';
@@ -174,8 +199,6 @@ const getPublicAssetUrl = (path) => {
 };
 
 const mapControlShellSx = {
-  position: 'absolute',
-  zIndex: 1100,
   borderRadius: '14px',
   border: '1px solid rgba(18, 47, 40, 0.14)',
   background: 'rgba(255, 255, 255, 0.9)',
@@ -190,6 +213,26 @@ const mapControlButtonSx = {
   height: 40,
   borderRadius: 0,
   color: 'var(--text-main)',
+};
+
+const mapControlOptionButtonSx = {
+  display: "grid",
+  gridTemplateColumns: "20px minmax(0, 1fr)",
+  alignItems: "center",
+  columnGap: "10px",
+  width: "100%",
+  border: 0,
+  borderRadius: "10px",
+  padding: "8px 6px",
+  background: "transparent",
+  color: "inherit",
+  cursor: "pointer",
+  font: "inherit",
+  textAlign: "left",
+  transition: "background-color 0.16s ease",
+  "&:hover": {
+    backgroundColor: "rgba(18, 47, 40, 0.06)",
+  },
 };
 const CEMETERY_CLUSTER_GLYPH = `
   <svg class="cemetery-cluster__glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
@@ -216,52 +259,419 @@ const CEMETERY_CLUSTER_GLYPH = `
   </svg>
 `;
 
-/**
- * Global Leaflet hook to prioritize map tiles for Largest Contentful Paint (LCP)
- */
-L.TileLayer.addInitHook(function() {
-  this.on("tileloadstart", (event) => {
-    if (event.tile) {
-      event.tile.setAttribute("fetchpriority", "high");
-    }
-  });
-});
-
 const isRenderableBounds = (bounds) => (
   isLatLngBoundsExpressionValid(bounds) ||
   (typeof bounds?.isValid === "function" && bounds.isValid())
 );
+
+const PMTILES_EXPERIMENT_GLYPH_PALETTE = {
+  approximate: {
+    fill: "rgba(214, 155, 86, 0.28)",
+    stroke: "rgba(124, 83, 40, 0.72)",
+    guide: "rgba(124, 83, 40, 0.2)",
+    label: "Approximate record point",
+    detail: "Section and lot record without grave or tier placement metadata.",
+  },
+  indexed: {
+    fill: "rgba(18, 94, 74, 0.28)",
+    stroke: "rgba(15, 69, 54, 0.82)",
+    guide: "rgba(15, 69, 54, 0.24)",
+    label: "Indexed grave or tier record",
+    detail: "Record includes grave or tier metadata, so it gets a stronger glyph.",
+  },
+};
+
+const getNumericBurialProperty = (props, key) => {
+  const numericValue = Number(props?.[key] ?? 0);
+  return Number.isFinite(numericValue) ? numericValue : 0;
+};
+
+const hasIndexedBurialPlacement = (props = {}) => (
+  getNumericBurialProperty(props, "Grave") > 0 ||
+  getNumericBurialProperty(props, "Tier") > 0
+);
+
+const getExperimentalBurialVisualKey = (props = {}) => String(
+  props.OBJECTID ??
+  props.objectid ??
+  [
+    props.Section,
+    props.Lot,
+    props.Grave,
+    props.Tier,
+    props.First_Name,
+    props.Last_Name,
+  ].join(":")
+);
+
+const hashExperimentalBurialKey = (value) => {
+  let hash = 2166136261;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+};
+
+const getPmtilesExperimentOffsetScale = (zoom) => {
+  if (zoom >= 22) return 5.2;
+  if (zoom >= 20) return 4.2;
+  if (zoom >= 18) return 3.2;
+  return 2.2;
+};
+
+const getPmtilesExperimentGlyphSize = (zoom, isIndexed) => {
+  if (zoom >= 22) return isIndexed ? 5.6 : 5;
+  if (zoom >= 20) return isIndexed ? 5 : 4.5;
+  if (zoom >= 18) return isIndexed ? 4.4 : 4;
+  return isIndexed ? 3.9 : 3.5;
+};
+
+const getPmtilesExperimentGlyphOffset = (zoom, props = {}, isIndexed) => {
+  const grave = getNumericBurialProperty(props, "Grave");
+  const tier = getNumericBurialProperty(props, "Tier");
+  const hash = hashExperimentalBurialKey(getExperimentalBurialVisualKey(props));
+  const offsetScale = getPmtilesExperimentOffsetScale(zoom);
+
+  if (isIndexed) {
+    const angle = (
+      ((grave > 0 ? grave : hash % 24) % 16) / 16
+    ) * Math.PI * 2 + ((hash % 7) * 0.07);
+    const tierBand = tier > 0 ? Math.min(tier, 6) : ((hash % 4) + 1);
+    const distance = Math.min(6, offsetScale * (0.72 + ((tierBand - 1) * 0.14)));
+    return {
+      dx: Math.cos(angle) * distance,
+      dy: Math.sin(angle) * distance,
+    };
+  }
+
+  const angle = ((hash % 24) / 24) * Math.PI * 2;
+  const distance = offsetScale * (0.42 + ((hash % 5) * 0.08));
+  return {
+    dx: Math.cos(angle) * distance,
+    dy: Math.sin(angle) * distance,
+  };
+};
+
+const drawPmtilesExperimentGuide = (context, startX, startY, endX, endY, guideColor, zoom) => {
+  const distance = Math.hypot(endX - startX, endY - startY);
+
+  if (distance < 0.6) {
+    return;
+  }
+
+  context.save();
+  context.strokeStyle = guideColor;
+  context.lineWidth = zoom >= 20 ? 1 : 0.8;
+  context.beginPath();
+  context.moveTo(startX, startY);
+  context.lineTo(endX, endY);
+  context.stroke();
+  context.restore();
+};
+
+const drawPmtilesExperimentCircleGlyph = (context, centerX, centerY, size, fillColor, strokeColor, zoom) => {
+  context.save();
+  context.fillStyle = fillColor;
+  context.strokeStyle = strokeColor;
+  context.lineWidth = zoom >= 20 ? 1.15 : 1;
+  context.beginPath();
+  context.arc(centerX, centerY, size, 0, Math.PI * 2);
+  context.fill();
+  context.stroke();
+  context.restore();
+};
+
+const drawPmtilesExperimentDiamondGlyph = (context, centerX, centerY, size, fillColor, strokeColor, zoom) => {
+  context.save();
+  context.fillStyle = fillColor;
+  context.strokeStyle = strokeColor;
+  context.lineWidth = zoom >= 20 ? 1.25 : 1.05;
+  context.beginPath();
+  context.moveTo(centerX, centerY - size);
+  context.lineTo(centerX + size, centerY);
+  context.lineTo(centerX, centerY + size);
+  context.lineTo(centerX - size, centerY);
+  context.closePath();
+  context.fill();
+  context.stroke();
+  context.restore();
+};
+
+class ExperimentalBurialGlyphSymbolizer {
+  constructor(variant) {
+    this.variant = variant;
+  }
+
+  draw(context, geom, zoom, feature) {
+    const anchor = geom?.[0]?.[0];
+    if (!anchor) return;
+
+    const props = feature?.props || {};
+    const isIndexed = this.variant === "indexed";
+    const palette = isIndexed
+      ? PMTILES_EXPERIMENT_GLYPH_PALETTE.indexed
+      : PMTILES_EXPERIMENT_GLYPH_PALETTE.approximate;
+    const { dx, dy } = getPmtilesExperimentGlyphOffset(zoom, props, isIndexed);
+    const centerX = anchor.x + dx;
+    const centerY = anchor.y + dy;
+    const size = getPmtilesExperimentGlyphSize(zoom, isIndexed);
+
+    drawPmtilesExperimentGuide(
+      context,
+      anchor.x,
+      anchor.y,
+      centerX,
+      centerY,
+      palette.guide,
+      zoom
+    );
+
+    if (isIndexed) {
+      drawPmtilesExperimentDiamondGlyph(
+        context,
+        centerX,
+        centerY,
+        size,
+        palette.fill,
+        palette.stroke,
+        zoom
+      );
+      return;
+    }
+
+    drawPmtilesExperimentCircleGlyph(
+      context,
+      centerX,
+      centerY,
+      size,
+      palette.fill,
+      palette.stroke,
+      zoom
+    );
+  }
+}
 
 //=============================================================================
 // React Components
 //=============================================================================
 
 /**
- * Custom zoom control component that provides zoom in/out buttons
- * Positioned at the top-right corner of the map
+ * Stack top-right controls together so expanding panels push the rest down.
  */
-function CustomZoomControl({ isMobile }) {
-  const map = useMap();
+function MapControlStack({ isMobile, children }) {
+  const items = React.Children.toArray(children).filter(Boolean);
 
+  return (
+    <Box
+      sx={{
+        position: "absolute",
+        top: isMobile ? MOBILE_MAP_CONTROL_TOP : DESKTOP_MAP_CONTROL_TOP,
+        right: isMobile ? MOBILE_MAP_CONTROL_RIGHT : DESKTOP_MAP_CONTROL_RIGHT,
+        zIndex: 1100,
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+        alignItems: "flex-end",
+        width: "max-content",
+        pointerEvents: "none",
+      }}
+    >
+      {items.map((child, index) => (
+        <Box key={index} sx={{ pointerEvents: "auto" }}>
+          {child}
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+function MapLayerControlOption({
+  active,
+  label,
+  onClick,
+  icon: Icon,
+  inactiveIcon: InactiveIcon,
+}) {
+  const VisibleIcon = active ? Icon : InactiveIcon;
+
+  return (
+    <Box component="button" type="button" onClick={onClick} sx={mapControlOptionButtonSx}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: active ? "var(--text-main)" : "rgba(24, 45, 40, 0.6)",
+        }}
+      >
+        <VisibleIcon fontSize="small" />
+      </Box>
+      <Typography
+        sx={{
+          fontSize: "0.88rem",
+          fontWeight: active ? 700 : 600,
+          color: "var(--text-main)",
+        }}
+      >
+        {label}
+      </Typography>
+    </Box>
+  );
+}
+
+/**
+ * Shared layer panel used by both Leaflet and the custom map runtime.
+ */
+function MapLayerControl({
+  basemapOptions,
+  activeBasemapId,
+  onBasemapChange,
+  overlayOptions,
+  overlayVisibility,
+  onToggleOverlay,
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <ClickAwayListener onClickAway={() => setIsOpen(false)}>
+      <Paper
+        elevation={0}
+        sx={{
+          ...mapControlShellSx,
+          width: isOpen ? "min(260px, calc(100vw - 24px))" : 40,
+          maxWidth: "calc(100vw - 24px)",
+          overflow: "hidden",
+        }}
+      >
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: isOpen ? "40px minmax(0, 1fr)" : "40px",
+            alignItems: "center",
+          }}
+        >
+          <IconButton
+            onClick={() => setIsOpen((current) => !current)}
+            size="small"
+            title={isOpen ? "Close map layers" : "Open map layers"}
+            aria-label={isOpen ? "Close map layers" : "Open map layers"}
+            aria-expanded={isOpen}
+            sx={mapControlButtonSx}
+          >
+            <LayersIcon fontSize="small" />
+          </IconButton>
+          {isOpen && (
+            <Typography
+              sx={{
+                paddingRight: "14px",
+                fontSize: "0.8rem",
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                color: "rgba(24, 45, 40, 0.72)",
+              }}
+            >
+              Map layers
+            </Typography>
+          )}
+        </Box>
+
+        {isOpen && (
+          <Box
+            sx={{
+              display: "grid",
+              gap: "12px",
+              padding: "10px 12px 12px",
+              borderTop: "1px solid rgba(18, 47, 40, 0.12)",
+            }}
+          >
+            <Box sx={{ display: "grid", gap: "4px" }}>
+              <Typography
+                sx={{
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  color: "rgba(24, 45, 40, 0.72)",
+                }}
+              >
+                Basemap
+              </Typography>
+              {basemapOptions.map((option) => (
+                <MapLayerControlOption
+                  key={option.id}
+                  active={activeBasemapId === option.id}
+                  label={option.label}
+                  onClick={() => onBasemapChange(option.id)}
+                  icon={RadioButtonCheckedIcon}
+                  inactiveIcon={RadioButtonUncheckedIcon}
+                />
+              ))}
+            </Box>
+
+            <Divider sx={{ borderColor: "rgba(18, 47, 40, 0.12)" }} />
+
+            <Box sx={{ display: "grid", gap: "4px" }}>
+              <Typography
+                sx={{
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  color: "rgba(24, 45, 40, 0.72)",
+                }}
+              >
+                Overlays
+              </Typography>
+              {overlayOptions.map((option) => (
+                <MapLayerControlOption
+                  key={option.id}
+                  active={overlayVisibility[option.id] !== false}
+                  label={option.label}
+                  onClick={() => onToggleOverlay(option.id)}
+                  icon={CheckBoxIcon}
+                  inactiveIcon={CheckBoxOutlineBlankIcon}
+                />
+              ))}
+            </Box>
+          </Box>
+        )}
+      </Paper>
+    </ClickAwayListener>
+  );
+}
+
+/**
+ * Shared zoom controls work in both runtimes.
+ */
+function MapZoomControl({ isMobile, onZoomIn, onZoomOut }) {
   if (isMobile) {
     return null;
   }
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        ...mapControlShellSx,
-        top: DESKTOP_ZOOM_CONTROL_TOP,
-        right: DESKTOP_MAP_CONTROL_RIGHT,
-      }}
-    >
-      <Box sx={{ display: 'grid' }}>
-        <IconButton onClick={() => map.zoomIn()} size="small" sx={mapControlButtonSx} title="Zoom in">
+    <Paper elevation={0} sx={mapControlShellSx}>
+      <Box sx={{ display: "grid" }}>
+        <IconButton
+          onClick={onZoomIn}
+          size="small"
+          sx={mapControlButtonSx}
+          title="Zoom in"
+          aria-label="Zoom in"
+        >
           <AddIcon fontSize="small" />
         </IconButton>
-        <Box sx={{ height: 1, backgroundColor: 'rgba(18, 47, 40, 0.1)' }} />
-        <IconButton onClick={() => map.zoomOut()} size="small" sx={mapControlButtonSx} title="Zoom out">
+        <Box sx={{ height: 1, backgroundColor: "rgba(18, 47, 40, 0.1)" }} />
+        <IconButton
+          onClick={onZoomOut}
+          size="small"
+          sx={mapControlButtonSx}
+          title="Zoom out"
+          aria-label="Zoom out"
+        >
           <RemoveIcon fontSize="small" />
         </IconButton>
       </Box>
@@ -269,11 +679,23 @@ function CustomZoomControl({ isMobile }) {
   );
 }
 
+function CustomZoomControl({ isMobile }) {
+  const map = useMap();
+
+  return (
+    <MapZoomControl
+      isMobile={isMobile}
+      onZoomIn={() => map.zoomIn()}
+      onZoomOut={() => map.zoomOut()}
+    />
+  );
+}
+
 /**
  * Component that restricts map bounds and zoom levels to the cemetery area
  * Uses Turf.js for geospatial calculations
  */
-function MapBounds() {
+function MapBounds({ fitMapBounds }) {
   const map = useMap();
 
   useEffect(() => {
@@ -284,9 +706,9 @@ function MapBounds() {
 
     // Initial fit to bounds
     map.whenReady(() => {
-      fitMapBoundsInVisibleViewport(map, PADDED_BOUNDARY_BOUNDS);
+      fitMapBounds(map, PADDED_BOUNDARY_BOUNDS);
     });
-  }, [map]);
+  }, [fitMapBounds, map]);
 
   return null;
 }
@@ -295,32 +717,51 @@ function MapBounds() {
  * Component that renders the ESRI vector basemap
  */
 function VectorBasemap({ name }) {
-  return <BasemapLayer name={name} maxZoom={25} maxNativeZoom={19} />;
+  return (
+    <BasemapLayer
+      name={name}
+      maxZoom={25}
+      maxNativeZoom={19}
+      keepBuffer={BASEMAP_KEEP_BUFFER}
+      updateWhenIdle
+      updateWhenZooming={false}
+    />
+  );
+}
+
+function ActiveLeafletBasemap({ basemap }) {
+  if (!basemap) {
+    return null;
+  }
+
+  return <VectorBasemap name={basemap.id === "streets" ? "Streets" : "ImageryClarity"} />;
 }
 
 /**
  * Component that manages map state and provides access to the map instance
  */
-function MapController() {
-  const map = useMap();
+function MapController({ mapRef }) {
+  const leafletMap = useMap();
 
   useEffect(() => {
-    // Store the map instance globally for external access
-    window.mapInstance = map;
+    const runtime = createLeafletMapRuntime(leafletMap);
+    mapRef.current = runtime;
 
     return () => {
-      if (window.mapInstance === map) {
-        delete window.mapInstance;
+      if (mapRef.current === runtime) {
+        mapRef.current = null;
       }
     };
-  }, [map]);
+  }, [leafletMap, mapRef]);
 
   return null;
 }
 
 /**
  * Optional PMTiles experiment for validating vector rendering in development.
- * This stays off the main path so Leaflet clustering remains the default UX.
+ * This stays off the main path so Leaflet clustering remains the default UX,
+ * but uses differentiated translucent glyphs so overlapping burials can still
+ * be read individually.
  */
 function ExperimentalVectorBurialLayer({ burialRecordsByObjectId, onSelectBurial }) {
   const map = useMap();
@@ -342,13 +783,13 @@ function ExperimentalVectorBurialLayer({ burialRecordsByObjectId, onSelectBurial
           paintRules: [
             {
               dataLayer: "burials",
-              symbolizer: new protomaps.CircleSymbolizer({
-                radius: 3,
-                fill: "#125e4a",
-                opacity: 0.72,
-                stroke: "#ffffff",
-                width: 1,
-              }),
+              symbolizer: new ExperimentalBurialGlyphSymbolizer("approximate"),
+              filter: (_zoom, feature) => !hasIndexedBurialPlacement(feature?.props),
+            },
+            {
+              dataLayer: "burials",
+              symbolizer: new ExperimentalBurialGlyphSymbolizer("indexed"),
+              filter: (_zoom, feature) => hasIndexedBurialPlacement(feature?.props),
             },
           ],
         });
@@ -401,36 +842,162 @@ function ExperimentalVectorBurialLayer({ burialRecordsByObjectId, onSelectBurial
   return null;
 }
 
-/**
- * Button component that resets the map view to the default extent
- */
-function DefaultExtentButton({ isMobile }) {
-  const map = useMap();
-
-  const handleClick = () => {
-    fitMapBoundsInVisibleViewport(map, DEFAULT_VIEW_BOUNDS);
-  };
-
+function PmtilesExperimentLegend() {
   return (
     <Paper
       elevation={0}
       sx={{
         ...mapControlShellSx,
-        top: isMobile
-          ? MOBILE_DEFAULT_EXTENT_TOP
-          : DESKTOP_HOME_CONTROL_TOP,
-        right: isMobile
-          ? MOBILE_MAP_CONTROL_RIGHT
-          : DESKTOP_MAP_CONTROL_RIGHT,
+        width: 228,
+        maxWidth: "calc(100vw - 24px)",
+        padding: "12px 14px",
+        pointerEvents: "none",
+        borderRadius: "18px",
       }}
     >
+      <Typography
+        sx={{
+          fontSize: "0.72rem",
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+          color: "rgba(24, 45, 40, 0.72)",
+        }}
+      >
+        PMTiles Experiment
+      </Typography>
+      <Typography
+        sx={{
+          marginTop: "4px",
+          fontSize: "0.88rem",
+          fontWeight: 600,
+          color: "var(--text-main)",
+        }}
+      >
+        Dev grave glyphs
+      </Typography>
+      <Box sx={{ display: "grid", gap: "10px", marginTop: "10px" }}>
+        {Object.entries(PMTILES_EXPERIMENT_GLYPH_PALETTE).map(([variant, definition]) => (
+          <Box
+            key={variant}
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "18px minmax(0, 1fr)",
+              columnGap: "10px",
+              alignItems: "start",
+            }}
+          >
+            <Box sx={{ position: "relative", width: 18, height: 18, marginTop: "2px" }}>
+              <Box
+                sx={{
+                  position: "absolute",
+                  left: 1,
+                  top: 8,
+                  width: 8,
+                  height: 1,
+                  backgroundColor: definition.guide,
+                }}
+              />
+              <Box
+                sx={{
+                  position: "absolute",
+                  right: 1,
+                  top: 3,
+                  width: 12,
+                  height: 12,
+                  borderRadius: variant === "approximate" ? "999px" : "2px",
+                  border: `1.2px solid ${definition.stroke}`,
+                  backgroundColor: definition.fill,
+                  transform: variant === "indexed" ? "rotate(45deg)" : "none",
+                }}
+              />
+            </Box>
+            <Box>
+              <Typography
+                sx={{
+                  fontSize: "0.78rem",
+                  fontWeight: 600,
+                  lineHeight: 1.25,
+                  color: "var(--text-main)",
+                }}
+              >
+                {definition.label}
+              </Typography>
+              <Typography
+                sx={{
+                  marginTop: "2px",
+                  fontSize: "0.7rem",
+                  lineHeight: 1.35,
+                  color: "rgba(24, 45, 40, 0.72)",
+                }}
+              >
+                {definition.detail}
+              </Typography>
+            </Box>
+          </Box>
+        ))}
+      </Box>
+      <Typography
+        sx={{
+          marginTop: "10px",
+          fontSize: "0.68rem",
+          lineHeight: 1.4,
+          color: "rgba(24, 45, 40, 0.64)",
+        }}
+      >
+        Small offsets separate stacked records without claiming an exact grave footprint.
+      </Typography>
+    </Paper>
+  );
+}
+
+/**
+ * Shared home control works in both runtimes.
+ */
+function MapHomeButton({ onClick }) {
+  return (
+    <Paper elevation={0} sx={mapControlShellSx}>
       <IconButton
-        onClick={handleClick}
+        onClick={onClick}
         size="small"
         title="Return to Default Extent"
+        aria-label="Return to default extent"
         sx={mapControlButtonSx}
       >
         <HomeIcon fontSize="small" />
+      </IconButton>
+    </Paper>
+  );
+}
+
+/**
+ * Button component that resets the map view to the default extent
+ */
+function DefaultExtentButton({ fitMapBounds }) {
+  const map = useMap();
+
+  return (
+    <MapHomeButton onClick={() => fitMapBounds(map, DEFAULT_VIEW_BOUNDS)} />
+  );
+}
+
+function MobileLocateButton({ isMobile, onLocate }) {
+  if (!isMobile) {
+    return null;
+  }
+
+  return (
+    <Paper elevation={0} sx={mapControlShellSx}>
+      <IconButton
+        onClick={() => {
+          void onLocate?.();
+        }}
+        size="small"
+        title="Use my location"
+        aria-label="Use my location"
+        sx={mapControlButtonSx}
+      >
+        <MyLocationIcon fontSize="small" />
       </IconButton>
     </Paper>
   );
@@ -447,6 +1014,9 @@ function RoutingControl({ from, to }) {
   useEffect(() => {
     if (!from || !to) return;
 
+    let ignore = false;
+    let routingControl;
+
     setRoutingError(null);
     setIsCalculating(true);
 
@@ -458,54 +1028,81 @@ function RoutingControl({ from, to }) {
       return;
     }
 
-    const routingControl = L.Routing.control({
-      router: new L.Routing.GraphHopper(apiKey, {
-        urlParameters: {
-          vehicle: 'foot'  // Set to pedestrian routing
+    const loadRoutingControl = async () => {
+      try {
+        await Promise.all([
+          import('leaflet-routing-machine'),
+          import('lrm-graphhopper'),
+        ]);
+      } catch (error) {
+        console.error('Failed to load routing dependencies:', error);
+        if (!ignore) {
+          setRoutingError('Directions failed to load. Please try again.');
+          setIsCalculating(false);
         }
-      }),
-      waypoints: [
-        L.latLng(from[0], from[1]),
-        L.latLng(to[0], to[1])
-      ],
-      createMarker: function() { return null; },
-      lineOptions: {
-        styles: [
-          {color: '#0066CC', opacity: 0.8, weight: 5},
-          {color: '#ffffff', opacity: 0.3, weight: 7}
-        ]
-      },
-      addWaypoints: false,
-      draggableWaypoints: false,
-      fitSelectedRoutes: true,
-      showAlternatives: false,
-      useZoomParameter: true,
-      show: false
-    }).addTo(map);
-
-    routingControl.on('routesfound', () => {
-      setIsCalculating(false);
-    });
-
-    routingControl.on('routingerror', (e) => {
-      console.error('Routing error:', e);
-
-      if (e.error && e.error.status === 0) {
-        setRoutingError('Network error: Please check your internet connection.');
-      } else if (e.error && e.error.status === 401) {
-        setRoutingError('Authentication error: Invalid API key.');
-      } else if (e.error && e.error.status === 429) {
-        setRoutingError('Too many requests: Rate limit exceeded.');
-      } else {
-        setRoutingError('Unable to calculate route. The locations might be inaccessible by foot or too far apart.');
+        return;
       }
 
-      setIsCalculating(false);
-      map.removeControl(routingControl);
-    });
+      if (ignore) {
+        return;
+      }
+
+      routingControl = L.Routing.control({
+        router: new L.Routing.GraphHopper(apiKey, {
+          urlParameters: {
+            vehicle: 'foot'  // Set to pedestrian routing
+          }
+        }),
+        waypoints: [
+          L.latLng(from[0], from[1]),
+          L.latLng(to[0], to[1])
+        ],
+        createMarker: function() { return null; },
+        lineOptions: {
+          styles: [
+            {color: '#0066CC', opacity: 0.8, weight: 5},
+            {color: '#ffffff', opacity: 0.3, weight: 7}
+          ]
+        },
+        addWaypoints: false,
+        draggableWaypoints: false,
+        fitSelectedRoutes: true,
+        showAlternatives: false,
+        useZoomParameter: true,
+        show: false
+      }).addTo(map);
+
+      routingControl.on('routesfound', () => {
+        setIsCalculating(false);
+      });
+
+      routingControl.on('routingerror', (e) => {
+        console.error('Routing error:', e);
+
+        if (e.error && e.error.status === 0) {
+          setRoutingError('Network error: Please check your internet connection.');
+        } else if (e.error && e.error.status === 401) {
+          setRoutingError('Authentication error: Invalid API key.');
+        } else if (e.error && e.error.status === 429) {
+          setRoutingError('Too many requests: Rate limit exceeded.');
+        } else {
+          setRoutingError('Unable to calculate route. The locations might be inaccessible by foot or too far apart.');
+        }
+
+        setIsCalculating(false);
+        if (routingControl) {
+          map.removeControl(routingControl);
+        }
+      });
+    };
+
+    void loadRoutingControl();
 
     return () => {
-      map.removeControl(routingControl);
+      ignore = true;
+      if (routingControl) {
+        map.removeControl(routingControl);
+      }
     };
   }, [map, from, to]);
 
@@ -588,7 +1185,7 @@ const createNumberedIcon = (number, isHighlighted = false) => {
         color: white;
         font-weight: bold;
         font-size: ${isHighlighted ? '16px' : '14px'};
-        transition: all 0.2s ease;
+        transition: width 0.2s ease, height 0.2s ease, border-width 0.2s ease, box-shadow 0.2s ease, font-size 0.2s ease;
       ">
         ${number}
       </div>
@@ -609,22 +1206,22 @@ const createNumberedIcon = (number, isHighlighted = false) => {
  * @returns {string} A unique identifier string
  */
 const createUniqueKey = (burial, index) => {
-  return burial.id || `${burial.OBJECTID}_${burial.Section}_${burial.Lot}_${burial.Grave}_${index}`;
+  return createMapRecordKey(burial, index);
 };
 
 const findNearestRoadPoint = (lat, lng) => {
-  const targetPoint = turf.point([lng, lat]);
+  const targetPoint = point([lng, lat]);
   let nearestCoords = null;
   let minDistance = Infinity;
 
-  ARC_Roads.features.forEach((feature) => {
+  MAP_ROADS.features.forEach((feature) => {
     if (!feature?.geometry) return;
 
-    const snapped = turf.nearestPointOnLine(feature, targetPoint, { units: 'meters' });
-    const distance = snapped?.properties?.dist ?? turf.distance(targetPoint, snapped, { units: 'meters' });
+    const snapped = nearestPointOnLine(feature, targetPoint, { units: 'meters' });
+    const snappedDistance = snapped?.properties?.dist ?? distance(targetPoint, snapped, { units: 'meters' });
 
-    if (distance < minDistance) {
-      minDistance = distance;
+    if (snappedDistance < minDistance) {
+      minDistance = snappedDistance;
       nearestCoords = snapped.geometry.coordinates;
     }
   });
@@ -637,32 +1234,12 @@ const findNearestRoadPoint = (lat, lng) => {
 };
 
 /**
- * Gets the image path for a burial record's photo
- * @param {string} imageName - The name of the image file
- * @returns {string} The complete URL path to the image
- */
-const getImagePath = (imageName) => {
-  if (!imageName || imageName === "NONE") return `${ARCE_IMAGE_BASE_URL}/no-image.jpg`;
-
-  const normalizedImageName = String(imageName).trim();
-  const imageFileName = /\.[a-z0-9]+$/i.test(normalizedImageName)
-    ? normalizedImageName
-    : `${normalizedImageName}.jpg`;
-
-  if (process.env.NODE_ENV === 'development' && DEV_IMAGE_SERVER_ORIGIN) {
-    return `${DEV_IMAGE_SERVER_ORIGIN}/src/data/images/${imageFileName}`;
-  }
-
-  return `${ARCE_IMAGE_BASE_URL}/${imageFileName}`;
-};
-
-/**
  * Creates a marker for a tour point
  * @param {string} tourKey - The key identifying the tour
  * @returns {Function} A function that creates a Leaflet marker or circle marker
  */
-const createTourMarker = (tourKey) => {
-  const tourInfo = TOURS[tourKey];
+const createTourMarker = (tourKey, tourStyles) => {
+  const tourInfo = tourStyles[tourKey] || null;
   if (!tourInfo) return null;
 
   return (feature, latlng) => {
@@ -693,384 +1270,13 @@ const createTourMarker = (tourKey) => {
   };
 };
 
-/**
- * Popup formatting helpers shared by tour and burial popups.
- */
-const cleanPopupValue = (value) => {
-  if (value === null || value === undefined) return "";
-  return String(value).trim();
-};
-
-const normalizeArcePageLink = (value = "") => {
-  const normalized = cleanPopupValue(value);
-  if (!normalized || /^(none|unknown)$/i.test(normalized)) {
-    return "";
-  }
-
-  if (/^https?:\/\//i.test(normalized)) {
-    return normalized;
-  }
-
-  const trimmed = normalized.replace(/^\/+/, "");
-  if (/\.(?:jpe?g|png|gif|webp|svg)$/i.test(trimmed)) {
-    return "";
-  }
-
-  if (/^[a-z]+:/i.test(trimmed)) {
-    return trimmed;
-  }
-
-  if (/\.html?$/i.test(trimmed)) {
-    return `https://www.albany.edu/arce/${trimmed}`;
-  }
-
-  return `https://www.albany.edu/arce/${trimmed}.html`;
-};
-
-const resolvePopupBiographyLink = (record = {}) => (
-  normalizeArcePageLink(record.biographyLink) || normalizeArcePageLink(record.Tour_Bio)
-);
-
-const parsePopupDateParts = (value) => {
-  const normalized = cleanPopupValue(value);
-  if (!normalized || /^(unknown|none)$/i.test(normalized)) {
-    return null;
-  }
-
-  const isoMatch = normalized.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
-  if (isoMatch) {
-    return {
-      year: Number(isoMatch[1]),
-      month: Number(isoMatch[2]),
-      day: Number(isoMatch[3]),
-    };
-  }
-
-  const usMatch = normalized.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (usMatch) {
-    return {
-      year: Number(usMatch[3]),
-      month: Number(usMatch[1]),
-      day: Number(usMatch[2]),
-    };
-  }
-
-  const parsed = new Date(normalized);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
-  return {
-    year: parsed.getUTCFullYear(),
-    month: parsed.getUTCMonth() + 1,
-    day: parsed.getUTCDate(),
-  };
-};
-
-const formatPopupDate = (value) => {
-  const dateParts = parsePopupDateParts(value);
-  if (!dateParts) {
-    return cleanPopupValue(value);
-  }
-
-  return `${dateParts.month}/${dateParts.day}/${dateParts.year}`;
-};
-
-const comparePopupDateParts = (left, right) => {
-  if (!left || !right) return 0;
-
-  if (left.year !== right.year) return left.year - right.year;
-  if (left.month !== right.month) return left.month - right.month;
-  return left.day - right.day;
-};
-
-const resolvePopupDates = (record = {}) => {
-  const birthValue = cleanPopupValue(record.Birth ?? record.birth);
-  const deathValue = cleanPopupValue(record.Death ?? record.death);
-  const birthDate = parsePopupDateParts(birthValue);
-  const deathDate = parsePopupDateParts(deathValue);
-  const shouldSuppressBirth = Boolean(birthDate && deathDate && comparePopupDateParts(birthDate, deathDate) > 0);
-
-  return {
-    birth: shouldSuppressBirth ? "" : formatPopupDate(birthValue),
-    death: formatPopupDate(deathValue),
-  };
-};
-
-const buildPopupSourceLabel = (record = {}) => (
-  cleanPopupValue(record.tourName || (record.source === "tour" ? TOURS[record.tourKey]?.name : "Burial record"))
-);
-
-const buildPopupRows = (record = {}) => {
-  const { birth, death } = resolvePopupDates(record);
-  const title = cleanPopupValue(record.Titles || record.extraTitle);
-  const rank = cleanPopupValue(record.Highest_Ra);
-  const initialTerm = cleanPopupValue(record.Initial_Te);
-  const subsequentTerm = cleanPopupValue(record.Subsequent);
-  const unit = cleanPopupValue(record.Unit);
-  const location = cleanPopupValue(buildLocationSummary(record));
-  const headstone = cleanPopupValue(record.Headstone_);
-  const service = cleanPopupValue(record.Service_Re);
-  const headstoneLabel = headstone.toLowerCase().startsWith("headstone") ? headstone : `Headstone ${headstone}`;
-
-  return [
-    title ? { label: "Role", value: title } : null,
-    rank && rank !== title ? { label: "Rank", value: rank } : null,
-    initialTerm ? { label: "Initial term", value: initialTerm } : null,
-    subsequentTerm ? { label: "Subsequent term", value: subsequentTerm } : null,
-    unit ? { label: "Unit", value: unit } : null,
-    location ? { label: "Location", value: location } : null,
-    birth ? { label: "Born", value: birth } : null,
-    death ? { label: "Died", value: death } : null,
-    headstone ? { label: "Headstone", value: headstoneLabel } : null,
-    service ? { label: "Service", value: service } : null,
-  ].filter(Boolean);
-};
-
-const buildPopupViewModel = (record = {}) => {
-  const portraitPath = cleanPopupValue(record.Bio_Portra || record.Bio_Portri || record.Bio_portra);
-  const biographyLink = resolvePopupBiographyLink(record);
-  const hasPortrait = Boolean(portraitPath && portraitPath !== "NONE");
-  const imageUrl = hasPortrait
-    ? getImagePath(portraitPath)
-    : (biographyLink ? getImagePath("NONE") : "");
-  const heading = cleanPopupValue(formatBrowseResultName(record));
-
-  return {
-    heading,
-    sourceLabel: buildPopupSourceLabel(record),
-    rows: buildPopupRows(record),
-    biographyLink,
-    imageUrl,
-    imageAlt: heading ? `${heading} portrait` : "Burial portrait",
-    imageHint: biographyLink ? "Tap the image to open the ARCE page." : "",
-  };
-};
-
-const getLeafletViewportPadding = (map, { basePadding = 16 } = {}) => {
-  const mapContainer = map?.getContainer?.();
-  if (!mapContainer || typeof document === "undefined") {
-    return {
-      paddingTopLeft: L.point(basePadding, basePadding),
-      paddingBottomRight: L.point(basePadding, basePadding),
-    };
-  }
-
-  // Use the cached sidebar reference if available, otherwise query once
-  if (!window._cachedSidebarEl) {
-    window._cachedSidebarEl = document.querySelector(".left-sidebar");
-  }
-  const sidebar = window._cachedSidebarEl;
-
-  // Potential optimization: Check if containerRect can be cached or if dimensions are stable
-  const containerRect = mapContainer.getBoundingClientRect();
-  const overlayRect = sidebar?.getBoundingClientRect?.();
-
-  const { topLeft, bottomRight } = getPopupViewportPadding({
-    containerRect,
-    overlayRect,
-    basePadding,
-  });
-
-  return {
-    paddingTopLeft: L.point(topLeft[0], topLeft[1]),
-    paddingBottomRight: L.point(bottomRight[0], bottomRight[1]),
-  };
-};
-
-const fitMapBoundsInVisibleViewport = (map, bounds, options = {}) => {
-  if (!map || !bounds) return;
-
-  const { paddingTopLeft, paddingBottomRight } = getLeafletViewportPadding(map, {
-    basePadding: 24,
-  });
-
-  map.fitBounds(bounds, {
-    ...options,
-    paddingTopLeft,
-    paddingBottomRight,
-  });
-};
-
-const panMapIntoVisibleViewport = (map, latLng, options = {}) => {
-  if (!map || !latLng) return;
-
-  const { paddingTopLeft, paddingBottomRight } = getLeafletViewportPadding(map, {
-    basePadding: 24,
-  });
-
-  map.panInside(latLng, {
-    ...options,
-    paddingTopLeft,
-    paddingBottomRight,
-  });
-};
-
-const keepLeafletPopupInView = (popup) => {
-  const map = popup?._map;
-  if (!map) return;
-
-  const { paddingTopLeft, paddingBottomRight } = getLeafletViewportPadding(map, {
-    basePadding: 16,
-  });
-
-  popup.options.autoPanPaddingTopLeft = paddingTopLeft;
-  popup.options.autoPanPaddingBottomRight = paddingBottomRight;
-
-  if (typeof popup._adjustPan === "function") {
-    popup._adjustPan();
-  }
-};
-
-const syncLeafletPopupLayout = (popup) => {
-  if (!popup) return;
-
-  if (typeof popup.update === "function") {
-    popup.update();
-  }
-
-  keepLeafletPopupInView(popup);
-};
-
-const scheduleLeafletPopupInView = (popup) => {
-  if (!popup) return;
-
-  if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
-    syncLeafletPopupLayout(popup);
-    return;
-  }
-
-  window.requestAnimationFrame(() => {
-    syncLeafletPopupLayout(popup);
-  });
-};
-
-function PopupCardContent({
-  record,
-  onOpenDirectionsMenu,
-  onRemove,
-  getPopup,
-}) {
-  const popupView = buildPopupViewModel(record);
-  const popupKey = record?.id || createUniqueKey(record, 0);
-  const handlePopupLayoutChange = useCallback(() => {
-    scheduleLeafletPopupInView(getPopup?.());
-  }, [getPopup]);
-
-  useLayoutEffect(() => {
-    handlePopupLayoutChange();
-
-    if (typeof document === "undefined" || !document.fonts?.ready) {
-      return undefined;
-    }
-
-    let isCancelled = false;
-    document.fonts.ready.then(() => {
-      if (!isCancelled) {
-        handlePopupLayoutChange();
-      }
-    });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [popupKey, handlePopupLayoutChange]);
-
-  return (
-    <Box className="popup-card">
-      {popupView.sourceLabel && (
-        <Box component="p" className="popup-card__eyebrow">
-          {popupView.sourceLabel}
-        </Box>
-      )}
-      <Box component="h3" className="popup-card__title">
-        {popupView.heading}
-      </Box>
-      <Box component="dl" className="popup-card__details">
-        {popupView.rows.map(({ label, value }) => (
-          <Box key={`${popupKey}-${label}`} className="popup-card__row">
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </Box>
-        ))}
-      </Box>
-      {popupView.imageUrl && (
-        <Box className="popup-card__media">
-          {popupView.imageHint && (
-            <Box component="p" className="popup-card__hint">
-              {popupView.imageHint}
-            </Box>
-          )}
-          {popupView.biographyLink ? (
-            <a
-              className="popup-card__image-link"
-              href={popupView.biographyLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(event) => {
-                event.stopPropagation();
-              }}
-            >
-              <img
-                className="popup-card__image"
-                src={popupView.imageUrl}
-                alt={popupView.imageAlt}
-                loading="lazy"
-                onLoad={handlePopupLayoutChange}
-                onError={(event) => {
-                  event.currentTarget.onerror = null;
-                  event.currentTarget.src = "https://www.albany.edu/arce/images/no-image.jpg";
-                  handlePopupLayoutChange();
-                }}
-              />
-            </a>
-          ) : (
-            <img
-              className="popup-card__image"
-              src={popupView.imageUrl}
-              alt={popupView.imageAlt}
-              loading="lazy"
-              onLoad={handlePopupLayoutChange}
-              onError={(event) => {
-                event.currentTarget.onerror = null;
-                event.currentTarget.src = "https://www.albany.edu/arce/images/no-image.jpg";
-                handlePopupLayoutChange();
-              }}
-            />
-          )}
-        </Box>
-      )}
-      <Box className="popup-card__actions">
-        <button
-          type="button"
-          className="popup-card__action popup-card__action--primary"
-          onClick={(event) => {
-            event.stopPropagation();
-            onOpenDirectionsMenu?.(event);
-          }}
-        >
-          Directions
-        </button>
-        <button
-          type="button"
-          className="popup-card__action popup-card__action--ghost"
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemove?.();
-          }}
-        >
-          Remove
-        </button>
-      </Box>
-    </Box>
-  );
-}
-
 const bindReactPopup = ({
   layer,
   record,
   onOpenDirectionsMenu,
   onRemove,
+  schedulePopupLayout,
+  shouldRenderPopup = () => true,
 }) => {
   if (!layer || typeof document === "undefined") return;
 
@@ -1089,6 +1295,7 @@ const bindReactPopup = ({
           onOpenDirectionsMenu={onOpenDirectionsMenu}
           onRemove={onRemove}
           getPopup={() => layer.getPopup?.()}
+          schedulePopupLayout={schedulePopupLayout}
         />
       ),
       popupContainer
@@ -1102,187 +1309,16 @@ const bindReactPopup = ({
   };
 
   layer.on("popupopen", ({ popup }) => {
+    if (!shouldRenderPopup()) {
+      layer.closePopup();
+      return;
+    }
+
     renderPopup();
-    scheduleLeafletPopupInView(popup);
+    schedulePopupLayout(popup);
   });
   layer.on("popupclose", unmountPopup);
   layer.on("remove", unmountPopup);
-};
-
-const buildSectionLotKey = (record = {}) => {
-  const section = cleanPopupValue(record.Section ?? record.section);
-  const lot = cleanPopupValue(record.Lot ?? record.lot);
-  if (!section || !lot) return "";
-  return `${section}::${lot}`;
-};
-
-const getPrimaryNameToken = (value = "") => normalizeName(value).split(" ").find(Boolean) || "";
-
-const getRecordDistanceMeters = (left, right) => {
-  if (!Array.isArray(left?.coordinates) || !Array.isArray(right?.coordinates)) {
-    return Number.POSITIVE_INFINITY;
-  }
-
-  try {
-    return turf.distance(
-      turf.point(left.coordinates),
-      turf.point(right.coordinates),
-      { units: "meters" }
-    );
-  } catch (error) {
-    return Number.POSITIVE_INFINITY;
-  }
-};
-
-const scoreTourBurialMatch = (tourRecord, burialRecord) => {
-  let score = 0;
-  const tourName = cleanPopupValue(tourRecord.fullName || tourRecord.displayName);
-  const burialName = cleanPopupValue(burialRecord.fullName || burialRecord.displayName);
-  const tourNormalized = normalizeName(tourName);
-  const burialNormalized = normalizeName(burialName);
-
-  if (tourNormalized && burialNormalized) {
-    if (tourNormalized === burialNormalized) {
-      score += 10;
-    }
-
-    const tourTokens = tourNormalized.split(" ").filter(Boolean);
-    const burialTokens = burialNormalized.split(" ").filter(Boolean);
-    const sharedTokens = tourTokens.filter((token) => burialTokens.includes(token));
-
-    score += sharedTokens.length * 1.5;
-
-    const tourLast = tourTokens[tourTokens.length - 1];
-    const burialLast = burialTokens[burialTokens.length - 1];
-    if (tourLast && burialLast && tourLast === burialLast) {
-      score += 4;
-    }
-
-    const tourFirst = getPrimaryNameToken(tourNormalized);
-    const burialFirst = getPrimaryNameToken(burialNormalized);
-    if (tourFirst && burialFirst && tourFirst === burialFirst) {
-      score += 3;
-    }
-  }
-
-  if (cleanPopupValue(tourRecord.Grave) && cleanPopupValue(burialRecord.Grave) && String(tourRecord.Grave) === String(burialRecord.Grave)) {
-    score += 2;
-  }
-
-  if (cleanPopupValue(tourRecord.Tier) && cleanPopupValue(burialRecord.Tier) && String(tourRecord.Tier) === String(burialRecord.Tier)) {
-    score += 1;
-  }
-
-  const distance = getRecordDistanceMeters(tourRecord, burialRecord);
-  if (distance <= 4) {
-    score += 6;
-  } else if (distance <= 12) {
-    score += 4;
-  } else if (distance <= 25) {
-    score += 2;
-  } else if (distance <= 50) {
-    score += 1;
-  }
-
-  return score;
-};
-
-const buildBurialLookup = (records = []) => {
-  const bySectionLot = new Map();
-
-  records.forEach((record) => {
-    const key = buildSectionLotKey(record);
-    if (!key) return;
-
-    if (!bySectionLot.has(key)) {
-      bySectionLot.set(key, []);
-    }
-
-    bySectionLot.get(key).push(record);
-  });
-
-  return { bySectionLot };
-};
-
-const findMatchingBurialRecord = (tourRecord, burialLookup) => {
-  if (!tourRecord || tourRecord.source !== "tour") return null;
-
-  const candidates = burialLookup?.bySectionLot?.get(buildSectionLotKey(tourRecord)) || [];
-  if (!candidates.length) return null;
-
-  let bestCandidate = null;
-  let bestScore = -Infinity;
-
-  candidates.forEach((candidate) => {
-    const score = scoreTourBurialMatch(tourRecord, candidate);
-    if (score > bestScore) {
-      bestScore = score;
-      bestCandidate = candidate;
-    }
-  });
-
-  return bestScore >= 7 ? bestCandidate : null;
-};
-
-const harmonizeTourBrowseResult = (tourRecord, burialLookup) => {
-  const matchedBurial = findMatchingBurialRecord(tourRecord, burialLookup);
-  const rawDisplayName = cleanPopupValue(tourRecord.displayName || tourRecord.fullName || formatBrowseResultName(tourRecord));
-  const displayName = matchedBurial ? formatBrowseResultName(matchedBurial) : rawDisplayName;
-  const fullName = cleanPopupValue(
-    matchedBurial?.fullName ||
-    matchedBurial?.displayName ||
-    tourRecord.fullName ||
-    displayName
-  );
-  const resolvedDates = resolvePopupDates({
-    Birth: matchedBurial?.Birth || tourRecord.Birth,
-    Death: matchedBurial?.Death || tourRecord.Death,
-  });
-  const mergedRecord = {
-    ...tourRecord,
-    ...(matchedBurial
-      ? {
-          matchedBurialId: matchedBurial.id,
-          matchedBurialName: displayName,
-          displayAlias: rawDisplayName !== displayName ? rawDisplayName : "",
-          First_Name: matchedBurial.First_Name || tourRecord.First_Name,
-          Last_Name: matchedBurial.Last_Name || tourRecord.Last_Name,
-          Section: matchedBurial.Section || tourRecord.Section,
-          Lot: matchedBurial.Lot || tourRecord.Lot,
-          Tier: matchedBurial.Tier ?? tourRecord.Tier,
-          Grave: matchedBurial.Grave ?? tourRecord.Grave,
-          row: tourRecord.row || matchedBurial.row,
-          position: tourRecord.position || matchedBurial.position,
-        }
-      : {}),
-    displayName,
-    label: displayName,
-    fullName,
-    fullNameNormalized: normalizeName(fullName || displayName),
-    Birth: resolvedDates.birth,
-    Death: resolvedDates.death,
-  };
-
-  const secondaryText = buildBrowseSecondaryText(mergedRecord);
-  const searchableLabel = [displayName, secondaryText, cleanPopupValue(mergedRecord.tourName)].filter(Boolean).join(" • ");
-  const nameVariantsNormalized = Array.from(
-    new Set([
-      ...(tourRecord.nameVariantsNormalized || []),
-      ...(matchedBurial?.nameVariantsNormalized || []),
-      normalizeName(tourRecord.displayName),
-      normalizeName(tourRecord.fullName),
-      normalizeName(displayName),
-      normalizeName(fullName),
-    ].filter(Boolean))
-  );
-
-  return {
-    ...mergedRecord,
-    nameVariantsNormalized,
-    secondaryText,
-    searchableLabel,
-    searchableLabelLower: searchableLabel.toLowerCase(),
-  };
 };
 
 //=============================================================================
@@ -1338,6 +1374,67 @@ function MapTourController({ selectedTour, overlayMaps, tourNames }) {
 }
 
 /**
+ * Keep the basemap and static overlays off the render path for selection/menu state.
+ */
+const MapStaticLayers = memo(function MapStaticLayers({
+  activeBasemap,
+  burialRecordsByObjectId,
+  fitMapBoundsInViewport,
+  getSectionStyle,
+  isDev,
+  isMobile,
+  isPmtilesEnabled,
+  mapRef,
+  onBasemapChange,
+  onEachSectionFeature,
+  onLocateMarker,
+  onToggleOverlay,
+  onSelectBurial,
+  overlayVisibility,
+  overlayMaps,
+  selectedTour,
+  tourNames,
+}) {
+  return (
+    <>
+      <MapControlStack isMobile={isMobile}>
+        <MapLayerControl
+          basemapOptions={MAP_CONTROLLED_BASEMAPS}
+          activeBasemapId={activeBasemap?.id || ""}
+          onBasemapChange={onBasemapChange}
+          overlayOptions={MAP_OVERLAY_OPTIONS}
+          overlayVisibility={overlayVisibility}
+          onToggleOverlay={onToggleOverlay}
+        />
+        <DefaultExtentButton fitMapBounds={fitMapBoundsInViewport} />
+        <CustomZoomControl isMobile={isMobile} />
+        <MobileLocateButton isMobile={isMobile} onLocate={onLocateMarker} />
+        {isDev && isPmtilesEnabled && <PmtilesExperimentLegend />}
+      </MapControlStack>
+      <ActiveLeafletBasemap basemap={activeBasemap} />
+      {isDev && isPmtilesEnabled && (
+        <ExperimentalVectorBurialLayer
+          burialRecordsByObjectId={burialRecordsByObjectId}
+          onSelectBurial={onSelectBurial}
+        />
+      )}
+      <MapBounds fitMapBounds={fitMapBoundsInViewport} />
+      <MapController mapRef={mapRef} />
+      <MapTourController selectedTour={selectedTour} overlayMaps={overlayMaps} tourNames={tourNames} />
+      {overlayVisibility.roads && <GeoJSON data={MAP_ROADS} style={roadStyle} />}
+      {overlayVisibility.boundary && <GeoJSON data={MAP_BOUNDARY} style={exteriorStyle} />}
+      {overlayVisibility.sections && (
+        <GeoJSON
+          data={MAP_SECTIONS}
+          style={getSectionStyle}
+          onEachFeature={onEachSectionFeature}
+        />
+      )}
+    </>
+  );
+});
+
+/**
  * Creates event handlers for tour features
  * @param {string} tourKey - The key identifying the tour
  * @returns {Function} Event handler for the tour feature
@@ -1349,7 +1446,9 @@ const createOnEachTourFeature = (
   onOpenDirectionsMenu,
   onRemoveResult,
   onRegisterLayer,
-  resolveTourBrowseResult
+  resolveTourBrowseResult,
+  schedulePopupLayout,
+  shouldRenderPopup
 ) => (feature, layer) => {
   if (feature.properties) {
     feature.properties.title = tourKey;
@@ -1367,6 +1466,8 @@ const createOnEachTourFeature = (
         onRemoveResult(browseResult.id);
         layer.closePopup();
       },
+      schedulePopupLayout,
+      shouldRenderPopup,
     });
     if (onRegisterLayer) {
       onRegisterLayer(browseResult, layer);
@@ -1395,18 +1496,41 @@ const createOnEachTourFeature = (
  * - Turn-by-turn navigation to burial sites
  */
 export default function BurialMap() {
-  const { isDev } = getRuntimeEnv();
+  const runtimeEnv = useMemo(() => getRuntimeEnv(), []);
+  const {
+    isDev,
+    featureFlags,
+  } = runtimeEnv;
+  const isFieldPacketsEnabled = featureFlags.fieldPackets;
+  const tourDefinitions = featureFlags.fabTours ? TOUR_DEFINITIONS : EMPTY_TOUR_DEFINITIONS;
+  const tourStyles = featureFlags.fabTours ? TOUR_STYLES : EMPTY_TOUR_STYLES;
+  /**
+   * `BurialMap` keeps the runtime wiring: React state, Leaflet lifecycles, and
+   * user interaction orchestration. Pure record formatting and tour/burial
+   * reconciliation live in dedicated feature modules so maintainers can
+   * change presentation rules without also reading map-effect code.
+   */
   //-----------------------------------------------------------------------------
   // State Management
   //-----------------------------------------------------------------------------
 
   // Map and UI State
   const [overlayMaps, setOverlayMaps] = useState({});
+  const [tourGeoJsonByName, setTourGeoJsonByName] = useState({});
   const [tourBoundsByName, setTourBoundsByName] = useState({});
   const [tourResultsByName, setTourResultsByName] = useState({});
   const [currentZoom, setCurrentZoom] = useState(14);
-  const [hoveredIndex, setHoveredIndex] = useState(null);
+  const [hoveredBurialId, setHoveredBurialId] = useState(null);
+  const [mapEngine, setMapEngine] = useState(() => (
+    featureFlags.customMapEngine ? "custom" : "leaflet"
+  ));
   const [selectedTour, setSelectedTour] = useState(null);
+  const [activeBasemapId, setActiveBasemapId] = useState(() => (
+    MAP_CONTROLLED_BASEMAPS.some((basemap) => basemap.id === DEFAULT_BASEMAP_ID)
+      ? DEFAULT_BASEMAP_ID
+      : (MAP_CONTROLLED_BASEMAPS[0]?.id || MAP_BASEMAPS[0]?.id || "")
+  ));
+  const [overlayVisibility, setOverlayVisibility] = useState(DEFAULT_MAP_OVERLAY_VISIBILITY);
 
   // Search and Filter State
   const [selectedBurials, setSelectedBurials] = useState([]);
@@ -1415,9 +1539,9 @@ export default function BurialMap() {
   const [sectionFilter, setSectionFilter] = useState('');
   const [lotTierFilter, setLotTierFilter] = useState('');
   const [filterType, setFilterType] = useState('lot');
-  const [burialFeatures, setBurialFeatures] = useState([]);
+  const [baseBurialRecords, setBaseBurialRecords] = useState([]);
   const [tourMatches, setTourMatches] = useState({});
-  const [isBurialDataLoading, setIsBurialDataLoading] = useState(true);
+  const [isBurialDataLoading, setIsBurialDataLoading] = useState(false);
   const [burialDataError, setBurialDataError] = useState('');
   const [tourLayerError, setTourLayerError] = useState('');
   const [loadingTourName, setLoadingTourName] = useState('');
@@ -1427,11 +1551,15 @@ export default function BurialMap() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
   const [isPmtilesEnabled, setIsPmtilesEnabled] = useState(false);
+  const [hasRequestedBurialData, setHasRequestedBurialData] = useState(false);
+  const [fieldPacket, setFieldPacket] = useState(null);
+  const [fieldPacketNotice, setFieldPacketNotice] = useState(null);
+  const [uniqueSections, setUniqueSections] = useState([]);
 
   // Location and Routing State
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
-  const [status, setStatus] = useState('Location inactive');
+  const [status, setStatus] = useState(LOCATION_MESSAGES.inactive);
   const [routingOrigin, setRoutingOrigin] = useState(null);
   const [routingDestination, setRoutingDestination] = useState(null);
   const [activeRouteBurialId, setActiveRouteBurialId] = useState(null);
@@ -1441,13 +1569,19 @@ export default function BurialMap() {
   const [directionsMenuBurial, setDirectionsMenuBurial] = useState(null);
 
   // Component References
-  const { BaseLayer } = LayersControl;
+  // Leaflet layers outlive individual renders, so these refs act as the
+  // imperative bridge between React state and map objects.
   const markerClusterRef = useRef(null);
+  const mapRef = useRef(null);
+  const sidebarOverlayRef = useRef(null);
   const sectionFeatureLayersRef = useRef(new Map());
   const sectionMarkersByIdRef = useRef(new Map());
   const activeSectionMarkerIdRef = useRef(null);
   const activeBurialIdRef = useRef(null);
+  const hoveredBurialIdRef = useRef(null);
   const hoveredSectionIdRef = useRef(null);
+  const canSectionHoverRef = useRef(true);
+  const recentTouchSectionInteractionRef = useRef(false);
   const sectionTooltipSyncFrameRef = useRef(null);
   const didApplyUrlStateRef = useRef(false);
   const loadedTourNamesRef = useRef(new Set());
@@ -1456,48 +1590,67 @@ export default function BurialMap() {
   const selectedMarkerLayersRef = useRef(new Map());
   const tourFeatureLayersRef = useRef(new Map());
   const pendingPopupBurialRef = useRef(null);
+  const activeRouteBurialIdRef = useRef(null);
+  const directionsMenuBurialRef = useRef(null);
 
   //-----------------------------------------------------------------------------
   // Memoized Values
   //-----------------------------------------------------------------------------
 
-  const uniqueSections = useMemo(
-    () => Array.from(new Set(burialFeatures.map((feature) => feature.properties.Section))).sort(sortSectionValues),
-    [burialFeatures]
-  );
   const sectionBoundsById = useMemo(
     () => new Map(
-      ARC_Sections.features
+      MAP_SECTIONS.features
         .filter((feature) => feature?.properties?.Section)
         .map((feature) => [String(feature.properties.Section), getGeoJsonBounds(feature)])
         .filter(([, bounds]) => isLatLngBoundsExpressionValid(bounds))
     ),
     []
   );
+  const isCustomMapEngineEnabled = mapEngine === "custom";
+  const selectedMarkerOrderById = useMemo(
+    () => new Map(selectedBurials.map((burial, index) => [burial.id, index + 1])),
+    [selectedBurials]
+  );
 
   const getTourName = useCallback(
-    (option = {}) => cleanPopupValue(
+    (option = {}) => cleanRecordValue(
       option.tourName ||
-      TOURS[option.title]?.name ||
-      TOURS[option.tourKey]?.name ||
+      tourStyles[option.title]?.name ||
+      tourStyles[option.tourKey]?.name ||
       option.title ||
       option.tourKey ||
       ''
     ),
-    []
+    [tourStyles]
   );
 
   const tourDefinitionsByName = useMemo(
-    () => new Map(TOUR_DEFINITIONS.map((definition) => [definition.name, definition])),
-    []
+    () => new Map(tourDefinitions.map((definition) => [definition.name, definition])),
+    [tourDefinitions]
   );
   const tourNames = useMemo(
-    () => TOUR_DEFINITIONS.map((definition) => definition.name),
+    () => tourDefinitions.map((definition) => definition.name),
+    [tourDefinitions]
+  );
+  const basemapById = useMemo(
+    () => new Map(MAP_BASEMAPS.map((basemap) => [basemap.id, basemap])),
     []
+  );
+  const defaultBasemap = useMemo(
+    () => basemapById.get(DEFAULT_BASEMAP_ID) || MAP_CONTROLLED_BASEMAPS[0] || MAP_BASEMAPS[0] || null,
+    [basemapById]
+  );
+  const activeBasemap = useMemo(
+    () => basemapById.get(activeBasemapId) || defaultBasemap,
+    [activeBasemapId, basemapById, defaultBasemap]
   );
   const selectedTourLayer = useMemo(
     () => (selectedTour ? overlayMaps[selectedTour] || null : null),
     [overlayMaps, selectedTour]
+  );
+  const selectedTourGeoJson = useMemo(
+    () => (selectedTour ? tourGeoJsonByName[selectedTour] || null : null),
+    [selectedTour, tourGeoJsonByName]
   );
   const selectedTourBounds = useMemo(
     () => (selectedTour ? tourBoundsByName[selectedTour] || null : null),
@@ -1507,6 +1660,20 @@ export default function BurialMap() {
   if (initialDeepLinkRef.current === null && typeof window !== "undefined") {
     initialDeepLinkRef.current = parseDeepLinkState(window.location.search, tourNames);
   }
+  const initialFieldPacket = initialDeepLinkRef.current?.fieldPacket || null;
+  const initialDeepLinkNeedsBurialData = Boolean(
+    initialDeepLinkRef.current?.query ||
+    initialDeepLinkRef.current?.section ||
+    initialDeepLinkRef.current?.showBurialsView ||
+    (
+      isFieldPacketsEnabled &&
+      initialFieldPacket &&
+      (
+        initialFieldPacket.selectedRecords?.length > 0 ||
+        initialFieldPacket.sectionFilter
+      )
+    )
+  );
   const appMenuOpen = Boolean(appMenuAnchorEl);
   const directionsMenuOpen = Boolean(directionsMenuAnchorEl);
   const isAppleMobile = useMemo(() => {
@@ -1518,6 +1685,90 @@ export default function BurialMap() {
   const showIosInstallHint = isAppleMobile && !isInstalled && !installPromptEvent;
   const initialBrowseQuery = initialDeepLinkRef.current?.query || "";
   const isMobile = useMediaQuery("(max-width:840px)");
+  const shouldReduceMapMotion = useMemo(() => {
+    if (typeof navigator === 'undefined') {
+      return isMobile;
+    }
+
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (connection?.saveData) {
+      return true;
+    }
+
+    if (connection?.effectiveType && SLOW_CONNECTION_TYPES.has(connection.effectiveType)) {
+      return true;
+    }
+
+    if (navigator.deviceMemory && navigator.deviceMemory <= 4) {
+      return true;
+    }
+
+    return isMobile;
+  }, [isMobile]);
+  const shouldUseMapPopups = !isMobile;
+  const shouldUseMapPopupsRef = useRef(shouldUseMapPopups);
+  const handleBasemapChange = useCallback((nextBasemapId) => {
+    setActiveBasemapId(nextBasemapId);
+  }, []);
+  const handleToggleOverlay = useCallback((overlayId) => {
+    setOverlayVisibility((current) => ({
+      ...current,
+      [overlayId]: !(current[overlayId] !== false),
+    }));
+  }, []);
+  const handleMapEngineChange = useCallback((nextEngine) => {
+    if (!isDev) {
+      return;
+    }
+
+    if (nextEngine !== "leaflet" && nextEngine !== "custom") {
+      return;
+    }
+
+    setMapEngine((currentEngine) => {
+      if (currentEngine === nextEngine) {
+        return currentEngine;
+      }
+
+      setStoredCustomMapEngineOverride(nextEngine === "custom");
+      return nextEngine;
+    });
+  }, [isDev]);
+  const getMapInstance = useCallback(() => mapRef.current, []);
+
+  useEffect(() => {
+    if (basemapById.has(activeBasemapId)) {
+      return;
+    }
+
+    if (defaultBasemap?.id) {
+      setActiveBasemapId(defaultBasemap.id);
+    }
+  }, [activeBasemapId, basemapById, defaultBasemap]);
+  const getOverlayElement = useCallback(() => sidebarOverlayRef.current, []);
+  const fitMapBoundsInViewport = useCallback((map, bounds, options = {}) => {
+    fitBoundsInVisibleViewport(map, bounds, {
+      ...options,
+      getOverlayElement,
+    });
+  }, [getOverlayElement]);
+  const panMapIntoViewport = useCallback((map, latLng, options = {}) => {
+    panIntoVisibleViewport(map, latLng, {
+      ...options,
+      getOverlayElement,
+    });
+  }, [getOverlayElement]);
+  const schedulePopupLayout = useCallback((popup) => {
+    if (!popup) {
+      return;
+    }
+
+    if (popup.__customRuntimePopup) {
+      return;
+    }
+
+    schedulePopupInView(popup, { getOverlayElement });
+  }, [getOverlayElement]);
   const canIdlePrefetchTours = useMemo(() => {
     if (typeof navigator === 'undefined') {
       return !isMobile;
@@ -1540,6 +1791,17 @@ export default function BurialMap() {
   }, [isMobile]);
 
   useEffect(() => {
+    shouldUseMapPopupsRef.current = shouldUseMapPopups;
+
+    if (shouldUseMapPopups) {
+      return;
+    }
+
+    pendingPopupBurialRef.current = null;
+    getMapInstance()?.closePopup?.();
+  }, [getMapInstance, shouldUseMapPopups]);
+
+  useEffect(() => {
     if (!isDev || typeof window === 'undefined') {
       setIsPmtilesEnabled(false);
       return;
@@ -1560,12 +1822,36 @@ export default function BurialMap() {
     );
   }, [isDev, isPmtilesEnabled]);
 
+  useEffect(() => {
+    if (isFieldPacketsEnabled) return;
+
+    setFieldPacket(null);
+    setFieldPacketNotice(null);
+  }, [isFieldPacketsEnabled]);
+
+  useEffect(() => {
+    if (!fieldPacketNotice || typeof window === "undefined") {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setFieldPacketNotice(null);
+    }, 3200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [fieldPacketNotice]);
+
+  useEffect(() => {
+    if (initialDeepLinkNeedsBurialData) {
+      setHasRequestedBurialData(true);
+    }
+  }, [initialDeepLinkNeedsBurialData]);
+
   const burialRecords = useMemo(() => (
-    burialFeatures.map((feature) => {
-      const baseRecord = buildBurialBrowseResult(feature, { getTourName });
-      return harmonizeBurialBrowseResult(baseRecord, tourMatches);
-    })
-  ), [burialFeatures, getTourName, tourMatches]);
+    baseBurialRecords.map((record) => harmonizeBurialBrowseResult(record, tourMatches))
+  ), [baseBurialRecords, tourMatches]);
 
   const burialRecordsById = useMemo(
     () => new Map(burialRecords.map((record) => [record.id, record])),
@@ -1577,6 +1863,19 @@ export default function BurialMap() {
     ),
     [burialRecords]
   );
+  const burialSectionIndex = useMemo(
+    () => buildBurialSectionIndex(burialRecords),
+    [burialRecords]
+  );
+  const sectionBurialCounts = useMemo(() => {
+    const counts = new Map();
+
+    burialSectionIndex.forEach((sectionEntry, sectionValue) => {
+      counts.set(sectionValue, sectionEntry.records.length);
+    });
+
+    return counts;
+  }, [burialSectionIndex]);
 
   const burialLookup = useMemo(
     () => buildBurialLookup(burialRecords),
@@ -1593,8 +1892,10 @@ export default function BurialMap() {
       sectionFilter,
       lotTierFilter,
       filterType,
+    }, {
+      sectionIndex: burialSectionIndex,
     })
-  ), [burialRecords, filterType, lotTierFilter, sectionFilter]);
+  ), [burialRecords, burialSectionIndex, filterType, lotTierFilter, sectionFilter]);
 
   /**
    * Build search indexes off the main interaction path.
@@ -1658,11 +1959,11 @@ export default function BurialMap() {
    * Checks if user is within 5 miles of the cemetery
    */
   const updateLocationFromPosition = useCallback((position) => {
-    const point = turf.point([position.coords.longitude, position.coords.latitude]);
-    const isWithinBuffer = turf.booleanPointInPolygon(point, LOCATION_BUFFER_BOUNDARY);
+    const currentPoint = point([position.coords.longitude, position.coords.latitude]);
+    const isWithinBuffer = booleanPointInPolygon(currentPoint, LOCATION_BUFFER_BOUNDARY);
 
     if (isWithinBuffer) {
-      setStatus('Location active');
+      setStatus(LOCATION_MESSAGES.active);
       setLat(position.coords.latitude);
       setLng(position.coords.longitude);
       return {
@@ -1671,26 +1972,26 @@ export default function BurialMap() {
       };
     }
 
-    setStatus('You must be within 5 miles of Albany Rural Cemetery');
+    setStatus(LOCATION_MESSAGES.outOfBounds);
     setLat(null);
     setLng(null);
     return null;
   }, []);
 
   const handleLocationError = useCallback((error) => {
-    setStatus('Unable to retrieve your location');
+    setStatus(LOCATION_MESSAGES.unavailable);
     console.error('Geolocation error:', error);
     return null;
   }, []);
 
   const requestCurrentLocation = useCallback(() => new Promise((resolve) => {
     if (!navigator.geolocation) {
-      setStatus('Geolocation is not supported by your browser');
+      setStatus(LOCATION_MESSAGES.unsupported);
       resolve(null);
       return;
     }
 
-    setStatus('Locating...');
+    setStatus(LOCATION_MESSAGES.locating);
     navigator.geolocation.getCurrentPosition(
       (position) => {
         resolve(updateLocationFromPosition(position));
@@ -1743,18 +2044,26 @@ export default function BurialMap() {
   }, []);
 
   const openPopupForBurial = useCallback((burial) => {
+    if (!shouldUseMapPopups) {
+      return false;
+    }
+
     const layer = getPopupLayerForBurial(burial);
     if (!layer?.openPopup) {
       return false;
     }
 
     layer.openPopup();
-    scheduleLeafletPopupInView(layer.getPopup?.());
+    schedulePopupLayout(layer.getPopup?.());
     return true;
-  }, [getPopupLayerForBurial]);
+  }, [getPopupLayerForBurial, schedulePopupLayout, shouldUseMapPopups]);
 
   const focusBurialPopup = useCallback((burial, map) => {
     if (!burial) return;
+    if (!shouldUseMapPopups) {
+      pendingPopupBurialRef.current = null;
+      return;
+    }
 
     const openPopup = () => {
       if (!openPopupForBurial(burial)) {
@@ -1770,7 +2079,7 @@ export default function BurialMap() {
     }
 
     openPopup();
-  }, [openPopupForBurial]);
+  }, [openPopupForBurial, shouldUseMapPopups]);
 
   /**
    * Focuses a burial consistently regardless of whether it was found by search or map click.
@@ -1796,9 +2105,12 @@ export default function BurialMap() {
 
     setActiveBurialId(burial.id);
 
-    if (window.mapInstance && Array.isArray(burial.coordinates)) {
-      const map = window.mapInstance;
-      const targetLatLng = L.latLng(burial.coordinates[1], burial.coordinates[0]);
+    const map = getMapInstance();
+    if (map && Array.isArray(burial.coordinates)) {
+      const targetLatLng = {
+        lat: burial.coordinates[1],
+        lng: burial.coordinates[0],
+      };
 
       if (preserveViewport) {
         if (openTourPopup) {
@@ -1812,7 +2124,7 @@ export default function BurialMap() {
       const distance = map.distance(currentCenter, targetLatLng);
       const shouldAnimate = animate && distance > 24;
       const finalizeViewport = () => {
-        panMapIntoVisibleViewport(map, targetLatLng, { animate: false });
+        panMapIntoViewport(map, targetLatLng, { animate: false });
         if (openTourPopup) {
           focusBurialPopup(burial);
         }
@@ -1841,7 +2153,7 @@ export default function BurialMap() {
     if (openTourPopup) {
       focusBurialPopup(burial);
     }
-  }, [focusBurialPopup]);
+  }, [focusBurialPopup, getMapInstance, panMapIntoViewport]);
 
   const selectBurial = useCallback((burial, options = {}) => {
     focusBurial(burial, { addToSelection: true, ...options });
@@ -1853,17 +2165,17 @@ export default function BurialMap() {
   const removeFromResults = useCallback((burialId) => {
     setSelectedBurials((prev) => prev.filter((burial) => burial.id !== burialId));
 
-    if (activeRouteBurialId === burialId) {
+    if (activeRouteBurialIdRef.current === burialId) {
       setRoutingOrigin(null);
       setRoutingDestination(null);
       setActiveRouteBurialId(null);
     }
 
-    if (directionsMenuBurial?.id === burialId) {
+    if (directionsMenuBurialRef.current?.id === burialId) {
       setDirectionsMenuAnchorEl(null);
       setDirectionsMenuBurial(null);
     }
-  }, [activeRouteBurialId, directionsMenuBurial]);
+  }, []);
 
   /**
    * Clears all search results
@@ -1889,6 +2201,169 @@ export default function BurialMap() {
   const handleTogglePmtilesExperiment = useCallback(() => {
     setIsPmtilesEnabled((current) => !current);
   }, []);
+
+  const requestBurialDataLoad = useCallback(() => {
+    setHasRequestedBurialData(true);
+  }, []);
+
+  const showFieldPacketNotice = useCallback((message, tone = "neutral") => {
+    const nextMessage = String(message || "").trim();
+    if (!nextMessage) {
+      setFieldPacketNotice(null);
+      return;
+    }
+
+    setFieldPacketNotice({
+      message: nextMessage,
+      tone,
+    });
+  }, []);
+
+  const getCurrentMapBoundsSnapshot = useCallback(() => {
+    const bounds = getMapInstance()?.getBounds?.();
+    if (!bounds?.isValid?.()) return null;
+
+    return [
+      [bounds.getSouth(), bounds.getWest()],
+      [bounds.getNorth(), bounds.getEast()],
+    ];
+  }, [getMapInstance]);
+
+  const createFieldPacketFromSelection = useCallback(() => {
+    if (!isFieldPacketsEnabled) return null;
+
+    if (selectedBurials.length === 0) {
+      showFieldPacketNotice("Select one or more records to create a field packet.", "warning");
+      return null;
+    }
+
+    const nextFieldPacket = buildFieldPacketState({
+      name: fieldPacket?.name,
+      note: fieldPacket?.note,
+      selectedRecords: selectedBurials,
+      activeBurialId,
+      sectionFilter,
+      selectedTour,
+      mapBounds: getCurrentMapBoundsSnapshot(),
+    });
+
+    setFieldPacket(nextFieldPacket);
+    showFieldPacketNotice(
+      fieldPacket
+        ? "Field packet refreshed from the current selection."
+        : "Field packet created from the current selection.",
+      "success"
+    );
+
+    return nextFieldPacket;
+  }, [
+    activeBurialId,
+    fieldPacket,
+    getCurrentMapBoundsSnapshot,
+    isFieldPacketsEnabled,
+    sectionFilter,
+    selectedBurials,
+    selectedTour,
+    showFieldPacketNotice,
+  ]);
+
+  const updateFieldPacket = useCallback((updates = {}) => {
+    setFieldPacket((current) => {
+      if (!current) return current;
+
+      return buildFieldPacketState({
+        ...current,
+        ...updates,
+        selectedRecords: updates.selectedRecords || current.selectedRecords,
+      });
+    });
+  }, []);
+
+  const getFieldPacketShareUrl = useCallback((packetState = fieldPacket) => {
+    if (!isFieldPacketsEnabled || typeof window === "undefined") {
+      return "";
+    }
+
+    const nextPacket = packetState?.selectedRecords?.length
+      ? packetState
+      : createFieldPacketFromSelection();
+    if (!nextPacket) return "";
+
+    return buildFieldPacketShareUrl({
+      packet: nextPacket,
+      currentUrl: window.location.href,
+    });
+  }, [createFieldPacketFromSelection, fieldPacket, isFieldPacketsEnabled]);
+
+  const copyFieldPacketLink = useCallback(async () => {
+    const shareUrl = getFieldPacketShareUrl();
+    if (!shareUrl) {
+      showFieldPacketNotice("Field packet link unavailable.", "warning");
+      return;
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        showFieldPacketNotice("Field packet link copied.", "success");
+        return;
+      }
+
+      if (typeof window !== "undefined" && typeof window.prompt === "function") {
+        window.prompt("Copy field packet link", shareUrl);
+        showFieldPacketNotice("Field packet link ready to copy.", "neutral");
+        return;
+      }
+
+      showFieldPacketNotice("Clipboard access unavailable in this browser.", "warning");
+    } catch (error) {
+      console.error("Failed to copy field packet link:", error);
+      showFieldPacketNotice("Failed to copy the field packet link.", "warning");
+    }
+  }, [getFieldPacketShareUrl, showFieldPacketNotice]);
+
+  const shareFieldPacket = useCallback(async () => {
+    const nextPacket = fieldPacket?.selectedRecords?.length
+      ? fieldPacket
+      : createFieldPacketFromSelection();
+    if (!nextPacket) return;
+
+    const shareUrl = getFieldPacketShareUrl(nextPacket);
+    if (!shareUrl) {
+      showFieldPacketNotice("Field packet link unavailable.", "warning");
+      return;
+    }
+
+    if (typeof navigator === "undefined" || typeof navigator.share !== "function") {
+      await copyFieldPacketLink();
+      return;
+    }
+
+    try {
+      await navigator.share({
+        title: nextPacket.name,
+        text: nextPacket.note || `${nextPacket.selectedRecords.length} selected record${nextPacket.selectedRecords.length === 1 ? "" : "s"}`,
+        url: shareUrl,
+      });
+      showFieldPacketNotice("Field packet shared.", "success");
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+
+      console.error("Failed to share field packet:", error);
+      showFieldPacketNotice("Unable to open the native share sheet.", "warning");
+    }
+  }, [
+    copyFieldPacketLink,
+    createFieldPacketFromSelection,
+    fieldPacket,
+    getFieldPacketShareUrl,
+    showFieldPacketNotice,
+  ]);
+
+  const clearFieldPacket = useCallback(() => {
+    setFieldPacket(null);
+    showFieldPacketNotice("Field packet cleared.", "neutral");
+  }, [showFieldPacketNotice]);
 
   const handleInstallApp = useCallback(async () => {
     if (!installPromptEvent) return;
@@ -1981,9 +2456,10 @@ export default function BurialMap() {
   }, []);
 
   const syncSectionTooltips = useCallback(() => {
-    if (!window.mapInstance) return;
+    const map = getMapInstance();
+    if (!map) return;
 
-    const zoom = window.mapInstance.getZoom();
+    const zoom = map.getZoom();
     sectionFeatureLayersRef.current.forEach(({ layer, tooltip, sectionValue, label }) => {
       const isHovered = hoveredSectionIdRef.current === String(sectionValue);
       const shouldShowTooltip =
@@ -2011,7 +2487,7 @@ export default function BurialMap() {
         tooltip._container.parentNode.removeChild(tooltip._container);
       }
     });
-  }, [sectionFilter]);
+  }, [getMapInstance, sectionFilter]);
 
   const scheduleSectionTooltipSync = useCallback(() => {
     if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
@@ -2029,21 +2505,114 @@ export default function BurialMap() {
     });
   }, [syncSectionTooltips]);
 
+  const restoreSectionLayerWeight = useCallback((sectionId) => {
+    const section = sectionFeatureLayersRef.current.get(String(sectionId));
+    if (!section?.layer) return;
+
+    section.layer.setStyle({
+      weight: `${section.sectionValue}` === `${sectionFilter}` ? 2 : 1,
+    });
+  }, [sectionFilter]);
+
   const clearHoveredSection = useCallback(() => {
     const hoveredSectionId = hoveredSectionIdRef.current;
     if (!hoveredSectionId) return;
 
     hoveredSectionIdRef.current = null;
+    restoreSectionLayerWeight(hoveredSectionId);
+    scheduleSectionTooltipSync();
+  }, [restoreSectionLayerWeight, scheduleSectionTooltipSync]);
 
-    const hoveredSection = sectionFeatureLayersRef.current.get(String(hoveredSectionId));
-    if (hoveredSection?.layer) {
-      hoveredSection.layer.setStyle({
-        weight: `${hoveredSection.sectionValue}` === `${sectionFilter}` ? 2 : 1,
-      });
+  const handleHoverBurialChange = useCallback((nextBurialId) => {
+    const normalizedBurialId = nextBurialId ?? null;
+    setHoveredBurialId((currentBurialId) => (
+      currentBurialId === normalizedBurialId ? currentBurialId : normalizedBurialId
+    ));
+  }, []);
+
+  const clearHoveredBurialIfCurrent = useCallback((burialId) => {
+    if (!burialId) {
+      handleHoverBurialChange(null);
+      return;
     }
 
-    scheduleSectionTooltipSync();
-  }, [scheduleSectionTooltipSync, sectionFilter]);
+    setHoveredBurialId((currentBurialId) => (
+      currentBurialId === burialId ? null : currentBurialId
+    ));
+  }, [handleHoverBurialChange]);
+
+  const syncLeafletSelectedMarkerIcon = useCallback((burialId, layerOverride = null) => {
+    if (isCustomMapEngineEnabled || !burialId) {
+      return;
+    }
+
+    const layer = layerOverride || selectedMarkerLayersRef.current.get(burialId);
+    const markerNumber = selectedMarkerOrderById.get(burialId);
+    if (!layer?.setIcon || !markerNumber) {
+      return;
+    }
+
+    const isHighlighted =
+      hoveredBurialIdRef.current === burialId ||
+      activeBurialIdRef.current === burialId;
+
+    layer.setIcon(createNumberedIcon(markerNumber, isHighlighted));
+    if (typeof layer.setZIndexOffset === "function") {
+      layer.setZIndexOffset(isHighlighted ? 1200 : 1000);
+    }
+  }, [isCustomMapEngineEnabled, selectedMarkerOrderById]);
+
+  const syncLeafletSelectedMarkerIcons = useCallback(() => {
+    if (isCustomMapEngineEnabled) {
+      return;
+    }
+
+    selectedMarkerOrderById.forEach((_, burialId) => {
+      syncLeafletSelectedMarkerIcon(burialId);
+    });
+  }, [isCustomMapEngineEnabled, selectedMarkerOrderById, syncLeafletSelectedMarkerIcon]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const handleHoverCapabilityChange = (event) => {
+      canSectionHoverRef.current = event.matches;
+      recentTouchSectionInteractionRef.current = !event.matches;
+
+      if (!event.matches) {
+        clearHoveredSection();
+      }
+    };
+
+    canSectionHoverRef.current = mediaQuery.matches;
+    recentTouchSectionInteractionRef.current = !mediaQuery.matches;
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleHoverCapabilityChange);
+      return () => {
+        mediaQuery.removeEventListener('change', handleHoverCapabilityChange);
+      };
+    }
+
+    mediaQuery.addListener(handleHoverCapabilityChange);
+    return () => {
+      mediaQuery.removeListener(handleHoverCapabilityChange);
+    };
+  }, [clearHoveredSection]);
+
+  const markSectionInputMode = useCallback((event) => {
+    const pointerType = inferPointerType(event);
+    if (isTouchLikePointerType(pointerType)) {
+      recentTouchSectionInteractionRef.current = true;
+      clearHoveredSection();
+      return;
+    }
+
+    recentTouchSectionInteractionRef.current = false;
+  }, [clearHoveredSection]);
 
   //=============================================================================
   // Routing Functions
@@ -2122,10 +2691,52 @@ export default function BurialMap() {
   // Effects
   //-----------------------------------------------------------------------------
 
+  useEffect(() => {
+    if (initialDeepLinkNeedsBurialData || hasRequestedBurialData || typeof window === "undefined") {
+      return undefined;
+    }
+
+    let idleHandle;
+    let timeoutHandle;
+
+    const scheduleLoad = () => {
+      if ('requestIdleCallback' in window) {
+        idleHandle = window.requestIdleCallback(() => {
+          setHasRequestedBurialData(true);
+        }, { timeout: 4000 });
+        return;
+      }
+
+      timeoutHandle = window.setTimeout(() => {
+        setHasRequestedBurialData(true);
+      }, 1200);
+    };
+
+    if (document.readyState === "complete") {
+      scheduleLoad();
+    } else {
+      window.addEventListener('load', scheduleLoad, { once: true });
+    }
+
+    return () => {
+      window.removeEventListener('load', scheduleLoad);
+      if ('cancelIdleCallback' in window && typeof idleHandle === 'number') {
+        window.cancelIdleCallback(idleHandle);
+      }
+      if (typeof timeoutHandle === 'number') {
+        window.clearTimeout(timeoutHandle);
+      }
+    };
+  }, [hasRequestedBurialData, initialDeepLinkNeedsBurialData]);
+
   /**
    * Load the lightweight burial search index asynchronously.
    */
   useEffect(() => {
+    if (!hasRequestedBurialData) {
+      return undefined;
+    }
+
     let ignore = false;
 
     const loadBurials = async () => {
@@ -2133,33 +2744,46 @@ export default function BurialMap() {
       setBurialDataError('');
       try {
         // Fetch the lightweight search index from public directory
-        const response = await fetch(getPublicAssetUrl('/data/Search_Burials.json'));
+        const response = await fetch(getPublicAssetUrl(SEARCH_INDEX_PUBLIC_PATH));
         if (!response.ok) throw new Error('Failed to fetch search index');
         const minifiedData = await response.json();
 
         if (!ignore) {
-          // Remap minified keys to full property names for app compatibility
-          const features = minifiedData.map(item => ({
-            id: item.i,
-            properties: {
-              OBJECTID: item.i,
-              First_Name: item.f,
-              Last_Name: item.l,
-              Section: item.s,
-              Lot: item.lo,
-              Grave: item.g,
-              Tier: item.t,
-              Birth: item.b,
-              Death: item.d,
-              tourKey: item.tk,
-              title: item.tk,
-              fullNameNormalized: item.n,
-              searchableLabelLower: item.sl,
-              nameVariantsNormalized: item.nv
-            },
-            geometry: item.c ? { type: 'Point', coordinates: item.c } : null
-          }));
-          setBurialFeatures(features);
+          const nextUniqueSections = new Set();
+          const records = minifiedData.map((item) => {
+            const nextRecord = buildBurialBrowseResult(
+              {
+                id: item.i,
+                properties: {
+                  OBJECTID: item.i,
+                  First_Name: item.f,
+                  Last_Name: item.l,
+                  Section: item.s,
+                  Lot: item.lo,
+                  Grave: item.g,
+                  Tier: item.t,
+                  Birth: item.b,
+                  Death: item.d,
+                  tourKey: item.tk,
+                  title: item.tk,
+                  fullNameNormalized: item.n,
+                  searchableLabelLower: item.sl,
+                  nameVariantsNormalized: item.nv,
+                },
+                geometry: item.c ? { type: 'Point', coordinates: item.c } : null,
+              },
+              { getTourName }
+            );
+
+            if (nextRecord.Section) {
+              nextUniqueSections.add(nextRecord.Section);
+            }
+
+            return nextRecord;
+          });
+
+          setBaseBurialRecords(records);
+          setUniqueSections(Array.from(nextUniqueSections).sort(sortSectionValues));
         }
       } catch (error) {
         console.error('Failed to load burial data:', error);
@@ -2177,7 +2801,7 @@ export default function BurialMap() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [getTourName, hasRequestedBurialData]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2241,6 +2865,14 @@ export default function BurialMap() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  useEffect(() => {
+    activeRouteBurialIdRef.current = activeRouteBurialId;
+  }, [activeRouteBurialId]);
+
+  useEffect(() => {
+    directionsMenuBurialRef.current = directionsMenuBurial;
+  }, [directionsMenuBurial]);
 
   useEffect(() => {
     if (selectedBurials.length === 0) {
@@ -2316,13 +2948,59 @@ export default function BurialMap() {
     };
   }, [watchId]);
 
+  const buildSectionMarker = useCallback((burial) => {
+    if (!Array.isArray(burial.coordinates)) {
+      return null;
+    }
+
+    const marker = L.circleMarker(
+      [burial.coordinates[1], burial.coordinates[0]],
+      getSectionMarkerStyle(activeBurialIdRef.current === burial.id)
+    );
+
+    bindReactPopup({
+      layer: marker,
+      record: burial,
+      onOpenDirectionsMenu: (event) => {
+        handleOpenDirectionsMenu(event, burial);
+      },
+      onRemove: () => {
+        removeFromResults(burial.id);
+        marker.closePopup();
+      },
+      schedulePopupLayout,
+      shouldRenderPopup: () => shouldUseMapPopupsRef.current,
+    });
+
+    marker.on('click', () => {
+      selectBurial(burial, {
+        animate: false,
+        openTourPopup: true,
+        preserveViewport: true,
+      });
+    });
+
+    return marker;
+  }, [
+    handleOpenDirectionsMenu,
+    removeFromResults,
+    schedulePopupLayout,
+    selectBurial,
+  ]);
+
   /**
    * Update section burial marker display
    */
   useEffect(() => {
-    if (!window.mapInstance || !showAllBurials || !sectionFilter) return;
+    if (isCustomMapEngineEnabled) {
+      sectionMarkersByIdRef.current = new Map();
+      activeSectionMarkerIdRef.current = null;
+      return undefined;
+    }
 
-    const map = window.mapInstance;
+    const map = getMapInstance();
+    if (!map || !showAllBurials || !sectionFilter) return;
+
     if (markerClusterRef.current && map.hasLayer(markerClusterRef.current)) {
       markerClusterRef.current.clearLayers();
       map.removeLayer(markerClusterRef.current);
@@ -2330,43 +3008,58 @@ export default function BurialMap() {
 
     const clusterGroup = createClusterGroup();
     const nextSectionMarkers = new Map();
+    let nextIndex = 0;
+    let cancelled = false;
+    let handle = null;
+
     markerClusterRef.current = clusterGroup;
-
-    sectionBurials.forEach((burial) => {
-      if (!Array.isArray(burial.coordinates)) return;
-
-      const marker = L.circleMarker(
-        [burial.coordinates[1], burial.coordinates[0]],
-        getSectionMarkerStyle(activeBurialIdRef.current === burial.id)
-      );
-      bindReactPopup({
-        layer: marker,
-        record: burial,
-        onOpenDirectionsMenu: (event) => {
-          handleOpenDirectionsMenu(event, burial);
-        },
-        onRemove: () => {
-          removeFromResults(burial.id);
-          marker.closePopup();
-        },
-      });
-      marker.on('click', () => {
-        selectBurial(burial, {
-          animate: false,
-          openTourPopup: true,
-          preserveViewport: true,
-        });
-      });
-
-      nextSectionMarkers.set(burial.id, marker);
-      clusterGroup.addLayer(marker);
-    });
-
     sectionMarkersByIdRef.current = nextSectionMarkers;
+    activeSectionMarkerIdRef.current = null;
     map.addLayer(clusterGroup);
-    syncActiveSectionMarker(activeBurialIdRef.current);
+
+    const addNextMarkerBatch = () => {
+      if (cancelled) {
+        return;
+      }
+
+      const batchMarkers = [];
+      const batchEnd = Math.min(nextIndex + SECTION_MARKER_BATCH_SIZE, sectionBurials.length);
+
+      for (; nextIndex < batchEnd; nextIndex += 1) {
+        const burial = sectionBurials[nextIndex];
+        const marker = buildSectionMarker(burial);
+
+        if (!marker) {
+          continue;
+        }
+
+        nextSectionMarkers.set(burial.id, marker);
+        batchMarkers.push(marker);
+      }
+
+      if (batchMarkers.length > 0) {
+        clusterGroup.addLayers(batchMarkers);
+        syncActiveSectionMarker(activeBurialIdRef.current);
+      }
+
+      if (nextIndex < sectionBurials.length) {
+        handle = scheduleIdleTask(addNextMarkerBatch, {
+          timeout: 250,
+          fallbackDelay: 16,
+        });
+        return;
+      }
+
+      handle = null;
+      syncActiveSectionMarker(activeBurialIdRef.current);
+    };
+
+    addNextMarkerBatch();
 
     return () => {
+      cancelled = true;
+      cancelIdleTask(handle);
+
       if (markerClusterRef.current === clusterGroup) {
         markerClusterRef.current = null;
       }
@@ -2378,14 +3071,14 @@ export default function BurialMap() {
       }
     };
   }, [
+    buildSectionMarker,
     createClusterGroup,
-    handleOpenDirectionsMenu,
-    removeFromResults,
     sectionBurials,
     sectionFilter,
-    selectBurial,
     showAllBurials,
     syncActiveSectionMarker,
+    getMapInstance,
+    isCustomMapEngineEnabled,
   ]);
 
   useEffect(() => {
@@ -2394,13 +3087,56 @@ export default function BurialMap() {
   }, [activeBurialId, syncActiveSectionMarker]);
 
   useEffect(() => {
+    hoveredBurialIdRef.current = hoveredBurialId;
+  }, [hoveredBurialId]);
+
+  useEffect(() => {
+    syncLeafletSelectedMarkerIcons();
+  }, [
+    activeBurialId,
+    hoveredBurialId,
+    isCustomMapEngineEnabled,
+    selectedMarkerOrderById,
+    syncLeafletSelectedMarkerIcons,
+  ]);
+
+  useEffect(() => {
+    if (!shouldUseMapPopups) {
+      pendingPopupBurialRef.current = null;
+      return;
+    }
+
     const pendingBurial = pendingPopupBurialRef.current;
     if (!pendingBurial) return;
 
     if (openPopupForBurial(pendingBurial)) {
       pendingPopupBurialRef.current = null;
     }
-  }, [activeBurialId, openPopupForBurial, selectedBurials, selectedTour]);
+  }, [activeBurialId, isCustomMapEngineEnabled, openPopupForBurial, selectedBurials, selectedTour, shouldUseMapPopups]);
+
+  useEffect(() => {
+    if (!shouldUseMapPopups || activeBurialId === null || typeof window === "undefined") {
+      return undefined;
+    }
+
+    const activeBurial = selectedBurials.find((burial) => burial.id === activeBurialId);
+    if (!activeBurial) {
+      return undefined;
+    }
+
+    let animationFrame = null;
+    animationFrame = window.requestAnimationFrame(() => {
+      if (!openPopupForBurial(activeBurial)) {
+        pendingPopupBurialRef.current = activeBurial;
+      }
+    });
+
+    return () => {
+      if (animationFrame !== null) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [activeBurialId, isCustomMapEngineEnabled, openPopupForBurial, selectedBurials, shouldUseMapPopups]);
 
   /**
    * Handle map zoom changes
@@ -2411,16 +3147,21 @@ export default function BurialMap() {
   }, []);
 
   useEffect(() => {
-    if (!window.mapInstance) return;
+    const map = getMapInstance();
+    if (!map) return;
 
-    window.mapInstance.on('zoomend', handleZoomEnd);
+    map.on('zoomend', handleZoomEnd);
 
     return () => {
-      window.mapInstance.off('zoomend', handleZoomEnd);
+      map.off('zoomend', handleZoomEnd);
     };
-  }, [handleZoomEnd]);
+  }, [getMapInstance, handleZoomEnd]);
 
   useEffect(() => {
+    if (isCustomMapEngineEnabled) {
+      return undefined;
+    }
+
     scheduleSectionTooltipSync();
 
     return () => {
@@ -2429,66 +3170,92 @@ export default function BurialMap() {
         sectionTooltipSyncFrameRef.current = null;
       }
     };
-  }, [currentZoom, scheduleSectionTooltipSync, sectionFilter]);
+  }, [currentZoom, isCustomMapEngineEnabled, scheduleSectionTooltipSync, sectionFilter]);
 
   useEffect(() => {
-    if (!window.mapInstance) return undefined;
+    if (isCustomMapEngineEnabled) {
+      return undefined;
+    }
 
-    const map = window.mapInstance;
+    const map = getMapInstance();
+    if (!map) return undefined;
     const container = typeof map.getContainer === 'function' ? map.getContainer() : null;
     const handleInterruptedSectionHover = () => {
       clearHoveredSection();
     };
+    const handleSectionInputStart = (event) => {
+      markSectionInputMode(event);
+    };
+    const handleSectionInputMove = (event) => {
+      if (inferPointerType(event) === 'mouse') {
+        recentTouchSectionInteractionRef.current = false;
+      }
+    };
 
     map.on('movestart', handleInterruptedSectionHover);
     map.on('zoomstart', handleInterruptedSectionHover);
+    container?.addEventListener('pointermove', handleSectionInputMove);
+    container?.addEventListener('mousemove', handleSectionInputMove);
     container?.addEventListener('pointerleave', handleInterruptedSectionHover);
     container?.addEventListener('mouseleave', handleInterruptedSectionHover);
+    window.addEventListener('pointerdown', handleSectionInputStart, true);
+    window.addEventListener('touchstart', handleSectionInputStart, true);
     window.addEventListener('blur', handleInterruptedSectionHover);
 
     return () => {
       map.off('movestart', handleInterruptedSectionHover);
       map.off('zoomstart', handleInterruptedSectionHover);
+      container?.removeEventListener('pointermove', handleSectionInputMove);
+      container?.removeEventListener('mousemove', handleSectionInputMove);
       container?.removeEventListener('pointerleave', handleInterruptedSectionHover);
       container?.removeEventListener('mouseleave', handleInterruptedSectionHover);
+      window.removeEventListener('pointerdown', handleSectionInputStart, true);
+      window.removeEventListener('touchstart', handleSectionInputStart, true);
       window.removeEventListener('blur', handleInterruptedSectionHover);
     };
-  }, [clearHoveredSection]);
+  }, [clearHoveredSection, getMapInstance, isCustomMapEngineEnabled, markSectionInputMode]);
 
   const resetMapToDefaultBounds = useCallback(() => {
-    if (!window.mapInstance) return;
+    const map = getMapInstance();
+    if (!map) return;
 
-    fitMapBoundsInVisibleViewport(window.mapInstance, DEFAULT_VIEW_BOUNDS);
-  }, []);
+    fitMapBoundsInViewport(map, DEFAULT_VIEW_BOUNDS);
+  }, [fitMapBoundsInViewport, getMapInstance]);
 
   const focusSectionOnMap = useCallback((sectionValue, bounds) => {
-    if (!window.mapInstance || !sectionValue) return;
+    const map = getMapInstance();
+    if (!map || !sectionValue) return;
 
     const sectionBounds = bounds || sectionBoundsById.get(String(sectionValue));
     if (!isRenderableBounds(sectionBounds)) {
       return;
     }
 
-    fitMapBoundsInVisibleViewport(window.mapInstance, sectionBounds, {
+    fitMapBoundsInViewport(map, sectionBounds, {
       maxZoom: ZOOM_LEVELS.CLUSTER,
     });
-  }, [sectionBoundsById]);
+  }, [fitMapBoundsInViewport, getMapInstance, sectionBoundsById]);
 
   const activateSectionBrowse = useCallback((sectionValue, bounds) => {
     const nextSection = sectionValue || "";
+    requestBurialDataLoad();
     setSectionFilter(nextSection);
     setLotTierFilter("");
     setFilterType("lot");
 
     if (nextSection) {
       setSelectedTour(null);
-      setShowAllBurials(true);
+      const sectionBurialCount = sectionBurialCounts.get(String(nextSection));
+      const shouldAutoShowMarkers = Number.isFinite(sectionBurialCount) &&
+        sectionBurialCount > 0 &&
+        sectionBurialCount <= SECTION_MARKER_AUTO_SHOW_LIMIT;
+      setShowAllBurials(shouldAutoShowMarkers);
       focusSectionOnMap(nextSection, bounds);
       return;
     }
 
     setShowAllBurials(false);
-  }, [focusSectionOnMap]);
+  }, [focusSectionOnMap, requestBurialDataLoad, sectionBurialCounts]);
 
   const clearSectionFilters = useCallback(() => {
     setLotTierFilter("");
@@ -2507,15 +3274,16 @@ export default function BurialMap() {
   }, []);
 
   const focusTourOnMap = useCallback((tourName) => {
-    if (!window.mapInstance || !tourName) return;
+    const map = getMapInstance();
+    if (!map || !tourName) return;
 
     const bounds = tourBoundsByName[tourName];
     if (!isLatLngBoundsExpressionValid(bounds)) return;
 
-    fitMapBoundsInVisibleViewport(window.mapInstance, bounds, {
+    fitMapBoundsInViewport(map, bounds, {
       maxZoom: ZOOM_LEVELS.CLUSTER,
     });
-  }, [tourBoundsByName]);
+  }, [fitMapBoundsInViewport, getMapInstance, tourBoundsByName]);
 
   /**
    * Apply URL-driven state once data is available for deep links from the companion app.
@@ -2523,8 +3291,49 @@ export default function BurialMap() {
   useEffect(() => {
     if (didApplyUrlStateRef.current) return;
     if (isBurialDataLoading) return;
+    if (initialDeepLinkNeedsBurialData && burialRecords.length === 0) return;
 
     const deepLink = initialDeepLinkRef.current || parseDeepLinkState(window.location.search, tourNames);
+
+    if (isFieldPacketsEnabled && deepLink.fieldPacket) {
+      const nextFieldPacket = deepLink.fieldPacket;
+      const packetSelections = (nextFieldPacket.selectedRecords || []).map((record) => (
+        record?.source === "burial"
+          ? burialRecordsById.get(record.id) || record
+          : record
+      ));
+      const nextActiveBurial = packetSelections.find((record) => record.id === nextFieldPacket.activeBurialId) || packetSelections[0] || null;
+
+      if (nextFieldPacket.selectedTour) {
+        handleTourSelect(nextFieldPacket.selectedTour);
+      } else if (nextFieldPacket.sectionFilter) {
+        activateSectionBrowse(nextFieldPacket.sectionFilter);
+      }
+
+      setFieldPacket(nextFieldPacket);
+
+      if (packetSelections.length > 0) {
+        setSelectedBurials(packetSelections);
+        setActiveBurialId(nextActiveBurial?.id || null);
+
+        const map = getMapInstance();
+        if (map) {
+          if (isLatLngBoundsExpressionValid(nextFieldPacket.mapBounds)) {
+            fitMapBoundsInViewport(map, nextFieldPacket.mapBounds);
+          } else if (nextActiveBurial?.coordinates) {
+            focusBurial(nextActiveBurial, {
+              addToSelection: false,
+              animate: false,
+              openTourPopup: false,
+            });
+          }
+        }
+      }
+
+      showFieldPacketNotice("Field packet loaded from link.", "neutral");
+      didApplyUrlStateRef.current = true;
+      return;
+    }
 
     if (deepLink.selectedTourName) {
       handleTourSelect(deepLink.selectedTourName);
@@ -2548,11 +3357,18 @@ export default function BurialMap() {
   }, [
     activateSectionBrowse,
     burialRecords,
+    burialRecordsById,
+    fitMapBoundsInViewport,
+    focusBurial,
     getTourName,
+    getMapInstance,
     handleTourSelect,
+    initialDeepLinkNeedsBurialData,
     isBurialDataLoading,
+    isFieldPacketsEnabled,
     searchIndex,
     selectBurial,
+    showFieldPacketNotice,
     tourNames,
   ]);
 
@@ -2574,6 +3390,7 @@ export default function BurialMap() {
     if (!feature.properties?.Section) return;
 
     const sectionValue = feature.properties.Section;
+    const sectionId = String(sectionValue);
     const tooltip = L.tooltip({
       direction: 'center',
       className: 'section-label'
@@ -2589,6 +3406,7 @@ export default function BurialMap() {
 
     layer.on({
       click: (event) => {
+        clearHoveredSection();
         if (shouldIgnoreSectionBackgroundSelection({
           clickedSection: sectionValue,
           activeSection: sectionFilter,
@@ -2601,7 +3419,18 @@ export default function BurialMap() {
         L.DomEvent.stopPropagation(event);
       },
       mouseover: () => {
-        hoveredSectionIdRef.current = String(sectionValue);
+        if (!shouldHandleSectionHover({
+          canHover: canSectionHoverRef.current,
+          recentTouchInteraction: recentTouchSectionInteractionRef.current,
+        })) {
+          return;
+        }
+
+        if (hoveredSectionIdRef.current && hoveredSectionIdRef.current !== sectionId) {
+          restoreSectionLayerWeight(hoveredSectionIdRef.current);
+        }
+
+        hoveredSectionIdRef.current = sectionId;
         layer.setStyle({ weight: 6 });
         tooltip.setContent(label);
         if (!layer.getTooltip()) {
@@ -2611,8 +3440,12 @@ export default function BurialMap() {
         scheduleSectionTooltipSync();
       },
       mouseout: () => {
-        clearHoveredSection();
-        layer.setStyle({ weight: `${sectionValue}` === `${sectionFilter}` ? 2 : 1 });
+        if (hoveredSectionIdRef.current === sectionId) {
+          clearHoveredSection();
+          return;
+        }
+
+        restoreSectionLayerWeight(sectionId);
       },
       add: () => {
         if (typeof layer.closeTooltip === 'function') {
@@ -2624,7 +3457,7 @@ export default function BurialMap() {
         scheduleSectionTooltipSync();
       },
       remove: () => {
-        if (hoveredSectionIdRef.current === String(sectionValue)) {
+        if (hoveredSectionIdRef.current === sectionId) {
           hoveredSectionIdRef.current = null;
         }
         if (typeof layer.closeTooltip === 'function') {
@@ -2637,11 +3470,16 @@ export default function BurialMap() {
         scheduleSectionTooltipSync();
       },
     });
-  }, [activateSectionBrowse, clearHoveredSection, scheduleSectionTooltipSync, sectionFilter]);
+  }, [
+    activateSectionBrowse,
+    clearHoveredSection,
+    restoreSectionLayerWeight,
+    scheduleSectionTooltipSync,
+    sectionFilter,
+  ]);
 
   const ensureTourLayerLoaded = useCallback(async (tourName) => {
     if (!tourName) return;
-    if (isBurialDataLoading && burialRecords.length === 0) return;
 
     const definition = tourDefinitionsByName.get(tourName);
     if (!definition) return;
@@ -2673,34 +3511,46 @@ export default function BurialMap() {
         )
       ));
       const tourBounds = getGeoJsonBounds(sanitizedGeoJson);
-      const layer = L.geoJSON(sanitizedGeoJson, {
-        pointToLayer: createTourMarker(definition.key),
-        onEachFeature: createOnEachTourFeature(
-          definition.key,
-          tourName,
-          selectBurial,
-          handleOpenDirectionsMenu,
-          removeFromResults,
-          (browseResult, featureLayer) => {
-            tourFeatureLayersRef.current.set(browseResult.id, featureLayer);
-          },
-          resolveTourBrowseResult
-        )
-      });
+      let layer = null;
+
+      if (!isCustomMapEngineEnabled) {
+        layer = L.geoJSON(sanitizedGeoJson, {
+          pointToLayer: createTourMarker(definition.key, tourStyles),
+          onEachFeature: createOnEachTourFeature(
+            definition.key,
+            tourName,
+            selectBurial,
+            handleOpenDirectionsMenu,
+            removeFromResults,
+            (browseResult, featureLayer) => {
+              tourFeatureLayersRef.current.set(browseResult.id, featureLayer);
+            },
+            resolveTourBrowseResult,
+            schedulePopupLayout,
+            () => shouldUseMapPopupsRef.current
+          )
+        });
+      }
 
       loadedTourNamesRef.current.add(tourName);
       setTourResultsByName((current) => ({
         ...current,
         [tourName]: normalizedTourResults,
       }));
+      setTourGeoJsonByName((current) => ({
+        ...current,
+        [tourName]: sanitizedGeoJson,
+      }));
       setTourBoundsByName((current) => ({
         ...current,
         [tourName]: tourBounds,
       }));
-      setOverlayMaps((current) => ({
-        ...current,
-        [tourName]: layer
-      }));
+      if (layer) {
+        setOverlayMaps((current) => ({
+          ...current,
+          [tourName]: layer
+        }));
+      }
     } catch (error) {
       console.error('Error loading tour layer:', error);
       setTourLayerError(`Unable to load "${tourName}". Please try again.`);
@@ -2712,32 +3562,12 @@ export default function BurialMap() {
     handleOpenDirectionsMenu,
     removeFromResults,
     resolveTourBrowseResult,
-    isBurialDataLoading,
-    burialRecords.length,
+    schedulePopupLayout,
     selectBurial,
+    isCustomMapEngineEnabled,
     tourDefinitionsByName,
+    tourStyles,
   ]);
-
-  /**
-   * Initialize base GeoJSON layers. Tour layers are loaded lazily.
-   */
-  useEffect(() => {
-    try {
-      const baseLayers = {
-        boundary: L.geoJSON(ARC_Boundary, { style: exteriorStyle }),
-        roads: L.geoJSON(ARC_Roads, { style: roadStyle }),
-        sections: L.geoJSON(ARC_Sections, { onEachFeature: onEachSectionFeature })
-      };
-
-      setOverlayMaps({
-        "Albany Rural Cemetery Boundary": baseLayers.boundary,
-        "Albany Rural Cemetery Roads": baseLayers.roads,
-        "Section Boundaries": baseLayers.sections
-      });
-    } catch (error) {
-      console.error('Error loading base GeoJSON data:', error);
-    }
-  }, [onEachSectionFeature]);
 
   /**
    * Load the selected tour layer on demand.
@@ -2748,9 +3578,18 @@ export default function BurialMap() {
   }, [selectedTour, ensureTourLayerLoaded]);
 
   useEffect(() => {
-    if (!selectedTour || !selectedTourLayer || !selectedTourBounds) return;
+    if (!selectedTour || !selectedTourBounds) return;
+    if (!isCustomMapEngineEnabled && !selectedTourLayer) return;
+    if (isCustomMapEngineEnabled && !selectedTourGeoJson) return;
     focusTourOnMap(selectedTour);
-  }, [focusTourOnMap, selectedTour, selectedTourBounds, selectedTourLayer]);
+  }, [
+    focusTourOnMap,
+    isCustomMapEngineEnabled,
+    selectedTour,
+    selectedTourBounds,
+    selectedTourGeoJson,
+    selectedTourLayer,
+  ]);
 
   /**
    * Prefetch tour layers in idle time to reduce switching latency.
@@ -2799,11 +3638,14 @@ export default function BurialMap() {
         activeRouteBurialId={activeRouteBurialId}
         burialDataError={burialDataError}
         burialRecords={burialRecords}
+        fieldPacket={fieldPacket}
+        fieldPacketNotice={fieldPacketNotice}
         filterType={filterType}
         getTourName={getTourName}
-        hoveredIndex={hoveredIndex}
+        hoveredBurialId={hoveredBurialId}
         initialQuery={initialBrowseQuery}
         installPromptEvent={installPromptEvent}
+        isFieldPacketsEnabled={isFieldPacketsEnabled}
         isBurialDataLoading={isBurialDataLoading}
         isInstalled={isInstalled}
         isMobile={isMobile}
@@ -2812,21 +3654,35 @@ export default function BurialMap() {
         loadingTourName={loadingTourName}
         lotTierFilter={lotTierFilter}
         markerColors={MARKER_COLORS}
+        rootRef={sidebarOverlayRef}
         onBrowseResultSelect={selectBurial}
         onClearSectionFilters={clearSectionFilters}
         onClearSelectedBurials={clearSelectedBurials}
         onFilterTypeChange={setFilterType}
         onFocusSelectedBurial={handleResultClick}
-        onHoverIndexChange={setHoveredIndex}
+        onHoverBurialChange={handleHoverBurialChange}
+        onOpenExternalDirections={openExternalDirections}
         onLocateMarker={onLocateMarker}
         onLotTierFilterChange={setLotTierFilter}
+        onClearFieldPacket={clearFieldPacket}
+        onCopyFieldPacketLink={copyFieldPacketLink}
+        onCreateFieldPacket={createFieldPacketFromSelection}
         onOpenAppMenu={handleOpenAppMenu}
         onOpenDirectionsMenu={handleOpenDirectionsMenu}
         onRemoveSelectedBurial={removeFromResults}
+        onRequestBurialDataLoad={requestBurialDataLoad}
         onSectionChange={activateSectionBrowse}
-        onToggleSectionMarkers={() => setShowAllBurials((current) => !current)}
+        onShareFieldPacket={shareFieldPacket}
+        onStartRouting={startRouting}
+        onStopRouting={stopRouting}
+        onToggleSectionMarkers={() => {
+          requestBurialDataLoad();
+          setShowAllBurials((current) => !current);
+        }}
         onTourChange={handleTourSelect}
+        onUpdateFieldPacket={updateFieldPacket}
         searchIndex={searchIndex}
+        sectionIndex={burialSectionIndex}
         sectionFilter={sectionFilter}
         selectedBurialRefs={selectedBurialRefs}
         selectedBurials={selectedBurials}
@@ -2834,10 +3690,10 @@ export default function BurialMap() {
         showAllBurials={showAllBurials}
         showIosInstallHint={showIosInstallHint}
         status={status}
-        tourDefinitions={TOUR_DEFINITIONS}
+        tourDefinitions={tourDefinitions}
         tourLayerError={tourLayerError}
-        tourResults={selectedTour ? (tourResultsByName[selectedTour] || []) : []}
-        tourStyles={TOURS}
+        tourResults={selectedTour ? (tourResultsByName[selectedTour] || EMPTY_TOUR_RESULTS) : EMPTY_TOUR_RESULTS}
+        tourStyles={tourStyles}
         uniqueSections={uniqueSections}
       />
 
@@ -2846,6 +3702,27 @@ export default function BurialMap() {
         open={appMenuOpen}
         onClose={handleCloseAppMenu}
       >
+        {isDev && <MenuItem disabled>{`Renderer: ${mapEngine === "custom" ? "Custom Preview" : "Leaflet"}`}</MenuItem>}
+        {isDev && mapEngine !== "leaflet" && (
+          <MenuItem
+            onClick={() => {
+              handleCloseAppMenu();
+              handleMapEngineChange("leaflet");
+            }}
+          >
+            Use Leaflet Renderer
+          </MenuItem>
+        )}
+        {isDev && mapEngine !== "custom" && (
+          <MenuItem
+            onClick={() => {
+              handleCloseAppMenu();
+              handleMapEngineChange("custom");
+            }}
+          >
+            Use Custom Renderer (Preview)
+          </MenuItem>
+        )}
         {isDev && (
           <MenuItem
             onClick={() => {
@@ -2854,6 +3731,31 @@ export default function BurialMap() {
             }}
           >
             {isPmtilesEnabled ? 'Disable PMTiles experiment' : 'Enable PMTiles experiment'}
+          </MenuItem>
+        )}
+        {isFieldPacketsEnabled && (
+          <MenuItem
+            disabled={!fieldPacket?.selectedRecords?.length && selectedBurials.length === 0}
+            onClick={() => {
+              handleCloseAppMenu();
+              if (fieldPacket?.selectedRecords?.length) {
+                void copyFieldPacketLink();
+                return;
+              }
+              createFieldPacketFromSelection();
+            }}
+          >
+            {fieldPacket?.selectedRecords?.length ? 'Copy field packet link' : 'Create field packet'}
+          </MenuItem>
+        )}
+        {isFieldPacketsEnabled && fieldPacket?.selectedRecords?.length > 0 && (
+          <MenuItem
+            onClick={() => {
+              handleCloseAppMenu();
+              clearFieldPacket();
+            }}
+          >
+            Clear field packet
           </MenuItem>
         )}
         {isInstalled && <MenuItem disabled>App installed on this device</MenuItem>}
@@ -2912,61 +3814,101 @@ export default function BurialMap() {
           : null}
       </Menu>
 
-      <MapContainer
-        center={[42.704180, -73.731980]}
-        zoom={14}
-        className="map"
-        attributionControl={false}
-        zoomControl={false}
-        maxZoom={25}
-        preferCanvas
-      >
-        <CustomZoomControl isMobile={isMobile} />
-        {isDev && isPmtilesEnabled && (
-          <ExperimentalVectorBurialLayer
-            burialRecordsByObjectId={burialRecordsByObjectId}
-            onSelectBurial={selectBurial}
+      {isCustomMapEngineEnabled ? (
+        <>
+        <MapControlStack isMobile={isMobile}>
+          <MapLayerControl
+            basemapOptions={MAP_CONTROLLED_BASEMAPS}
+            activeBasemapId={activeBasemap?.id || ""}
+            onBasemapChange={handleBasemapChange}
+              overlayOptions={MAP_OVERLAY_OPTIONS}
+              overlayVisibility={overlayVisibility}
+              onToggleOverlay={handleToggleOverlay}
+            />
+            <MapHomeButton onClick={resetMapToDefaultBounds} />
+          <MapZoomControl
+            isMobile={isMobile}
+            onZoomIn={() => mapRef.current?.zoomIn?.()}
+            onZoomOut={() => mapRef.current?.zoomOut?.()}
           />
-        )}
-        <DefaultExtentButton isMobile={isMobile} />
-        <MapBounds />
-        <MapController />
-        <MapTourController selectedTour={selectedTour} overlayMaps={overlayMaps} tourNames={tourNames} />
-        <LayersControl>
-          <BaseLayer checked name="Imagery">
-            <VectorBasemap name="ImageryClarity" />
-          </BaseLayer>
-          <BaseLayer name="Streets">
-            <VectorBasemap name="Streets" />
-          </BaseLayer>
-          <LayerGroup>
-            <LayersControl.Overlay name="Roads">
-              <GeoJSON data={ARC_Roads} style={roadStyle} />
-            </LayersControl.Overlay>
-          </LayerGroup>
-          <LayerGroup>
-            <LayersControl.Overlay checked name="Boundary">
-              <GeoJSON data={ARC_Boundary} style={exteriorStyle} />
-            </LayersControl.Overlay>
-          </LayerGroup>
-          <LayerGroup>
-            <LayersControl.Overlay checked name="Sections">
-              <GeoJSON
-                data={ARC_Sections}
-                style={getSectionStyle}
-                onEachFeature={onEachSectionFeature}
-              />
-            </LayersControl.Overlay>
-          </LayerGroup>
+          <MobileLocateButton isMobile={isMobile} onLocate={onLocateMarker} />
+        </MapControlStack>
 
-          {/* Location Marker */}
+          <CustomMapSurface
+            activeBurialId={activeBurialId}
+            basemap={activeBasemap}
+            boundaryData={MAP_BOUNDARY}
+            defaultCenter={MAP_CENTER}
+            defaultZoom={MAP_ZOOM}
+            hoveredBurialId={hoveredBurialId}
+            lat={lat}
+            lng={lng}
+            mapRef={mapRef}
+            markerColors={MARKER_COLORS}
+            maxBounds={PADDED_BOUNDARY_BOUNDS}
+            maxZoom={25}
+            minZoom={13}
+            onActivateSectionBrowse={activateSectionBrowse}
+            onHoverBurialChange={handleHoverBurialChange}
+            onOpenDirectionsMenu={handleOpenDirectionsMenu}
+            onRemoveSelectedBurial={removeFromResults}
+            onSelectBurial={selectBurial}
+            onZoomChange={handleZoomEnd}
+            roadsData={MAP_ROADS}
+            schedulePopupLayout={schedulePopupLayout}
+            sectionBurials={sectionBurials}
+            sectionFilter={sectionFilter}
+            sectionsData={MAP_SECTIONS}
+            selectedBurials={selectedBurials}
+            selectedMarkerLayersRef={selectedMarkerLayersRef}
+            selectedTourResults={selectedTour ? (tourResultsByName[selectedTour] || EMPTY_TOUR_RESULTS) : EMPTY_TOUR_RESULTS}
+            shouldUseMapPopups={shouldUseMapPopups}
+            showBoundary={overlayVisibility.boundary !== false}
+            showAllBurials={showAllBurials}
+            showRoads={overlayVisibility.roads !== false}
+            showSections={overlayVisibility.sections !== false}
+            tourFeatureLayersRef={tourFeatureLayersRef}
+            tourStyles={tourStyles}
+          />
+        </>
+      ) : (
+        <MapContainer
+          center={MAP_CENTER}
+          zoom={MAP_ZOOM}
+          className="map"
+          attributionControl={false}
+          zoomControl={false}
+          fadeAnimation={!shouldReduceMapMotion}
+          maxZoom={25}
+          markerZoomAnimation={!shouldReduceMapMotion}
+          zoomAnimation={!shouldReduceMapMotion}
+        >
+          <MapStaticLayers
+            activeBasemap={activeBasemap}
+            burialRecordsByObjectId={burialRecordsByObjectId}
+            fitMapBoundsInViewport={fitMapBoundsInViewport}
+            getSectionStyle={getSectionStyle}
+            isDev={isDev}
+            isMobile={isMobile}
+            isPmtilesEnabled={isPmtilesEnabled}
+            mapRef={mapRef}
+            onBasemapChange={handleBasemapChange}
+            onEachSectionFeature={onEachSectionFeature}
+            onLocateMarker={onLocateMarker}
+            onToggleOverlay={handleToggleOverlay}
+            onSelectBurial={selectBurial}
+            overlayVisibility={overlayVisibility}
+            overlayMaps={overlayMaps}
+            selectedTour={selectedTour}
+            tourNames={tourNames}
+          />
+
           {lat && lng && (
             <Marker position={[lat, lng]}>
               <Popup>You are here.</Popup>
             </Marker>
           )}
 
-          {/* Add Routing Control */}
           {routingOrigin && routingDestination && (
             <RoutingControl
               from={routingOrigin}
@@ -2974,33 +3916,31 @@ export default function BurialMap() {
             />
           )}
 
-          {/* Search Result Markers - Always on top */}
           {selectedBurials.map((burial, index) => (
             <Marker
               key={createUniqueKey(burial, index)}
               ref={(layer) => {
                 if (layer) {
                   selectedMarkerLayersRef.current.set(burial.id, layer);
+                  syncLeafletSelectedMarkerIcon(burial.id, layer);
                 } else {
                   selectedMarkerLayersRef.current.delete(burial.id);
                 }
               }}
               position={[burial.coordinates[1], burial.coordinates[0]]}
-              icon={createNumberedIcon(
-                index + 1,
-                hoveredIndex === index || activeBurialId === burial.id
-              )}
+              icon={createNumberedIcon(index + 1)}
+              keyboard={false}
               eventHandlers={{
-                mouseover: () => setHoveredIndex(index),
-                mouseout: () => setHoveredIndex(null),
+                mouseover: () => handleHoverBurialChange(burial.id),
+                mouseout: () => clearHoveredBurialIfCurrent(burial.id),
                 click: () => handleMarkerClick(burial),
                 popupopen: ({ popup }) => {
-                  scheduleLeafletPopupInView(popup);
+                  schedulePopupLayout(popup);
                 },
               }}
               zIndexOffset={1000}
             >
-              {burial.source !== "tour" && (
+              {shouldUseMapPopups && burial.source !== "tour" && (
                 <Popup>
                   <PopupCardContent
                     record={burial}
@@ -3008,14 +3948,15 @@ export default function BurialMap() {
                     onRemove={() => {
                       removeFromResults(burial.id);
                     }}
+                    schedulePopupLayout={schedulePopupLayout}
                     getPopup={() => selectedMarkerLayersRef.current.get(burial.id)?.getPopup?.()}
                   />
                 </Popup>
               )}
             </Marker>
           ))}
-        </LayersControl>
-      </MapContainer>
+        </MapContainer>
+      )}
     </div>
   );
 }

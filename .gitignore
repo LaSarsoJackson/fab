@@ -7,9 +7,13 @@
 
 # testing
 /coverage
+/playwright-report
+/test-results
 
 # production
 /build
+/output
+/output-playwright-*.png
 
 # misc
 .DS_Store
