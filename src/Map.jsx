@@ -77,12 +77,17 @@ import {
   calculateWalkingRoute,
   clearLeafletSectionHover,
   cleanRecordValue,
+  ExperimentalBurialGlyphSymbolizer,
   focusSelectionBurial,
   formatSectionOverviewMarkerLabel,
+  getEmptyCoreMapData,
   getRoutingErrorMessage,
+  hasIndexedBurialPlacement,
   inferPointerType,
   isLeafletSectionLayerHovered,
   isTouchLikePointerType,
+  loadCoreMapData,
+  PMTILES_EXPERIMENT_GLYPH_PALETTE,
   PopupCardContent,
   refreshSelectionBurials,
   removeSelectionBurial,
@@ -117,9 +122,11 @@ import {
 import { getGeoJsonBounds, hasValidGeoJsonCoordinates, isLatLngBoundsExpressionValid } from "./shared/geo";
 import {
   cancelIdleTask,
+  buildPublicAssetUrl,
   getRuntimeEnv,
   scheduleIdleTask,
   setStoredCustomMapEngineOverride,
+  syncDocumentMetadata,
 } from "./shared/runtime";
 import {
   DEFAULT_SITE_TWIN_DEBUG_STATE,
@@ -129,6 +136,7 @@ import {
   normalizeSiteTwinDebugState,
   normalizeSiteTwinFeatureCollection,
   normalizeSiteTwinManifest,
+  shouldLoadSiteTwinCandidates,
   summarizeSiteTwinFeatureCollection,
 } from "./features/map/siteTwin";
 
@@ -206,9 +214,6 @@ const APP_DESCRIPTION = APP_SHELL.description || "";
 const IOS_APP_STORE_URL = APP_PROFILE.distribution?.iosAppStoreUrl || "";
 const DEFAULT_VIEW_BOUNDS = APP_PROFILE.map.defaultViewBounds;
 const PADDED_BOUNDARY_BOUNDS = APP_PROFILE.map.paddedBoundaryBounds;
-const MAP_BOUNDARY = APP_PROFILE.map.boundaryData;
-const MAP_ROADS = APP_PROFILE.map.roadsData;
-const MAP_SECTIONS = APP_PROFILE.map.sectionsData;
 const MAP_CENTER = APP_PROFILE.map.center;
 const MAP_ZOOM = APP_PROFILE.map.zoom;
 const LOCATION_BUFFER_BOUNDARY = APP_PROFILE.map.locationBufferBoundary;
@@ -244,25 +249,6 @@ const DEFAULT_MAP_OVERLAY_VISIBILITY = MAP_OVERLAY_OPTIONS.reduce((visibility, o
 }), {});
 
 const getDefaultSiteTwinDebugState = () => normalizeSiteTwinDebugState(DEFAULT_SITE_TWIN_DEBUG_STATE);
-
-const getPublicAssetUrl = (path) => {
-  const base = process.env.PUBLIC_URL || '';
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${base}${normalizedPath}`;
-};
-
-const setDocumentMetaContent = (selector, content) => {
-  if (typeof document === "undefined") {
-    return;
-  }
-
-  const element = document.querySelector(selector);
-  if (!element) {
-    return;
-  }
-
-  element.setAttribute("content", content);
-};
 
 const mapControlShellSx = {
   borderRadius: '18px',
@@ -329,196 +315,6 @@ const isRenderableBounds = (bounds) => (
   isLatLngBoundsExpressionValid(bounds) ||
   (typeof bounds?.isValid === "function" && bounds.isValid())
 );
-
-const PMTILES_EXPERIMENT_GLYPH_PALETTE = {
-  approximate: {
-    fill: "rgba(214, 155, 86, 0.28)",
-    stroke: "rgba(124, 83, 40, 0.72)",
-    guide: "rgba(124, 83, 40, 0.2)",
-    label: "Approximate record point",
-    detail: "Section and lot record without grave or tier placement metadata.",
-  },
-  indexed: {
-    fill: "rgba(18, 94, 74, 0.28)",
-    stroke: "rgba(15, 69, 54, 0.82)",
-    guide: "rgba(15, 69, 54, 0.24)",
-    label: "Indexed grave or tier record",
-    detail: "Record includes grave or tier metadata, so it gets a stronger glyph.",
-  },
-};
-
-const getNumericBurialProperty = (props, key) => {
-  const numericValue = Number(props?.[key] ?? 0);
-  return Number.isFinite(numericValue) ? numericValue : 0;
-};
-
-const hasIndexedBurialPlacement = (props = {}) => (
-  getNumericBurialProperty(props, "Grave") > 0 ||
-  getNumericBurialProperty(props, "Tier") > 0
-);
-
-const getExperimentalBurialVisualKey = (props = {}) => String(
-  props.OBJECTID ??
-  props.objectid ??
-  [
-    props.Section,
-    props.Lot,
-    props.Grave,
-    props.Tier,
-    props.First_Name,
-    props.Last_Name,
-  ].join(":")
-);
-
-const hashExperimentalBurialKey = (value) => {
-  let hash = 2166136261;
-
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-
-  return hash >>> 0;
-};
-
-const getPmtilesExperimentOffsetScale = (zoom) => {
-  if (zoom >= 22) return 5.2;
-  if (zoom >= 20) return 4.2;
-  if (zoom >= 18) return 3.2;
-  return 2.2;
-};
-
-const getPmtilesExperimentGlyphSize = (zoom, isIndexed) => {
-  if (zoom >= 22) return isIndexed ? 5.6 : 5;
-  if (zoom >= 20) return isIndexed ? 5 : 4.5;
-  if (zoom >= 18) return isIndexed ? 4.4 : 4;
-  return isIndexed ? 3.9 : 3.5;
-};
-
-const getPmtilesExperimentGlyphOffset = (zoom, props = {}, isIndexed) => {
-  const grave = getNumericBurialProperty(props, "Grave");
-  const tier = getNumericBurialProperty(props, "Tier");
-  const hash = hashExperimentalBurialKey(getExperimentalBurialVisualKey(props));
-  const offsetScale = getPmtilesExperimentOffsetScale(zoom);
-
-  if (isIndexed) {
-    const angle = (
-      ((grave > 0 ? grave : hash % 24) % 16) / 16
-    ) * Math.PI * 2 + ((hash % 7) * 0.07);
-    const tierBand = tier > 0 ? Math.min(tier, 6) : ((hash % 4) + 1);
-    const distance = Math.min(6, offsetScale * (0.72 + ((tierBand - 1) * 0.14)));
-    return {
-      dx: Math.cos(angle) * distance,
-      dy: Math.sin(angle) * distance,
-    };
-  }
-
-  const angle = ((hash % 24) / 24) * Math.PI * 2;
-  const distance = offsetScale * (0.42 + ((hash % 5) * 0.08));
-  return {
-    dx: Math.cos(angle) * distance,
-    dy: Math.sin(angle) * distance,
-  };
-};
-
-const drawPmtilesExperimentGuide = (context, startX, startY, endX, endY, guideColor, zoom) => {
-  const distance = Math.hypot(endX - startX, endY - startY);
-
-  if (distance < 0.6) {
-    return;
-  }
-
-  context.save();
-  context.strokeStyle = guideColor;
-  context.lineWidth = zoom >= 20 ? 1 : 0.8;
-  context.beginPath();
-  context.moveTo(startX, startY);
-  context.lineTo(endX, endY);
-  context.stroke();
-  context.restore();
-};
-
-const drawPmtilesExperimentCircleGlyph = (context, centerX, centerY, size, fillColor, strokeColor, zoom) => {
-  context.save();
-  context.fillStyle = fillColor;
-  context.strokeStyle = strokeColor;
-  context.lineWidth = zoom >= 20 ? 1.15 : 1;
-  context.beginPath();
-  context.arc(centerX, centerY, size, 0, Math.PI * 2);
-  context.fill();
-  context.stroke();
-  context.restore();
-};
-
-const drawPmtilesExperimentDiamondGlyph = (context, centerX, centerY, size, fillColor, strokeColor, zoom) => {
-  context.save();
-  context.fillStyle = fillColor;
-  context.strokeStyle = strokeColor;
-  context.lineWidth = zoom >= 20 ? 1.25 : 1.05;
-  context.beginPath();
-  context.moveTo(centerX, centerY - size);
-  context.lineTo(centerX + size, centerY);
-  context.lineTo(centerX, centerY + size);
-  context.lineTo(centerX - size, centerY);
-  context.closePath();
-  context.fill();
-  context.stroke();
-  context.restore();
-};
-
-class ExperimentalBurialGlyphSymbolizer {
-  constructor(variant) {
-    this.variant = variant;
-  }
-
-  draw(context, geom, zoom, feature) {
-    const anchor = geom?.[0]?.[0];
-    if (!anchor) return;
-
-    const props = feature?.props || {};
-    const isIndexed = this.variant === "indexed";
-    const palette = isIndexed
-      ? PMTILES_EXPERIMENT_GLYPH_PALETTE.indexed
-      : PMTILES_EXPERIMENT_GLYPH_PALETTE.approximate;
-    const { dx, dy } = getPmtilesExperimentGlyphOffset(zoom, props, isIndexed);
-    const centerX = anchor.x + dx;
-    const centerY = anchor.y + dy;
-    const size = getPmtilesExperimentGlyphSize(zoom, isIndexed);
-
-    drawPmtilesExperimentGuide(
-      context,
-      anchor.x,
-      anchor.y,
-      centerX,
-      centerY,
-      palette.guide,
-      zoom
-    );
-
-    if (isIndexed) {
-      drawPmtilesExperimentDiamondGlyph(
-        context,
-        centerX,
-        centerY,
-        size,
-        palette.fill,
-        palette.stroke,
-        zoom
-      );
-      return;
-    }
-
-    drawPmtilesExperimentCircleGlyph(
-      context,
-      centerX,
-      centerY,
-      size,
-      palette.fill,
-      palette.stroke,
-      zoom
-    );
-  }
-}
 
 //=============================================================================
 // React Components
@@ -854,7 +650,7 @@ function ExperimentalVectorBurialLayer({ burialRecordsByObjectId, onSelectBurial
         if (ignore) return;
 
         const layer = protomaps.leafletLayer({
-          url: getPublicAssetUrl("/data/geo_burials.pmtiles"),
+          url: buildPublicAssetUrl("/data/geo_burials.pmtiles"),
           pane: "overlayPane",
           paintRules: [
             {
@@ -1707,6 +1503,7 @@ const MapSectionOverviewMarkers = memo(function MapSectionOverviewMarkers({
  */
 const MapStaticLayers = memo(function MapStaticLayers({
   activeBasemap,
+  boundaryData,
   burialRecordsByObjectId,
   fitMapBoundsInViewport,
   getSectionStyle,
@@ -1727,6 +1524,8 @@ const MapStaticLayers = memo(function MapStaticLayers({
   onUpdateSiteTwinDebugState,
   overlayVisibility,
   overlayMaps,
+  roadsData,
+  sectionsData,
   siteTwinDebugState,
   siteTwinFilteredSummary,
   siteTwinLoadedSummary,
@@ -1792,11 +1591,11 @@ const MapStaticLayers = memo(function MapStaticLayers({
           interactive={false}
         />
       )}
-      {overlayVisibility.roads && <GeoJSON data={MAP_ROADS} style={roadStyle} />}
-      {overlayVisibility.boundary && <GeoJSON data={MAP_BOUNDARY} style={exteriorStyle} />}
+      {overlayVisibility.roads && <GeoJSON data={roadsData} style={roadStyle} />}
+      {overlayVisibility.boundary && <GeoJSON data={boundaryData} style={exteriorStyle} />}
       {showSections && (
         <GeoJSON
-          data={MAP_SECTIONS}
+          data={sectionsData}
           style={getSectionStyle}
           onEachFeature={onEachSectionFeature}
         />
@@ -1925,6 +1724,7 @@ export default function BurialMap() {
   const [siteTwinManifest, setSiteTwinManifest] = useState(EMPTY_SITE_TWIN_MANIFEST);
   const [siteTwinCandidates, setSiteTwinCandidates] = useState(() => normalizeSiteTwinFeatureCollection());
   const [siteTwinDebugState, setSiteTwinDebugState] = useState(() => getDefaultSiteTwinDebugState());
+  const [coreMapData, setCoreMapData] = useState(getEmptyCoreMapData);
 
   // Search and Filter State
   const { activeBurialId, hoveredBurialId, selectedBurials } = selectionState;
@@ -1936,6 +1736,7 @@ export default function BurialMap() {
   const [tourMatches, setTourMatches] = useState({});
   const [isBurialDataLoading, setIsBurialDataLoading] = useState(false);
   const [burialDataError, setBurialDataError] = useState('');
+  const [mapDataError, setMapDataError] = useState('');
   const [tourLayerError, setTourLayerError] = useState('');
   const [loadingTourName, setLoadingTourName] = useState('');
   const [searchIndex, setSearchIndex] = useState(null);
@@ -1964,6 +1765,7 @@ export default function BurialMap() {
   const [appMenuAnchorEl, setAppMenuAnchorEl] = useState(null);
   const [directionsMenuAnchorEl, setDirectionsMenuAnchorEl] = useState(null);
   const [directionsMenuBurial, setDirectionsMenuBurial] = useState(null);
+  const { boundaryData, roadsData, sectionsData } = coreMapData;
 
   // Component References
   // Leaflet layers outlive individual renders, so these refs act as the
@@ -1997,12 +1799,12 @@ export default function BurialMap() {
   //-----------------------------------------------------------------------------
 
   const sectionBoundsById = useMemo(
-    () => buildSectionBoundsById(MAP_SECTIONS),
-    []
+    () => buildSectionBoundsById(sectionsData),
+    [sectionsData]
   );
   const roadRoutingGraph = useMemo(
-    () => buildRoadRoutingGraph(MAP_ROADS),
-    []
+    () => buildRoadRoutingGraph(roadsData),
+    [roadsData]
   );
   const isCustomMapEngineEnabled = mapEngine === "custom";
   const {
@@ -2214,7 +2016,7 @@ export default function BurialMap() {
     }
 
     const controller = new AbortController();
-    const manifestUrl = getPublicAssetUrl(SITE_TWIN_CONFIG.manifestPublicPath);
+    const manifestUrl = buildPublicAssetUrl(SITE_TWIN_CONFIG.manifestPublicPath);
 
     fetch(manifestUrl, { signal: controller.signal })
       .then((response) => (
@@ -2239,16 +2041,16 @@ export default function BurialMap() {
   }, []);
 
   useEffect(() => {
-    const shouldLoadSiteTwinCandidates = Boolean(
-      (overlayVisibility.siteTwin || isDev) &&
-      siteTwinManifest?.graveCandidates?.url
-    );
-    if (!shouldLoadSiteTwinCandidates || typeof window === "undefined") {
+    if (!shouldLoadSiteTwinCandidates({
+      isDev,
+      isOverlayVisible: overlayVisibility.siteTwin !== false,
+      manifest: siteTwinManifest,
+    }) || typeof window === "undefined") {
       return undefined;
     }
 
     const controller = new AbortController();
-    const candidatesUrl = getPublicAssetUrl(siteTwinManifest.graveCandidates.url);
+    const candidatesUrl = buildPublicAssetUrl(siteTwinManifest.graveCandidates.url);
 
     fetch(candidatesUrl, { signal: controller.signal })
       .then((response) => (
@@ -2405,10 +2207,6 @@ export default function BurialMap() {
   }, [fieldPacketNotice]);
 
   useEffect(() => {
-    if (typeof document === "undefined") {
-      return;
-    }
-
     const nextTitle = fieldPacket?.selectedRecords?.length
       ? `${fieldPacketPresentation.title} | ${APP_DOCUMENT_TITLE}`
       : APP_DOCUMENT_TITLE;
@@ -2416,13 +2214,11 @@ export default function BurialMap() {
       ? fieldPacketPresentation.description
       : APP_DESCRIPTION;
 
-    document.title = nextTitle;
-    setDocumentMetaContent('meta[name="description"]', nextDescription);
-    setDocumentMetaContent('meta[property="og:title"]', nextTitle);
-    setDocumentMetaContent('meta[property="og:description"]', nextDescription);
-    setDocumentMetaContent('meta[property="og:url"]', typeof window === "undefined" ? "" : window.location.href);
-    setDocumentMetaContent('meta[name="twitter:title"]', nextTitle);
-    setDocumentMetaContent('meta[name="twitter:description"]', nextDescription);
+    syncDocumentMetadata({
+      title: nextTitle,
+      description: nextDescription,
+      url: typeof window === "undefined" ? "" : window.location.href,
+    });
   }, [
     fieldPacket,
     fieldPacketPresentation.description,
@@ -2463,8 +2259,8 @@ export default function BurialMap() {
     return counts;
   }, [burialSectionIndex]);
   const sectionOverviewMarkers = useMemo(
-    () => buildSectionOverviewMarkers(MAP_SECTIONS, sectionBurialCounts),
-    [sectionBurialCounts]
+    () => buildSectionOverviewMarkers(sectionsData, sectionBurialCounts),
+    [sectionBurialCounts, sectionsData]
   );
 
   const burialLookup = useMemo(
@@ -3443,6 +3239,35 @@ export default function BurialMap() {
   //-----------------------------------------------------------------------------
 
   useEffect(() => {
+    let ignore = false;
+
+    const loadMapData = async () => {
+      setMapDataError("");
+
+      try {
+        const nextCoreMapData = await loadCoreMapData(APP_PROFILE);
+
+        if (!ignore) {
+          setCoreMapData(nextCoreMapData);
+        }
+      } catch (error) {
+        console.error("Failed to load core map data:", error);
+
+        if (!ignore) {
+          setCoreMapData(getEmptyCoreMapData());
+          setMapDataError("Map layers failed to load. Refresh and try again.");
+        }
+      }
+    };
+
+    void loadMapData();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (initialDeepLinkNeedsBurialData || hasRequestedBurialData || typeof window === "undefined") {
       return undefined;
     }
@@ -3495,7 +3320,7 @@ export default function BurialMap() {
       setBurialDataError('');
       try {
         // Fetch the lightweight search index from public directory
-        const response = await fetch(getPublicAssetUrl(SEARCH_INDEX_PUBLIC_PATH));
+        const response = await fetch(buildPublicAssetUrl(SEARCH_INDEX_PUBLIC_PATH));
         if (!response.ok) throw new Error('Failed to fetch search index');
         const minifiedData = await response.json();
 
@@ -4453,6 +4278,7 @@ export default function BurialMap() {
         isSearchIndexReady={isSearchIndexReady}
         loadingTourName={loadingTourName}
         lotTierFilter={lotTierFilter}
+        mapDataError={mapDataError}
         markerColors={MARKER_COLORS}
         rootRef={sidebarOverlayRef}
         onBrowseResultSelect={selectBurial}
@@ -4659,7 +4485,7 @@ export default function BurialMap() {
           <CustomMapSurface
             activeBurialId={activeBurialId}
             basemap={activeBasemap}
-            boundaryData={MAP_BOUNDARY}
+            boundaryData={boundaryData}
             defaultCenter={MAP_CENTER}
             defaultZoom={MAP_ZOOM}
             getOverlayElement={getOverlayElement}
@@ -4679,13 +4505,13 @@ export default function BurialMap() {
             onRemoveSelectedBurial={removeFromResults}
             onSelectBurial={selectBurial}
             onZoomChange={handleZoomEnd}
-            roadsData={MAP_ROADS}
+            roadsData={roadsData}
             routeGeoJson={routeGeoJson}
             schedulePopupLayout={schedulePopupLayout}
             sectionBurials={sectionBurials}
             sectionFilter={sectionFilter}
             sectionOverviewMarkers={sectionOverviewMarkers}
-            sectionsData={MAP_SECTIONS}
+            sectionsData={sectionsData}
             selectedBurials={selectedBurials}
             selectedMarkerLayersRef={selectedMarkerLayersRef}
             selectedTourResults={selectedTour ? (tourResultsByName[selectedTour] || EMPTY_TOUR_RESULTS) : EMPTY_TOUR_RESULTS}
@@ -4720,6 +4546,7 @@ export default function BurialMap() {
         >
           <MapStaticLayers
             activeBasemap={activeBasemap}
+            boundaryData={boundaryData}
             burialRecordsByObjectId={burialRecordsByObjectId}
             fitMapBoundsInViewport={fitMapBoundsInViewport}
             getSectionStyle={getSectionStyle}
@@ -4740,6 +4567,8 @@ export default function BurialMap() {
             onUpdateSiteTwinDebugState={handleUpdateSiteTwinDebugState}
             overlayVisibility={overlayVisibility}
             overlayMaps={overlayMaps}
+            roadsData={roadsData}
+            sectionsData={sectionsData}
             siteTwinDebugState={normalizedSiteTwinDebugState}
             siteTwinFilteredSummary={siteTwinFilteredSummary}
             siteTwinLoadedSummary={siteTwinLoadedSummary}

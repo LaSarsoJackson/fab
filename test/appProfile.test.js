@@ -49,4 +49,16 @@ describe("app profile", () => {
     expect(geoParquetArtifact.filePath).toBe("src/data/Geo_Burials.parquet");
     expect(geoParquetArtifact.buildCommand).toBe("bun run build:geoparquet");
   });
+
+  test("keeps large map geometry behind async data modules instead of embedding it in the profile shell", () => {
+    expect(APP_PROFILE.map.boundaryData).toBeUndefined();
+    expect(APP_PROFILE.map.roadsData).toBeUndefined();
+    expect(APP_PROFILE.map.sectionsData).toBeUndefined();
+
+    expect(
+      DATA_MODULES
+        .filter((definition) => ["boundary", "roads", "sections"].includes(definition.id))
+        .every((definition) => typeof definition.load === "function")
+    ).toBe(true);
+  });
 });

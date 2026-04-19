@@ -1393,6 +1393,7 @@ function BurialSidebar({
   iosAppStoreUrl,
   loadingTourName,
   lotTierFilter,
+  mapDataError,
   markerColors,
   rootRef,
   onBrowseResultSelect,
@@ -2036,11 +2037,16 @@ function BurialSidebar({
         {mobileMoreButton}
       </Box>
 
-      {(burialDataError || tourLayerError) && (
+      {(burialDataError || mapDataError || tourLayerError) && (
         <Box sx={{ display: "grid", gap: 0.75, mt: 1 }}>
           {burialDataError && (
             <Typography variant="body2" color="error">
               {burialDataError}
+            </Typography>
+          )}
+          {mapDataError && (
+            <Typography variant="body2" color="error">
+              {mapDataError}
             </Typography>
           )}
           {tourLayerError && (

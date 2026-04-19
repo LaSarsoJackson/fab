@@ -9,7 +9,6 @@ const APP_HOSTS = new Set([
   `localhost:${TEST_IMAGE_PORT}`,
 ]);
 
-const searchInputName = "Search all burial records…";
 const runtimeVariants = [
   { name: "leaflet", path: "/" },
   { name: "custom-map", path: "/?mapEngine=custom" },
@@ -58,7 +57,9 @@ test.beforeEach(async ({ page }, testInfo) => {
   testInfo._localRequestFailures = localRequestFailures;
 });
 
-test.afterEach(async ({}, testInfo) => {
+test.afterEach(async ({ page }, testInfo) => {
+  void page;
+
   const consoleErrors = testInfo._consoleErrors || [];
   const pageErrors = testInfo._pageErrors || [];
   const localRequestFailures = testInfo._localRequestFailures || [];
@@ -201,7 +202,7 @@ runtimeVariants.forEach((runtimeVariant) => {
       const sectionBrowseDetail = page.locator(".left-sidebar__browse-detail--section");
       const browseSearchInput = page.locator(".left-sidebar__browse-composer input").first();
 
-      await expect(sectionBrowseDetail).toContainText("Start with one section, then refine inside it.");
+      await expect(sectionBrowseDetail).toContainText(/one section, then refine inside it\./i);
 
       const sectionInput = page.getByRole("combobox", { name: "Section" });
       await sectionInput.click();

@@ -37,9 +37,10 @@ bun run start
 
 Common commands:
 
+- `bun run lint`: run the repository ESLint baseline
 - `bun run test`: run the default automated test suite
 - `bun run test:e2e`: run Playwright coverage
-- `bun run check`: run `doctor` plus the default test suite
+- `bun run check`: run `doctor`, `lint`, and the default test suite
 - `bun run build:data`: regenerate search data, tour matches, and generated
   bounds
 - `bun run build:pmtiles`: regenerate PMTiles experiment artifacts

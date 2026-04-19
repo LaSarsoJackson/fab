@@ -120,8 +120,9 @@ Useful overrides:
 - `bun run routing:offline:start`: start or create the local Valhalla container
 - `bun run routing:offline:stop`: stop the local Valhalla container
 - `bun run doctor`: check local prerequisites and optional tooling
+- `bun run lint`: run the repository ESLint baseline across app, unit, and browser tests
 - `bun run test`: run the default automated test suite
-- `bun run check`: run `doctor` plus the default test suite
+- `bun run check`: run `doctor`, `lint`, and the default test suite
 - `bun run build`: create a production build
 - `bun run deploy`: build and publish the GitHub Pages deployment
 - `bun run build:tour-data`: regenerate tour biography aliases

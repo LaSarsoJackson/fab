@@ -6,39 +6,24 @@
   "dependencies": {
     "@emotion/react": "^11.8.2",
     "@emotion/styled": "^11.8.1",
-    "@inovua/reactdatagrid-community": "^4.16.5",
-    "@juggle/resize-observer": "^3.4.0",
     "@mui/icons-material": "^5.5.1",
     "@mui/material": "^5.5.3",
     "@mui/x-data-grid": "^5.7.0",
     "@testing-library/jest-dom": "^5.16.3",
     "@testing-library/react": "^12.1.4",
-    "@testing-library/user-event": "^13.5.0",
     "@turf/turf": "^7.2.0",
-    "@use-gesture/react": "^10.3.1",
-    "ag-grid-community": "^27.1.0",
-    "ag-grid-react": "^27.1.0",
-    "axios": "^0.26.1",
-    "baseline-browser-mapping": "^2.10.18",
-    "caniuse-lite": "^1.0.30001787",
     "esri-leaflet": "^3.0.14",
     "esri-leaflet-vector": "^3.1.5",
     "jszip": "^3.10.1",
     "leaflet": "^1.9.4",
-    "leaflet-routing-machine": "^3.2.12",
     "leaflet.markercluster": "^1.5.3",
-    "lrm-graphhopper": "^1.3.0",
-    "pmtiles": "^4.4.1",
     "protomaps-leaflet": "^5.1.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-esri-leaflet": "^1.3.1",
     "react-leaflet": "^3.2.5",
-    "react-leaflet-markercluster": "^3.0.0-rc1",
     "react-scripts": "5.0.0",
-    "react-spring": "^10.0.3",
     "react-spring-bottom-sheet": "^3.4.1",
-    "web-vitals": "^2.1.4",
     "xlsx": "^0.18.5"
   },
   "scripts": {
@@ -58,7 +43,8 @@
     "validate:geoparquet": "bun run scripts/geospatial/validate_burial_source_parity.js",
     "build": "bash ./scripts/build-production.sh",
     "doctor": "bash ./scripts/dev-doctor.sh",
-    "check": "bash ./scripts/dev-doctor.sh && bash ./scripts/run-tests.sh",
+    "lint": "node_modules/.bin/eslint src test e2e --ext .js,.jsx",
+    "check": "bash ./scripts/dev-doctor.sh && bun run lint && bash ./scripts/run-tests.sh",
     "test": "bash ./scripts/run-tests.sh",
     "test:bun": "rg --files src test -g '*.test.js' -0 | xargs -0 bun test",
     "test:dom": "node_modules/.bin/jest --config ./jest.dom.config.cjs --runInBand",
@@ -74,6 +60,46 @@
     "extends": [
       "react-app",
       "react-app/jest"
+    ],
+    "overrides": [
+      {
+        "files": [
+          "test/**/*.js",
+          "src/**/*.test.js",
+          "src/**/*.test.jsx"
+        ],
+        "env": {
+          "browser": true,
+          "es2021": true,
+          "node": true
+        },
+        "globals": {
+          "globalThis": "readonly"
+        }
+      },
+      {
+        "files": [
+          "src/BurialSidebar.test.jsx",
+          "src/App.test.jsx"
+        ],
+        "rules": {
+          "testing-library/no-node-access": "off"
+        }
+      },
+      {
+        "files": [
+          "e2e/**/*.js"
+        ],
+        "env": {
+          "browser": true,
+          "es2021": true,
+          "node": true
+        },
+        "rules": {
+          "jest/valid-expect": "off",
+          "testing-library/prefer-screen-queries": "off"
+        }
+      }
     ]
   },
   "browserslist": {

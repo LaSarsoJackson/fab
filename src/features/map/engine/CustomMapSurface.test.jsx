@@ -225,7 +225,13 @@ describe("CustomMapSurface", () => {
     const sectionBurialsLayer = layerSpecs.find((layer) => layer.id === "section-burials");
     const pointStyle = sectionBurialsLayer.pointStyle(
       { id: sectionBurial.id, record: sectionBurial },
-      { getZoom: () => 18 }
+      {
+        getZoom: () => 18,
+        selectionState: {
+          activeId: null,
+          hoveredId: "grave-a",
+        },
+      }
     );
 
     expect(pointStyle.radius).toBeGreaterThan(5);

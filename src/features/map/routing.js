@@ -109,14 +109,23 @@ const getRouteMessageFromPayload = (payload, fallbackMessage) => {
   return fallbackMessage;
 };
 
-const fetchValhallaRoute = async ({
-  from,
-  to,
-  signal,
-  fetchImpl,
-  provider = "api",
-  requestUrl,
-} = {}) => {
+const getRouteFetchImpl = (fetchImpl, provider) => {
+  const fetchRoute = typeof fetchImpl === "function"
+    ? fetchImpl
+    : (typeof fetch === "function" ? fetch : null);
+
+  if (typeof fetchRoute === "function") {
+    return fetchRoute;
+  }
+
+  throw createRoutingError("Routing is unavailable in this environment.", {
+    code: "ROUTING_FETCH_UNAVAILABLE",
+    provider,
+    status: 500,
+  });
+};
+
+const assertValidRouteRequest = ({ from, to, requestUrl, provider }) => {
   if (!isLatLngTuple(from) || !isLatLngTuple(to)) {
     throw createRoutingError("Directions unavailable for this burial.", {
       code: "ROUTING_INVALID_COORDINATES",
@@ -125,29 +134,41 @@ const fetchValhallaRoute = async ({
     });
   }
 
-  const fetchRoute = typeof fetchImpl === "function"
-    ? fetchImpl
-    : (typeof fetch === "function" ? fetch : null);
+  if (requestUrl) {
+    return;
+  }
 
-  if (typeof fetchRoute !== "function") {
-    throw createRoutingError("Routing is unavailable in this environment.", {
-      code: "ROUTING_FETCH_UNAVAILABLE",
+  throw createRoutingError("Directions unavailable for this burial.", {
+    code: "ROUTING_MISSING_ENDPOINT",
+    provider,
+    status: 400,
+  });
+};
+
+const createRouteNetworkError = (provider) => {
+  if (provider === "valhalla") {
+    return createRoutingError("Offline routing service unavailable. Start local Valhalla and try again.", {
+      code: "OFFLINE_ROUTING_UNAVAILABLE",
       provider,
-      status: 500,
+      status: 503,
     });
   }
 
-  if (!requestUrl) {
-    throw createRoutingError("Directions unavailable for this burial.", {
-      code: "ROUTING_MISSING_ENDPOINT",
-      provider,
-      status: 400,
-    });
-  }
+  return createRoutingError("Network error: Please check your internet connection.", {
+    code: "ROUTING_NETWORK_ERROR",
+    provider,
+    status: 0,
+  });
+};
 
-  let response;
+const requestRouteResponse = async ({
+  fetchRoute,
+  provider,
+  requestUrl,
+  signal,
+}) => {
   try {
-    response = await fetchRoute(requestUrl, {
+    return await fetchRoute(requestUrl, {
       method: "GET",
       signal,
     });
@@ -156,34 +177,22 @@ const fetchValhallaRoute = async ({
       throw error;
     }
 
-    if (provider === "valhalla") {
-      throw createRoutingError("Offline routing service unavailable. Start local Valhalla and try again.", {
-        code: "OFFLINE_ROUTING_UNAVAILABLE",
-        provider,
-        status: 503,
-      });
-    }
-
-    throw createRoutingError("Network error: Please check your internet connection.", {
-      code: "ROUTING_NETWORK_ERROR",
-      provider,
-      status: 0,
-    });
+    throw createRouteNetworkError(provider);
   }
+};
 
-  let payload = null;
+const readRoutePayload = async (response) => {
   try {
-    payload = await response.json();
+    return await response.json();
   } catch (_error) {
-    payload = null;
+    return null;
   }
+};
 
+const assertRouteResponseOk = ({ payload, provider, response }) => {
   if (!response.ok) {
     throw createRoutingError(
-      getRouteMessageFromPayload(
-        payload,
-        `Routing request failed with status ${response.status}.`
-      ),
+      getRouteMessageFromPayload(payload, `Routing request failed with status ${response.status}.`),
       {
         code: "ROUTING_HTTP_ERROR",
         provider,
@@ -202,14 +211,17 @@ const fetchValhallaRoute = async ({
       }
     );
   }
+};
 
+const buildRouteResult = ({ payload, provider, status }) => {
   const route = Array.isArray(payload?.routes) ? payload.routes[0] : null;
   const coordinates = normalizeRouteCoordinates(route?.geometry?.coordinates);
+
   if (coordinates.length < 2) {
     throw createRoutingError("Unable to calculate route. The route geometry was incomplete.", {
       code: "ROUTING_INCOMPLETE_GEOMETRY",
       provider,
-      status: response.status || 400,
+      status: status || 400,
     });
   }
 
@@ -221,6 +233,33 @@ const fetchValhallaRoute = async ({
     geojson,
     bounds: getGeoJsonBounds(geojson),
   };
+};
+
+const fetchValhallaRoute = async ({
+  from,
+  to,
+  signal,
+  fetchImpl,
+  provider = "api",
+  requestUrl,
+} = {}) => {
+  assertValidRouteRequest({ from, to, requestUrl, provider });
+
+  const response = await requestRouteResponse({
+    fetchRoute: getRouteFetchImpl(fetchImpl, provider),
+    provider,
+    requestUrl,
+    signal,
+  });
+  const payload = await readRoutePayload(response);
+
+  assertRouteResponseOk({ payload, provider, response });
+
+  return buildRouteResult({
+    payload,
+    provider,
+    status: response.status,
+  });
 };
 
 export const buildWalkingRouteUrl = ({ from, to, apiUrl } = {}) => {

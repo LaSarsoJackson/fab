@@ -143,6 +143,18 @@ export const isSiteTwinReady = (manifest = null) => (
   )
 );
 
+export const shouldLoadSiteTwinCandidates = ({
+  isDev = false,
+  isOverlayVisible = false,
+  manifest = null,
+} = {}) => (
+  Boolean(
+    manifest?.status === "ready" &&
+    manifest?.graveCandidates?.url &&
+    (isDev || isOverlayVisible)
+  )
+);
+
 export const filterSiteTwinFeatureCollection = (featureCollection = {}, debugState = {}) => {
   const normalizedState = normalizeSiteTwinDebugState(debugState);
   const normalizedFeatureCollection = normalizeSiteTwinFeatureCollection(featureCollection);

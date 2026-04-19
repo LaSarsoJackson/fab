@@ -1,6 +1,3 @@
-import ARC_Boundary from "../../data/ARC_Boundary.json";
-import ARC_Roads from "../../data/ARC_Roads.json";
-import ARC_Sections from "../../data/ARC_Sections.json";
 import {
   createBasemapSpec,
   createOptimizationArtifactSpec,
@@ -306,9 +303,6 @@ export const FAB_APP_PROFILE = {
   map: {
     center: [42.704180, -73.731980],
     zoom: 14,
-    roadsData: ARC_Roads,
-    boundaryData: ARC_Boundary,
-    sectionsData: ARC_Sections,
     defaultViewBounds: [
       [42.694180, -73.741980],
       [42.714180, -73.721980],

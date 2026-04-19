@@ -2,7 +2,7 @@ import React, { Suspense, lazy, useEffect, useState } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { isAdminHash } from "./admin/adminHash";
 import { APP_PROFILE } from "./config/appProfile";
-import { isAdminStudioEnabled } from "./shared/runtime";
+import { isAdminStudioEnabled, syncDocumentMetadata } from "./shared/runtime";
 import "./App.css";
 
 const BurialMap = lazy(() => import("./Map"));
@@ -168,14 +168,11 @@ export default function App() {
   const [isAdminMode, setIsAdminMode] = useState(getIsAdminMode);
 
   useEffect(() => {
-    if (typeof document === "undefined") return;
-
-    document.title = APP_DOCUMENT_TITLE;
-
-    const descriptionElement = document.querySelector('meta[name="description"]');
-    if (descriptionElement && APP_DESCRIPTION) {
-      descriptionElement.setAttribute("content", APP_DESCRIPTION);
-    }
+    syncDocumentMetadata({
+      title: APP_DOCUMENT_TITLE,
+      description: APP_DESCRIPTION,
+      url: typeof window === "undefined" ? "" : window.location.href,
+    });
   }, []);
 
   useEffect(() => {

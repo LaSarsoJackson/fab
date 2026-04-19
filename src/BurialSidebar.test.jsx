@@ -3,6 +3,9 @@
 import React from "react";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
+import BurialSidebar from "./BurialSidebar";
+import { APP_PROFILE } from "./config/appProfile";
+import { buildBurialBrowseResult, buildSearchIndex } from "./features/browse";
 
 const mockBottomSheetState = { currentHeight: 0, lastProps: null, snapTo: jest.fn() };
 
@@ -29,10 +32,6 @@ jest.mock("react-spring-bottom-sheet", () => {
     }),
   };
 });
-
-import BurialSidebar from "./BurialSidebar";
-import { APP_PROFILE } from "./config/appProfile";
-import { buildBurialBrowseResult, buildSearchIndex } from "./features/browse";
 
 const getTourName = (record) => {
   if (record.title === "Notable") return "Notables Tour 2020";
@@ -285,16 +284,14 @@ describe("BurialSidebar", () => {
 
     mockBottomSheetState.snapTo.mockReset();
 
-    act(() => {
-      rerender(
-        <BurialSidebar
-          {...rerenderProps}
-          isMobile
-          activeBurialId={burialRecords[0].id}
-          selectedBurials={[burialRecords[0]]}
-        />
-      );
-    });
+    rerender(
+      <BurialSidebar
+        {...rerenderProps}
+        isMobile
+        activeBurialId={burialRecords[0].id}
+        selectedBurials={[burialRecords[0]]}
+      />
+    );
 
     expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(1);
     expect(mockBottomSheetState.snapTo.mock.calls[0][0]({ maxHeight: 1000 })).toBeCloseTo(500);
@@ -702,6 +699,17 @@ describe("BurialSidebar", () => {
     expect(onClearSelectedBurials).toHaveBeenCalled();
   });
 
+  domTest("reveals an existing mobile selection on first render instead of collapsing the sheet", () => {
+    renderSidebar({
+      isMobile: true,
+      activeBurialId: burialRecords[0].id,
+      selectedBurials: [burialRecords[0]],
+    });
+
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
+    expect(mockBottomSheetState.snapTo).not.toHaveBeenCalled();
+  });
+
   domTest("keeps browse controls and results in the same workspace panel", () => {
     renderSidebar({ sectionFilter: "99", showAllBurials: true });
 
@@ -778,7 +786,7 @@ describe("BurialSidebar", () => {
     expect(screen.queryByText("Focused burial")).not.toBeInTheDocument();
   });
 
-  domTest("uses the correct mobile snap immediately when the layout switches to mobile", () => {
+  domTest("uses the current selection context when the layout switches to mobile", () => {
     const rerenderProps = createBaseProps();
     const { rerender } = renderSidebar({
       activeBurialId: burialRecords[0].id,
@@ -794,7 +802,7 @@ describe("BurialSidebar", () => {
       />
     );
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(220);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
     expect(mockBottomSheetState.snapTo).not.toHaveBeenCalled();
   });
 

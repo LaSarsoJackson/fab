@@ -10,10 +10,41 @@ const SNAP_COLLAPSED_FRACTION = 0.22;
 const SNAP_PEEK_FRACTION = 0.50;
 const SNAP_FULL_FRACTION = 0.92;
 
-const getInitialMobileSheetState = ({ isMobile, hasContext }) => {
+export const getDefaultMobileSheetState = ({
+  hasBrowseContext = false,
+  hasSelectedBurials = false,
+  isMobile,
+}) => {
   if (!isMobile) return MOBILE_SHEET_STATES.FULL;
-  if (hasContext) return MOBILE_SHEET_STATES.PEEK;
+  if (hasBrowseContext || hasSelectedBurials) return MOBILE_SHEET_STATES.PEEK;
   return MOBILE_SHEET_STATES.COLLAPSED;
+};
+
+export const getMobileSheetSnapHeight = ({ maxHeight, state }) => {
+  if (state === MOBILE_SHEET_STATES.COLLAPSED) {
+    return maxHeight * SNAP_COLLAPSED_FRACTION;
+  }
+
+  if (state === MOBILE_SHEET_STATES.FULL) {
+    return maxHeight * SNAP_FULL_FRACTION;
+  }
+
+  return maxHeight * SNAP_PEEK_FRACTION;
+};
+
+export const getMobileSheetStateFromHeight = ({ height, windowHeight }) => {
+  const collapsedThreshold = windowHeight * (SNAP_COLLAPSED_FRACTION + SNAP_PEEK_FRACTION) / 2;
+  const peekThreshold = windowHeight * (SNAP_PEEK_FRACTION + SNAP_FULL_FRACTION) / 2;
+
+  if (height < collapsedThreshold) {
+    return MOBILE_SHEET_STATES.COLLAPSED;
+  }
+
+  if (height < peekThreshold) {
+    return MOBILE_SHEET_STATES.PEEK;
+  }
+
+  return MOBILE_SHEET_STATES.FULL;
 };
 
 export function useBurialSidebarMobileSheetState({
@@ -23,12 +54,13 @@ export function useBurialSidebarMobileSheetState({
   isMobile,
   selectedBurialsLength,
 }) {
-  const initialMobileContext = Boolean(
+  const initialHasBrowseContext = Boolean(
     (initialQuery || "").trim() || initialBrowseSource !== "all"
   );
-  const initialMobileSheetState = getInitialMobileSheetState({
+  const initialMobileSheetState = getDefaultMobileSheetState({
+    hasBrowseContext: initialHasBrowseContext,
+    hasSelectedBurials: selectedBurialsLength > 0,
     isMobile,
-    hasContext: initialMobileContext,
   });
   const [mobileSheetState, setMobileSheetState] = useState(() => initialMobileSheetState);
   const [isSelectedSummaryExpanded, setIsSelectedSummaryExpanded] = useState(
@@ -38,9 +70,10 @@ export function useBurialSidebarMobileSheetState({
   const previousSelectedCountRef = useRef(selectedBurialsLength);
   const previousIsMobileRef = useRef(isMobile);
   const previousHasActiveBrowseContextRef = useRef(hasActiveBrowseContext);
-  const currentMobileSheetState = getInitialMobileSheetState({
+  const currentMobileSheetState = getDefaultMobileSheetState({
+    hasBrowseContext: hasActiveBrowseContext,
+    hasSelectedBurials: selectedBurialsLength > 0,
     isMobile,
-    hasContext: hasActiveBrowseContext,
   });
   // When the layout crosses from desktop into mobile, derive a fresh default
   // drawer state from the current context instead of reusing the last
@@ -50,33 +83,43 @@ export function useBurialSidebarMobileSheetState({
     : mobileSheetState;
 
   const mobileSnapPoints = useCallback(({ maxHeight }) => [
-    maxHeight * SNAP_COLLAPSED_FRACTION,
-    maxHeight * SNAP_PEEK_FRACTION,
-    maxHeight * SNAP_FULL_FRACTION,
+    getMobileSheetSnapHeight({
+      maxHeight,
+      state: MOBILE_SHEET_STATES.COLLAPSED,
+    }),
+    getMobileSheetSnapHeight({
+      maxHeight,
+      state: MOBILE_SHEET_STATES.PEEK,
+    }),
+    getMobileSheetSnapHeight({
+      maxHeight,
+      state: MOBILE_SHEET_STATES.FULL,
+    }),
   ], []);
 
   const mobileDefaultSnap = useCallback(({ maxHeight, snapPoints }) => {
     if (resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
-      return snapPoints[0] || maxHeight * SNAP_COLLAPSED_FRACTION;
+      return snapPoints[0] || getMobileSheetSnapHeight({
+        maxHeight,
+        state: MOBILE_SHEET_STATES.COLLAPSED,
+      });
     }
 
     if (resolvedMobileSheetState === MOBILE_SHEET_STATES.FULL) {
-      return snapPoints[2] || maxHeight * SNAP_FULL_FRACTION;
+      return snapPoints[2] || getMobileSheetSnapHeight({
+        maxHeight,
+        state: MOBILE_SHEET_STATES.FULL,
+      });
     }
 
-    return snapPoints[1] || maxHeight * SNAP_PEEK_FRACTION;
+    return snapPoints[1] || getMobileSheetSnapHeight({
+      maxHeight,
+      state: MOBILE_SHEET_STATES.PEEK,
+    });
   }, [resolvedMobileSheetState]);
 
   const snapMobileSheet = useCallback((state, maxHeight) => {
-    if (state === MOBILE_SHEET_STATES.COLLAPSED) {
-      return maxHeight * SNAP_COLLAPSED_FRACTION;
-    }
-
-    if (state === MOBILE_SHEET_STATES.FULL) {
-      return maxHeight * SNAP_FULL_FRACTION;
-    }
-
-    return maxHeight * SNAP_PEEK_FRACTION;
+    return getMobileSheetSnapHeight({ maxHeight, state });
   }, []);
 
   const setAndSnapMobileSheet = useCallback((state) => {
@@ -103,18 +146,10 @@ export function useBurialSidebarMobileSheetState({
     if (event.type !== "SNAP" && event.type !== "OPEN") return;
     if (!sheetRef.current || typeof window === "undefined") return;
 
-    const height = sheetRef.current.height;
-    const windowHeight = window.innerHeight;
-    const collapsedThreshold = windowHeight * (SNAP_COLLAPSED_FRACTION + SNAP_PEEK_FRACTION) / 2;
-    const peekThreshold = windowHeight * (SNAP_PEEK_FRACTION + SNAP_FULL_FRACTION) / 2;
-
-    if (height < collapsedThreshold) {
-      setMobileSheetState(MOBILE_SHEET_STATES.COLLAPSED);
-    } else if (height < peekThreshold) {
-      setMobileSheetState(MOBILE_SHEET_STATES.PEEK);
-    } else {
-      setMobileSheetState(MOBILE_SHEET_STATES.FULL);
-    }
+    setMobileSheetState(getMobileSheetStateFromHeight({
+      height: sheetRef.current.height,
+      windowHeight: window.innerHeight,
+    }));
   }, []);
 
   useEffect(() => {

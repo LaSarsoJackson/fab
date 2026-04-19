@@ -9,6 +9,7 @@ import {
   normalizeSiteTwinDebugState,
   normalizeSiteTwinFeatureCollection,
   normalizeSiteTwinManifest,
+  shouldLoadSiteTwinCandidates,
   summarizeSiteTwinFeatureCollection,
 } from "../src/features/map/siteTwin";
 
@@ -46,6 +47,23 @@ describe("site twin helpers", () => {
       },
     });
     expect(isSiteTwinReady(manifest)).toBe(true);
+  });
+
+  test("waits for a ready manifest before loading grave candidates", () => {
+    expect(shouldLoadSiteTwinCandidates({
+      isDev: true,
+      manifest: EMPTY_SITE_TWIN_MANIFEST,
+    })).toBe(false);
+
+    expect(shouldLoadSiteTwinCandidates({
+      isDev: true,
+      manifest: normalizeSiteTwinManifest({
+        status: "ready",
+        graveCandidates: {
+          url: "/data/site_twin/grave_candidates.geojson",
+        },
+      }),
+    })).toBe(true);
   });
 
   test("converts candidate feature collections into runtime point entries", () => {

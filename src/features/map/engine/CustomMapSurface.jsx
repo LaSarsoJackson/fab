@@ -428,8 +428,8 @@ export function CustomMapSurface({
           })),
         pointStyle: (entry, runtime) => {
           const zoom = runtime?.getZoom?.() || 0;
-          const isActive = entry?.record?.id === activeBurialId;
-          const isHovered = entry?.record?.id === hoveredBurialId;
+          const isActive = entry?.record?.id === runtime?.selectionState?.activeId;
+          const isHovered = entry?.record?.id === runtime?.selectionState?.hoveredId;
           const offset = zoom >= SECTION_BURIAL_DISABLE_CLUSTERING_ZOOM
             ? getStackedBurialMarkerOffset(zoom, entry?.record)
             : { dx: 0, dy: 0 };
@@ -489,9 +489,9 @@ export function CustomMapSurface({
             coordinates: record.coordinates,
             record,
           })),
-        pointStyle: (entry) => {
-          const isActive = entry?.record?.id === activeBurialId;
-          const isHovered = entry?.record?.id === hoveredBurialId;
+        pointStyle: (entry, runtime) => {
+          const isActive = entry?.record?.id === runtime?.selectionState?.activeId;
+          const isHovered = entry?.record?.id === runtime?.selectionState?.hoveredId;
           const color = tourStyles?.[entry?.record?.tourKey]?.color ||
             tourStyles?.[entry?.record?.title]?.color ||
             "#c96e1f";
@@ -531,11 +531,12 @@ export function CustomMapSurface({
             index,
             record,
           })),
-        pointStyle: (entry) => {
+        pointStyle: (entry, runtime) => {
           const color = selectedMarkerColorById.get(entry.id) || "#e41a1c";
-          const isHighlighted =
-            runtimeRef.current?.selectionState?.hoveredId === entry.id ||
-            activeBurialId === entry.id;
+          const isHighlighted = (
+            runtime?.selectionState?.hoveredId === entry.id ||
+            runtime?.selectionState?.activeId === entry.id
+          );
           return {
             variant: "numbered",
             label: entry.index + 1,
@@ -581,7 +582,6 @@ export function CustomMapSurface({
 
     return nextLayers;
   }, [
-    activeBurialId,
     boundaryData,
     lat,
     lng,
