@@ -17,6 +17,7 @@ describe("map engine manifest", () => {
       runtimeApiVersion: MAP_RUNTIME_API_VERSION,
       backendApiVersion: MAP_BACKEND_API_VERSION,
       runtimeKinds: ["custom", "leaflet-adapter"],
+      layerKinds: ["geojson", "image", "points"],
       runtimeSelection: {
         featureFlag: "customMapEngine",
         envVar: "REACT_APP_ENABLE_CUSTOM_MAP_ENGINE",
@@ -47,11 +48,22 @@ describe("map engine manifest", () => {
       expect.objectContaining({
         id: "section-browse",
         status: "shipped",
+        runtimeKinds: ["custom", "leaflet-adapter"],
+      }),
+      expect.objectContaining({
+        id: "deep-links",
+        status: "shipped",
+        runtimeKinds: ["custom", "leaflet-adapter"],
       }),
       expect.objectContaining({
         id: "on-map-routing",
         status: "adapter-backed",
-        runtimeKinds: ["leaflet-adapter"],
+        runtimeKinds: ["custom", "leaflet-adapter"],
+      }),
+      expect.objectContaining({
+        id: "live-geolocation",
+        status: "adapter-backed",
+        runtimeKinds: ["custom", "leaflet-adapter"],
       }),
       expect.objectContaining({
         id: "authoring-editing",

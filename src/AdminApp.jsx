@@ -26,6 +26,7 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import MapIcon from "@mui/icons-material/Map";
 import { DataGrid } from "@mui/x-data-grid";
 
+import { isAdminHash } from "./admin/adminHash";
 import { downloadArrayBuffer, downloadJsonFile } from "./admin/downloads";
 import { exportSnapshotToWorkbook, mergeImportedRows, parseWorkbookFile } from "./admin/excel";
 import {
@@ -42,7 +43,6 @@ import {
 import { DATA_MODULES, getDataModule, loadDataModule } from "./admin/moduleRegistry";
 import { buildUpdateBundle } from "./admin/packageBuilder";
 
-const ADMIN_HASH = "#/admin";
 const PAGE_SIZE = 50;
 const SEARCHABLE_FIELD_PRIORITY = [
   "First_Name",
@@ -89,6 +89,53 @@ const formatModuleCount = (snapshot) => (
   snapshot ? `${snapshot.rows.length.toLocaleString()} records` : "Not loaded"
 );
 
+const updateSetMembership = (previous, moduleId, shouldInclude) => {
+  const next = new Set(previous);
+
+  if (shouldInclude) {
+    next.add(moduleId);
+  } else {
+    next.delete(moduleId);
+  }
+
+  return next;
+};
+
+const buildLoadedSnapshot = async (moduleDefinition) => {
+  const loadedData = await loadDataModule(moduleDefinition);
+  return buildModuleSnapshot(moduleDefinition, loadedData);
+};
+
+const upsertDraftSnapshot = (snapshot, draftRow) => {
+  const nextSnapshot = extendSnapshotSchema(snapshot, draftRow);
+  const existingIndex = nextSnapshot.rows.findIndex(
+    (row) => row[adminRowIdField] === draftRow[adminRowIdField]
+  );
+  const nextRows = [...nextSnapshot.rows];
+
+  if (existingIndex >= 0) {
+    nextRows[existingIndex] = {
+      ...nextRows[existingIndex],
+      ...draftRow,
+    };
+  } else {
+    nextRows.push(draftRow);
+  }
+
+  return replaceSnapshotRows(nextSnapshot, nextRows);
+};
+
+const groupModulesByGroup = (moduleDefinitions) => (
+  moduleDefinitions.reduce((groups, moduleDefinition) => {
+    if (!groups[moduleDefinition.group]) {
+      groups[moduleDefinition.group] = [];
+    }
+
+    groups[moduleDefinition.group].push(moduleDefinition);
+    return groups;
+  }, {})
+);
+
 export default function AdminApp() {
   const fileInputRef = useRef(null);
   const [selectedModuleId, setSelectedModuleId] = useState(DATA_MODULES[0]?.id || "");
@@ -106,6 +153,12 @@ export default function AdminApp() {
     () => getDataModule(selectedModuleId),
     [selectedModuleId]
   );
+  const setModuleLoading = useCallback((moduleId, isLoading) => {
+    setLoadingModuleIds((previous) => updateSetMembership(previous, moduleId, isLoading));
+  }, []);
+  const setModuleDirty = useCallback((moduleId, isDirty) => {
+    setDirtyModuleIds((previous) => updateSetMembership(previous, moduleId, isDirty));
+  }, []);
 
   const ensureSnapshot = useCallback(async (moduleId) => {
     const existingSnapshot = moduleSnapshots[moduleId];
@@ -118,15 +171,10 @@ export default function AdminApp() {
       throw new Error(`Unknown module: ${moduleId}`);
     }
 
-    setLoadingModuleIds((previous) => {
-      const next = new Set(previous);
-      next.add(moduleId);
-      return next;
-    });
+    setModuleLoading(moduleId, true);
 
     try {
-      const loadedData = await loadDataModule(moduleDefinition);
-      const snapshot = buildModuleSnapshot(moduleDefinition, loadedData);
+      const snapshot = await buildLoadedSnapshot(moduleDefinition);
 
       setModuleSnapshots((previous) => ({
         ...previous,
@@ -135,13 +183,9 @@ export default function AdminApp() {
 
       return snapshot;
     } finally {
-      setLoadingModuleIds((previous) => {
-        const next = new Set(previous);
-        next.delete(moduleId);
-        return next;
-      });
+      setModuleLoading(moduleId, false);
     }
-  }, [moduleSnapshots]);
+  }, [moduleSnapshots, setModuleLoading]);
 
   useEffect(() => {
     if (!selectedModuleId) return;
@@ -170,32 +214,16 @@ export default function AdminApp() {
     [selectedSnapshot]
   );
 
-  const markModuleDirty = useCallback((moduleId) => {
-    setDirtyModuleIds((previous) => {
-      const next = new Set(previous);
-      next.add(moduleId);
-      return next;
-    });
-  }, []);
-
-  const clearModuleDirty = useCallback((moduleId) => {
-    setDirtyModuleIds((previous) => {
-      const next = new Set(previous);
-      next.delete(moduleId);
-      return next;
-    });
-  }, []);
-
-  const setSnapshot = useCallback((moduleId, snapshot, { dirty = false } = {}) => {
+  const setSnapshot = useCallback((moduleId, snapshot, { dirty = null } = {}) => {
     setModuleSnapshots((previous) => ({
       ...previous,
       [moduleId]: snapshot,
     }));
 
-    if (dirty) {
-      markModuleDirty(moduleId);
+    if (dirty !== null) {
+      setModuleDirty(moduleId, dirty);
     }
-  }, [markModuleDirty]);
+  }, [setModuleDirty]);
 
   const openEditor = useCallback((row = null) => {
     if (!selectedSnapshot) return;
@@ -219,22 +247,7 @@ export default function AdminApp() {
   const handleSaveDraft = useCallback(() => {
     if (!selectedSnapshot || !activeDraft) return;
 
-    const nextSnapshot = extendSnapshotSchema(selectedSnapshot, activeDraft);
-    const existingIndex = nextSnapshot.rows.findIndex(
-      (row) => row[adminRowIdField] === activeDraft[adminRowIdField]
-    );
-
-    const nextRows = [...nextSnapshot.rows];
-    if (existingIndex >= 0) {
-      nextRows[existingIndex] = {
-        ...nextRows[existingIndex],
-        ...activeDraft,
-      };
-    } else {
-      nextRows.push(activeDraft);
-    }
-
-    setSnapshot(selectedModuleId, replaceSnapshotRows(nextSnapshot, nextRows), { dirty: true });
+    setSnapshot(selectedModuleId, upsertDraftSnapshot(selectedSnapshot, activeDraft), { dirty: true });
     setFeedback(`${selectedModule?.label || "Module"} updated in the current browser draft.`);
     closeEditor();
   }, [activeDraft, closeEditor, selectedModule?.label, selectedModuleId, selectedSnapshot, setSnapshot]);
@@ -331,10 +344,8 @@ export default function AdminApp() {
     setErrorMessage("");
 
     try {
-      const loadedData = await loadDataModule(selectedModule);
-      const snapshot = buildModuleSnapshot(selectedModule, loadedData);
+      const snapshot = await buildLoadedSnapshot(selectedModule);
       setSnapshot(selectedModuleId, snapshot, { dirty: false });
-      clearModuleDirty(selectedModuleId);
       setFeedback(`${selectedModule.label} reset to the bundled source file.`);
     } catch (error) {
       console.error(error);
@@ -342,18 +353,9 @@ export default function AdminApp() {
     } finally {
       setIsBusy(false);
     }
-  }, [clearModuleDirty, selectedModule, selectedModuleId, setSnapshot]);
+  }, [selectedModule, selectedModuleId, setSnapshot]);
 
-  const groupedModules = useMemo(() => (
-    DATA_MODULES.reduce((groups, moduleDefinition) => {
-      if (!groups[moduleDefinition.group]) {
-        groups[moduleDefinition.group] = [];
-      }
-
-      groups[moduleDefinition.group].push(moduleDefinition);
-      return groups;
-    }, {})
-  ), []);
+  const groupedModules = useMemo(() => groupModulesByGroup(DATA_MODULES), []);
 
   return (
     <Box
@@ -387,12 +389,13 @@ export default function AdminApp() {
                 File-backed content editing for the static site
               </Typography>
               <Typography variant="body1" sx={{ maxWidth: 860, color: "#425348" }}>
-                This admin mode edits the bundled source files in-browser. Nothing is written to a server.
-                Review the changes here, then export updated JSON or a zip bundle and promote those files
-                through the existing static deploy workflow.
+                This development-only admin mode edits the bundled source files in-browser. Nothing is written
+                to a server yet. Review the changes here, then export updated JSON or a zip bundle and promote
+                those files through the existing static deploy workflow.
               </Typography>
             </Box>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} alignItems={{ xs: "stretch", sm: "center" }}>
+              <Chip label="Development only" color="warning" variant="outlined" />
               <Chip
                 label={`${dirtyModuleIds.size} dirty module${dirtyModuleIds.size === 1 ? "" : "s"}`}
                 color={dirtyModuleIds.size > 0 ? "warning" : "default"}
@@ -652,4 +655,4 @@ export default function AdminApp() {
   );
 }
 
-export const isAdminHash = (hash = "") => hash === ADMIN_HASH || hash.startsWith(`${ADMIN_HASH}?`);
+export { isAdminHash };

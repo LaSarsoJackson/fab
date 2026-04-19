@@ -1,10 +1,17 @@
 # Map Engine API
 
-This document defines the API surface that FAB owns.
+This document defines the API surface that FAB owns and consumes.
 
-Leaflet is not the source of truth for these interfaces. The internal contract
-is the source of truth, and Leaflet is only a compatibility implementation of
-that contract while the custom runtime and data backend keep expanding.
+For the standalone-oriented view of the same engine boundary, see
+[`docs/map-engine-standalone-api.md`](./map-engine-standalone-api.md) and
+[`src/features/map/engine/README.md`](../src/features/map/engine/README.md).
+
+Clean-room posture:
+
+- Leaflet is not the source of truth for these interfaces
+- public Leaflet references inform behavior names and parity goals
+- the internal contract is the source of truth
+- the Leaflet adapter is an implementation of that contract, not the contract itself
 
 ## API Layers
 
@@ -21,22 +28,26 @@ For the product-specific "what does FAB need this engine to do?" view, see
 
 ## Runtime API
 
-Source: [`src/features/map/engine/contracts.js`](../src/features/map/engine/contracts.js)
+Sources:
+
+- [`src/features/map/engine/contracts.js`](../src/features/map/engine/contracts.js)
+- [`src/features/map/engine/factory.js`](../src/features/map/engine/factory.js)
+- [`src/features/map/engine/standalone.js`](../src/features/map/engine/standalone.js)
 
 Current version: `1`
 
-Any runtime used by the app should expose at least these methods:
+Any runtime used by the app should expose at least these required methods:
 
-- `mount(container, options?)`
-- `destroy()`
-- `setCamera(cameraState)`
-- `fitBounds(bounds, options?)`
-- `setBasemap(basemapSpec)`
-- `setLayers(layerSpecs)`
-- `setSelection(selectionState)`
-- `openPopup(popupSpec)`
-- `closePopup()`
-- `on(eventName, handler)`
+- `mount`
+- `destroy`
+- `setCamera`
+- `fitBounds`
+- `setBasemap`
+- `setLayers`
+- `setSelection`
+- `openPopup`
+- `closePopup`
+- `on`
 
 The current runtimes also expose convenience methods that the orchestration
 layer may use when available:
@@ -53,12 +64,28 @@ layer may use when available:
 - `stop()`
 - `getBounds()`
 - `panInside(latLng, options?)`
+- `setMaxBounds(bounds)`
+- `setMinZoom(zoom)`
+- `setMaxZoom(zoom)`
+- `invalidateSize()`
 - `addLayer(layer)`
 - `removeLayer(layer)`
 - `hasLayer(layer)`
 - `removeControl(control)`
 - `zoomIn()`
 - `zoomOut()`
+
+The method lists above are exported directly as:
+
+- `MAP_RUNTIME_REQUIRED_METHODS`
+- `MAP_RUNTIME_OPTIONAL_METHODS`
+
+Use `getMapRuntimeContract()` when you want the versioned contract descriptor in
+code or tests, and `listMissingMapRuntimeMethods(value)` when you want to check
+whether an implementation satisfies the required surface.
+
+Use `assertMapRuntimeContract(value)` when you want the same check to fail
+fast with a concrete error message.
 
 ### Runtime Events
 
@@ -78,12 +105,19 @@ Supported runtime events today:
 
 Runtimes identify themselves with:
 
-- `__fabMapRuntime === true`
+- `__mapRuntimeContract === true`
 - `__runtimeKind`
 - `__runtimeApiVersion`
 
+The current runtimes also retain the legacy `__fabMapRuntime === true` marker so
+older FAB call sites continue to recognize them during the transition.
+
 Use [`getMapRuntimeDescriptor`](../src/features/map/engine/contracts.js) when
 you need to inspect that shape without reaching into implementation details.
+
+`getMapRuntimeContract()` also returns the exported basemap types, layer kinds,
+source formats, and optimization-artifact roles so external callers can inspect
+the standalone surface from one place.
 
 ## Spec Objects
 
@@ -117,7 +151,15 @@ Current generic fields:
 Current layer kinds:
 
 - `geojson`
+- `image`
 - `points`
+
+Common `image` layer fields in the current custom runtime:
+
+- `imageUrl`
+- `bounds`
+- `opacity`
+- `smoothing`
 
 Renderer-specific callbacks are allowed on top of that generic shape, but they
 should stay inside the runtime/controller boundary instead of leaking into
@@ -168,6 +210,7 @@ It is the build/backend registry for what static outputs exist or are planned.
 ### SelectionState
 
 - `activeId`
+- `hoveredId`
 - `ids`
 
 ### PopupSpec

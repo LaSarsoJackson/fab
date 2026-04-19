@@ -8,11 +8,18 @@ runtime contract, our source model, our profile-driven basemap registry, and
 our custom canvas renderer. Leaflet remains a compatibility adapter and rollback
 path, not the architectural center of the product.
 
+Documentation posture:
+
+- the engine contract is documented as an engine-owned API
+- Leaflet public references inform compatibility goals
+- the contract and implementation notes should stay clean-roomed from private upstream internals
+
 ## What Counts As The Engine
 
 The engine is the combination of:
 
 - the runtime contract in [`src/features/map/engine/contracts.js`](../src/features/map/engine/contracts.js)
+- the standalone-oriented entry point in [`src/features/map/engine/standalone.js`](../src/features/map/engine/standalone.js)
 - the backend contract in [`src/features/map/engine/backend.js`](../src/features/map/engine/backend.js)
 - the app-specific manifest in [`src/features/map/engine/manifest.js`](../src/features/map/engine/manifest.js)
 - the custom renderer in [`src/features/map/engine/customRuntime.js`](../src/features/map/engine/customRuntime.js)
@@ -34,13 +41,15 @@ Today the engine supports:
 - raster XYZ basemaps
 - PMTiles/vector-tile basemap declarations with raster fallback
 - GeoJSON polygon and line overlays
+- bounded raster image overlays
 - point rendering, deterministic screen-space clustering, and hit testing
 - popup anchoring and selection synchronization
 - a shared Leaflet adapter so the same app orchestration can target either runtime
 
 Leaflet still carries the production-default behavior and rollback coverage.
-The custom runtime is a development preview behind the feature flag while we
-close parity gaps in popup, hover, and selection behavior.
+The custom runtime now has verified parity for FAB's core search, browse, deep
+link, route-on-map, locate, and mobile selection flows, and remains behind the
+feature flag for rollout control rather than because those flows are missing.
 
 ## Ownership Model
 
@@ -53,8 +62,8 @@ Use this split when editing:
 
 Do not let renderer-specific Leaflet behavior leak back into the shared app
 layer. That is the main thing that would undermine the "custom engine" claim.
-At the same time, do not document the preview runtime as if it were the current
-production baseline.
+At the same time, do not document the custom runtime as the current production
+baseline until the default-runtime decision actually changes.
 
 ## Architectural Shape
 
@@ -81,6 +90,7 @@ long-term static-optimization path is:
 That migration is documented in:
 
 - [`docs/map-engine-api.md`](./map-engine-api.md)
+- [`docs/map-engine-standalone-api.md`](./map-engine-standalone-api.md)
 - [`docs/map-engine-fab-spec.md`](./map-engine-fab-spec.md)
 - [`docs/map-engine-geoparquet.md`](./map-engine-geoparquet.md)
 
@@ -90,6 +100,6 @@ These are accurate statements about the current architecture:
 
 - FAB owns its own map runtime contract and runtime selection.
 - FAB ships a custom map renderer behind that contract.
-- Leaflet remains the production-default adapter and rollback path while the custom runtime stays in preview.
+- Leaflet remains the production-default adapter and rollback path while the custom runtime stays feature-flagged for rollout control.
 - The engine’s basemap, overlay, and optimization-artifact registry is profile-driven.
 - The static data pipeline can prefer GeoParquet without changing the user-facing map behavior.

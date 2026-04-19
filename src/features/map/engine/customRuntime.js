@@ -2,6 +2,7 @@ import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
 import { point as turfPoint } from "@turf/helpers";
 
 import {
+  clampCameraToBounds,
   getCameraBounds,
   getFitBoundsCamera,
   normalizeBounds,
@@ -10,12 +11,15 @@ import {
   createBoundsHandle,
 } from "./camera";
 import {
+  CUSTOM_MAP_RUNTIME_KIND,
   createBasemapSpec,
   createCameraState,
   createLayerSpec,
+  MAP_RUNTIME_SENTINEL,
   MAP_RUNTIME_API_VERSION,
   createPopupSpec,
   createSelectionState,
+  MAP_RUNTIME_LEGACY_SENTINEL,
   MAP_RUNTIME_EVENTS,
 } from "./contracts";
 import { clusterScreenPoints } from "./clustering";
@@ -29,8 +33,29 @@ import {
 
 const DRAG_THRESHOLD = 4;
 const DEFAULT_CLUSTER_RADIUS = 44;
+const WHEEL_ZOOM_DELTA_THRESHOLD = 72;
+const WHEEL_ZOOM_RESET_DELAY = 180;
+const CAMERA_ANIMATION_DURATION = 170;
 
 const toDomStyle = (value) => `${Math.round(value * 1000) / 1000}px`;
+const DEFAULT_SURFACE_CURSOR = "grab";
+
+const normalizeWheelDelta = (event, viewportHeight = 0) => {
+  const deltaY = Number(event?.deltaY) || 0;
+  const deltaMode = Number(event?.deltaMode) || 0;
+
+  if (deltaMode === 1) {
+    return deltaY * 16;
+  }
+
+  if (deltaMode === 2) {
+    return deltaY * Math.max(1, viewportHeight || 1);
+  }
+
+  return deltaY;
+};
+
+const easeOutCubic = (progress) => 1 - Math.pow(1 - progress, 3);
 
 const haversineDistance = (left, right) => {
   const earthRadiusMeters = 6371000;
@@ -160,25 +185,70 @@ const drawCirclePoint = (context, point, style = {}) => {
   context.globalAlpha = Number.isFinite(style.opacity) ? style.opacity : 1;
   context.stroke();
   context.restore();
+
+  if (style.labelText) {
+    context.save();
+    context.fillStyle = normalizeColor(style.labelColor, "#324454");
+    context.globalAlpha = Number.isFinite(style.labelOpacity) ? style.labelOpacity : 1;
+    context.font = `${style.labelWeight || 700} ${style.labelSize || 12}px Manrope, sans-serif`;
+    context.textAlign = "center";
+    context.textBaseline = "bottom";
+    context.shadowColor = "rgba(255, 255, 255, 0.94)";
+    context.shadowBlur = 10;
+    context.fillText(
+      String(style.labelText),
+      point.x,
+      point.y - radius - (Number.isFinite(style.labelOffsetY) ? style.labelOffsetY : 8)
+    );
+    context.restore();
+  }
 };
 
-const drawClusterPoint = (context, point, count) => {
+const drawPointGuide = (context, anchorPoint, point, style = {}) => {
+  const deltaX = point.x - anchorPoint.x;
+  const deltaY = point.y - anchorPoint.y;
+  if (!style.guideColor || Math.hypot(deltaX, deltaY) < 0.6) {
+    return;
+  }
+
   context.save();
+  context.strokeStyle = style.guideColor;
+  context.lineWidth = Number.isFinite(style.guideWidth) ? style.guideWidth : 1;
   context.beginPath();
-  context.arc(point.x, point.y, 17, 0, Math.PI * 2);
-  context.fillStyle = "rgba(255, 248, 239, 0.96)";
-  context.strokeStyle = "rgba(123, 78, 36, 0.28)";
-  context.lineWidth = 1.5;
+  context.moveTo(anchorPoint.x, anchorPoint.y);
+  context.lineTo(point.x, point.y);
+  context.stroke();
+  context.restore();
+};
+
+const drawClusterPoint = (context, point, count, options = {}) => {
+  const isHovered = Boolean(options.hovered);
+
+  context.save();
+  context.shadowColor = isHovered
+    ? "rgba(20, 33, 43, 0.18)"
+    : "rgba(20, 33, 43, 0.12)";
+  context.shadowBlur = isHovered ? 14 : 10;
+  context.shadowOffsetY = 4;
+  context.beginPath();
+  context.arc(point.x, point.y, isHovered ? 16.5 : 15, 0, Math.PI * 2);
+  context.fillStyle = "rgba(255, 248, 239, 0.94)";
+  context.strokeStyle = isHovered
+    ? "rgba(123, 78, 36, 0.36)"
+    : "rgba(123, 78, 36, 0.22)";
+  context.lineWidth = isHovered ? 1.75 : 1.25;
   context.fill();
   context.stroke();
 
   context.beginPath();
-  context.arc(point.x, point.y, 12, 0, Math.PI * 2);
-  context.fillStyle = "rgba(217, 123, 43, 0.86)";
+  context.arc(point.x, point.y, isHovered ? 11.5 : 10.5, 0, Math.PI * 2);
+  context.fillStyle = isHovered
+    ? "rgba(205, 110, 34, 0.94)"
+    : "rgba(217, 123, 43, 0.82)";
   context.fill();
 
   context.fillStyle = "#ffffff";
-  context.font = "700 12px Manrope, sans-serif";
+  context.font = "700 11px Manrope, sans-serif";
   context.textAlign = "center";
   context.textBaseline = "middle";
   context.fillText(count > 99 ? "99+" : String(count), point.x, point.y + 0.5);
@@ -206,7 +276,102 @@ const drawNumberedPoint = (context, point, style = {}) => {
   context.restore();
 };
 
+const getMetersPerPixelAtLatitude = (latitude, zoom) => (
+  156543.03392 * Math.cos((latitude * Math.PI) / 180) / Math.pow(2, zoom)
+);
+
+const getPixelsPerMeterAtLatitude = (latitude, zoom) => {
+  const metersPerPixel = getMetersPerPixelAtLatitude(latitude, zoom);
+  if (!Number.isFinite(metersPerPixel) || metersPerPixel <= 0) {
+    return 0;
+  }
+
+  return 1 / metersPerPixel;
+};
+
+function drawMonumentPoint(context, point, style = {}, latitude = 0, zoom = 0) {
+  const pixelsPerMeter = getPixelsPerMeterAtLatitude(latitude, zoom);
+  const heightMeters = Number.isFinite(style.heightMeters) ? style.heightMeters : 0.7;
+  const baseWidthMeters = Number.isFinite(style.baseWidthMeters) ? style.baseWidthMeters : 1.1;
+  const baseDepthMeters = Number.isFinite(style.baseDepthMeters) ? style.baseDepthMeters : 0.55;
+  const baseWidth = Math.max(4, baseWidthMeters * pixelsPerMeter);
+  const baseDepth = Math.max(2.5, baseDepthMeters * pixelsPerMeter);
+  const extrusionHeight = Math.max(
+    3,
+    Math.min(48, heightMeters * pixelsPerMeter * (style.heightScale || 1))
+  );
+  const shiftX = (Number.isFinite(style.obliqueX) ? style.obliqueX : -0.6) * extrusionHeight;
+  const shiftY = (Number.isFinite(style.obliqueY) ? style.obliqueY : -0.95) * extrusionHeight;
+  const left = point.x - (baseWidth / 2);
+  const top = point.y - (baseDepth / 2);
+  const right = point.x + (baseWidth / 2);
+  const bottom = point.y + (baseDepth / 2);
+  const baseCorners = [
+    { x: left, y: top },
+    { x: right, y: top },
+    { x: right, y: bottom },
+    { x: left, y: bottom },
+  ];
+  const topCorners = baseCorners.map((corner) => ({
+    x: corner.x + shiftX,
+    y: corner.y + shiftY,
+  }));
+
+  context.save();
+
+  context.globalAlpha = Number.isFinite(style.shadowOpacity) ? style.shadowOpacity : 0.18;
+  context.fillStyle = normalizeColor(style.shadowColor, "rgba(37, 22, 9, 0.42)");
+  context.beginPath();
+  context.moveTo(baseCorners[0].x + 2, baseCorners[0].y + 2);
+  context.lineTo(baseCorners[1].x + 4, baseCorners[1].y + 2);
+  context.lineTo(baseCorners[2].x + 8, baseCorners[2].y + 5);
+  context.lineTo(baseCorners[3].x + 6, baseCorners[3].y + 5);
+  context.closePath();
+  context.fill();
+
+  context.globalAlpha = Number.isFinite(style.opacity) ? style.opacity : 1;
+  context.fillStyle = normalizeColor(style.sideColor, "rgba(161, 126, 88, 0.95)");
+  context.beginPath();
+  context.moveTo(baseCorners[1].x, baseCorners[1].y);
+  context.lineTo(topCorners[1].x, topCorners[1].y);
+  context.lineTo(topCorners[2].x, topCorners[2].y);
+  context.lineTo(baseCorners[2].x, baseCorners[2].y);
+  context.closePath();
+  context.fill();
+
+  context.fillStyle = normalizeColor(style.frontColor, "rgba(196, 162, 121, 0.96)");
+  context.beginPath();
+  context.moveTo(baseCorners[3].x, baseCorners[3].y);
+  context.lineTo(baseCorners[2].x, baseCorners[2].y);
+  context.lineTo(topCorners[2].x, topCorners[2].y);
+  context.lineTo(topCorners[3].x, topCorners[3].y);
+  context.closePath();
+  context.fill();
+
+  context.fillStyle = normalizeColor(style.topColor, "rgba(244, 232, 212, 0.98)");
+  context.beginPath();
+  context.moveTo(topCorners[0].x, topCorners[0].y);
+  context.lineTo(topCorners[1].x, topCorners[1].y);
+  context.lineTo(topCorners[2].x, topCorners[2].y);
+  context.lineTo(topCorners[3].x, topCorners[3].y);
+  context.closePath();
+  context.fill();
+
+  context.lineWidth = Number.isFinite(style.weight) ? style.weight : 1;
+  context.strokeStyle = normalizeColor(style.color, "rgba(95, 63, 28, 0.88)");
+  context.beginPath();
+  context.moveTo(baseCorners[1].x, baseCorners[1].y);
+  context.lineTo(topCorners[1].x, topCorners[1].y);
+  context.lineTo(topCorners[2].x, topCorners[2].y);
+  context.lineTo(topCorners[3].x, topCorners[3].y);
+  context.lineTo(baseCorners[3].x, baseCorners[3].y);
+  context.closePath();
+  context.stroke();
+  context.restore();
+}
+
 const roundLayoutValue = (value) => Math.round(value * 1000) / 1000;
+const CAMERA_STATE_EPSILON = 1e-9;
 
 const setTileImageLayout = (tileImage, left, top, tileSize) => {
   tileImage.style.left = toDomStyle(left);
@@ -251,6 +416,36 @@ const areSelectionStatesEqual = (left, right) => {
   return left.ids.every((value, index) => value === right.ids[index]);
 };
 
+const areLatLngsEqual = (left, right) => {
+  if (left === right) {
+    return true;
+  }
+
+  if (!left || !right) {
+    return left === right;
+  }
+
+  return (
+    Math.abs(left.lat - right.lat) <= CAMERA_STATE_EPSILON &&
+    Math.abs(left.lng - right.lng) <= CAMERA_STATE_EPSILON
+  );
+};
+
+const areCameraStatesEqual = (left, right) => {
+  if (left === right) {
+    return true;
+  }
+
+  if (!left || !right) {
+    return left === right;
+  }
+
+  return (
+    Math.abs(left.zoom - right.zoom) <= CAMERA_STATE_EPSILON &&
+    areLatLngsEqual(left.center, right.center)
+  );
+};
+
 const getFeatureStyle = (layer, feature, runtime) => {
   if (typeof layer.style === "function") {
     return layer.style(feature, runtime) || {};
@@ -291,6 +486,18 @@ const buildInteractivePointTarget = (layer, pointEntry, screenPoint, options = {
   priority: options.priority ?? 2,
 });
 
+const isPrimaryPointerButton = (event = {}) => {
+  if (event.pointerType === "touch" || event.pointerType === "pen") {
+    return true;
+  }
+
+  if (!Number.isFinite(event.button)) {
+    return true;
+  }
+
+  return event.button === 0;
+};
+
 const createPopupHandle = (runtime) => ({
   __customRuntimePopup: true,
   options: {},
@@ -302,10 +509,17 @@ const createPopupHandle = (runtime) => ({
   },
 });
 
+/**
+ * Canvas-backed runtime implementation for the standalone engine contract.
+ *
+ * The public method names intentionally mirror stable Leaflet map concepts
+ * where that improves adapter parity, but the internals here are repo-owned.
+ */
 export class CustomMapRuntime {
   constructor(options = {}) {
-    this.__fabMapRuntime = true;
-    this.__runtimeKind = "custom";
+    this[MAP_RUNTIME_SENTINEL] = true;
+    this[MAP_RUNTIME_LEGACY_SENTINEL] = true;
+    this.__runtimeKind = CUSTOM_MAP_RUNTIME_KIND;
     this.__runtimeApiVersion = MAP_RUNTIME_API_VERSION;
     this.cameraState = createCameraState({
       center: options.center || [0, 0],
@@ -333,10 +547,17 @@ export class CustomMapRuntime {
     this.tilePane = null;
     this.canvas = null;
     this.tileImages = new Map();
+    this.layerImages = new Map();
     this.tileLayoutSignature = null;
     this.resizeObserver = null;
+    this.wheelDeltaAccumulator = 0;
+    this.wheelResetHandle = null;
+    this.cameraAnimationFrame = null;
   }
 
+  /**
+   * Mount the runtime into a host element and create the renderer surface.
+   */
   mount(container) {
     if (!container) return this;
 
@@ -353,7 +574,9 @@ export class CustomMapRuntime {
     this.attachEvents();
     this.observeSize();
     this.measure();
+    this.cameraState = this.constrainCameraState(this.cameraState);
     this.render();
+    this.syncSurfaceCursor();
     queueMicrotask(() => {
       this.emit("moveend", { target: this });
       this.emit("zoomend", { target: this });
@@ -362,8 +585,12 @@ export class CustomMapRuntime {
     return this;
   }
 
+  /**
+   * Tear down DOM state, listeners, timers, and render caches.
+   */
   destroy() {
     this.detachEvents();
+    this.cancelCameraAnimation();
     this.resizeObserver?.disconnect?.();
     this.resizeObserver = null;
     if (this.container) {
@@ -378,7 +605,48 @@ export class CustomMapRuntime {
     this.popupState = null;
     this.hoverTarget = null;
     this.tileImages.clear();
+    this.layerImages.forEach((entry) => {
+      if (!entry?.image) {
+        return;
+      }
+
+      entry.image.onload = null;
+      entry.image.onerror = null;
+    });
+    this.layerImages.clear();
     this.tileLayoutSignature = null;
+    if (typeof window !== "undefined" && this.wheelResetHandle) {
+      window.clearTimeout(this.wheelResetHandle);
+    }
+    this.wheelResetHandle = null;
+    this.wheelDeltaAccumulator = 0;
+  }
+
+  updateSurfaceCursor(cursor = DEFAULT_SURFACE_CURSOR) {
+    if (!this.surface?.style) {
+      return;
+    }
+
+    this.surface.style.cursor = cursor;
+  }
+
+  syncSurfaceCursor(target = this.hoverTarget) {
+    if (this.pointerState?.moved) {
+      this.updateSurfaceCursor("grabbing");
+      return;
+    }
+
+    if (
+      target?.onClick ||
+      target?.kind === "point" ||
+      target?.kind === "cluster" ||
+      target?.kind === "polygon"
+    ) {
+      this.updateSurfaceCursor("pointer");
+      return;
+    }
+
+    this.updateSurfaceCursor(DEFAULT_SURFACE_CURSOR);
   }
 
   observeSize() {
@@ -494,33 +762,153 @@ export class CustomMapRuntime {
     });
   }
 
-  setCamera(cameraState) {
+  normalizeCameraState(cameraState) {
     const nextCamera = createCameraState(cameraState);
-    this.cameraState = {
+    return {
       center: normalizeLatLng(nextCamera.center),
       zoom: Math.max(this.minZoom, Math.min(this.maxZoom, nextCamera.zoom)),
     };
+  }
+
+  constrainCameraState(cameraState, options = {}) {
+    const normalizedCamera = this.normalizeCameraState(cameraState);
+
+    if (options.clampToBounds === false || !this.maxBounds) {
+      return normalizedCamera;
+    }
+
+    return clampCameraToBounds(normalizedCamera, this.maxBounds, {
+      width: this.width,
+      height: this.height,
+      tileSize: this.tileSize,
+    });
+  }
+
+  cancelCameraAnimation() {
+    const hadActiveAnimation = Boolean(this.cameraAnimationFrame);
+    if (typeof window !== "undefined" && this.cameraAnimationFrame) {
+      window.cancelAnimationFrame(this.cameraAnimationFrame);
+    }
+
+    this.cameraAnimationFrame = null;
+    return hadActiveAnimation;
+  }
+
+  applyCameraState(cameraState, options = {}) {
+    const nextCamera = this.constrainCameraState(cameraState, options);
+    if (areCameraStatesEqual(this.cameraState, nextCamera)) {
+      return false;
+    }
+
+    this.cameraState = nextCamera;
     this.render();
+    this.emit("popupupdate", { popup: this.popupHandle });
+    return true;
+  }
+
+  /**
+   * Apply an immediate camera update without animation.
+   */
+  setCamera(cameraState, options = {}) {
+    this.cancelCameraAnimation();
+    const didChange = this.applyCameraState(cameraState, options);
+    if (!didChange) {
+      return this;
+    }
+
     this.emit("moveend", { target: this });
     this.emit("zoomend", { target: this });
-    this.emit("popupupdate", { popup: this.popupHandle });
     return this;
   }
 
+  /**
+   * Leaflet-compatible camera entry point supporting optional animation.
+   */
   setView(center, zoom, options = {}) {
-    if (options.animate) {
-      this.emit("movestart", { target: this });
-      this.emit("zoomstart", { target: this });
+    const nextCamera = this.constrainCameraState({ center, zoom }, options);
+    if (areCameraStatesEqual(this.cameraState, nextCamera)) {
+      return this;
     }
 
-    return this.setCamera({ center, zoom });
+    if (options.animate) {
+      this.stop();
+      this.emit("movestart", { target: this });
+      this.emit("zoomstart", { target: this });
+      return this.animateCamera(nextCamera, options);
+    }
+
+    return this.setCamera(nextCamera, options);
+  }
+
+  /**
+   * Animate toward a target camera while keeping bounds and zoom constraints.
+   */
+  animateCamera(cameraState, options = {}) {
+    if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+      return this.setCamera(cameraState);
+    }
+
+    this.cancelCameraAnimation();
+    const startCamera = {
+      center: this.getCenter(),
+      zoom: this.getZoom(),
+    };
+    const targetCamera = this.constrainCameraState(cameraState, options);
+    if (areCameraStatesEqual(startCamera, targetCamera)) {
+      return this;
+    }
+
+    const duration = Number.isFinite(options.duration)
+      ? Math.max(80, options.duration)
+      : CAMERA_ANIMATION_DURATION;
+    const startTime = window.performance?.now?.() ?? Date.now();
+
+    const step = (frameTime) => {
+      const now = Number.isFinite(frameTime) ? frameTime : (window.performance?.now?.() ?? Date.now());
+      const progress = Math.min(1, (now - startTime) / duration);
+      const easedProgress = easeOutCubic(progress);
+
+      this.applyCameraState({
+        center: {
+          lat: startCamera.center.lat + ((targetCamera.center.lat - startCamera.center.lat) * easedProgress),
+          lng: startCamera.center.lng + ((targetCamera.center.lng - startCamera.center.lng) * easedProgress),
+        },
+        zoom: startCamera.zoom + ((targetCamera.zoom - startCamera.zoom) * easedProgress),
+      }, options);
+
+      if (progress < 1) {
+        this.cameraAnimationFrame = window.requestAnimationFrame(step);
+        return;
+      }
+
+      this.cameraAnimationFrame = null;
+      if (options.settleToBounds) {
+        this.applyCameraState(this.cameraState);
+      }
+      this.emit("moveend", { target: this });
+      this.emit("zoomend", { target: this });
+    };
+
+    this.cameraAnimationFrame = window.requestAnimationFrame(step);
+    return this;
   }
 
   flyTo(center, zoom, options = {}) {
     return this.setView(center, zoom, options);
   }
 
+  /**
+   * Stop the current animation and emit terminal camera events once.
+   */
   stop() {
+    const didInterruptAnimation = this.cancelCameraAnimation();
+    if (!didInterruptAnimation) {
+      return this;
+    }
+
+    this.emit("popupupdate", { popup: this.popupHandle });
+    this.emit("moveend", { target: this });
+    this.emit("zoomend", { target: this });
     return this;
   }
 
@@ -530,6 +918,52 @@ export class CustomMapRuntime {
 
   zoomOut() {
     return this.setView(this.getCenter(), Math.max(this.minZoom, this.getZoom() - 1));
+  }
+
+  setMinZoom(zoom) {
+    if (!Number.isFinite(zoom)) {
+      return this;
+    }
+
+    this.minZoom = zoom;
+    if (this.maxZoom < this.minZoom) {
+      this.maxZoom = this.minZoom;
+    }
+    return this.setCamera(this.cameraState);
+  }
+
+  setMaxZoom(zoom) {
+    if (!Number.isFinite(zoom)) {
+      return this;
+    }
+
+    this.maxZoom = zoom;
+    if (this.minZoom > this.maxZoom) {
+      this.minZoom = this.maxZoom;
+    }
+    return this.setCamera(this.cameraState);
+  }
+
+  setMaxBounds(bounds) {
+    this.maxBounds = normalizeBounds(bounds);
+    return this.setCamera(this.cameraState);
+  }
+
+  invalidateSize() {
+    const previousWidth = this.width;
+    const previousHeight = this.height;
+    this.measure();
+    if (previousWidth === this.width && previousHeight === this.height) {
+      return this;
+    }
+
+    const didChange = this.applyCameraState(this.cameraState);
+    if (!didChange) {
+      this.render();
+      this.emit("popupupdate", { popup: this.popupHandle });
+    }
+    this.emit("moveend", { target: this });
+    return this;
   }
 
   getBounds() {
@@ -557,6 +991,9 @@ export class CustomMapRuntime {
     return this.setView(nextCamera.center, nextCamera.zoom, options);
   }
 
+  /**
+   * Recenter only as much as needed to keep a target point inside padding.
+   */
   panInside(latLng, options = {}) {
     const nextCamera = panLatLngIntoView(this.cameraState, latLng, {
       width: this.width,
@@ -596,6 +1033,9 @@ export class CustomMapRuntime {
     return this.selectionState;
   }
 
+  /**
+   * Store popup state inside the runtime so callers are not coupled to DOM overlays.
+   */
   openPopup(popupSpec) {
     this.popupState = createPopupSpec(popupSpec);
     this.emit("popupopen", {
@@ -614,6 +1054,17 @@ export class CustomMapRuntime {
 
   getPopupState() {
     return this.popupState;
+  }
+
+  clearHoverTarget(originalEvent = null) {
+    if (!this.hoverTarget) {
+      this.syncSurfaceCursor(null);
+      return;
+    }
+
+    this.hoverTarget = null;
+    this.syncSurfaceCursor(null);
+    this.emit("hover", { target: null, originalEvent });
   }
 
   getPopupScreenPoint() {
@@ -644,7 +1095,9 @@ export class CustomMapRuntime {
 
   handlePointerDown(event) {
     if (!this.surface) return;
+    if (!isPrimaryPointerButton(event)) return;
 
+    this.stop();
     this.pointerState = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -654,7 +1107,7 @@ export class CustomMapRuntime {
     };
     this.dragDistance = 0;
     this.surface.setPointerCapture?.(event.pointerId);
-    this.emit("movestart", { target: this, originalEvent: event });
+    this.syncSurfaceCursor();
   }
 
   handlePointerMove(event) {
@@ -669,7 +1122,12 @@ export class CustomMapRuntime {
         return;
       }
 
-      this.pointerState.moved = true;
+      if (!this.pointerState.moved) {
+        this.pointerState.moved = true;
+        this.clearHoverTarget(event);
+        this.emit("movestart", { target: this, originalEvent: event });
+      }
+
       const centerPoint = projectLngLat(
         [this.pointerState.center.lng, this.pointerState.center.lat],
         this.getZoom(),
@@ -680,15 +1138,12 @@ export class CustomMapRuntime {
         y: centerPoint.y - deltaY,
       };
 
-      this.cameraState = {
-        center: normalizeLatLng({
-          ...this.cameraState.center,
-          ...this.unprojectPoint(nextCenter),
-        }),
+      this.applyCameraState({
+        center: this.unprojectPoint(nextCenter),
         zoom: this.getZoom(),
-      };
-      this.render();
-      this.emit("popupupdate", { popup: this.popupHandle });
+      }, {
+        clampToBounds: false,
+      });
       return;
     }
 
@@ -698,6 +1153,7 @@ export class CustomMapRuntime {
     }
 
     this.hoverTarget = target;
+    this.syncSurfaceCursor(target);
     this.emit("hover", {
       target,
       latlng: this.containerPointToLatLng(event.offsetX, event.offsetY),
@@ -709,17 +1165,28 @@ export class CustomMapRuntime {
     if (!this.pointerState || this.pointerState.pointerId !== event.pointerId) {
       return;
     }
+    if (!isPrimaryPointerButton(event)) {
+      this.pointerState = null;
+      this.dragDistance = 0;
+      this.syncSurfaceCursor();
+      return;
+    }
 
     const wasDrag = this.pointerState.moved;
     this.pointerState = null;
-    this.emit("moveend", { target: this, originalEvent: event });
+    this.dragDistance = 0;
+    this.surface?.releasePointerCapture?.(event.pointerId);
 
     if (wasDrag) {
+      this.applyCameraState(this.cameraState);
+      this.syncSurfaceCursor();
+      this.emit("moveend", { target: this, originalEvent: event });
       return;
     }
 
     const latlng = this.containerPointToLatLng(event.offsetX, event.offsetY);
     const target = this.pickTarget(event.offsetX, event.offsetY, latlng);
+    this.syncSurfaceCursor(target);
 
     if (target?.onClick) {
       target.onClick({
@@ -740,24 +1207,45 @@ export class CustomMapRuntime {
   }
 
   handlePointerLeave() {
-    if (!this.hoverTarget) {
-      return;
-    }
-
-    this.hoverTarget = null;
-    this.emit("hover", { target: null, originalEvent: null });
+    this.clearHoverTarget();
+    this.syncSurfaceCursor();
   }
 
   handleWheel(event) {
     event.preventDefault();
-    const delta = event.deltaY > 0 ? -1 : 1;
+    this.clearHoverTarget(event);
+    const normalizedDelta = normalizeWheelDelta(event, this.height);
+    if (!normalizedDelta) {
+      return;
+    }
+
+    this.wheelDeltaAccumulator += normalizedDelta;
+    this.resetWheelAccumulator();
+
+    if (Math.abs(this.wheelDeltaAccumulator) < WHEEL_ZOOM_DELTA_THRESHOLD) {
+      return;
+    }
+
+    const delta = this.wheelDeltaAccumulator > 0 ? -1 : 1;
+    this.wheelDeltaAccumulator = 0;
     const nextZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.getZoom() + delta));
     if (nextZoom === this.getZoom()) {
       return;
     }
 
-    this.emit("zoomstart", { target: this, originalEvent: event });
-    this.setView(this.getCenter(), nextZoom, { animate: false });
+    this.setViewAroundScreenPoint(
+      {
+        x: Number.isFinite(event.offsetX) ? event.offsetX : this.width / 2,
+        y: Number.isFinite(event.offsetY) ? event.offsetY : this.height / 2,
+      },
+      nextZoom,
+      {
+        animate: true,
+        duration: 150,
+        clampToBounds: false,
+        settleToBounds: true,
+      }
+    );
   }
 
   containerPointToLatLng(x, y) {
@@ -776,6 +1264,38 @@ export class CustomMapRuntime {
     return unprojectPoint(worldPoint, this.getZoom(), this.tileSize);
   }
 
+  resetWheelAccumulator() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (this.wheelResetHandle) {
+      window.clearTimeout(this.wheelResetHandle);
+    }
+
+    this.wheelResetHandle = window.setTimeout(() => {
+      this.wheelDeltaAccumulator = 0;
+      this.wheelResetHandle = null;
+    }, WHEEL_ZOOM_RESET_DELAY);
+  }
+
+  setViewAroundScreenPoint(screenPoint, zoom, options = {}) {
+    const nextZoom = Math.max(this.minZoom, Math.min(this.maxZoom, zoom));
+    const anchorLatLng = this.containerPointToLatLng(screenPoint.x, screenPoint.y);
+    const anchorWorldPoint = projectLngLat(
+      [anchorLatLng.lng, anchorLatLng.lat],
+      nextZoom,
+      this.tileSize
+    );
+    const nextCenterWorldPoint = {
+      x: anchorWorldPoint.x - (screenPoint.x - (this.width / 2)),
+      y: anchorWorldPoint.y - (screenPoint.y - (this.height / 2)),
+    };
+    const nextCenter = unprojectPoint(nextCenterWorldPoint, nextZoom, this.tileSize);
+
+    return this.setView(nextCenter, nextZoom, options);
+  }
+
   render() {
     if (!this.canvas || !this.tilePane) return;
 
@@ -792,12 +1312,21 @@ export class CustomMapRuntime {
         return;
       }
 
+      if (layer.kind === "image") {
+        this.drawImageLayer(context, layer);
+        return;
+      }
+
       if (layer.kind === "points") {
         this.drawPointLayer(context, layer);
       }
     });
 
     this.sortedHitTargets = [...this.hitTargets].sort((left, right) => right.priority - left.priority);
+    if (this.hoverTarget && !this.sortedHitTargets.some((target) => areInteractiveTargetsEqual(target, this.hoverTarget))) {
+      this.hoverTarget = null;
+    }
+    this.syncSurfaceCursor();
   }
 
   renderTiles() {
@@ -814,14 +1343,18 @@ export class CustomMapRuntime {
       return;
     }
 
-    const zoom = Math.max(this.minZoom, Math.min(this.maxZoom, Math.round(this.getZoom())));
+    const cameraZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.getZoom()));
+    const tileZoom = Math.max(this.minZoom, Math.min(this.maxZoom, Math.floor(cameraZoom)));
+    const zoomScale = Math.pow(2, cameraZoom - tileZoom);
     const tileSize = this.basemapSpec.tileSize || this.tileSize;
-    const centerPoint = projectLngLat([this.getCenter().lng, this.getCenter().lat], zoom, tileSize);
-    const minX = centerPoint.x - (this.width / 2);
-    const minY = centerPoint.y - (this.height / 2);
-    const maxX = centerPoint.x + (this.width / 2);
-    const maxY = centerPoint.y + (this.height / 2);
-    const maxTileIndex = Math.pow(2, zoom) - 1;
+    const centerPoint = projectLngLat([this.getCenter().lng, this.getCenter().lat], tileZoom, tileSize);
+    const halfViewportWidth = this.width / (2 * zoomScale);
+    const halfViewportHeight = this.height / (2 * zoomScale);
+    const minX = centerPoint.x - halfViewportWidth;
+    const minY = centerPoint.y - halfViewportHeight;
+    const maxX = centerPoint.x + halfViewportWidth;
+    const maxY = centerPoint.y + halfViewportHeight;
+    const maxTileIndex = Math.pow(2, tileZoom) - 1;
     const startX = Math.floor(minX / tileSize);
     const endX = Math.floor(maxX / tileSize);
     const startY = Math.max(0, Math.floor(minY / tileSize));
@@ -829,11 +1362,12 @@ export class CustomMapRuntime {
     const nextTileLayoutSignature = [
       basemapTemplate,
       tileSize,
-      zoom,
+      tileZoom,
+      roundLayoutValue(zoomScale),
       this.width,
       this.height,
-      roundLayoutValue(minX),
-      roundLayoutValue(minY),
+      roundLayoutValue(centerPoint.x),
+      roundLayoutValue(centerPoint.y),
       startX,
       endX,
       startY,
@@ -850,7 +1384,7 @@ export class CustomMapRuntime {
     for (let tileY = startY; tileY <= endY; tileY += 1) {
       for (let tileX = startX; tileX <= endX; tileX += 1) {
         const wrappedTileX = ((tileX % (maxTileIndex + 1)) + (maxTileIndex + 1)) % (maxTileIndex + 1);
-        const tileKey = `${basemapTemplate}|${tileSize}|${zoom}|${wrappedTileX}|${tileY}`;
+        const tileKey = `${basemapTemplate}|${tileSize}|${tileZoom}|${wrappedTileX}|${tileY}`;
         let tileImage = this.tileImages.get(tileKey);
 
         if (!tileImage) {
@@ -862,7 +1396,7 @@ export class CustomMapRuntime {
           tileImage.width = tileSize;
           tileImage.height = tileSize;
           tileImage.src = basemapTemplate
-            .replace("{z}", String(zoom))
+            .replace("{z}", String(tileZoom))
             .replace("{x}", String(wrappedTileX))
             .replace("{y}", String(tileY));
           this.tileImages.set(tileKey, tileImage);
@@ -871,9 +1405,9 @@ export class CustomMapRuntime {
 
         setTileImageLayout(
           tileImage,
-          (tileX * tileSize) - minX,
-          (tileY * tileSize) - minY,
-          tileSize
+          (((tileX * tileSize) - centerPoint.x) * zoomScale) + (this.width / 2),
+          (((tileY * tileSize) - centerPoint.y) * zoomScale) + (this.height / 2),
+          tileSize * zoomScale
         );
         nextTileKeys.add(tileKey);
       }
@@ -887,6 +1421,77 @@ export class CustomMapRuntime {
       tileImage.remove();
       this.tileImages.delete(tileKey);
     });
+  }
+
+  getLayerImage(layer) {
+    const imageUrl = layer?.url || "";
+    if (!imageUrl) {
+      return null;
+    }
+
+    const imageKey = `${layer.id}:${imageUrl}`;
+    let entry = this.layerImages.get(imageKey);
+
+    if (!entry) {
+      const image = new Image();
+      entry = {
+        image,
+        status: "loading",
+        url: imageUrl,
+      };
+      image.onload = () => {
+        entry.status = "loaded";
+        this.render();
+      };
+      image.onerror = () => {
+        entry.status = "error";
+      };
+      image.src = imageUrl;
+      this.layerImages.set(imageKey, entry);
+    }
+
+    return entry;
+  }
+
+  drawImageLayer(context, layer) {
+    const bounds = Array.isArray(layer?.bounds) ? layer.bounds : null;
+    if (!bounds || bounds.length !== 2) {
+      return;
+    }
+
+    const southWest = Array.isArray(bounds[0]) ? bounds[0] : [];
+    const northEast = Array.isArray(bounds[1]) ? bounds[1] : [];
+    if (southWest.length < 2 || northEast.length < 2) {
+      return;
+    }
+
+    const entry = this.getLayerImage(layer);
+    if (!entry?.image || entry.status !== "loaded") {
+      return;
+    }
+
+    // Image layers are projected into explicit geographic bounds so callers can
+    // treat them like a stable runtime primitive instead of a provider overlay.
+    const cameraContext = this.getCameraContext();
+    const northWestPoint = latLngToContainerPoint(
+      { lat: northEast[0], lng: southWest[1] },
+      cameraContext
+    );
+    const southEastPoint = latLngToContainerPoint(
+      { lat: southWest[0], lng: northEast[1] },
+      cameraContext
+    );
+    const width = southEastPoint.x - northWestPoint.x;
+    const height = southEastPoint.y - northWestPoint.y;
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width === 0 || height === 0) {
+      return;
+    }
+
+    context.save();
+    context.globalAlpha = Number.isFinite(layer.opacity) ? layer.opacity : 1;
+    context.imageSmoothingEnabled = layer.smoothing !== false;
+    context.drawImage(entry.image, northWestPoint.x, northWestPoint.y, width, height);
+    context.restore();
   }
 
   drawGeoJsonLayer(context, layer) {
@@ -925,7 +1530,11 @@ export class CustomMapRuntime {
     if (!points.length) return;
 
     const cameraContext = this.getCameraContext();
-    const clusters = layer.clustered
+    const shouldCluster = layer.clustered && !(
+      Number.isFinite(layer.disableClusteringAtZoom) &&
+      this.getZoom() >= layer.disableClusteringAtZoom
+    );
+    const clusters = shouldCluster
       ? clusterScreenPoints(points, {
           radius: layer.clusterRadius || DEFAULT_CLUSTER_RADIUS,
           cameraContext,
@@ -943,7 +1552,12 @@ export class CustomMapRuntime {
 
     clusters.forEach((entry) => {
       if (entry.type === "cluster") {
-        drawClusterPoint(context, entry.point, entry.count);
+        const isHovered = Boolean(
+          this.hoverTarget?.kind === "cluster" &&
+          this.hoverTarget.layerId === layer.id &&
+          this.hoverTarget.featureId === entry.id
+        );
+        drawClusterPoint(context, entry.point, entry.count, { hovered: isHovered });
         if (layer.interactive) {
           this.hitTargets.push(
             buildInteractivePointTarget(layer, {
@@ -964,11 +1578,26 @@ export class CustomMapRuntime {
       const style = typeof layer.pointStyle === "function"
         ? layer.pointStyle(entry.member, this)
         : (layer.pointStyle || entry.member.style || {});
-      const point = entry.point;
+      const anchorPoint = entry.point;
+      const point = {
+        x: anchorPoint.x + (Number.isFinite(style.offsetX) ? style.offsetX : 0),
+        y: anchorPoint.y + (Number.isFinite(style.offsetY) ? style.offsetY : 0),
+      };
+
+      drawPointGuide(context, anchorPoint, point, style);
 
       switch (style.variant) {
         case "numbered":
           drawNumberedPoint(context, point, style);
+          break;
+        case "monument":
+          drawMonumentPoint(
+            context,
+            point,
+            style,
+            entry.member?.coordinates?.[1],
+            this.getZoom()
+          );
           break;
         default:
           drawCirclePoint(context, point, style);

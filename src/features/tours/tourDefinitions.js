@@ -1,3 +1,3 @@
-import { APP_TOUR_DEFINITIONS } from "../../config/appProfile";
+import { APP_PROFILE } from "../../config/appProfile";
 
-export const TOUR_DEFINITIONS = APP_TOUR_DEFINITIONS;
+export const TOUR_DEFINITIONS = APP_PROFILE.features?.tours?.definitions || [];

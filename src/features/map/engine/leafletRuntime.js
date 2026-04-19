@@ -1,4 +1,7 @@
 import {
+  LEAFLET_ADAPTER_RUNTIME_KIND,
+  MAP_RUNTIME_SENTINEL,
+  MAP_RUNTIME_LEGACY_SENTINEL,
   createBasemapSpec,
   createCameraState,
   createLayerSpec,
@@ -15,9 +18,16 @@ const bindMethod = (target, methodName, fallback) => {
   return target[methodName].bind(target);
 };
 
+/**
+ * Wrap a Leaflet map behind the standalone engine contract.
+ *
+ * This adapter is intentionally thin: it preserves the public contract while
+ * keeping Leaflet out of upstream app code.
+ */
 export const createLeafletMapRuntime = (leafletMap) => ({
-  __fabMapRuntime: true,
-  __runtimeKind: "leaflet",
+  [MAP_RUNTIME_SENTINEL]: true,
+  [MAP_RUNTIME_LEGACY_SENTINEL]: true,
+  __runtimeKind: LEAFLET_ADAPTER_RUNTIME_KIND,
   __runtimeApiVersion: MAP_RUNTIME_API_VERSION,
   rawMap: leafletMap,
   mount: () => leafletMap,
@@ -45,6 +55,10 @@ export const createLeafletMapRuntime = (leafletMap) => ({
   stop: bindMethod(leafletMap, "stop"),
   getBounds: bindMethod(leafletMap, "getBounds"),
   panInside: bindMethod(leafletMap, "panInside"),
+  setMaxBounds: bindMethod(leafletMap, "setMaxBounds"),
+  setMinZoom: bindMethod(leafletMap, "setMinZoom"),
+  setMaxZoom: bindMethod(leafletMap, "setMaxZoom"),
+  invalidateSize: bindMethod(leafletMap, "invalidateSize"),
   addLayer: bindMethod(leafletMap, "addLayer"),
   removeLayer: bindMethod(leafletMap, "removeLayer"),
   hasLayer: bindMethod(leafletMap, "hasLayer", () => false),

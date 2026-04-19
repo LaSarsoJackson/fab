@@ -19,6 +19,12 @@ Use this file to decide which note to read before making a change.
 - Changing map runtime or backend contracts:
   [map-engine-api.md](./map-engine-api.md)
 
+- Planning or documenting the engine as a standalone clean-room API:
+  [map-engine-standalone-api.md](./map-engine-standalone-api.md)
+
+- Working on custom-runtime parity, popup/hover bugs, or engine ownership:
+  [map-engine-runtime-ownership.md](./map-engine-runtime-ownership.md)
+
 - Working on GeoParquet, PMTiles, or static geospatial artifacts:
   [map-engine-geoparquet.md](./map-engine-geoparquet.md)
 

@@ -1,15 +1,17 @@
 import { formatBrowseResultName } from "../browse/browseResults";
 
-export const FIELD_PACKET_QUERY_PARAM = "packet";
+export const SHARED_LINK_QUERY_PARAM = "share";
+export const LEGACY_FIELD_PACKET_QUERY_PARAM = "packet";
 
-// Packed field packets become the single source of truth in shared links, so
+// Packed shared links become the single source of truth in portable URLs, so
 // strip the ad-hoc view/query params that would otherwise compete with them.
 const FIELD_PACKET_STATE_QUERY_KEYS = [
   "section",
   "tour",
   "view",
   "q",
-  FIELD_PACKET_QUERY_PARAM,
+  SHARED_LINK_QUERY_PARAM,
+  LEGACY_FIELD_PACKET_QUERY_PARAM,
 ];
 
 const cleanValue = (value) => {
@@ -108,7 +110,7 @@ const dedupeRecordsById = (records = []) => {
 };
 
 /**
- * Field packets travel in the URL, so keep only the fields needed to restore a
+ * Shared links travel in the URL, so keep only the fields needed to restore a
  * useful offline selection instead of serializing the full record object.
  */
 export const createFieldPacketRecordSnapshot = (record = {}) => {
@@ -159,22 +161,22 @@ export const buildDefaultFieldPacketName = ({
   const recordCount = selectedRecords.length;
 
   if (selectedTour) {
-    return `${selectedTour} field packet`;
+    return selectedTour;
   }
 
   if (sectionFilter) {
-    return `Section ${sectionFilter} field packet`;
+    return `Section ${sectionFilter}`;
   }
 
   if (recordCount === 1) {
-    return `${formatBrowseResultName(selectedRecords[0])} packet`;
+    return formatBrowseResultName(selectedRecords[0]);
   }
 
   if (recordCount > 1) {
-    return `Field packet (${recordCount})`;
+    return `Shared selection (${recordCount})`;
   }
 
-  return "Field packet";
+  return "Shared selection";
 };
 
 /**
@@ -195,9 +197,13 @@ export const buildFieldPacketState = ({
   );
   const normalizedSelectedIds = normalizedRecords.map((record) => record.id);
   const preferredActiveId = cleanValue(activeBurialId);
-  const normalizedActiveId = normalizedSelectedIds.includes(preferredActiveId)
-    ? preferredActiveId
-    : (normalizedSelectedIds[0] || "");
+  const normalizedActiveId = !preferredActiveId
+    ? ""
+    : (
+      normalizedSelectedIds.includes(preferredActiveId)
+        ? preferredActiveId
+        : (normalizedSelectedIds[0] || "")
+    );
   const normalizedSectionFilter = cleanValue(sectionFilter);
   const normalizedSelectedTour = cleanValue(selectedTour);
 
@@ -222,7 +228,7 @@ export const encodeFieldPacket = (packet = {}) => (
   encodeBase64Url(JSON.stringify(buildFieldPacketState(packet)))
 );
 
-// Field packets are optional and user-editable URLs, so decoding stays
+// Shared links are optional and user-editable URLs, so decoding stays
 // forgiving and simply returns null for malformed payloads.
 export const parseFieldPacketValue = (value = "") => {
   const encodedValue = cleanValue(value);
@@ -252,7 +258,7 @@ export const buildFieldPacketShareUrl = ({
   FIELD_PACKET_STATE_QUERY_KEYS.forEach((key) => {
     url.searchParams.delete(key);
   });
-  url.searchParams.set(FIELD_PACKET_QUERY_PARAM, encodeFieldPacket(packetState));
+  url.searchParams.set(SHARED_LINK_QUERY_PARAM, encodeFieldPacket(packetState));
 
   return url.toString();
 };

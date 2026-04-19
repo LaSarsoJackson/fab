@@ -4,12 +4,15 @@ import {
   createCameraContext,
   latLngToContainerPoint,
   projectLngLat,
+  unprojectPoint,
 } from "./projection";
 
 const toNumber = (value, fallback = 0) => {
   const nextValue = Number(value);
   return Number.isFinite(nextValue) ? nextValue : fallback;
 };
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 export const normalizeLatLng = (value) => {
   if (Array.isArray(value) && value.length >= 2) {
@@ -107,9 +110,18 @@ export const getBoundsZoom = (
   const northEast = projectLngLat([normalizedBounds.east, normalizedBounds.north], 0, tileSize);
   const dx = Math.abs(northEast.x - southWest.x);
   const dy = Math.abs(northEast.y - southWest.y);
+
+  if (dx === 0 && dy === 0) {
+    return maxZoom;
+  }
+
   const widthScale = dx > 0 ? availableWidth / dx : Number.POSITIVE_INFINITY;
   const heightScale = dy > 0 ? availableHeight / dy : Number.POSITIVE_INFINITY;
   const zoomScale = Math.min(widthScale, heightScale);
+
+  if (zoomScale === Number.POSITIVE_INFINITY) {
+    return maxZoom;
+  }
 
   if (!Number.isFinite(zoomScale) || zoomScale <= 0) {
     return minZoom;
@@ -197,6 +209,62 @@ export const getCameraBounds = (
     west: Math.min(topLeft.lng, bottomRight.lng),
     north: Math.max(topLeft.lat, bottomRight.lat),
     east: Math.max(topLeft.lng, bottomRight.lng),
+  };
+};
+
+export const clampCameraToBounds = (
+  cameraState,
+  bounds,
+  {
+    width = 0,
+    height = 0,
+    tileSize = TILE_SIZE,
+  } = {}
+) => {
+  const normalizedBounds = normalizeBounds(bounds);
+  const nextCenter = normalizeLatLng(cameraState?.center);
+  const nextZoom = toNumber(cameraState?.zoom);
+
+  if (!normalizedBounds || width <= 0 || height <= 0) {
+    return {
+      center: nextCenter,
+      zoom: nextZoom,
+    };
+  }
+
+  const southWestWorldPoint = projectLngLat(
+    [normalizedBounds.west, normalizedBounds.south],
+    nextZoom,
+    tileSize
+  );
+  const northEastWorldPoint = projectLngLat(
+    [normalizedBounds.east, normalizedBounds.north],
+    nextZoom,
+    tileSize
+  );
+  const centerWorldPoint = projectLngLat(
+    [nextCenter.lng, nextCenter.lat],
+    nextZoom,
+    tileSize
+  );
+  const halfViewportWidth = width / 2;
+  const halfViewportHeight = height / 2;
+  const minCenterX = southWestWorldPoint.x + halfViewportWidth;
+  const maxCenterX = northEastWorldPoint.x - halfViewportWidth;
+  const minCenterY = northEastWorldPoint.y + halfViewportHeight;
+  const maxCenterY = southWestWorldPoint.y - halfViewportHeight;
+  const clampedWorldPoint = {
+    x: minCenterX > maxCenterX
+      ? (southWestWorldPoint.x + northEastWorldPoint.x) / 2
+      : clamp(centerWorldPoint.x, minCenterX, maxCenterX),
+    y: minCenterY > maxCenterY
+      ? (northEastWorldPoint.y + southWestWorldPoint.y) / 2
+      : clamp(centerWorldPoint.y, minCenterY, maxCenterY),
+  };
+
+  return {
+    center: unprojectPoint(clampedWorldPoint, nextZoom, tileSize),
+    zoom: nextZoom,
   };
 };
 

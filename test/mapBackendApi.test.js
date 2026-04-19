@@ -35,7 +35,7 @@ describe("map backend api", () => {
       apiVersion: MAP_BACKEND_API_VERSION,
       storageStrategy: getMapStorageStrategy(APP_PROFILE),
       basemapTypes: ["raster-xyz", "pmtiles-vector"],
-      overlayFormats: ["geojson", "pmtiles-vector"],
+      overlayFormats: ["geojson", "pmtiles-vector", "json"],
       artifactFormats: ["geojson", "geoparquet", "json", "pmtiles-vector"],
       preferredBuildArtifact: getPreferredBuildSourceArtifact(APP_PROFILE, {
         sourceModuleId: APP_PROFILE.moduleIds.primaryRecord,

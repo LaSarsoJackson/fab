@@ -1,5 +1,5 @@
-import { APP_TOUR_STYLES } from "../../config/appProfile";
+import { APP_PROFILE } from "../../config/appProfile";
 
-export const TOUR_STYLES = APP_TOUR_STYLES;
+export const TOUR_STYLES = APP_PROFILE.features?.tours?.styles || {};
 
 export const getTourStyle = (tourKey = "") => TOUR_STYLES[tourKey] || null;

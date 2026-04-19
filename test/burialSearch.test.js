@@ -12,6 +12,7 @@ const options = [
     Death: '1899',
     searchableLabel: 'Jane Doe (Section 12, Lot 8)',
     searchableLabelLower: 'jane doe (section 12, lot 8)',
+    nameVariantsNormalized: ['jane doe', 'doe jane'],
     title: 'Notable',
   },
   {
@@ -47,6 +48,7 @@ const options = [
     Death: '1988',
     searchableLabel: "Mary Anne O'Neil (Section 8, Lot 1)",
     searchableLabelLower: "mary anne o'neil (section 8, lot 1)",
+    nameVariantsNormalized: ['mary anne oneil', 'oneil mary anne'],
   },
 ];
 

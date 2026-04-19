@@ -15,7 +15,7 @@ so there is a clearer answer to "where should this change go?"
 - [`src/features/browse/`](../src/features/browse): search indexing, browse result shaping, and shared record labels
 - [`src/features/tours/`](../src/features/tours): tour definitions, alias recovery, tour styles, and burial-tour reconciliation
 - [`src/features/map/`](../src/features/map): popup view-models, selection helpers, viewport helpers, generated bounds, and the custom engine runtime contract under `engine/`
-- [`src/features/deeplinks/`](../src/features/deeplinks): field packet encoding and URL/deep-link state
+- [`src/features/deeplinks/`](../src/features/deeplinks): shared-link encoding and URL/deep-link state
 - [`src/features/navigation/`](../src/features/navigation): external directions/navigation URL building
 
 ## Shared Helpers

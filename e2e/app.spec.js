@@ -15,6 +15,14 @@ const runtimeVariants = [
   { name: "custom-map", path: "/?mapEngine=custom" },
 ];
 const isIgnorableConsoleError = (text = "") => /^Failed to load resource:/i.test(text);
+const buildRuntimePath = (runtimePath, searchParams = "") => {
+  if (!searchParams) {
+    return runtimePath;
+  }
+
+  const separator = runtimePath.includes("?") ? "&" : "?";
+  return `${runtimePath}${separator}${searchParams}`;
+};
 
 test.beforeEach(async ({ page }, testInfo) => {
   const consoleErrors = [];
@@ -81,11 +89,7 @@ test.afterEach(async ({}, testInfo) => {
   expect(localRequestFailures, "The app had a failed local request.").toEqual([]);
 });
 
-async function getVisibleSearchInput(page, { preferAllRecords = false, requireEditable = true } = {}) {
-  if (preferAllRecords) {
-    await page.getByRole("group", { name: "Browse source" }).getByRole("button", { name: "All", exact: true }).click();
-  }
-
+async function getVisibleSearchInput(page, { requireEditable = true } = {}) {
   const browseSearchInput = page.locator(".left-sidebar__browse-composer input").first();
   await expect(browseSearchInput).toBeVisible();
 
@@ -108,8 +112,6 @@ async function waitForAppReady(page, path = "/") {
 
 async function ensureBurialDataLoaded(page) {
   const searchInput = await getVisibleSearchInput(page, { requireEditable: false });
-  const browseSourceGroup = page.getByRole("group", { name: "Browse source" });
-  const allBrowseButton = browseSourceGroup.getByRole("button", { name: "All", exact: true });
   const burialDataError = page.getByText("Burial records failed to load. Refresh and try again.");
 
   if (await searchInput.isEditable()) {
@@ -117,14 +119,14 @@ async function ensureBurialDataLoaded(page) {
     return;
   }
 
-  await allBrowseButton.click();
+  await searchInput.click();
   await expect(burialDataError).toHaveCount(0, { timeout: 60_000 });
   await expect(searchInput).toBeEditable({ timeout: 60_000 });
   await expect(page.getByText("Loading burials…")).toHaveCount(0, { timeout: 60_000 });
 }
 
 async function searchForLamont(page) {
-  const searchInput = await getVisibleSearchInput(page, { preferAllRecords: true });
+  const searchInput = await getVisibleSearchInput(page);
   await searchInput.fill("lamont");
   await expect(searchInput).toHaveValue("lamont");
 
@@ -134,9 +136,13 @@ async function searchForLamont(page) {
   return browseResults;
 }
 
-async function openDirectionsMenu(scope, page, buttonName = "Directions") {
+async function openDirectionsMenu(
+  scope,
+  page,
+  { buttonName = "Directions", routeActionName = "Route on Map" } = {}
+) {
   await scope.getByRole("button", { name: buttonName }).first().click();
-  await expect(page.getByRole("menuitem", { name: "Route on Map" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: routeActionName })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Open in Maps" })).toBeVisible();
 }
 
@@ -191,7 +197,7 @@ runtimeVariants.forEach((runtimeVariant) => {
       await waitForAppReady(page, runtimeVariant.path);
       await ensureBurialDataLoaded(page);
 
-      await page.getByRole("group", { name: "Browse source" }).getByRole("button", { name: "Section", exact: true }).click();
+      await page.getByRole("group", { name: "Browse the map" }).getByRole("button", { name: "Sections", exact: true }).click();
       const sectionBrowseDetail = page.locator(".left-sidebar__browse-detail--section");
       const browseSearchInput = page.locator(".left-sidebar__browse-composer input").first();
 
@@ -230,7 +236,7 @@ runtimeVariants.forEach((runtimeVariant) => {
       await waitForAppReady(page, runtimeVariant.path);
       await ensureBurialDataLoaded(page);
 
-      await page.getByRole("group", { name: "Browse source" }).getByRole("button", { name: "Tour", exact: true }).click();
+      await page.getByRole("group", { name: "Browse the map" }).getByRole("button", { name: "Tours", exact: true }).click();
 
       const tourInput = page.getByRole("combobox", { name: "Tour" });
       await tourInput.click();
@@ -250,6 +256,82 @@ runtimeVariants.forEach((runtimeVariant) => {
       await expect(popupCard.locator(".popup-card__eyebrow")).toContainText("Notables Tour 2020");
       await expect(popupCard.locator(".popup-card__title")).toHaveText(selectedHeading);
     });
+
+    test("deep links restore the selected burial and popup state", async ({ page }) => {
+      await waitForAppReady(page, buildRuntimePath(runtimeVariant.path, "view=burials&q=lamont"));
+
+      const popupCard = page.locator(".popup-card");
+      await expect(popupCard).toBeVisible({ timeout: 60_000 });
+      await expect(popupCard.locator(".popup-card__title")).toHaveText("Thomas E LaMont");
+      await expect(page.locator(".left-sidebar__panel--selected-summary")).toContainText("Thomas E LaMont");
+    });
+
+    test("locate uses browser geolocation in both runtimes", async ({ page, context }) => {
+      await context.grantPermissions(["geolocation"]);
+      await context.setGeolocation({
+        latitude: 42.70418,
+        longitude: -73.73198,
+      });
+
+      await waitForAppReady(page, runtimeVariant.path);
+      await ensureBurialDataLoaded(page);
+
+      await page.getByRole("button", { name: "My location" }).click();
+
+      await expect(page.getByText("Using your current location for directions.")).toBeVisible({ timeout: 15_000 });
+    });
+
+    test("on-map routing uses the shared route flow in both runtimes", async ({ page, context }) => {
+      await context.grantPermissions(["geolocation"]);
+      await context.setGeolocation({
+        latitude: 42.70418,
+        longitude: -73.73198,
+      });
+
+      let routeRequestCount = 0;
+      await page.route(/valhalla1\.openstreetmap\.de\/route/, async (route) => {
+        routeRequestCount += 1;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            code: "Ok",
+            routes: [
+              {
+                distance: 412.7,
+                duration: 301,
+                geometry: {
+                  type: "LineString",
+                  coordinates: [
+                    [-73.73198, 42.70418],
+                    [-73.72994, 42.70551],
+                    [-73.72812, 42.70674],
+                  ],
+                },
+              },
+            ],
+          }),
+        });
+      });
+
+      await waitForAppReady(page, runtimeVariant.path);
+      await ensureBurialDataLoaded(page);
+      const browseResults = await searchForLamont(page);
+
+      await browseResults.first().click();
+
+      const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
+      await openDirectionsMenu(selectedPeoplePanel, page);
+      await page.getByRole("menuitem", { name: "Route on Map" }).click();
+
+      await expect(selectedPeoplePanel).toContainText("Route active");
+      await expect.poll(() => routeRequestCount).toBe(1);
+      await expect(page.getByText("Calculating route...")).toHaveCount(0, { timeout: 15_000 });
+
+      await openDirectionsMenu(selectedPeoplePanel, page, { routeActionName: "Stop Route" });
+      await page.getByRole("menuitem", { name: "Stop Route" }).click();
+      await expect(selectedPeoplePanel).not.toContainText("Route active");
+    });
   });
 });
 
@@ -265,8 +347,8 @@ runtimeVariants.forEach((runtimeVariant) => {
       await browseResults.first().click();
 
       const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
-      await expect(selectedPeoplePanel).toContainText("Selected People");
-      await expect(selectedPeoplePanel).toContainText("Pinned for map focus and directions");
+      await expect(selectedPeoplePanel).toContainText("Selection");
+      await expect(selectedPeoplePanel).toContainText("Pinned for focus & directions");
       await expect(selectedPeoplePanel).toContainText("Thomas E LaMont");
       await expect(selectedPeoplePanel.getByRole("button", { name: "Route on map" })).toBeVisible();
       await expect(selectedPeoplePanel.getByRole("button", { name: "Open in Maps" })).toBeVisible();

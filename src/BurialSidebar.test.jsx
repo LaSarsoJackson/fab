@@ -31,6 +31,7 @@ jest.mock("react-spring-bottom-sheet", () => {
 });
 
 import BurialSidebar from "./BurialSidebar";
+import { APP_PROFILE } from "./config/appProfile";
 import { buildBurialBrowseResult, buildSearchIndex } from "./features/browse";
 
 const getTourName = (record) => {
@@ -97,6 +98,7 @@ const createBaseProps = () => ({
   isMobile: false,
   isOnline: true,
   isSearchIndexReady: true,
+  iosAppStoreUrl: "",
   loadingTourName: "",
   lotTierFilter: "",
   markerColors: ["#e41a1c", "#377eb8"],
@@ -111,7 +113,7 @@ const createBaseProps = () => ({
   onLotTierFilterChange: jest.fn(),
   onClearFieldPacket: jest.fn(),
   onCopyFieldPacketLink: jest.fn(),
-  onCreateFieldPacket: jest.fn(),
+  onInstallApp: jest.fn(),
   onOpenAppMenu: jest.fn(),
   onOpenDirectionsMenu: jest.fn(),
   onRemoveSelectedBurial: jest.fn(),
@@ -129,6 +131,7 @@ const createBaseProps = () => ({
   selectedTour: "",
   showAllBurials: false,
   showIosInstallHint: false,
+  sharedLinkLandingState: null,
   status: "Location inactive",
   tourDefinitions: [{ key: "Notable", name: "Notables Tour 2020" }],
   tourLayerError: "",
@@ -228,16 +231,14 @@ describe("BurialSidebar", () => {
   domTest("supports mobile query entry and clearing from the search field without forcing drawer expansion", () => {
     renderSidebar({ isMobile: true });
 
-    expect(screen.getByRole("button", { name: "All" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Section" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Tour" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Section" })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Select a section to browse/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sections" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tours" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Section" })).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Search by name, section, or lot/i)).toBeInTheDocument();
+    expect(screen.queryByText("Start with a section")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "More options" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "My location" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "My location" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Clear all browse filters")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "All" }));
 
     const input = screen.getByPlaceholderText(/Search by name, section, or lot/i);
     fireEvent.focus(input);
@@ -254,11 +255,11 @@ describe("BurialSidebar", () => {
     expect(input).toHaveValue("");
   });
 
-  domTest("keeps the mobile drawer at peek when a point selection arrives", () => {
+  domTest("expands the mobile drawer from the collapsed browse shell when a point selection arrives", () => {
     const rerenderProps = createBaseProps();
     const { rerender } = renderSidebar({ isMobile: true });
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(220);
 
     rerender(
       <BurialSidebar
@@ -270,7 +271,7 @@ describe("BurialSidebar", () => {
     );
 
     expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
-    expect(mockBottomSheetState.snapTo).not.toHaveBeenCalled();
+    expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(1);
   });
 
   domTest("re-expands a collapsed mobile drawer when a map selection arrives", () => {
@@ -346,7 +347,7 @@ describe("BurialSidebar", () => {
     expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
   });
 
-  domTest("preserves a minimized mobile results panel when a point selection arrives", () => {
+  domTest("keeps the section results visible when a point selection arrives on mobile", () => {
     const rerenderProps = createBaseProps();
     const { rerender } = renderSidebar({
       isMobile: true,
@@ -354,11 +355,8 @@ describe("BurialSidebar", () => {
       showAllBurials: true,
     });
 
-    const resultsPanel = screen.getByText("Results").closest(".left-sidebar__panel");
-    fireEvent.click(within(resultsPanel).getByRole("button", { name: "Collapse" }));
-
-    expect(within(resultsPanel).queryByText("Anna Tracy")).not.toBeInTheDocument();
-    expect(within(resultsPanel).getByRole("button", { name: "View list" })).toBeInTheDocument();
+    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    expect(within(browseWorkspace).getByText("Anna Tracy")).toBeInTheDocument();
 
     rerender(
       <BurialSidebar
@@ -371,9 +369,8 @@ describe("BurialSidebar", () => {
       />
     );
 
-    const nextResultsPanel = screen.getByText("Results").closest(".left-sidebar__panel");
-    expect(within(nextResultsPanel).queryByText("Anna Tracy")).not.toBeInTheDocument();
-    expect(within(nextResultsPanel).getByRole("button", { name: "View list" })).toBeInTheDocument();
+    const nextBrowseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    expect(within(nextBrowseWorkspace).getByText("Anna Tracy")).toBeInTheDocument();
     expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
   });
 
@@ -399,11 +396,11 @@ describe("BurialSidebar", () => {
 
     expect(screen.queryByText("Search: anna")).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Section" })).toHaveValue("Section 99");
-    expect(screen.getAllByText("Lot 18").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Lot 18/i).length).toBeGreaterThan(0);
     expect(screen.queryByText("Browse: Section")).not.toBeInTheDocument();
     const annaResultCard = screen.getByText("Anna Tracy").closest(".left-sidebar__result-card");
     expect(within(annaResultCard).queryByText("Section 99")).not.toBeInTheDocument();
-    expect(within(annaResultCard).getByText("Lot 18")).toBeInTheDocument();
+    expect(within(annaResultCard).getByText(/Lot 18 • Tier 0/i)).toBeInTheDocument();
 
     const sectionPanel = screen.getByRole("combobox", { name: "Section" }).closest(".left-sidebar__browse-detail");
     fireEvent.click(within(sectionPanel).getByRole("button", { name: "Clear" }));
@@ -414,7 +411,7 @@ describe("BurialSidebar", () => {
     expect(onLotTierFilterChange).not.toHaveBeenCalled();
     expect(onTourChange).not.toHaveBeenCalled();
     expect(screen.getByPlaceholderText(/Search this section/i)).toHaveValue("");
-    expect(screen.queryByRole("button", { name: "Clear all browse filters" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Clear all browse filters" })).toBeInTheDocument();
   });
 
   domTest("keeps the tour browse mode active when the contextual clear action resets the selected tour", () => {
@@ -427,7 +424,7 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    expect(screen.getByRole("button", { name: "Tour" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Tours" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("combobox", { name: "Tour" })).toHaveValue("Notables Tour 2020");
 
     const tourPanel = screen.getByText(/Choose tour/i).closest(".left-sidebar__browse-detail");
@@ -446,7 +443,7 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    expect(screen.getByRole("button", { name: "Tour" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Tours" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText(/Choose tour/i)).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Tour" })).toHaveValue("");
     expect(screen.getByPlaceholderText(/Select a tour to browse/i)).toBeInTheDocument();
@@ -463,7 +460,7 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    fireEvent.click(screen.getByRole("button", { name: /Section/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Sections" }));
 
     expect(onTourChange).toHaveBeenCalledWith(null);
 
@@ -481,24 +478,28 @@ describe("BurialSidebar", () => {
     expect(screen.getByRole("combobox", { name: "Section" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Select a section to browse/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sections" }));
 
     expect(screen.queryByText("Choose section")).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Section" })).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Search by name, section, or lot/i)).toBeInTheDocument();
   });
 
-  domTest("shows scope chips and empty-state shortcuts before a global search starts", () => {
+  domTest("keeps the idle state focused on browse controls before a global search starts", () => {
     renderSidebar();
 
     flushBrowseTimers();
 
-    expect(screen.getByText("Search by name or keyword.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Browse sections" })).toBeInTheDocument();
+    expect(screen.queryByText("Results")).not.toBeInTheDocument();
+    expect(screen.queryByText("Type at least 2 characters to search.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Start with a section")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sections" })).toHaveAttribute("aria-pressed", "false");
 
-    fireEvent.click(screen.getByRole("button", { name: "Browse sections" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sections" }));
 
-    expect(screen.getByRole("button", { name: "Section" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Sections" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("combobox", { name: "Section" })).toBeInTheDocument();
+    expect(screen.queryByText("Results")).not.toBeInTheDocument();
   });
 
   domTest("offers a clear-search action when a global query has no matches", () => {
@@ -518,31 +519,63 @@ describe("BurialSidebar", () => {
     expect(input).toHaveValue("");
   });
 
-  domTest("renders the Burial Finder header link to the ARCE homepage", () => {
+  domTest("renders the configured header link target", () => {
     renderSidebar();
 
-    const link = screen.getByRole("link", { name: "Burial Finder" });
+    const link = screen.getByRole("link", {
+      name: APP_PROFILE.shell?.headerTitle || "Burial Finder",
+    });
 
-    expect(link).toHaveAttribute("href", "https://www.albany.edu/arce/");
+    expect(link).toHaveAttribute("href", APP_PROFILE.shell?.homeUrl || "#");
   });
 
-  domTest("shows the field packet panel in dev and creates a packet from the current selection", () => {
-    const onCreateFieldPacket = jest.fn();
+  domTest("keeps the share link panel hidden until there is a selection or saved link state", () => {
+    renderSidebar();
+
+    expect(screen.queryByText("Share Link")).not.toBeInTheDocument();
+  });
+
+  domTest("keeps global search results visible after a selection so browse context stays available", () => {
+    const onBrowseResultSelect = jest.fn();
+
+    renderSidebar({ onBrowseResultSelect });
+    flushBrowseTimers();
+
+    const input = screen.getByPlaceholderText(/Search by name, section, or lot/i);
+    fireEvent.change(input, { target: { value: "anna" } });
+    flushBrowseTimers();
+
+    expect(screen.getByText("Anna Tracy")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Anna Tracy"));
+
+    expect(onBrowseResultSelect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        displayName: "Anna Tracy",
+        Section: "99",
+      })
+    );
+    expect(screen.getByText("Anna Tracy")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View list" })).not.toBeInTheDocument();
+  });
+
+  domTest("shows the share link panel and copies a link from the current selection", () => {
+    const onCopyFieldPacketLink = jest.fn();
 
     renderSidebar({
       selectedBurials: [burialRecords[0]],
-      onCreateFieldPacket,
+      onCopyFieldPacketLink,
     });
 
-    expect(screen.getByText("Field Packet")).toBeInTheDocument();
-    expect(screen.getByText("1 selected record ready to capture.")).toBeInTheDocument();
+    expect(screen.getByText("Share Link")).toBeInTheDocument();
+    expect(screen.getByText("1 selected record ready to share.")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create packet" }));
+    fireEvent.click(screen.getByRole("button", { name: "Copy share link" }));
 
-    expect(onCreateFieldPacket).toHaveBeenCalled();
+    expect(onCopyFieldPacketLink).toHaveBeenCalled();
   });
 
-  domTest("edits and clears an existing field packet", () => {
+  domTest("edits and clears an existing shared link state", () => {
     const onUpdateFieldPacket = jest.fn();
     const onCopyFieldPacketLink = jest.fn();
     const onClearFieldPacket = jest.fn();
@@ -551,7 +584,7 @@ describe("BurialSidebar", () => {
       selectedBurials: [burialRecords[0]],
       fieldPacket: {
         version: 1,
-        name: "Section 99 packet",
+        name: "Section 99",
         note: "Check the stone alignment.",
         activeBurialId: burialRecords[0].id,
         selectedBurialIds: [burialRecords[0].id],
@@ -564,7 +597,7 @@ describe("BurialSidebar", () => {
         ],
       },
       fieldPacketNotice: {
-        message: "Field packet link copied.",
+        message: "Share link copied.",
         tone: "success",
       },
       onUpdateFieldPacket,
@@ -572,23 +605,60 @@ describe("BurialSidebar", () => {
       onClearFieldPacket,
     });
 
-    fireEvent.change(screen.getByLabelText("Packet name"), {
-      target: { value: "Updated packet name" },
+    fireEvent.change(screen.getByLabelText("Link title"), {
+      target: { value: "Updated share title" },
     });
-    fireEvent.change(screen.getByLabelText("Field note"), {
+    fireEvent.change(screen.getByLabelText("Message"), {
       target: { value: "Updated note" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
-    fireEvent.click(screen.getByRole("button", { name: "Clear packet" }));
+    fireEvent.click(screen.getByRole("button", { name: "Copy share link" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear saved details" }));
 
-    expect(onUpdateFieldPacket).toHaveBeenNthCalledWith(1, { name: "Updated packet name" });
+    expect(onUpdateFieldPacket).toHaveBeenNthCalledWith(1, { name: "Updated share title" });
     expect(onUpdateFieldPacket).toHaveBeenNthCalledWith(2, { note: "Updated note" });
     expect(onCopyFieldPacketLink).toHaveBeenCalled();
     expect(onClearFieldPacket).toHaveBeenCalled();
-    expect(screen.getByText("Field packet link copied.")).toBeInTheDocument();
+    expect(screen.getByText("Share link copied.")).toBeInTheDocument();
   });
 
-  domTest("shows selected summary and results together in the mobile sheet", () => {
+  domTest("shows install and native-app CTAs when a shared link is restored", () => {
+    const onInstallApp = jest.fn();
+
+    renderSidebar({
+      selectedBurials: [burialRecords[0]],
+      fieldPacket: {
+        version: 1,
+        name: "Anna Tracy",
+        note: "Bring the preservation report.",
+        activeBurialId: burialRecords[0].id,
+        selectedBurialIds: [burialRecords[0].id],
+        selectedRecords: [burialRecords[0]],
+        sectionFilter: "99",
+        selectedTour: "",
+        mapBounds: null,
+      },
+      installPromptEvent: {},
+      iosAppStoreUrl: "https://apps.apple.com/us/app/albany-grave-finder/id6746413050",
+      onInstallApp,
+      sharedLinkLandingState: {
+        restoredAt: Date.now(),
+      },
+      showIosInstallHint: true,
+    });
+
+    expect(screen.getByText("Opened from a shared link")).toBeInTheDocument();
+    expect(screen.getAllByText("Bring the preservation report.").length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install app" }));
+
+    expect(onInstallApp).toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: "Get iPhone app" })).toHaveAttribute(
+      "href",
+      "https://apps.apple.com/us/app/albany-grave-finder/id6746413050"
+    );
+  });
+
+  domTest("shows selected summary and the browse workspace together in the mobile sheet", () => {
     const onClearSelectedBurials = jest.fn();
     const { rerender } = renderSidebar({ isMobile: true, sectionFilter: "99", showAllBurials: true });
 
@@ -610,7 +680,8 @@ describe("BurialSidebar", () => {
     flushBrowseTimers();
 
     expect(screen.getByText("Selection")).toBeInTheDocument();
-    expect(screen.getByText("Results")).toBeInTheDocument();
+    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    expect(within(browseWorkspace).getByText("Anna Tracy")).toBeInTheDocument();
     expect(within(screen.getByText("Selection").closest(".left-sidebar__panel")).getByRole("button", { name: "Route on map" })).toBeInTheDocument();
 
     const selectedSummary = screen.getByText("Selection").closest(".left-sidebar__panel");
@@ -624,11 +695,36 @@ describe("BurialSidebar", () => {
 
     expect(within(selectedSummary).queryByText("Thomas Tracy")).not.toBeInTheDocument();
     expect(within(selectedSummary).getByRole("button", { name: "Show list" })).toBeInTheDocument();
-    expect(screen.getByText("Results")).toBeInTheDocument();
+    expect(within(browseWorkspace).getByText("Anna Tracy")).toBeInTheDocument();
 
     fireEvent.click(within(selectedSummary).getByRole("button", { name: "Clear" }));
 
     expect(onClearSelectedBurials).toHaveBeenCalled();
+  });
+
+  domTest("keeps browse controls and results in the same workspace panel", () => {
+    renderSidebar({ sectionFilter: "99", showAllBurials: true });
+
+    flushBrowseTimers();
+
+    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+
+    expect(browseWorkspace).not.toBeNull();
+    expect(within(browseWorkspace).getByText("Browse")).toBeInTheDocument();
+    expect(within(browseWorkspace).getByLabelText("Search burials")).toBeInTheDocument();
+    expect(within(browseWorkspace).getByText("Anna Tracy")).toBeInTheDocument();
+  });
+
+  domTest("hides the idle results panel when there is no active browse context", () => {
+    renderSidebar({
+      activeBurialId: burialRecords[0].id,
+      selectedBurials: [burialRecords[0]],
+    });
+
+    flushBrowseTimers();
+
+    expect(screen.queryByText("Results")).not.toBeInTheDocument();
+    expect(screen.getByText("Selection")).toBeInTheDocument();
   });
 
   domTest("bounds the desktop selected people list so browse results stay in the sidebar flow", () => {
@@ -647,18 +743,17 @@ describe("BurialSidebar", () => {
 
     const selectedPanel = screen.getByText("Selection").closest(".left-sidebar__panel");
     const selectedScroll = selectedPanel.querySelector(".left-sidebar__selected-scroll");
-    const resultsPanel = screen.getByText("Results").closest(".left-sidebar__panel");
+    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
 
     expect(selectedScroll).not.toBeNull();
     expect(within(selectedScroll).getByRole("list")).toBeInTheDocument();
-    expect(resultsPanel).not.toBeNull();
-    expect(within(resultsPanel).getByText("Anna Tracy")).toBeInTheDocument();
+    expect(browseWorkspace).not.toBeNull();
+    expect(within(browseWorkspace).getByText("Anna Tracy")).toBeInTheDocument();
   });
 
-  domTest("tracks selected row hover by burial id and clears stale hover when the selection changes", () => {
+  domTest("tracks selected row hover by burial id", () => {
     const onHoverBurialChange = jest.fn();
-    const rerenderProps = createBaseProps();
-    const { rerender } = renderSidebar({
+    renderSidebar({
       selectedBurials: burialRecords,
       onHoverBurialChange,
     });
@@ -671,19 +766,16 @@ describe("BurialSidebar", () => {
 
     expect(onHoverBurialChange).toHaveBeenNthCalledWith(1, burialRecords[0].id);
     expect(onHoverBurialChange).toHaveBeenNthCalledWith(2, null);
+  });
 
-    onHoverBurialChange.mockClear();
+  domTest("labels the lead selection as pinned when records remain selected but no burial is actively focused", () => {
+    renderSidebar({
+      activeBurialId: null,
+      selectedBurials: [burialRecords[0]],
+    });
 
-    rerender(
-      <BurialSidebar
-        {...rerenderProps}
-        hoveredBurialId={burialRecords[0].id}
-        onHoverBurialChange={onHoverBurialChange}
-        selectedBurials={[]}
-      />
-    );
-
-    expect(onHoverBurialChange).toHaveBeenCalledWith(null);
+    expect(screen.getByText("Pinned burial")).toBeInTheDocument();
+    expect(screen.queryByText("Focused burial")).not.toBeInTheDocument();
   });
 
   domTest("uses the correct mobile snap immediately when the layout switches to mobile", () => {
@@ -702,7 +794,7 @@ describe("BurialSidebar", () => {
       />
     );
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(220);
     expect(mockBottomSheetState.snapTo).not.toHaveBeenCalled();
   });
 

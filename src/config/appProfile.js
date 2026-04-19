@@ -1,9 +1,8 @@
 import { FAB_APP_PROFILE } from "../features/fab/profile";
 
+// `fab` still runs against one concrete profile today. Keep this file as the
+// active-profile boundary for shared shell code, but derive narrower values
+// beside the caller instead of expanding a second registry surface here.
 export const APP_PROFILE = FAB_APP_PROFILE;
-export const APP_DATA_MODULES = APP_PROFILE.dataModules || [];
-export const APP_TOUR_FEATURE = APP_PROFILE.features?.tours || null;
-export const APP_TOUR_DEFINITIONS = APP_TOUR_FEATURE?.definitions || [];
-export const APP_TOUR_STYLES = APP_TOUR_FEATURE?.styles || {};
 
 export const getAppFeature = (featureKey) => APP_PROFILE.features?.[featureKey] || null;

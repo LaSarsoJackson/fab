@@ -1,23 +1,21 @@
-# Contributing To `fab`
+# Contributing to `fab`
 
-`fab` is the shared web surface for Albany Rural Cemetery burial search, map browsing, tours, routing, and deep links. It also feeds the hosted URLs consumed by `FABFG`, so changes here can affect both the web app and the native wrapper.
+`fab` is the shared web application for Albany Rural Cemetery burial search,
+map browsing, tours, routing, and deep links. Changes here can affect both the
+public web app and `FABFG`, the native wrapper that consumes hosted `fab` URLs.
 
-Current repo priorities:
+## Read first
 
-- keep moving toward a FAB-owned custom map variant
-- make the web and native stacks easier to align around shared contracts
-- keep the UI closer to Apple HIG conventions: clear hierarchy, touch-first controls, restrained motion, and strong accessibility
-- improve contributor DX so new maintainers can find the right files quickly
-
-## Start Here
-
-Read these before making structural changes:
+Start with these documents:
 
 1. [README.md](./README.md)
 2. [AGENTS.md](./AGENTS.md)
 3. [docs/architecture-index.md](./docs/architecture-index.md)
 
-## Local Setup
+If you are changing a specific subsystem, follow the relevant note from the
+architecture index before you start moving files around.
+
+## Local development
 
 Install dependencies:
 
@@ -37,25 +35,28 @@ Start the app:
 bun run start
 ```
 
-Useful commands:
+Common commands:
 
-- `bun run test`: Bun tests plus Jest DOM tests
-- `bun run test:e2e`: Playwright browser tests
-- `bun run build:data`: regenerate search/tour/generated-bounds artifacts
+- `bun run test`: run the default automated test suite
+- `bun run test:e2e`: run Playwright coverage
+- `bun run check`: run `doctor` plus the default test suite
+- `bun run build:data`: regenerate search data, tour matches, and generated
+  bounds
 - `bun run build:pmtiles`: regenerate PMTiles experiment artifacts
-- `bun run deploy`: build and publish the GitHub Pages variant
+- `bun run deploy`: build and publish the GitHub Pages deployment
 
-## Placement Rules
+## Placement rules
 
-- Keep React state, refs, and runtime orchestration in the top-level shells such as [`src/Map.jsx`](./src/Map.jsx) and [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx).
+- Keep React state, refs, and runtime orchestration in the top-level shells such
+  as [`src/Map.jsx`](./src/Map.jsx) and [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx).
 - Put pure transforms in the owning feature folder under [`src/features/`](./src/features).
 - Put domain-neutral helpers in [`src/shared/`](./src/shared).
 - Keep FAB-only behavior in [`src/features/fab/`](./src/features/fab).
 - Do not add new helpers back under the retired `src/lib` layout.
 
-## Source Vs Generated Files
+## Source and generated files
 
-Source-of-truth inputs:
+Treat these as source-of-truth inputs:
 
 - [`src/data/Geo_Burials.json`](./src/data/Geo_Burials.json)
 - [`src/data/ARC_Sections.json`](./src/data/ARC_Sections.json)
@@ -63,7 +64,7 @@ Source-of-truth inputs:
 - [`src/data/ARC_Boundary.json`](./src/data/ARC_Boundary.json)
 - tour files referenced by [`src/features/tours/tourDefinitions.js`](./src/features/tours/tourDefinitions.js)
 
-Generated artifacts:
+Treat these as generated artifacts:
 
 - [`src/data/TourBiographyAliases.json`](./src/data/TourBiographyAliases.json)
 - [`src/data/TourMatches.json`](./src/data/TourMatches.json)
@@ -77,7 +78,7 @@ bun run build:tour-data
 bun run build:data
 ```
 
-## Validation Checklists
+## Validation
 
 If you change map or selection behavior:
 
@@ -90,11 +91,12 @@ If you change map or selection behavior:
 If you change source data:
 
 1. Regenerate derived artifacts.
-2. Verify search, section browse, and tour selection still resolve to the same record.
+2. Verify search, section browse, and tour selection still resolve to the same
+   record.
 
 If you change runtime or profile wiring:
 
-1. Verify feature flags in development and production behavior.
+1. Verify feature flags in both development and production behavior.
 2. Run the automated tests for the touched modules.
 3. Check whether `FABFG` needs a corresponding change.
 
@@ -104,10 +106,10 @@ If you change shared UI:
 2. Honor reduced motion and safe areas.
 3. Prefer labels and live regions over placeholder-only or color-only state.
 
-## Pull Request Expectations
+## Pull requests
 
-- Keep the change narrowly scoped and explain user-facing impact.
-- Call out any effect on hosted URLs, deep links, or FABFG behavior.
-- Mention regenerated artifacts explicitly when source data changed.
-- Include the commands you ran.
-- Prefer additive refactors over broad file moves unless the move is the task.
+- Keep changes narrowly scoped and describe the user-facing impact.
+- Call out any effect on hosted URLs, deep links, or `FABFG` behavior.
+- Mention regenerated artifacts when source data changed.
+- List the commands you ran.
+- Prefer additive refactors over broad moves unless the move is the work.

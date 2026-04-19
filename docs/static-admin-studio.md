@@ -6,9 +6,23 @@ Example local URL:
 
 - `http://localhost:3000/#/admin`
 
-Example hosted URL:
+Production note:
 
-- `https://lasarsojackson.github.io/fab/#/admin`
+- production hosts intentionally fall back to the public map instead of opening
+  `#/admin`
+
+## Availability
+
+The current admin studio is development-only.
+
+Notes:
+
+- It opens at `#/admin` when `REACT_APP_ENVIRONMENT` resolves to development.
+- Production builds intentionally do not expose the admin route.
+- This keeps the static editor available for local drafting without pretending a
+  client-side password would secure a static production host.
+- When the product grows a real write path, add server-verified auth at that
+  time instead of extending the current dev-only route.
 
 ## What it edits
 
@@ -22,6 +36,7 @@ Generated artifacts such as `public/data/Search_Burials.json`, `src/data/TourMat
 ## Boundaries
 
 - The admin studio is a browser-side drafting tool, not a live CMS.
+- The current route is intentionally development-only rather than production-secured.
 - Source JSON and GeoJSON files in the repo remain the source of truth after export.
 - Generated artifacts should be replaced from the exported bundle or from the normal build scripts, not hand-edited in isolation.
 

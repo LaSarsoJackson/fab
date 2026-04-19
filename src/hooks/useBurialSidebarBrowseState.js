@@ -145,31 +145,24 @@ export function useBurialSidebarBrowseState({
       selectedTour,
     ]
   );
-  const immediateBrowseResults = useMemo(
-    () => {
-      if (shouldDeferBrowseResults) {
-        return deferredBrowseResults;
-      }
-
-      return buildBrowseResults({
-        browseSource,
-        query: browseQuery,
-        burialRecords,
-        sectionIndex,
-        searchIndex,
-        getTourName,
-        sectionFilter,
-        lotTierFilter,
-        filterType,
-        selectedTour,
-        tourResults,
-      }).results;
-    },
-    [
+  const computeBrowseResults = useCallback(
+    () => buildBrowseResults({
       browseSource,
-      browseQuery,
+      query: browseQuery,
       burialRecords,
-      deferredBrowseResults,
+      sectionIndex,
+      searchIndex,
+      getTourName,
+      sectionFilter,
+      lotTierFilter,
+      filterType,
+      selectedTour,
+      tourResults,
+    }).results,
+    [
+      browseQuery,
+      browseSource,
+      burialRecords,
       filterType,
       getTourName,
       lotTierFilter,
@@ -177,8 +170,21 @@ export function useBurialSidebarBrowseState({
       sectionIndex,
       sectionFilter,
       selectedTour,
-      shouldDeferBrowseResults,
       tourResults,
+    ]
+  );
+  const immediateBrowseResults = useMemo(
+    () => {
+      if (shouldDeferBrowseResults) {
+        return deferredBrowseResults;
+      }
+
+      return computeBrowseResults();
+    },
+    [
+      computeBrowseResults,
+      deferredBrowseResults,
+      shouldDeferBrowseResults,
     ]
   );
 
@@ -214,19 +220,7 @@ export function useBurialSidebarBrowseState({
         return;
       }
 
-      const nextResults = buildBrowseResults({
-        browseSource,
-        query: browseQuery,
-        burialRecords,
-        sectionIndex,
-        searchIndex,
-        getTourName,
-        sectionFilter,
-        lotTierFilter,
-        filterType,
-        selectedTour,
-        tourResults,
-      }).results;
+      const nextResults = computeBrowseResults();
 
       if (cancelled) {
         return;
@@ -246,18 +240,8 @@ export function useBurialSidebarBrowseState({
     };
   }, [
     browseCacheKey,
-    browseQuery,
-    browseSource,
-    burialRecords,
-    filterType,
-    getTourName,
-    lotTierFilter,
-    searchIndex,
-    sectionIndex,
-    sectionFilter,
-    selectedTour,
+    computeBrowseResults,
     shouldDeferBrowseResults,
-    tourResults,
   ]);
 
   const browseResults = immediateBrowseResults;

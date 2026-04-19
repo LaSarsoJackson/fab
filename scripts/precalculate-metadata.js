@@ -129,6 +129,20 @@ const findMatchingTourRecord = (burialRecord, tourLookup) => {
   return bestScore >= 7 ? bestCandidate : null;
 };
 
+/**
+ * The build pipeline needs the normalized burial browse record for both tour
+ * matching and the compact search artifact. Build it once so `build:data`
+ * spends time on the matching heuristic itself instead of recomputing the same
+ * browse shape in two full passes over ~97k burials.
+ */
+const buildNormalizedBurialEntries = (burialFeatures, { getTourName } = {}) => (
+  burialFeatures.map((feature) => ({
+    feature,
+    properties: feature.properties || {},
+    burialRecord: buildBurialBrowseResult(feature, { getTourName }),
+  }))
+);
+
 async function precalculate() {
   console.log('Loading TOUR_DEFINITIONS...');
   const loadedRecords = [];
@@ -160,14 +174,14 @@ async function precalculate() {
     // records, not the full runtime tour registry.
     return cleanValue(option.tourName || option.title || option.tourKey || '');
   };
+  const normalizedBurialEntries = buildNormalizedBurialEntries(burialFeatures, { getTourName });
 
   const matches = {};
   let matchCount = 0;
 
   console.log('Matching burials to tours...');
-  for (let i = 0; i < burialFeatures.length; i++) {
-    const feature = burialFeatures[i];
-    const burialRecord = buildBurialBrowseResult(feature, { getTourName });
+  for (let i = 0; i < normalizedBurialEntries.length; i++) {
+    const { burialRecord } = normalizedBurialEntries[i];
     const matchedTour = findMatchingTourRecord(burialRecord, tourLookup);
     
     if (matchedTour) {
@@ -187,21 +201,19 @@ async function precalculate() {
   console.log(`Wrote matches to ${outputPath}`);
 
   console.log('Generating minified search index...');
-  const searchBurials = burialFeatures.map((feature) => {
-    const props = feature.properties;
-    const burialRecord = buildBurialBrowseResult(feature, { getTourName });
+  const searchBurials = normalizedBurialEntries.map(({ feature, properties, burialRecord }) => {
     const match = matches[burialRecord.id];
 
     return {
-      i: props.OBJECTID,
-      f: cleanValue(props.First_Name),
-      l: cleanValue(props.Last_Name),
-      s: cleanValue(props.Section),
-      lo: cleanValue(props.Lot),
-      g: cleanValue(props.Grave),
-      t: cleanValue(props.Tier),
-      b: cleanValue(props.Birth),
-      d: cleanValue(props.Death),
+      i: properties.OBJECTID,
+      f: cleanValue(properties.First_Name),
+      l: cleanValue(properties.Last_Name),
+      s: cleanValue(properties.Section),
+      lo: cleanValue(properties.Lot),
+      g: cleanValue(properties.Grave),
+      t: cleanValue(properties.Tier),
+      b: cleanValue(properties.Birth),
+      d: cleanValue(properties.Death),
       tk: match ? match.tourKey : '',
       c: feature.geometry?.coordinates || null,
       n: burialRecord.fullNameNormalized,

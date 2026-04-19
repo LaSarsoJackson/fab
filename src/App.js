@@ -1,10 +1,12 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
+import { isAdminHash } from "./admin/adminHash";
 import { APP_PROFILE } from "./config/appProfile";
+import { isAdminStudioEnabled } from "./shared/runtime";
 import "./App.css";
 
 const BurialMap = lazy(() => import("./Map"));
-const AdminApp = lazy(() => import("./AdminApp"));
+const AdminRoute = lazy(() => import("./AdminRoute"));
 const PRIMARY_ACCENT = "#2f6b57";
 const PRIMARY_ACCENT_DARK = "#255544";
 const PRIMARY_ACCENT_TINT = "#d9e8e0";
@@ -143,6 +145,9 @@ const {
   mapLoadingMessage,
   mapLoadingTitle,
 } = APP_PROFILE.brand;
+const APP_SHELL = APP_PROFILE.shell || {};
+const APP_DOCUMENT_TITLE = APP_SHELL.documentTitle || appName;
+const APP_DESCRIPTION = APP_SHELL.description || "";
 
 const syncViewportMetrics = () => {
   if (typeof document === "undefined" || typeof window === "undefined") return;
@@ -155,10 +160,23 @@ const syncViewportMetrics = () => {
   root.style.setProperty("--app-offset-top", `${Math.round(viewport?.offsetTop || 0)}px`);
 };
 
+const getIsAdminMode = () => (
+  isAdminStudioEnabled() && typeof window !== "undefined" && isAdminHash(window.location.hash)
+);
+
 export default function App() {
-  const [isAdminMode, setIsAdminMode] = useState(() => (
-    typeof window !== "undefined" && window.location.hash.startsWith("#/admin")
-  ));
+  const [isAdminMode, setIsAdminMode] = useState(getIsAdminMode);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    document.title = APP_DOCUMENT_TITLE;
+
+    const descriptionElement = document.querySelector('meta[name="description"]');
+    if (descriptionElement && APP_DESCRIPTION) {
+      descriptionElement.setAttribute("content", APP_DESCRIPTION);
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -181,7 +199,7 @@ export default function App() {
     if (typeof window === "undefined") return undefined;
 
     const syncHashMode = () => {
-      setIsAdminMode(window.location.hash.startsWith("#/admin"));
+      setIsAdminMode(getIsAdminMode());
     };
 
     syncHashMode();
@@ -206,7 +224,7 @@ export default function App() {
             </div>
           }
         >
-          {isAdminMode ? <AdminApp /> : <BurialMap />}
+          {isAdminMode ? <AdminRoute /> : <BurialMap />}
         </Suspense>
       </main>
     </ThemeProvider>

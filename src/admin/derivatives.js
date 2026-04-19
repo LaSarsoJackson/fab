@@ -141,13 +141,26 @@ const buildTourBrowseResults = (serializedModulesById) => {
   return records;
 };
 
-const buildTourMatchesArtifact = (burialFeatures, serializedModulesById) => {
+/**
+ * The admin artifact rebuild needs the normalized burial browse result in both
+ * the tour-matching pass and the compact search-payload pass. Keeping that
+ * shared normalization in one array avoids paying for the same 97k-record
+ * transform twice every time an editor regenerates derivatives.
+ */
+const buildNormalizedBurialEntries = (burialFeatures) => (
+  burialFeatures.map((feature) => ({
+    feature,
+    properties: feature.properties || {},
+    burialRecord: buildBurialBrowseResult(feature),
+  }))
+);
+
+const buildTourMatchesArtifact = (normalizedBurialEntries, serializedModulesById) => {
   const loadedTourRecords = buildTourBrowseResults(serializedModulesById);
   const tourLookup = buildTourLookup(loadedTourRecords);
   const matches = {};
 
-  burialFeatures.forEach((feature) => {
-    const burialRecord = buildBurialBrowseResult(feature);
+  normalizedBurialEntries.forEach(({ burialRecord }) => {
     const matchedTour = findMatchingTourRecord(burialRecord, tourLookup);
 
     if (matchedTour) {
@@ -158,22 +171,20 @@ const buildTourMatchesArtifact = (burialFeatures, serializedModulesById) => {
   return matches;
 };
 
-const buildSearchBurialsArtifact = (burialFeatures, tourMatches) => (
-  burialFeatures.map((feature) => {
-    const props = feature.properties || {};
-    const burialRecord = buildBurialBrowseResult(feature);
+const buildSearchBurialsArtifact = (normalizedBurialEntries, tourMatches) => (
+  normalizedBurialEntries.map(({ feature, properties, burialRecord }) => {
     const match = tourMatches[burialRecord.id];
 
     return {
-      i: props.OBJECTID,
-      f: cleanValue(props.First_Name),
-      l: cleanValue(props.Last_Name),
-      s: cleanValue(props.Section),
-      lo: cleanValue(props.Lot),
-      g: cleanValue(props.Grave),
-      t: cleanValue(props.Tier),
-      b: cleanValue(props.Birth),
-      d: cleanValue(props.Death),
+      i: properties.OBJECTID,
+      f: cleanValue(properties.First_Name),
+      l: cleanValue(properties.Last_Name),
+      s: cleanValue(properties.Section),
+      lo: cleanValue(properties.Lot),
+      g: cleanValue(properties.Grave),
+      t: cleanValue(properties.Tier),
+      b: cleanValue(properties.Birth),
+      d: cleanValue(properties.Death),
       tk: match ? match.tourKey : "",
       c: feature.geometry?.coordinates || null,
       n: burialRecord.fullNameNormalized,
@@ -206,8 +217,9 @@ export const buildGeneratedArtifacts = (serializedModulesById) => {
     throw new Error(`${PRIMARY_RECORD_LABEL} source data is required to regenerate derived artifacts.`);
   }
 
-  const tourMatches = buildTourMatchesArtifact(burialFeatureCollection.features, serializedModulesById);
-  const searchBurials = buildSearchBurialsArtifact(burialFeatureCollection.features, tourMatches);
+  const normalizedBurialEntries = buildNormalizedBurialEntries(burialFeatureCollection.features);
+  const tourMatches = buildTourMatchesArtifact(normalizedBurialEntries, serializedModulesById);
+  const searchBurials = buildSearchBurialsArtifact(normalizedBurialEntries, tourMatches);
   const constantsSource = buildConstantsArtifact(boundaryFeatureCollection);
 
   return [

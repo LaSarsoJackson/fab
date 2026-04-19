@@ -27,6 +27,8 @@ else
   bun run build:tour-data
 fi
 
+bun run sync:profile-shell
+
 IMAGE_SERVER_HOST="${FAB_IMAGE_SERVER_HOST:-127.0.0.1}"
 IMAGE_SERVER_PORT="${FAB_IMAGE_SERVER_PORT:-8000}"
 IMAGE_SERVER_PID=""

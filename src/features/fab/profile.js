@@ -14,6 +14,7 @@ import {
   resolveFabBiographyLink,
   resolveFabRecordImageUrl,
 } from "./presentation";
+import { FAB_SITE_CONFIG } from "./siteConfig";
 import { FAB_TOUR_DEFINITIONS, FAB_TOUR_STYLES, enrichFabTourRecord } from "./tours";
 
 const buildCoreDataModule = (definition) => ({
@@ -136,6 +137,15 @@ const MAP_OVERLAY_SOURCES = [
     buildCommand: "bun run build:pmtiles",
     status: "experimental",
   },
+  {
+    id: "site-twin-manifest",
+    label: "Site Twin Manifest",
+    type: "json",
+    format: "json",
+    publicPath: "/data/site_twin/manifest.json",
+    buildCommand: "python3 scripts/geospatial/build_site_twin.py --terrain-only",
+    status: "experimental",
+  },
 ].map(createOverlaySourceSpec);
 
 const MAP_OPTIMIZATION_ARTIFACTS = [
@@ -185,18 +195,55 @@ const MAP_OPTIMIZATION_ARTIFACTS = [
     status: "experimental",
     notes: "Static delivery artifact for the custom engine and PMTiles experiments.",
   },
+  {
+    id: "site-twin-manifest",
+    label: "Site twin manifest",
+    role: "delivery-overlay",
+    format: "json",
+    sourceModuleId: "burials",
+    publicPath: "/data/site_twin/manifest.json",
+    filePath: "public/data/site_twin/manifest.json",
+    buildCommand: "python3 scripts/geospatial/build_site_twin.py --terrain-only",
+    status: "experimental",
+    notes: "Static manifest for the cemetery terrain image and grave candidate overlays.",
+  },
+  {
+    id: "site-twin-grave-candidates",
+    label: "Site twin grave candidates",
+    role: "delivery-overlay",
+    format: "geojson",
+    sourceModuleId: "burials",
+    publicPath: "/data/site_twin/grave_candidates.geojson",
+    filePath: "public/data/site_twin/grave_candidates.geojson",
+    buildCommand: "python3 scripts/geospatial/build_site_twin.py --terrain-only",
+    status: "experimental",
+    notes: "Static monument candidate points sampled from terrain derivatives and burial geometry.",
+  },
 ].map(createOptimizationArtifactSpec);
 
 export const FAB_APP_PROFILE = {
   id: "fab",
   productName: "FAB",
   brand: {
-    appName: "Albany Rural Cemetery",
-    adminName: "Albany Rural Cemetery Admin",
-    mapLoadingTitle: "Albany Rural Cemetery",
+    appName: FAB_SITE_CONFIG.siteName,
+    adminName: FAB_SITE_CONFIG.adminSiteName,
+    mapLoadingTitle: FAB_SITE_CONFIG.siteName,
     mapLoadingMessage: "Loading map experience…",
-    adminLoadingTitle: "Albany Rural Cemetery Admin",
-    adminLoadingMessage: "Loading static admin studio…",
+    adminLoadingTitle: FAB_SITE_CONFIG.adminSiteName,
+    adminLoadingMessage: "Loading development admin studio…",
+  },
+  shell: {
+    homeUrl: FAB_SITE_CONFIG.homeUrl,
+    headerEyebrow: FAB_SITE_CONFIG.siteName,
+    headerTitle: FAB_SITE_CONFIG.shell.headerTitle,
+    documentTitle: FAB_SITE_CONFIG.shell.documentTitle,
+    description: FAB_SITE_CONFIG.shell.description,
+    manifestName: FAB_SITE_CONFIG.shell.manifestName,
+    manifestShortName: FAB_SITE_CONFIG.shell.manifestShortName,
+    noScriptMessage: FAB_SITE_CONFIG.shell.noScriptMessage,
+  },
+  distribution: {
+    iosAppStoreUrl: FAB_SITE_CONFIG.distribution.iosAppStoreUrl,
   },
   labels: {
     primaryRecordSingular: "burial",
@@ -252,6 +299,7 @@ export const FAB_APP_PROFILE = {
   artifacts: {
     searchIndexPublicPath: "/data/Search_Burials.json",
     searchIndexFilePath: "public/data/Search_Burials.json",
+    siteTwinManifestPublicPath: "/data/site_twin/manifest.json",
     boutiqueMatchesFilePath: "src/data/TourMatches.json",
     generatedConstantsFilePath: "src/features/map/generatedBounds.js",
   },
@@ -276,12 +324,17 @@ export const FAB_APP_PROFILE = {
       locating: "Locating...",
       unsupported: "Geolocation is not supported by your browser",
       unavailable: "Unable to retrieve your location",
-      outOfBounds: "You must be within 5 miles of Albany Rural Cemetery",
+      outOfBounds: `You must be within 5 miles of ${FAB_SITE_CONFIG.siteName}`,
     },
     pmtilesExperimentStorageKey: "fab:enablePmtilesExperiment",
     defaultBasemapId: "imagery",
     basemaps: MAP_BASEMAPS,
     overlaySources: MAP_OVERLAY_SOURCES,
+    siteTwin: {
+      manifestPublicPath: "/data/site_twin/manifest.json",
+      graveCandidatesPublicPath: "/data/site_twin/grave_candidates.geojson",
+      defaultVisible: false,
+    },
     storageStrategy: {
       sourceOfTruthFormat: "geojson",
       preferredBuildSourceFormat: "geoparquet",

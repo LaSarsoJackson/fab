@@ -31,7 +31,6 @@ export function useBurialSidebarMobileSheetState({
     hasContext: initialMobileContext,
   });
   const [mobileSheetState, setMobileSheetState] = useState(() => initialMobileSheetState);
-  const [isResultsExpanded, setIsResultsExpanded] = useState(true);
   const [isSelectedSummaryExpanded, setIsSelectedSummaryExpanded] = useState(
     () => selectedBurialsLength > 0
   );
@@ -146,7 +145,6 @@ export function useBurialSidebarMobileSheetState({
     // working area when the user needs it.
     if (selectedBurialsLength === 0 && previousSelectedCount > 0) {
       setIsSelectedSummaryExpanded(false);
-      setIsResultsExpanded(true);
       if (!hasActiveBrowseContext) {
         collapseMobileSheet();
       }
@@ -176,10 +174,6 @@ export function useBurialSidebarMobileSheetState({
     selectedBurialsLength,
   ]);
 
-  const toggleResultsExpanded = useCallback(() => {
-    setIsResultsExpanded((current) => !current);
-  }, []);
-
   const toggleSelectedSummary = useCallback(() => {
     setIsSelectedSummaryExpanded((current) => !current);
   }, []);
@@ -188,16 +182,13 @@ export function useBurialSidebarMobileSheetState({
     collapseMobileSheet,
     expandMobileSheet,
     handleSheetSpringEnd,
-    isResultsExpanded,
     isSelectedSummaryExpanded,
     maximizeMobileSheet,
     mobileDefaultSnap,
     mobileSnapPoints,
     resolvedMobileSheetState,
-    setIsResultsExpanded,
     setIsSelectedSummaryExpanded,
     sheetRef,
-    toggleResultsExpanded,
     toggleSelectedSummary,
   };
 }

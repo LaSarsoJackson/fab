@@ -5,6 +5,7 @@ import {
   normalizeBounds,
   panLatLngIntoView,
 } from "../src/features/map/engine";
+import { getBoundsZoom } from "../src/features/map/engine/camera";
 
 describe("map engine camera helpers", () => {
   test("normalizes south-west and north-east bounds ordering", () => {
@@ -65,5 +66,22 @@ describe("map engine camera helpers", () => {
     expect(camera.zoom).toBe(14);
     expect(camera.center.lat).not.toBe(42.70418);
     expect(camera.center.lng).not.toBe(-73.73198);
+  });
+
+  test("treats zero-area bounds as a max-zoom fit target", () => {
+    const zoom = getBoundsZoom(
+      [
+        [42.70418, -73.73198],
+        [42.70418, -73.73198],
+      ],
+      {
+        width: 640,
+        height: 480,
+        minZoom: 13,
+        maxZoom: 21,
+      }
+    );
+
+    expect(zoom).toBe(21);
   });
 });

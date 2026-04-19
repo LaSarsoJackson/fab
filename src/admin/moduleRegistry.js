@@ -1,6 +1,6 @@
-import { APP_DATA_MODULES } from "../config/appProfile";
+import { APP_PROFILE } from "../config/appProfile";
 
-export const DATA_MODULES = APP_DATA_MODULES;
+export const DATA_MODULES = APP_PROFILE.dataModules || [];
 
 export const getDataModule = (moduleId) => (
   DATA_MODULES.find((definition) => definition.id === moduleId) || null

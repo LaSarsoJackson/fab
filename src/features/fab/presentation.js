@@ -1,17 +1,18 @@
-const ARCE_IMAGE_BASE_URL = "https://www.albany.edu/arce/images";
+import { FAB_SITE_CONFIG, buildFabImageUrl, buildFabSiteUrl } from "./siteConfig";
+
 const DEV_IMAGE_SERVER_ORIGIN = (process.env.REACT_APP_DEV_IMAGE_SERVER_ORIGIN || "")
   .trim()
   .replace(/\/+$/, "");
 
-export const FAB_NO_IMAGE_URL = `${ARCE_IMAGE_BASE_URL}/no-image.jpg`;
-export const FAB_BIOGRAPHY_IMAGE_HINT = "Tap the image to open the ARCE biography.";
+export const FAB_NO_IMAGE_URL = buildFabImageUrl(FAB_SITE_CONFIG.media.noImageFileName);
+export const FAB_BIOGRAPHY_IMAGE_HINT = FAB_SITE_CONFIG.media.biographyImageHint;
 
 const cleanValue = (value) => {
   if (value === null || value === undefined) return "";
   return String(value).trim();
 };
 
-const normalizeArcePageLink = (value = "") => {
+const normalizeFabPageLink = (value = "") => {
   const normalized = cleanValue(value);
   if (!normalized || /^(none|unknown)$/i.test(normalized)) {
     return "";
@@ -31,14 +32,14 @@ const normalizeArcePageLink = (value = "") => {
   }
 
   if (/\.html?$/i.test(trimmed)) {
-    return `https://www.albany.edu/arce/${trimmed}`;
+    return buildFabSiteUrl(trimmed);
   }
 
-  return `https://www.albany.edu/arce/${trimmed}.html`;
+  return buildFabSiteUrl(`${trimmed}.html`);
 };
 
 export const resolveFabBiographyLink = (record = {}) => (
-  normalizeArcePageLink(record.biographyLink) || normalizeArcePageLink(record.Tour_Bio)
+  normalizeFabPageLink(record.biographyLink) || normalizeFabPageLink(record.Tour_Bio)
 );
 
 export const resolveFabRecordImageUrl = (imageName) => {
@@ -53,7 +54,7 @@ export const resolveFabRecordImageUrl = (imageName) => {
     return `${DEV_IMAGE_SERVER_ORIGIN}/src/data/images/${imageFileName}`;
   }
 
-  return `${ARCE_IMAGE_BASE_URL}/${imageFileName}`;
+  return buildFabImageUrl(imageFileName);
 };
 
 export const buildFabPopupRows = (record = {}, helpers = {}) => {

@@ -42,7 +42,7 @@ describe("fieldPackets", () => {
       ],
     })).toEqual({
       version: 1,
-      name: "Section 99 field packet",
+      name: "Section 99",
       note: "Verify section markers",
       activeBurialId: "tour:Notable:1:99:18",
       selectedBurialIds: [
@@ -94,13 +94,29 @@ describe("fieldPackets", () => {
     });
     const shareUrl = buildFieldPacketShareUrl({
       packet,
-      currentUrl: "https://example.com/app?view=tours&tour=notables",
+      currentUrl: "https://example.com/app?view=tours&tour=notables&packet=legacy",
     });
     const parsedShareUrl = new URL(shareUrl);
-    const parsedPacket = parseFieldPacketValue(parsedShareUrl.searchParams.get("packet"));
+    const parsedPacket = parseFieldPacketValue(parsedShareUrl.searchParams.get("share"));
 
     expect(parsedShareUrl.searchParams.get("view")).toBeNull();
     expect(parsedShareUrl.searchParams.get("tour")).toBeNull();
+    expect(parsedShareUrl.searchParams.get("packet")).toBeNull();
     expect(parsedPacket).toEqual(packet);
+  });
+
+  test("preserves a cleared active burial when selected records remain pinned", () => {
+    expect(buildFieldPacketState({
+      selectedRecords,
+      activeBurialId: "",
+      sectionFilter: "99",
+    })).toMatchObject({
+      activeBurialId: "",
+      selectedBurialIds: [
+        "burial:1:99:18",
+        "tour:Notable:1:99:18",
+      ],
+      sectionFilter: "99",
+    });
   });
 });

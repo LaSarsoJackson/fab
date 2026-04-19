@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { encodeFieldPacket, parseDeepLinkState } from "../src/features/deeplinks";
+import {
+  buildFieldPacketShareUrl,
+  encodeFieldPacket,
+  parseDeepLinkState,
+} from "../src/features/deeplinks";
 
 describe('parseDeepLinkState', () => {
   test('parses view, query, and section', () => {
@@ -32,9 +36,9 @@ describe('parseDeepLinkState', () => {
     expect(state.fieldPacket).toBeNull();
   });
 
-  test('parses a field packet from the URL', () => {
+  test('parses a shared link from the URL', () => {
     const encodedPacket = encodeFieldPacket({
-      name: 'Section 99 field packet',
+      name: 'Section 99',
       note: 'Verify the headstones near the lane.',
       activeBurialId: 'burial:1:99:18',
       selectedRecords: [
@@ -50,11 +54,11 @@ describe('parseDeepLinkState', () => {
       sectionFilter: '99',
     });
 
-    const state = parseDeepLinkState(`?packet=${encodedPacket}`);
+    const state = parseDeepLinkState(`?share=${encodedPacket}`);
 
     expect(state.fieldPacket).toEqual({
       version: 1,
-      name: 'Section 99 field packet',
+      name: 'Section 99',
       note: 'Verify the headstones near the lane.',
       activeBurialId: 'burial:1:99:18',
       selectedBurialIds: ['burial:1:99:18'],
@@ -74,5 +78,66 @@ describe('parseDeepLinkState', () => {
       selectedTour: '',
       mapBounds: null,
     });
+  });
+
+  test('keeps a shared link selection unfocused when no active burial id is encoded', () => {
+    const encodedPacket = encodeFieldPacket({
+      selectedRecords: [
+        {
+          id: 'burial:1:99:18',
+          source: 'burial',
+          displayName: 'Anna Tracy',
+          Section: '99',
+          Lot: '18',
+        },
+      ],
+      activeBurialId: '',
+    });
+
+    const state = parseDeepLinkState(`?share=${encodedPacket}`);
+
+    expect(state.fieldPacket?.activeBurialId).toBe('');
+    expect(state.fieldPacket?.selectedBurialIds).toEqual(['burial:1:99:18']);
+  });
+
+  test('continues to parse legacy packet links', () => {
+    const encodedPacket = encodeFieldPacket({
+      selectedRecords: [
+        {
+          id: 'burial:1:99:18',
+          source: 'burial',
+          displayName: 'Anna Tracy',
+          Section: '99',
+          Lot: '18',
+        },
+      ],
+    });
+
+    const state = parseDeepLinkState(`?packet=${encodedPacket}`);
+
+    expect(state.fieldPacket?.selectedBurialIds).toEqual(['burial:1:99:18']);
+  });
+
+  test('builds public share links with the share query param', () => {
+    const shareUrl = buildFieldPacketShareUrl({
+      packet: {
+        selectedRecords: [
+          {
+            id: 'burial:1:99:18',
+            source: 'burial',
+            displayName: 'Anna Tracy',
+            Section: '99',
+            Lot: '18',
+          },
+        ],
+      },
+      currentUrl: 'https://example.com/fab?view=burials&q=anna&packet=legacy',
+    });
+    const parsedShareUrl = new URL(shareUrl);
+
+    expect(parsedShareUrl.searchParams.get('share')).toBeTruthy();
+    expect(parsedShareUrl.searchParams.get('packet')).toBeNull();
+    expect(parsedShareUrl.searchParams.get('view')).toBeNull();
+    expect(parsedShareUrl.searchParams.get('q')).toBeNull();
   });
 });

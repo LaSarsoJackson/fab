@@ -1,8 +1,24 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { getGeoJsonBounds, isLatLngBoundsExpressionValid } from "../../../shared/geo";
 import { PopupCardContent } from "../popupCardContent";
+import { getPopupViewportPadding } from "../popupViewport";
+import { formatSectionOverviewMarkerLabel } from "../sectionOverviewMarkers";
+import { buildSiteTwinPointEntries, isSiteTwinReady } from "../siteTwin";
+import { getStackedBurialMarkerOffset } from "./burialMarkerOffsets";
 import { createCustomMapRuntime } from "./customRuntime";
+
+const EMPTY_SECTION_OVERVIEW_MARKERS = [];
+const POPUP_ANCHOR_GAP = 14;
+const POPUP_MIN_ANCHOR_INSET = 28;
+const POPUP_AUTOPAN_EPSILON = 0.5;
+const SECTION_BURIAL_DISABLE_CLUSTERING_ZOOM = 21;
+const SITE_TWIN_DISABLE_CLUSTERING_ZOOM = 18;
+const BURIAL_HOVER_LAYER_IDS = new Set([
+  "selected-burials",
+  "section-burials",
+  "tour-results",
+]);
 
 const buildPointFeatureCollection = (points) => ({
   type: "FeatureCollection",
@@ -16,6 +32,56 @@ const buildPointFeatureCollection = (points) => ({
       },
     })),
 });
+
+const buildPopupAutoPanPadding = ({
+  containerRect,
+  overlayRect,
+  popupRect,
+  popupLayout,
+}) => {
+  const { topLeft, bottomRight } = getPopupViewportPadding({
+    containerRect,
+    overlayRect,
+  });
+  const anchorX = Number.isFinite(popupLayout?.anchorX)
+    ? popupLayout.anchorX
+    : popupRect.width / 2;
+  const popupHeight = Math.ceil(popupRect.height + POPUP_ANCHOR_GAP);
+
+  return {
+    paddingTopLeft: [
+      Math.ceil(topLeft[0] + anchorX),
+      Math.ceil(topLeft[1] + (popupLayout?.placement === "top" ? popupHeight : 0)),
+    ],
+    paddingBottomRight: [
+      Math.ceil(bottomRight[0] + Math.max(0, popupRect.width - anchorX)),
+      Math.ceil(bottomRight[1] + (popupLayout?.placement === "bottom" ? popupHeight : 0)),
+    ],
+  };
+};
+
+const isPointInsideAutoPanViewport = ({
+  containerRect,
+  popupPosition,
+  paddingTopLeft,
+  paddingBottomRight,
+}) => {
+  if (!containerRect || !popupPosition) {
+    return true;
+  }
+
+  const minX = paddingTopLeft[0];
+  const minY = paddingTopLeft[1];
+  const maxX = containerRect.width - paddingBottomRight[0];
+  const maxY = containerRect.height - paddingBottomRight[1];
+
+  return (
+    popupPosition.x >= minX - POPUP_AUTOPAN_EPSILON &&
+    popupPosition.x <= maxX + POPUP_AUTOPAN_EPSILON &&
+    popupPosition.y >= minY - POPUP_AUTOPAN_EPSILON &&
+    popupPosition.y <= maxY + POPUP_AUTOPAN_EPSILON
+  );
+};
 
 const createRuntimeLayerHandle = (record, source, runtimeRef) => ({
   openPopup: () => {
@@ -51,34 +117,51 @@ export function CustomMapSurface({
   lng,
   mapRef,
   markerColors,
+  getOverlayElement,
   maxBounds,
   maxZoom = 25,
   minZoom = 13,
   onActivateSectionBrowse,
   onHoverBurialChange,
   onOpenDirectionsMenu,
+  onPopupClose,
+  onPopupOpen,
   onRemoveSelectedBurial,
   onSelectBurial,
   onZoomChange,
   roadsData,
+  routeGeoJson,
   schedulePopupLayout,
   sectionBurials,
   sectionFilter,
+  sectionOverviewMarkers = EMPTY_SECTION_OVERVIEW_MARKERS,
   sectionsData,
   selectedBurials,
   selectedMarkerLayersRef,
   selectedTourResults,
+  showSiteTwin = false,
+  showSiteTwinMonuments = true,
+  showSiteTwinSurface = true,
   showBoundary = true,
   shouldUseMapPopups,
   showAllBurials,
   showRoads = true,
   showSections = true,
+  showSectionOverviewMarkers = false,
+  siteTwinCandidates,
+  siteTwinMonumentHeightScale = 1,
+  siteTwinManifest,
+  siteTwinSurfaceOpacity,
   tourFeatureLayersRef,
   tourStyles,
 }) {
   const containerRef = useRef(null);
+  const popupShellRef = useRef(null);
+  const previousPopupRecordRef = useRef(null);
   const runtimeRef = useRef(null);
   const [popupState, setPopupState] = useState(null);
+  const [popupLayout, setPopupLayout] = useState(null);
+  const [hoveredSectionId, setHoveredSectionId] = useState(null);
   const [, setPopupVersion] = useState(0);
 
   const selectedMarkerColorById = useMemo(
@@ -165,6 +248,20 @@ export function CustomMapSurface({
 
   const layerSpecs = useMemo(() => {
     const nextLayers = [];
+    const siteTwinPoints = buildSiteTwinPointEntries(siteTwinCandidates);
+
+    if (showSiteTwin && showSiteTwinSurface && isSiteTwinReady(siteTwinManifest)) {
+      nextLayers.push({
+        id: "site-twin-surface",
+        kind: "image",
+        url: siteTwinManifest.terrainImage.url,
+        bounds: siteTwinManifest.terrainImage.bounds,
+        opacity: Number.isFinite(siteTwinSurfaceOpacity)
+          ? siteTwinSurfaceOpacity
+          : siteTwinManifest.terrainImage.opacity,
+        smoothing: true,
+      });
+    }
 
     if (showRoads) {
       nextLayers.push({
@@ -202,12 +299,14 @@ export function CustomMapSurface({
         interactive: true,
         featureId: (feature) => String(feature?.properties?.Section || ""),
         style: (feature) => {
-          const isActive = `${feature?.properties?.Section || ""}` === `${sectionFilter}`;
+          const featureSectionId = String(feature?.properties?.Section || "");
+          const isActive = featureSectionId === `${sectionFilter}`;
+          const isHovered = featureSectionId && featureSectionId === hoveredSectionId;
           return {
-            fillColor: isActive ? "#4a90e2" : "#f8f9fa",
-            fillOpacity: isActive ? 0.4 : 0.05,
-            color: isActive ? "#2c5282" : "#999",
-            weight: isActive ? 2 : 1,
+            fillColor: isActive ? "#4a90e2" : isHovered ? "#e4edf7" : "#f8f9fa",
+            fillOpacity: isActive ? 0.4 : isHovered ? 0.16 : 0.05,
+            color: isActive ? "#2c5282" : isHovered ? "#58738d" : "#999",
+            weight: isActive ? 2.5 : isHovered ? 2.25 : 1,
           };
         },
         onFeatureClick: ({ target }) => {
@@ -222,12 +321,103 @@ export function CustomMapSurface({
       });
     }
 
+    if (showSections && showSectionOverviewMarkers) {
+      nextLayers.push({
+        id: "section-overview",
+        kind: "points",
+        interactive: true,
+        points: sectionOverviewMarkers
+          .filter((entry) => Number.isFinite(entry?.lat) && Number.isFinite(entry?.lng))
+          .map((entry) => ({
+            id: entry.id,
+            coordinates: [entry.lng, entry.lat],
+            record: entry,
+          })),
+        pointStyle: (entry, runtime) => {
+          const markerSectionId = String(entry?.record?.sectionValue || "");
+          const isActive = markerSectionId === `${sectionFilter}`;
+          const isHovered = markerSectionId && markerSectionId === hoveredSectionId;
+          const baseRadius = entry?.record?.count >= 2000 ? 9 : entry?.record?.count >= 800 ? 8 : 7;
+          const shouldShowLabel = isActive || isHovered || (runtime?.getZoom?.() || 0) >= 16;
+
+          return {
+            radius: baseRadius + (isActive ? 2 : isHovered ? 1 : 0),
+            fillColor: isActive ? "#2c5282" : isHovered ? "#f4f8fb" : "#ffffff",
+            fillOpacity: isActive ? 0.98 : isHovered ? 0.96 : 0.94,
+            color: isActive ? "#173a5d" : isHovered ? "rgba(29, 63, 54, 0.72)" : "rgba(29, 63, 54, 0.45)",
+            weight: isActive ? 2.5 : isHovered ? 2.25 : 2,
+            hitRadius: baseRadius + 9,
+            labelText: shouldShowLabel ? formatSectionOverviewMarkerLabel(entry?.record) : "",
+            labelColor: isActive ? "#173a5d" : "#324454",
+            labelSize: isActive || isHovered ? 12.5 : 11.5,
+          };
+        },
+        onPointClick: ({ target }) => {
+          const markerRecord = target?.pointEntry?.record;
+          if (!markerRecord?.sectionValue) {
+            return;
+          }
+
+          onActivateSectionBrowse?.(markerRecord.sectionValue, markerRecord.bounds);
+        },
+      });
+    }
+
+    if (routeGeoJson?.features?.length) {
+      nextLayers.push({
+        id: "active-route",
+        kind: "geojson",
+        geojson: routeGeoJson,
+        style: {
+          color: "#0f67c6",
+          weight: 5,
+          opacity: 0.86,
+        },
+      });
+    }
+
+    if (showSiteTwin && showSiteTwinMonuments && siteTwinPoints.length > 0) {
+      nextLayers.push({
+        id: "site-twin-monuments",
+        kind: "points",
+        clustered: true,
+        clusterRadius: 28,
+        disableClusteringAtZoom: SITE_TWIN_DISABLE_CLUSTERING_ZOOM,
+        points: siteTwinPoints,
+        pointStyle: (entry) => {
+          const knownHeadstone = Boolean(entry?.record?.knownHeadstone);
+          const heightMeters = Number.isFinite(entry?.record?.heightMeters)
+            ? entry.record.heightMeters
+            : 0.7;
+          const confidence = Number.isFinite(entry?.record?.confidence)
+            ? entry.record.confidence
+            : 0.45;
+
+          return {
+            variant: "monument",
+            heightMeters,
+            heightScale: siteTwinMonumentHeightScale,
+            baseWidthMeters: knownHeadstone ? 1.15 : 0.95,
+            baseDepthMeters: knownHeadstone ? 0.58 : 0.48,
+            fillColor: knownHeadstone ? "#d6b288" : "#c9a87a",
+            frontColor: knownHeadstone ? "#c59b69" : "#bc9667",
+            sideColor: knownHeadstone ? "#aa7e50" : "#9c7247",
+            topColor: knownHeadstone ? "#f3e3cb" : "#ead6b8",
+            color: "rgba(92, 59, 24, 0.9)",
+            shadowOpacity: 0.14 + (confidence * 0.16),
+            hitRadius: 8,
+          };
+        },
+      });
+    }
+
     if (showAllBurials && sectionFilter) {
       nextLayers.push({
         id: "section-burials",
         kind: "points",
         interactive: true,
         clustered: true,
+        disableClusteringAtZoom: SECTION_BURIAL_DISABLE_CLUSTERING_ZOOM,
         clusterRadius: 40,
         points: sectionBurials
           .filter((record) => Array.isArray(record?.coordinates))
@@ -236,13 +426,28 @@ export function CustomMapSurface({
             coordinates: record.coordinates,
             record,
           })),
-        pointStyle: (entry) => ({
-          radius: entry?.record?.id === activeBurialId ? 7 : 5,
-          fillColor: entry?.record?.id === activeBurialId ? "#2c5282" : "#4a90e2",
-          fillOpacity: 0.82,
-          color: "#ffffff",
-          weight: 2,
-        }),
+        pointStyle: (entry, runtime) => {
+          const zoom = runtime?.getZoom?.() || 0;
+          const isActive = entry?.record?.id === activeBurialId;
+          const isHovered = entry?.record?.id === hoveredBurialId;
+          const offset = zoom >= SECTION_BURIAL_DISABLE_CLUSTERING_ZOOM
+            ? getStackedBurialMarkerOffset(zoom, entry?.record)
+            : { dx: 0, dy: 0 };
+
+          return {
+            radius: isActive ? 7.5 : isHovered ? 6.25 : 5,
+            fillColor: isActive ? "#2c5282" : isHovered ? "#2f6fb2" : "#4a90e2",
+            fillOpacity: isActive ? 0.96 : isHovered ? 0.92 : 0.82,
+            color: "#ffffff",
+            weight: isActive || isHovered ? 2.5 : 2,
+            offsetX: offset.dx,
+            offsetY: offset.dy,
+            guideColor: (offset.dx || offset.dy)
+              ? (isActive || isHovered ? "rgba(44, 82, 130, 0.36)" : "rgba(44, 82, 130, 0.24)")
+              : null,
+            hitRadius: isActive ? 18 : isHovered ? 16 : 14,
+          };
+        },
         onPointClick: ({ target }) => {
           const record = target?.pointEntry?.record;
           if (record) {
@@ -264,7 +469,9 @@ export function CustomMapSurface({
           ));
 
           if (isLatLngBoundsExpressionValid(clusterBounds)) {
-            runtime.fitBounds(clusterBounds, { maxZoom: 21 });
+            runtime.fitBounds(clusterBounds, {
+              maxZoom: SECTION_BURIAL_DISABLE_CLUSTERING_ZOOM,
+            });
           }
         },
       });
@@ -283,16 +490,19 @@ export function CustomMapSurface({
             record,
           })),
         pointStyle: (entry) => {
+          const isActive = entry?.record?.id === activeBurialId;
+          const isHovered = entry?.record?.id === hoveredBurialId;
           const color = tourStyles?.[entry?.record?.tourKey]?.color ||
             tourStyles?.[entry?.record?.title]?.color ||
             "#c96e1f";
 
           return {
-            radius: entry?.record?.id === activeBurialId ? 7 : 6,
+            radius: isActive ? 7.5 : isHovered ? 6.75 : 6,
             fillColor: color,
-            fillOpacity: 0.88,
+            fillOpacity: isActive ? 0.96 : isHovered ? 0.92 : 0.88,
             color: "#ffffff",
-            weight: 2,
+            weight: isActive || isHovered ? 2.75 : 2,
+            hitRadius: isActive ? 18 : isHovered ? 16 : 14,
           };
         },
         onPointClick: ({ target }) => {
@@ -333,7 +543,7 @@ export function CustomMapSurface({
             color: "#ffffff",
             radius: isHighlighted ? 16 : 12,
             outlineWidth: isHighlighted ? 3 : 2,
-            hitRadius: isHighlighted ? 18 : 14,
+            hitRadius: isHighlighted ? 20 : 16,
           };
         },
         onPointClick: ({ target }) => {
@@ -378,8 +588,10 @@ export function CustomMapSurface({
     onActivateSectionBrowse,
     onSelectBurial,
     roadsData,
+    routeGeoJson,
     sectionBurials,
     sectionFilter,
+    sectionOverviewMarkers,
     sectionsData,
     selectedBurials,
     selectedMarkerColorById,
@@ -388,6 +600,15 @@ export function CustomMapSurface({
     showAllBurials,
     showRoads,
     showSections,
+    showSectionOverviewMarkers,
+    showSiteTwin,
+    showSiteTwinMonuments,
+    showSiteTwinSurface,
+    hoveredSectionId,
+    siteTwinCandidates,
+    siteTwinMonumentHeightScale,
+    siteTwinManifest,
+    siteTwinSurfaceOpacity,
     tourStyles,
   ]);
 
@@ -402,6 +623,10 @@ export function CustomMapSurface({
       ids: selectedBurials.map((record) => record.id),
     });
   }, [activeBurialId, hoveredBurialId, selectedBurials]);
+
+  useEffect(() => {
+    setHoveredSectionId(null);
+  }, [sectionFilter, showSectionOverviewMarkers]);
 
   useEffect(() => {
     if (!selectedMarkerLayersRef) {
@@ -464,10 +689,141 @@ export function CustomMapSurface({
   const popupRecord = popupState?.meta?.record || null;
 
   useEffect(() => {
+    const previousPopupRecord = previousPopupRecordRef.current;
+
+    if (previousPopupRecord?.id && previousPopupRecord.id !== popupRecord?.id) {
+      onPopupClose?.(previousPopupRecord);
+    }
+
+    if (popupRecord?.id && popupRecord.id !== previousPopupRecord?.id) {
+      onPopupOpen?.(popupRecord);
+    }
+
+    previousPopupRecordRef.current = popupRecord || null;
+  }, [onPopupClose, onPopupOpen, popupRecord]);
+
+  const updatePopupLayout = useCallback(() => {
+    const container = containerRef.current;
+    const popupShell = popupShellRef.current;
+    if (!container || !popupShell || !popupPosition || !popupRecord) {
+      setPopupLayout(null);
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const overlayRect = getOverlayElement?.()?.getBoundingClientRect?.() || null;
+    const { topLeft, bottomRight } = getPopupViewportPadding({
+      containerRect,
+      overlayRect,
+    });
+    const popupRect = popupShell.getBoundingClientRect();
+    const minLeft = topLeft[0];
+    const minTop = topLeft[1];
+    const maxLeft = Math.max(minLeft, containerRect.width - bottomRight[0] - popupRect.width);
+    const maxTop = Math.max(minTop, containerRect.height - bottomRight[1] - popupRect.height);
+    const preferredLeft = popupPosition.x - (popupRect.width / 2);
+    const preferredTop = popupPosition.y - popupRect.height - POPUP_ANCHOR_GAP;
+    const preferredBottom = popupPosition.y + POPUP_ANCHOR_GAP;
+    const fitsAbove = preferredTop >= minTop;
+    const fitsBelow = preferredBottom <= maxTop;
+
+    let placement = "top";
+    let nextTop = preferredTop;
+
+    if (!fitsAbove && fitsBelow) {
+      placement = "bottom";
+      nextTop = preferredBottom;
+    } else if (!fitsAbove) {
+      const spaceAbove = popupPosition.y - minTop;
+      const spaceBelow = maxTop - popupPosition.y;
+      placement = spaceBelow > spaceAbove ? "bottom" : "top";
+      nextTop = placement === "bottom" ? preferredBottom : preferredTop;
+    }
+
+    const nextLayout = {
+      placement,
+      left: Math.max(minLeft, Math.min(maxLeft, preferredLeft)),
+      top: Math.max(minTop, Math.min(maxTop, nextTop)),
+      anchorX: Math.max(
+        POPUP_MIN_ANCHOR_INSET,
+        Math.min(
+          popupRect.width - POPUP_MIN_ANCHOR_INSET,
+          popupPosition.x - Math.max(minLeft, Math.min(maxLeft, preferredLeft))
+        )
+      ),
+    };
+
+    setPopupLayout((current) => (
+      current &&
+      current.placement === nextLayout.placement &&
+      current.left === nextLayout.left &&
+      current.top === nextLayout.top &&
+      current.anchorX === nextLayout.anchorX
+        ? current
+        : nextLayout
+    ));
+  }, [getOverlayElement, popupPosition, popupRecord]);
+
+  useEffect(() => {
     if (!shouldUseMapPopups && popupState) {
       runtimeRef.current?.closePopup?.();
     }
   }, [popupState, shouldUseMapPopups]);
+
+  useLayoutEffect(() => {
+    if (!shouldUseMapPopups || !popupRecord || !popupPosition) {
+      setPopupLayout(null);
+      return;
+    }
+
+    updatePopupLayout();
+  }, [popupPosition, popupRecord, shouldUseMapPopups, updatePopupLayout]);
+
+  useLayoutEffect(() => {
+    const runtime = runtimeRef.current;
+    const container = containerRef.current;
+    const popupShell = popupShellRef.current;
+
+    if (!runtime || !popupState?.coordinates || !popupLayout || !popupPosition || !container || !popupShell) {
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const overlayRect = getOverlayElement?.()?.getBoundingClientRect?.() || null;
+    const popupRect = popupShell.getBoundingClientRect();
+    const { paddingTopLeft, paddingBottomRight } = buildPopupAutoPanPadding({
+      containerRect,
+      overlayRect,
+      popupRect,
+      popupLayout,
+    });
+
+    if (isPointInsideAutoPanViewport({
+      containerRect,
+      popupPosition,
+      paddingTopLeft,
+      paddingBottomRight,
+    })) {
+      return;
+    }
+
+    runtime.panInside?.(
+      {
+        lat: popupState.coordinates[1],
+        lng: popupState.coordinates[0],
+      },
+      {
+        animate: false,
+        paddingTopLeft,
+        paddingBottomRight,
+      }
+    );
+  }, [
+    getOverlayElement,
+    popupLayout,
+    popupPosition,
+    popupState,
+  ]);
 
   useEffect(() => {
     if (!runtimeRef.current) {
@@ -475,11 +831,33 @@ export function CustomMapSurface({
     }
 
     const handleHover = ({ target }) => {
-      if (target?.layerId === "selected-burials") {
-        onHoverBurialChange?.(target.pointEntry?.id ?? null);
+      if (BURIAL_HOVER_LAYER_IDS.has(target?.layerId)) {
+        setHoveredSectionId(null);
+        if (target?.kind !== "point") {
+          onHoverBurialChange?.(null);
+          return;
+        }
+        onHoverBurialChange?.(
+          target?.pointEntry?.record?.id ??
+          target?.pointEntry?.id ??
+          null
+        );
         return;
       }
 
+      if (target?.layerId === "section-overview") {
+        onHoverBurialChange?.(null);
+        setHoveredSectionId(String(target.pointEntry?.record?.sectionValue || "") || null);
+        return;
+      }
+
+      if (target?.layerId === "sections") {
+        onHoverBurialChange?.(null);
+        setHoveredSectionId(String(target.featureId || target.feature?.properties?.Section || "") || null);
+        return;
+      }
+
+      setHoveredSectionId(null);
       onHoverBurialChange?.(null);
     };
 
@@ -489,14 +867,36 @@ export function CustomMapSurface({
     };
   }, [onHoverBurialChange]);
 
+  useEffect(() => {
+    if (!runtimeRef.current) {
+      return undefined;
+    }
+
+    const clearHoveredSection = () => {
+      setHoveredSectionId(null);
+    };
+
+    runtimeRef.current.on("movestart", clearHoveredSection);
+    runtimeRef.current.on("zoomstart", clearHoveredSection);
+
+    return () => {
+      runtimeRef.current?.off?.("movestart", clearHoveredSection);
+      runtimeRef.current?.off?.("zoomstart", clearHoveredSection);
+    };
+  }, []);
+
   return (
     <div className="map custom-map-surface" ref={containerRef}>
       {shouldUseMapPopups && popupRecord && popupPosition && (
         <div
+          ref={popupShellRef}
           className="custom-map-runtime__popup-shell custom-popup"
+          data-placement={popupLayout?.placement || "top"}
           style={{
-            left: `${popupPosition.x}px`,
-            top: `${popupPosition.y}px`,
+            left: `${popupLayout?.left ?? popupPosition.x}px`,
+            top: `${popupLayout?.top ?? popupPosition.y}px`,
+            visibility: popupLayout ? "visible" : "hidden",
+            "--popup-anchor-x": `${popupLayout?.anchorX ?? 0}px`,
           }}
         >
           <div className="custom-map-runtime__popup-anchor" />

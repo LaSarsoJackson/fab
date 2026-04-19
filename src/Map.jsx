@@ -16,24 +16,23 @@ import React, { memo, useState, useEffect, useMemo, useRef, useCallback } from "
 import ReactDOM from "react-dom";
 
 // Leaflet and Map-related Dependencies
-import { MapContainer, Popup, Marker, GeoJSON, useMap } from "react-leaflet";
+import { MapContainer, Popup, Marker, GeoJSON, CircleMarker, Tooltip, ImageOverlay, useMap } from "react-leaflet";
 import L from 'leaflet';  // Core Leaflet library for map functionality
 import "./index.css";
 import 'leaflet.markercluster/dist/leaflet.markercluster';  // Clustering support for markers
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
 import { BasemapLayer } from 'react-esri-leaflet';  // ESRI basemap integration
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
-import distance from '@turf/distance';
 import { point } from '@turf/helpers';
-import nearestPointOnLine from '@turf/nearest-point-on-line';
 
 // Material-UI Components and Icons
 import {
   Paper,
   IconButton,
   Box,
+  Slider,
+  Switch,
   Typography,
   Menu,
   MenuItem,
@@ -50,6 +49,7 @@ import MyLocationIcon from "@mui/icons-material/MyLocation";
 import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import RemoveIcon from "@mui/icons-material/Remove";
+import TuneIcon from "@mui/icons-material/Tune";
 import DirectionsIcon from '@mui/icons-material/Directions';
 import LaunchIcon from '@mui/icons-material/Launch';
 
@@ -67,11 +67,29 @@ import {
   sortSectionValues,
 } from "./features/browse";
 import {
+  buildRoadRoutingGraph,
+  clearSelectionFocus,
   createMapRecordKey,
+  createMapSelectionState,
+  buildSectionBoundsById,
+  buildSectionOverviewMarkers,
+  beginLeafletSectionHover,
+  calculateWalkingRoute,
+  clearLeafletSectionHover,
   cleanRecordValue,
+  focusSelectionBurial,
+  formatSectionOverviewMarkerLabel,
+  getRoutingErrorMessage,
   inferPointerType,
+  isLeafletSectionLayerHovered,
   isTouchLikePointerType,
   PopupCardContent,
+  refreshSelectionBurials,
+  removeSelectionBurial,
+  replaceSelectionBurials,
+  resolveSectionOverlayVisibility,
+  setSelectionHover,
+  snapPointToRoadNetwork,
   shouldHandleSectionHover,
   shouldIgnoreSectionBackgroundSelection,
 } from "./features/map";
@@ -83,7 +101,12 @@ import {
   schedulePopupInView,
 } from "./features/map/leafletViewport";
 import { buildDirectionsLink } from "./features/navigation";
-import { buildFieldPacketShareUrl, buildFieldPacketState, parseDeepLinkState } from "./features/deeplinks";
+import {
+  buildFieldPacketShareUrl,
+  buildFieldPacketState,
+  buildSharedSelectionPresentation,
+  parseDeepLinkState,
+} from "./features/deeplinks";
 import {
   buildBurialLookup,
   harmonizeBurialBrowseResult,
@@ -98,6 +121,16 @@ import {
   scheduleIdleTask,
   setStoredCustomMapEngineOverride,
 } from "./shared/runtime";
+import {
+  DEFAULT_SITE_TWIN_DEBUG_STATE,
+  EMPTY_SITE_TWIN_MANIFEST,
+  filterSiteTwinFeatureCollection,
+  isSiteTwinReady,
+  normalizeSiteTwinDebugState,
+  normalizeSiteTwinFeatureCollection,
+  normalizeSiteTwinManifest,
+  summarizeSiteTwinFeatureCollection,
+} from "./features/map/siteTwin";
 
 //=============================================================================
 // Constants and Configuration
@@ -156,10 +189,21 @@ const roadStyle = {
   fillOpacity: 0.1
 };
 
+const ROUTE_LINE_STYLE = {
+  color: "#0f67c6",
+  weight: 5,
+  opacity: 0.86,
+};
+
 const DESKTOP_MAP_CONTROL_RIGHT = '12px';
 const DESKTOP_MAP_CONTROL_TOP = '12px';
 const MOBILE_MAP_CONTROL_RIGHT = 'calc(env(safe-area-inset-right, 0px) + 12px)';
 const MOBILE_MAP_CONTROL_TOP = 'calc(env(safe-area-inset-top, 0px) + 10px)';
+const MAP_CONTROL_BUTTON_SIZE = 44;
+const APP_SHELL = APP_PROFILE.shell || {};
+const APP_DOCUMENT_TITLE = APP_SHELL.documentTitle || APP_PROFILE.brand?.appName || "Burial Finder";
+const APP_DESCRIPTION = APP_SHELL.description || "";
+const IOS_APP_STORE_URL = APP_PROFILE.distribution?.iosAppStoreUrl || "";
 const DEFAULT_VIEW_BOUNDS = APP_PROFILE.map.defaultViewBounds;
 const PADDED_BOUNDARY_BOUNDS = APP_PROFILE.map.paddedBoundaryBounds;
 const MAP_BOUNDARY = APP_PROFILE.map.boundaryData;
@@ -172,8 +216,8 @@ const LOCATION_MESSAGES = APP_PROFILE.map.locationMessages;
 const SLOW_CONNECTION_TYPES = new Set(['slow-2g', '2g', '3g']);
 const NUMBERED_ICON_CACHE = new Map();
 const PMTILES_EXPERIMENT_STORAGE_KEY = APP_PROFILE.map.pmtilesExperimentStorageKey;
-const SECTION_MARKER_AUTO_SHOW_LIMIT = 250;
 const SECTION_MARKER_BATCH_SIZE = 300;
+const SECTION_OVERVIEW_MARKER_MIN_ZOOM = 15;
 const SEARCH_INDEX_PUBLIC_PATH = APP_PROFILE.artifacts.searchIndexPublicPath;
 const EMPTY_TOUR_DEFINITIONS = [];
 const EMPTY_TOUR_STYLES = {};
@@ -182,15 +226,24 @@ const BASEMAP_KEEP_BUFFER = 1;
 const MAP_BASEMAPS = APP_PROFILE.map.basemaps || [];
 const MAP_CONTROLLED_BASEMAPS = MAP_BASEMAPS.filter((basemap) => basemap.type !== "pmtiles-vector");
 const DEFAULT_BASEMAP_ID = APP_PROFILE.map.defaultBasemapId || MAP_BASEMAPS[0]?.id || "";
+const SITE_TWIN_CONFIG = APP_PROFILE.map.siteTwin || null;
+const SITE_TWIN_DEBUG_STORAGE_KEY = "fab:siteTwinDebugState";
 const MAP_OVERLAY_OPTIONS = [
   { id: "roads", label: "Roads", defaultVisible: false },
   { id: "boundary", label: "Boundary", defaultVisible: true },
   { id: "sections", label: "Sections", defaultVisible: true },
+  ...(SITE_TWIN_CONFIG ? [{
+    id: "siteTwin",
+    label: "Twin",
+    defaultVisible: Boolean(SITE_TWIN_CONFIG.defaultVisible),
+  }] : []),
 ];
 const DEFAULT_MAP_OVERLAY_VISIBILITY = MAP_OVERLAY_OPTIONS.reduce((visibility, option) => ({
   ...visibility,
   [option.id]: option.defaultVisible,
 }), {});
+
+const getDefaultSiteTwinDebugState = () => normalizeSiteTwinDebugState(DEFAULT_SITE_TWIN_DEBUG_STATE);
 
 const getPublicAssetUrl = (path) => {
   const base = process.env.PUBLIC_URL || '';
@@ -198,19 +251,32 @@ const getPublicAssetUrl = (path) => {
   return `${base}${normalizedPath}`;
 };
 
+const setDocumentMetaContent = (selector, content) => {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const element = document.querySelector(selector);
+  if (!element) {
+    return;
+  }
+
+  element.setAttribute("content", content);
+};
+
 const mapControlShellSx = {
-  borderRadius: '14px',
-  border: '1px solid rgba(18, 47, 40, 0.14)',
-  background: 'rgba(255, 255, 255, 0.9)',
-  boxShadow: '0 14px 30px rgba(16, 35, 31, 0.18)',
-  backdropFilter: 'blur(14px)',
-  WebkitBackdropFilter: 'blur(14px)',
+  borderRadius: '18px',
+  border: '1px solid rgba(18, 47, 40, 0.12)',
+  background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 251, 252, 0.9))',
+  boxShadow: '0 18px 36px rgba(16, 35, 31, 0.16)',
+  backdropFilter: 'blur(18px)',
+  WebkitBackdropFilter: 'blur(18px)',
   overflow: 'hidden',
 };
 
 const mapControlButtonSx = {
-  width: 40,
-  height: 40,
+  width: MAP_CONTROL_BUTTON_SIZE,
+  height: MAP_CONTROL_BUTTON_SIZE,
   borderRadius: 0,
   color: 'var(--text-main)',
 };
@@ -461,7 +527,7 @@ class ExperimentalBurialGlyphSymbolizer {
 /**
  * Stack top-right controls together so expanding panels push the rest down.
  */
-function MapControlStack({ isMobile, children }) {
+function MapControlStack({ isMobile, hasExpandedPanel = false, children }) {
   const items = React.Children.toArray(children).filter(Boolean);
 
   return (
@@ -474,13 +540,21 @@ function MapControlStack({ isMobile, children }) {
         display: "flex",
         flexDirection: "column",
         gap: "10px",
-        alignItems: "flex-end",
+        alignItems: hasExpandedPanel ? "stretch" : "flex-end",
         width: "max-content",
         pointerEvents: "none",
       }}
     >
       {items.map((child, index) => (
-        <Box key={index} sx={{ pointerEvents: "auto" }}>
+        <Box
+          key={index}
+          sx={{
+            pointerEvents: "auto",
+            width: hasExpandedPanel ? "100%" : "auto",
+            display: "flex",
+            justifyContent: hasExpandedPanel ? "flex-start" : "flex-end",
+          }}
+        >
           {child}
         </Box>
       ))}
@@ -528,20 +602,20 @@ function MapLayerControlOption({
 function MapLayerControl({
   basemapOptions,
   activeBasemapId,
+  isOpen,
   onBasemapChange,
+  onOpenChange,
   overlayOptions,
   overlayVisibility,
   onToggleOverlay,
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-
   return (
-    <ClickAwayListener onClickAway={() => setIsOpen(false)}>
+    <ClickAwayListener onClickAway={() => onOpenChange(false)}>
       <Paper
         elevation={0}
         sx={{
           ...mapControlShellSx,
-          width: isOpen ? "min(260px, calc(100vw - 24px))" : 40,
+          width: isOpen ? "min(260px, calc(100vw - 24px))" : MAP_CONTROL_BUTTON_SIZE,
           maxWidth: "calc(100vw - 24px)",
           overflow: "hidden",
         }}
@@ -549,12 +623,14 @@ function MapLayerControl({
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: isOpen ? "40px minmax(0, 1fr)" : "40px",
+            gridTemplateColumns: isOpen
+              ? `${MAP_CONTROL_BUTTON_SIZE}px minmax(0, 1fr)`
+              : `${MAP_CONTROL_BUTTON_SIZE}px`,
             alignItems: "center",
           }}
         >
           <IconButton
-            onClick={() => setIsOpen((current) => !current)}
+            onClick={() => onOpenChange(!isOpen)}
             size="small"
             title={isOpen ? "Close map layers" : "Open map layers"}
             aria-label={isOpen ? "Close map layers" : "Open map layers"}
@@ -951,6 +1027,349 @@ function PmtilesExperimentLegend() {
   );
 }
 
+function SiteTwinDebugToggleRow({ checked, disabled = false, label, onChange, detail }) {
+  return (
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) auto",
+        gap: "10px",
+        alignItems: "center",
+      }}
+    >
+      <Box sx={{ minWidth: 0 }}>
+        <Typography
+          sx={{
+            fontSize: "0.78rem",
+            fontWeight: 600,
+            lineHeight: 1.25,
+            color: "var(--text-main)",
+          }}
+        >
+          {label}
+        </Typography>
+        {detail ? (
+          <Typography
+            sx={{
+              marginTop: "2px",
+              fontSize: "0.68rem",
+              lineHeight: 1.35,
+              color: "rgba(24, 45, 40, 0.64)",
+            }}
+          >
+            {detail}
+          </Typography>
+        ) : null}
+      </Box>
+      <Switch checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} size="small" />
+    </Box>
+  );
+}
+
+function SiteTwinDebugSlider({ label, detail, value, min, max, step, onChange, formatValue }) {
+  return (
+    <Box sx={{ display: "grid", gap: "6px" }}>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) auto",
+          gap: "10px",
+          alignItems: "start",
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            sx={{
+              fontSize: "0.78rem",
+              fontWeight: 600,
+              lineHeight: 1.25,
+              color: "var(--text-main)",
+            }}
+          >
+            {label}
+          </Typography>
+          {detail ? (
+            <Typography
+              sx={{
+                marginTop: "2px",
+                fontSize: "0.68rem",
+                lineHeight: 1.35,
+                color: "rgba(24, 45, 40, 0.64)",
+              }}
+            >
+              {detail}
+            </Typography>
+          ) : null}
+        </Box>
+        <Typography
+          sx={{
+            fontSize: "0.72rem",
+            fontWeight: 700,
+            lineHeight: 1.4,
+            color: "rgba(24, 45, 40, 0.72)",
+          }}
+        >
+          {formatValue(value)}
+        </Typography>
+      </Box>
+      <Slider
+        size="small"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(_event, nextValue) => onChange(Array.isArray(nextValue) ? nextValue[0] : nextValue)}
+        sx={{
+          color: "var(--text-main)",
+          py: 0,
+          '& .MuiSlider-thumb': {
+            width: 12,
+            height: 12,
+          },
+        }}
+      />
+    </Box>
+  );
+}
+
+function SiteTwinDebugControl({
+  isOverlayEnabled,
+  mapEngine,
+  manifest,
+  loadedSummary = {},
+  filteredSummary = {},
+  debugState = DEFAULT_SITE_TWIN_DEBUG_STATE,
+  onToggleOverlay,
+  onUpdateDebugState,
+  onResetDebugState,
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const totalCount = loadedSummary?.count || manifest?.graveCandidates?.count || 0;
+  const knownHeadstoneCount = loadedSummary?.knownHeadstoneCount || manifest?.graveCandidates?.knownHeadstoneCount || 0;
+  const filteredCount = Number(filteredSummary?.count) || 0;
+  const filteredHeightP95Meters = Number(filteredSummary?.heightP95Meters) || 0;
+  const filteredMeanConfidence = Number(filteredSummary?.meanConfidence) || 0;
+  const renderMode = manifest?.mode || manifest?.status || "unbuilt";
+
+  return (
+    <ClickAwayListener onClickAway={() => setIsOpen(false)}>
+      <Paper
+        elevation={0}
+        sx={{
+          ...mapControlShellSx,
+          width: isOpen ? "min(300px, calc(100vw - 24px))" : MAP_CONTROL_BUTTON_SIZE,
+          maxWidth: "calc(100vw - 24px)",
+          overflow: "hidden",
+        }}
+      >
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: isOpen
+              ? `${MAP_CONTROL_BUTTON_SIZE}px minmax(0, 1fr)`
+              : `${MAP_CONTROL_BUTTON_SIZE}px`,
+            alignItems: "center",
+          }}
+        >
+          <IconButton
+            onClick={() => setIsOpen((current) => !current)}
+            size="small"
+            title={isOpen ? "Close site twin debug panel" : "Open site twin debug panel"}
+            aria-label={isOpen ? "Close site twin debug panel" : "Open site twin debug panel"}
+            aria-expanded={isOpen}
+            sx={mapControlButtonSx}
+          >
+            <TuneIcon fontSize="small" />
+          </IconButton>
+          {isOpen && (
+            <Typography
+              sx={{
+                paddingRight: "14px",
+                fontSize: "0.8rem",
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                color: "rgba(24, 45, 40, 0.72)",
+              }}
+            >
+              Site Twin
+            </Typography>
+          )}
+        </Box>
+
+        {isOpen && (
+          <Box
+            sx={{
+              display: "grid",
+              gap: "12px",
+              padding: "10px 12px 12px",
+              borderTop: "1px solid rgba(18, 47, 40, 0.12)",
+            }}
+          >
+            <Box sx={{ display: "grid", gap: "2px" }}>
+              <Typography
+                sx={{
+                  fontSize: "0.88rem",
+                  fontWeight: 600,
+                  color: "var(--text-main)",
+                }}
+              >
+                {renderMode === "terrain-only" ? "Terrain-only prototype" : "Ortho-relief package"}
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: "0.68rem",
+                  lineHeight: 1.45,
+                  color: "rgba(24, 45, 40, 0.64)",
+                }}
+              >
+                {manifest?.sourceVintageNote || "Static site-twin assets not loaded yet."}
+              </Typography>
+            </Box>
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: "8px",
+              }}
+            >
+              <Box sx={{ padding: "8px 10px", borderRadius: "14px", backgroundColor: "rgba(24, 45, 40, 0.06)" }}>
+                <Typography sx={{ fontSize: "0.64rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "rgba(24, 45, 40, 0.64)" }}>
+                  Candidates
+                </Typography>
+                <Typography sx={{ marginTop: "2px", fontSize: "0.92rem", fontWeight: 700, color: "var(--text-main)" }}>
+                  {filteredCount.toLocaleString()}
+                </Typography>
+                <Typography sx={{ fontSize: "0.68rem", color: "rgba(24, 45, 40, 0.64)" }}>
+                  of {totalCount.toLocaleString()} loaded
+                </Typography>
+              </Box>
+              <Box sx={{ padding: "8px 10px", borderRadius: "14px", backgroundColor: "rgba(24, 45, 40, 0.06)" }}>
+                <Typography sx={{ fontSize: "0.64rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "rgba(24, 45, 40, 0.64)" }}>
+                  Headstones
+                </Typography>
+                <Typography sx={{ marginTop: "2px", fontSize: "0.92rem", fontWeight: 700, color: "var(--text-main)" }}>
+                  {knownHeadstoneCount.toLocaleString()}
+                </Typography>
+                <Typography sx={{ fontSize: "0.68rem", color: "rgba(24, 45, 40, 0.64)" }}>
+                  p95 height {filteredHeightP95Meters.toFixed(2)} m
+                </Typography>
+              </Box>
+            </Box>
+
+            <SiteTwinDebugToggleRow
+              checked={isOverlayEnabled}
+              label="Twin overlay"
+              detail="Master toggle for the terrain surface and monument pass."
+              onChange={onToggleOverlay}
+            />
+            <SiteTwinDebugToggleRow
+              checked={debugState.showSurface}
+              label="Terrain surface"
+              detail="Shows the static PNG ground plane."
+              onChange={(checked) => onUpdateDebugState({ showSurface: checked })}
+            />
+            <SiteTwinDebugToggleRow
+              checked={debugState.showMonuments}
+              label="Monument extrusions"
+              detail={mapEngine === "custom"
+                ? "Renders clustered grave/marker candidates in the custom renderer."
+                : "Custom renderer only. Switch renderer in the app menu to inspect extrusions."}
+              onChange={(checked) => onUpdateDebugState({ showMonuments: checked })}
+            />
+            <SiteTwinDebugToggleRow
+              checked={debugState.knownHeadstonesOnly}
+              label="Known headstones only"
+              detail="Filters out burial-anchor estimates and keeps surveyed headstone anchors."
+              onChange={(checked) => onUpdateDebugState({ knownHeadstonesOnly: checked })}
+            />
+
+            <Divider sx={{ borderColor: "rgba(18, 47, 40, 0.12)" }} />
+
+            <SiteTwinDebugSlider
+              label="Terrain opacity"
+              detail="Overrides the overlay alpha without changing the static package."
+              value={debugState.surfaceOpacity}
+              min={0.1}
+              max={1}
+              step={0.01}
+              onChange={(value) => onUpdateDebugState({ surfaceOpacity: value })}
+              formatValue={(value) => `${Math.round(value * 100)}%`}
+            />
+            <SiteTwinDebugSlider
+              label="Monument height scale"
+              detail="Exaggerates or flattens the pseudo-3D monument pass."
+              value={debugState.monumentHeightScale}
+              min={0.5}
+              max={3}
+              step={0.05}
+              onChange={(value) => onUpdateDebugState({ monumentHeightScale: value })}
+              formatValue={(value) => `${value.toFixed(2)}x`}
+            />
+            <SiteTwinDebugSlider
+              label="Minimum confidence"
+              detail="Keeps only candidates above this confidence threshold."
+              value={debugState.minConfidence}
+              min={0}
+              max={1}
+              step={0.01}
+              onChange={(value) => onUpdateDebugState({ minConfidence: value })}
+              formatValue={(value) => `${Math.round(value * 100)}%`}
+            />
+            <SiteTwinDebugSlider
+              label="Minimum height"
+              detail="Drops low-relief candidates that do not clear the threshold."
+              value={debugState.minHeightMeters}
+              min={0}
+              max={2}
+              step={0.02}
+              onChange={(value) => onUpdateDebugState({ minHeightMeters: value })}
+              formatValue={(value) => `${value.toFixed(2)} m`}
+            />
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) auto",
+                gap: "10px",
+                alignItems: "center",
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: "0.68rem",
+                  lineHeight: 1.45,
+                  color: "rgba(24, 45, 40, 0.64)",
+                }}
+              >
+                Mean confidence {filteredMeanConfidence.toFixed(2)}
+              </Typography>
+              <Box
+                component="button"
+                type="button"
+                onClick={onResetDebugState}
+                sx={{
+                  border: "1px solid rgba(18, 47, 40, 0.12)",
+                  backgroundColor: "rgba(255, 255, 255, 0.9)",
+                  color: "var(--text-main)",
+                  borderRadius: "999px",
+                  padding: "4px 10px",
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Reset
+              </Box>
+            </Box>
+          </Box>
+        )}
+      </Paper>
+    </ClickAwayListener>
+  );
+}
+
 /**
  * Shared home control works in both runtimes.
  */
@@ -1004,149 +1423,44 @@ function MobileLocateButton({ isMobile, onLocate }) {
 }
 
 /**
- * Component that manages routing between two points using GraphHopper
+ * Component that manages routing between two points
  */
-function RoutingControl({ from, to }) {
-  const map = useMap();
-  const [routingError, setRoutingError] = useState(null);
-  const [isCalculating, setIsCalculating] = useState(false);
-
-  useEffect(() => {
-    if (!from || !to) return;
-
-    let ignore = false;
-    let routingControl;
-
-    setRoutingError(null);
-    setIsCalculating(true);
-
-    const apiKey = process.env.REACT_APP_GRAPHHOPPER_API_KEY;
-    if (!apiKey) {
-      console.error('GraphHopper API key not found in environment variables');
-      setRoutingError('Configuration error: API key not found. Please contact administrators.');
-      setIsCalculating(false);
-      return;
-    }
-
-    const loadRoutingControl = async () => {
-      try {
-        await Promise.all([
-          import('leaflet-routing-machine'),
-          import('lrm-graphhopper'),
-        ]);
-      } catch (error) {
-        console.error('Failed to load routing dependencies:', error);
-        if (!ignore) {
-          setRoutingError('Directions failed to load. Please try again.');
-          setIsCalculating(false);
-        }
-        return;
-      }
-
-      if (ignore) {
-        return;
-      }
-
-      routingControl = L.Routing.control({
-        router: new L.Routing.GraphHopper(apiKey, {
-          urlParameters: {
-            vehicle: 'foot'  // Set to pedestrian routing
-          }
-        }),
-        waypoints: [
-          L.latLng(from[0], from[1]),
-          L.latLng(to[0], to[1])
-        ],
-        createMarker: function() { return null; },
-        lineOptions: {
-          styles: [
-            {color: '#0066CC', opacity: 0.8, weight: 5},
-            {color: '#ffffff', opacity: 0.3, weight: 7}
-          ]
-        },
-        addWaypoints: false,
-        draggableWaypoints: false,
-        fitSelectedRoutes: true,
-        showAlternatives: false,
-        useZoomParameter: true,
-        show: false
-      }).addTo(map);
-
-      routingControl.on('routesfound', () => {
-        setIsCalculating(false);
-      });
-
-      routingControl.on('routingerror', (e) => {
-        console.error('Routing error:', e);
-
-        if (e.error && e.error.status === 0) {
-          setRoutingError('Network error: Please check your internet connection.');
-        } else if (e.error && e.error.status === 401) {
-          setRoutingError('Authentication error: Invalid API key.');
-        } else if (e.error && e.error.status === 429) {
-          setRoutingError('Too many requests: Rate limit exceeded.');
-        } else {
-          setRoutingError('Unable to calculate route. The locations might be inaccessible by foot or too far apart.');
-        }
-
-        setIsCalculating(false);
-        if (routingControl) {
-          map.removeControl(routingControl);
-        }
-      });
-    };
-
-    void loadRoutingControl();
-
-    return () => {
-      ignore = true;
-      if (routingControl) {
-        map.removeControl(routingControl);
-      }
-    };
-  }, [map, from, to]);
-
-  if (isCalculating) {
-    return (
-      <Paper
-        elevation={3}
-        sx={{
-          position: 'absolute',
-          bottom: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1000,
-          padding: '10px',
-          backgroundColor: '#f5f5f5',
-          color: '#333',
-        }}
-      >
-        <Typography>Calculating route...</Typography>
-      </Paper>
-    );
+function RouteStatusOverlay({ isCalculating, routingError }) {
+  if (!isCalculating && !routingError) {
+    return null;
   }
 
-  if (routingError) {
-    return (
-      <Paper
-        elevation={3}
-        sx={{
-          position: 'absolute',
-          bottom: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1000,
-          padding: '10px',
-          backgroundColor: '#f44336',
-          color: 'white',
-        }}
-      >
-        <Typography>{routingError}</Typography>
-      </Paper>
-    );
-  }
+  const isError = Boolean(routingError);
 
-  return null;
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        position: "absolute",
+        bottom: "24px",
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 1200,
+        px: 1.6,
+        py: 1.1,
+        borderRadius: "18px",
+        border: isError
+          ? "1px solid rgba(170, 52, 48, 0.18)"
+          : "1px solid rgba(20, 33, 43, 0.08)",
+        backgroundColor: isError
+          ? "rgba(167, 46, 42, 0.96)"
+          : "rgba(255, 255, 255, 0.96)",
+        color: isError ? "#ffffff" : "var(--text-main)",
+        boxShadow: "0 18px 36px rgba(20, 33, 43, 0.18)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+      }}
+    >
+      <Typography variant="body2" sx={{ color: "inherit", fontWeight: 600 }}>
+        {isError ? routingError : "Calculating route..."}
+      </Typography>
+    </Paper>
+  );
 }
 
 //=============================================================================
@@ -1154,13 +1468,15 @@ function RoutingControl({ from, to }) {
 //=============================================================================
 
 /**
- * Creates a numbered marker icon for search results
+ * Creates a numbered marker icon for search results.
+ * The icon shell stays stable so hover/active states can be toggled with CSS
+ * instead of replacing the DOM node under the pointer.
+ *
  * @param {number} number - The number to display in the marker
- * @param {boolean} isHighlighted - Whether the marker should be highlighted
- * @returns {L.DivIcon} A Leaflet div icon configured with the specified number and styling
+ * @returns {L.DivIcon} A Leaflet div icon configured with the specified number
  */
-const createNumberedIcon = (number, isHighlighted = false) => {
-  const cacheKey = `${number}:${isHighlighted ? '1' : '0'}`;
+const createNumberedIcon = (number) => {
+  const cacheKey = String(number);
   const cachedIcon = NUMBERED_ICON_CACHE.get(cacheKey);
   if (cachedIcon) {
     return cachedIcon;
@@ -1172,27 +1488,17 @@ const createNumberedIcon = (number, isHighlighted = false) => {
   const icon = L.divIcon({
     className: 'custom-div-icon',
     html: `
-      <div style="
-        background-color: ${color};
-        width: ${isHighlighted ? '32px' : '24px'};
-        height: ${isHighlighted ? '32px' : '24px'};
-        border-radius: 50%;
-        border: ${isHighlighted ? '3px' : '2px'} solid white;
-        box-shadow: ${isHighlighted ? '0 0 8px rgba(0,0,0,0.6)' : '0 0 4px rgba(0,0,0,0.4)'};
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: bold;
-        font-size: ${isHighlighted ? '16px' : '14px'};
-        transition: width 0.2s ease, height 0.2s ease, border-width 0.2s ease, box-shadow 0.2s ease, font-size 0.2s ease;
-      ">
+      <div
+        class="custom-div-icon__badge"
+        data-marker-number="${number}"
+        style="--marker-color: ${color};"
+      >
         ${number}
       </div>
     `,
-    iconSize: [isHighlighted ? 32 : 24, isHighlighted ? 32 : 24],
-    iconAnchor: [isHighlighted ? 16 : 12, isHighlighted ? 16 : 12],
-    popupAnchor: [0, isHighlighted ? -16 : -12]
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -16]
   });
 
   NUMBERED_ICON_CACHE.set(cacheKey, icon);
@@ -1207,30 +1513,6 @@ const createNumberedIcon = (number, isHighlighted = false) => {
  */
 const createUniqueKey = (burial, index) => {
   return createMapRecordKey(burial, index);
-};
-
-const findNearestRoadPoint = (lat, lng) => {
-  const targetPoint = point([lng, lat]);
-  let nearestCoords = null;
-  let minDistance = Infinity;
-
-  MAP_ROADS.features.forEach((feature) => {
-    if (!feature?.geometry) return;
-
-    const snapped = nearestPointOnLine(feature, targetPoint, { units: 'meters' });
-    const snappedDistance = snapped?.properties?.dist ?? distance(targetPoint, snapped, { units: 'meters' });
-
-    if (snappedDistance < minDistance) {
-      minDistance = snappedDistance;
-      nearestCoords = snapped.geometry.coordinates;
-    }
-  });
-
-  if (!nearestCoords) {
-    return [lat, lng];
-  }
-
-  return [nearestCoords[1], nearestCoords[0]];
 };
 
 /**
@@ -1274,6 +1556,8 @@ const bindReactPopup = ({
   layer,
   record,
   onOpenDirectionsMenu,
+  onPopupClose,
+  onPopupOpen,
   onRemove,
   schedulePopupLayout,
   shouldRenderPopup = () => true,
@@ -1314,10 +1598,14 @@ const bindReactPopup = ({
       return;
     }
 
+    onPopupOpen?.(record);
     renderPopup();
     schedulePopupLayout(popup);
   });
-  layer.on("popupclose", unmountPopup);
+  layer.on("popupclose", () => {
+    onPopupClose?.(record);
+    unmountPopup();
+  });
   layer.on("remove", unmountPopup);
 };
 
@@ -1373,6 +1661,47 @@ function MapTourController({ selectedTour, overlayMaps, tourNames }) {
   return null;
 }
 
+const getSectionOverviewMarkerRadius = (count = 0) => {
+  if (count >= 2000) return 9;
+  if (count >= 1000) return 8;
+  if (count >= 300) return 7;
+  return 6;
+};
+
+const MapSectionOverviewMarkers = memo(function MapSectionOverviewMarkers({
+  markers,
+  onSelectSection,
+}) {
+  if (!Array.isArray(markers) || markers.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      {markers.map((marker) => (
+        <CircleMarker
+          key={marker.id}
+          center={[marker.lat, marker.lng]}
+          radius={getSectionOverviewMarkerRadius(marker.count)}
+          pathOptions={{
+            color: "rgba(29, 63, 54, 0.42)",
+            weight: 1.5,
+            fillColor: "rgba(255, 255, 255, 0.96)",
+            fillOpacity: 0.92,
+          }}
+          eventHandlers={{
+            click: () => onSelectSection?.(marker.sectionValue, marker.bounds),
+          }}
+        >
+          <Tooltip direction="top" offset={[0, -6]}>
+            {formatSectionOverviewMarkerLabel(marker)}
+          </Tooltip>
+        </CircleMarker>
+      ))}
+    </>
+  );
+});
+
 /**
  * Keep the basemap and static overlays off the render path for selection/menu state.
  */
@@ -1382,26 +1711,43 @@ const MapStaticLayers = memo(function MapStaticLayers({
   fitMapBoundsInViewport,
   getSectionStyle,
   isDev,
+  isLayerControlOpen,
   isMobile,
   isPmtilesEnabled,
   mapRef,
+  mapEngine,
   onBasemapChange,
   onEachSectionFeature,
+  onLayerControlOpenChange,
   onLocateMarker,
+  onResetSiteTwinDebugState,
+  onSelectSection,
   onToggleOverlay,
   onSelectBurial,
+  onUpdateSiteTwinDebugState,
   overlayVisibility,
   overlayMaps,
+  siteTwinDebugState,
+  siteTwinFilteredSummary,
+  siteTwinLoadedSummary,
+  siteTwinManifest,
+  showSiteTwinSurface,
+  siteTwinSurfaceOpacity,
+  sectionOverviewMarkers,
   selectedTour,
+  showSections,
+  showSectionOverviewMarkers,
   tourNames,
 }) {
   return (
     <>
-      <MapControlStack isMobile={isMobile}>
+      <MapControlStack isMobile={isMobile} hasExpandedPanel={isLayerControlOpen}>
         <MapLayerControl
           basemapOptions={MAP_CONTROLLED_BASEMAPS}
           activeBasemapId={activeBasemap?.id || ""}
+          isOpen={isLayerControlOpen}
           onBasemapChange={onBasemapChange}
+          onOpenChange={onLayerControlOpenChange}
           overlayOptions={MAP_OVERLAY_OPTIONS}
           overlayVisibility={overlayVisibility}
           onToggleOverlay={onToggleOverlay}
@@ -1410,6 +1756,23 @@ const MapStaticLayers = memo(function MapStaticLayers({
         <CustomZoomControl isMobile={isMobile} />
         <MobileLocateButton isMobile={isMobile} onLocate={onLocateMarker} />
         {isDev && isPmtilesEnabled && <PmtilesExperimentLegend />}
+        {isDev && SITE_TWIN_CONFIG && (
+          <SiteTwinDebugControl
+            isOverlayEnabled={overlayVisibility.siteTwin !== false}
+            mapEngine={mapEngine}
+            manifest={siteTwinManifest}
+            loadedSummary={siteTwinLoadedSummary}
+            filteredSummary={siteTwinFilteredSummary}
+            debugState={siteTwinDebugState}
+            onToggleOverlay={(checked) => {
+              if (checked !== (overlayVisibility.siteTwin !== false)) {
+                onToggleOverlay("siteTwin");
+              }
+            }}
+            onUpdateDebugState={onUpdateSiteTwinDebugState}
+            onResetDebugState={onResetSiteTwinDebugState}
+          />
+        )}
       </MapControlStack>
       <ActiveLeafletBasemap basemap={activeBasemap} />
       {isDev && isPmtilesEnabled && (
@@ -1421,13 +1784,27 @@ const MapStaticLayers = memo(function MapStaticLayers({
       <MapBounds fitMapBounds={fitMapBoundsInViewport} />
       <MapController mapRef={mapRef} />
       <MapTourController selectedTour={selectedTour} overlayMaps={overlayMaps} tourNames={tourNames} />
+      {overlayVisibility.siteTwin && showSiteTwinSurface && isSiteTwinReady(siteTwinManifest) && (
+        <ImageOverlay
+          url={siteTwinManifest.terrainImage.url}
+          bounds={siteTwinManifest.terrainImage.bounds}
+          opacity={siteTwinSurfaceOpacity}
+          interactive={false}
+        />
+      )}
       {overlayVisibility.roads && <GeoJSON data={MAP_ROADS} style={roadStyle} />}
       {overlayVisibility.boundary && <GeoJSON data={MAP_BOUNDARY} style={exteriorStyle} />}
-      {overlayVisibility.sections && (
+      {showSections && (
         <GeoJSON
           data={MAP_SECTIONS}
           style={getSectionStyle}
           onEachFeature={onEachSectionFeature}
+        />
+      )}
+      {showSectionOverviewMarkers && (
+        <MapSectionOverviewMarkers
+          markers={sectionOverviewMarkers}
+          onSelectSection={onSelectSection}
         />
       )}
     </>
@@ -1443,7 +1820,11 @@ const createOnEachTourFeature = (
   tourKey,
   tourName,
   onSelect,
+  onHoverStart,
+  onHoverEnd,
   onOpenDirectionsMenu,
+  onPopupClose,
+  onPopupOpen,
   onRemoveResult,
   onRegisterLayer,
   resolveTourBrowseResult,
@@ -1462,6 +1843,8 @@ const createOnEachTourFeature = (
       onOpenDirectionsMenu: (event) => {
         onOpenDirectionsMenu(event, browseResult);
       },
+      onPopupClose,
+      onPopupOpen,
       onRemove: () => {
         onRemoveResult(browseResult.id);
         layer.closePopup();
@@ -1472,6 +1855,12 @@ const createOnEachTourFeature = (
     if (onRegisterLayer) {
       onRegisterLayer(browseResult, layer);
     }
+    layer.on('mouseover', () => {
+      onHoverStart?.(browseResult.id);
+    });
+    layer.on('mouseout', () => {
+      onHoverEnd?.(browseResult.id);
+    });
     layer.on('click', () => {
       onSelect(browseResult, {
         animate: false,
@@ -1501,6 +1890,7 @@ export default function BurialMap() {
     isDev,
     featureFlags,
   } = runtimeEnv;
+  const routingProvider = featureFlags.routingProvider || "api";
   const isFieldPacketsEnabled = featureFlags.fieldPackets;
   const tourDefinitions = featureFlags.fabTours ? TOUR_DEFINITIONS : EMPTY_TOUR_DEFINITIONS;
   const tourStyles = featureFlags.fabTours ? TOUR_STYLES : EMPTY_TOUR_STYLES;
@@ -1520,7 +1910,8 @@ export default function BurialMap() {
   const [tourBoundsByName, setTourBoundsByName] = useState({});
   const [tourResultsByName, setTourResultsByName] = useState({});
   const [currentZoom, setCurrentZoom] = useState(14);
-  const [hoveredBurialId, setHoveredBurialId] = useState(null);
+  const [isLayerControlOpen, setIsLayerControlOpen] = useState(false);
+  const [selectionState, setSelectionState] = useState(() => createMapSelectionState());
   const [mapEngine, setMapEngine] = useState(() => (
     featureFlags.customMapEngine ? "custom" : "leaflet"
   ));
@@ -1531,10 +1922,12 @@ export default function BurialMap() {
       : (MAP_CONTROLLED_BASEMAPS[0]?.id || MAP_BASEMAPS[0]?.id || "")
   ));
   const [overlayVisibility, setOverlayVisibility] = useState(DEFAULT_MAP_OVERLAY_VISIBILITY);
+  const [siteTwinManifest, setSiteTwinManifest] = useState(EMPTY_SITE_TWIN_MANIFEST);
+  const [siteTwinCandidates, setSiteTwinCandidates] = useState(() => normalizeSiteTwinFeatureCollection());
+  const [siteTwinDebugState, setSiteTwinDebugState] = useState(() => getDefaultSiteTwinDebugState());
 
   // Search and Filter State
-  const [selectedBurials, setSelectedBurials] = useState([]);
-  const [activeBurialId, setActiveBurialId] = useState(null);
+  const { activeBurialId, hoveredBurialId, selectedBurials } = selectionState;
   const [showAllBurials, setShowAllBurials] = useState(false);
   const [sectionFilter, setSectionFilter] = useState('');
   const [lotTierFilter, setLotTierFilter] = useState('');
@@ -1554,6 +1947,7 @@ export default function BurialMap() {
   const [hasRequestedBurialData, setHasRequestedBurialData] = useState(false);
   const [fieldPacket, setFieldPacket] = useState(null);
   const [fieldPacketNotice, setFieldPacketNotice] = useState(null);
+  const [sharedLinkLandingState, setSharedLinkLandingState] = useState(null);
   const [uniqueSections, setUniqueSections] = useState([]);
 
   // Location and Routing State
@@ -1562,6 +1956,9 @@ export default function BurialMap() {
   const [status, setStatus] = useState(LOCATION_MESSAGES.inactive);
   const [routingOrigin, setRoutingOrigin] = useState(null);
   const [routingDestination, setRoutingDestination] = useState(null);
+  const [routeGeoJson, setRouteGeoJson] = useState(null);
+  const [isRouteLoading, setIsRouteLoading] = useState(false);
+  const [routeError, setRouteError] = useState("");
   const [activeRouteBurialId, setActiveRouteBurialId] = useState(null);
   const [watchId, setWatchId] = useState(null);
   const [appMenuAnchorEl, setAppMenuAnchorEl] = useState(null);
@@ -1580,6 +1977,7 @@ export default function BurialMap() {
   const activeBurialIdRef = useRef(null);
   const hoveredBurialIdRef = useRef(null);
   const hoveredSectionIdRef = useRef(null);
+  const hoveredSectionLayerRef = useRef(null);
   const canSectionHoverRef = useRef(true);
   const recentTouchSectionInteractionRef = useRef(false);
   const sectionTooltipSyncFrameRef = useRef(null);
@@ -1590,6 +1988,7 @@ export default function BurialMap() {
   const selectedMarkerLayersRef = useRef(new Map());
   const tourFeatureLayersRef = useRef(new Map());
   const pendingPopupBurialRef = useRef(null);
+  const popupBurialIdRef = useRef(null);
   const activeRouteBurialIdRef = useRef(null);
   const directionsMenuBurialRef = useRef(null);
 
@@ -1598,15 +1997,24 @@ export default function BurialMap() {
   //-----------------------------------------------------------------------------
 
   const sectionBoundsById = useMemo(
-    () => new Map(
-      MAP_SECTIONS.features
-        .filter((feature) => feature?.properties?.Section)
-        .map((feature) => [String(feature.properties.Section), getGeoJsonBounds(feature)])
-        .filter(([, bounds]) => isLatLngBoundsExpressionValid(bounds))
-    ),
+    () => buildSectionBoundsById(MAP_SECTIONS),
+    []
+  );
+  const roadRoutingGraph = useMemo(
+    () => buildRoadRoutingGraph(MAP_ROADS),
     []
   );
   const isCustomMapEngineEnabled = mapEngine === "custom";
+  const {
+    showSectionOverviewMarkers,
+    showSections,
+  } = useMemo(() => resolveSectionOverlayVisibility({
+    currentZoom,
+    sectionDetailMinZoom: ZOOM_LEVELS.SECTION,
+    sectionFilter,
+    sectionOverviewMarkerMinZoom: SECTION_OVERVIEW_MARKER_MIN_ZOOM,
+    selectedTour,
+  }), [currentZoom, sectionFilter, selectedTour]);
   const selectedMarkerOrderById = useMemo(
     () => new Map(selectedBurials.map((burial, index) => [burial.id, index + 1])),
     [selectedBurials]
@@ -1644,6 +2052,23 @@ export default function BurialMap() {
     () => basemapById.get(activeBasemapId) || defaultBasemap,
     [activeBasemapId, basemapById, defaultBasemap]
   );
+  const normalizedSiteTwinDebugState = useMemo(
+    () => normalizeSiteTwinDebugState(siteTwinDebugState),
+    [siteTwinDebugState]
+  );
+  const filteredSiteTwinCandidates = useMemo(
+    () => filterSiteTwinFeatureCollection(siteTwinCandidates, normalizedSiteTwinDebugState),
+    [siteTwinCandidates, normalizedSiteTwinDebugState]
+  );
+  const siteTwinLoadedSummary = useMemo(
+    () => summarizeSiteTwinFeatureCollection(siteTwinCandidates),
+    [siteTwinCandidates]
+  );
+  const siteTwinFilteredSummary = useMemo(
+    () => summarizeSiteTwinFeatureCollection(filteredSiteTwinCandidates),
+    [filteredSiteTwinCandidates]
+  );
+  const siteTwinSurfaceOpacity = normalizedSiteTwinDebugState.surfaceOpacity;
   const selectedTourLayer = useMemo(
     () => (selectedTour ? overlayMaps[selectedTour] || null : null),
     [overlayMaps, selectedTour]
@@ -1684,6 +2109,10 @@ export default function BurialMap() {
   }, []);
   const showIosInstallHint = isAppleMobile && !isInstalled && !installPromptEvent;
   const initialBrowseQuery = initialDeepLinkRef.current?.query || "";
+  const fieldPacketPresentation = useMemo(
+    () => buildSharedSelectionPresentation(fieldPacket || {}),
+    [fieldPacket]
+  );
   const isMobile = useMediaQuery("(max-width:840px)");
   const shouldReduceMapMotion = useMemo(() => {
     if (typeof navigator === 'undefined') {
@@ -1716,6 +2145,15 @@ export default function BurialMap() {
       [overlayId]: !(current[overlayId] !== false),
     }));
   }, []);
+  const handleUpdateSiteTwinDebugState = useCallback((partialState) => {
+    setSiteTwinDebugState((currentState) => normalizeSiteTwinDebugState({
+      ...currentState,
+      ...partialState,
+    }));
+  }, []);
+  const handleResetSiteTwinDebugState = useCallback(() => {
+    setSiteTwinDebugState(getDefaultSiteTwinDebugState());
+  }, []);
   const handleMapEngineChange = useCallback((nextEngine) => {
     if (!isDev) {
       return;
@@ -1735,6 +2173,30 @@ export default function BurialMap() {
     });
   }, [isDev]);
   const getMapInstance = useCallback(() => mapRef.current, []);
+  const updateSelectionState = useCallback((updater) => {
+    setSelectionState((currentSelectionState) => {
+      const nextSelectionState = createMapSelectionState(
+        typeof updater === "function"
+          ? updater(currentSelectionState)
+          : updater
+      );
+      activeBurialIdRef.current = nextSelectionState.activeBurialId;
+      hoveredBurialIdRef.current = nextSelectionState.hoveredBurialId;
+      return nextSelectionState;
+    });
+  }, []);
+  const closeMapPopup = useCallback(() => {
+    pendingPopupBurialRef.current = null;
+    popupBurialIdRef.current = null;
+    getMapInstance()?.closePopup?.();
+  }, [getMapInstance]);
+  const clearActiveBurialFocus = useCallback(({ clearHover = false, closePopup = true } = {}) => {
+    updateSelectionState((currentSelectionState) => clearSelectionFocus(currentSelectionState, { clearHover }));
+
+    if (closePopup) {
+      closeMapPopup();
+    }
+  }, [closeMapPopup, updateSelectionState]);
 
   useEffect(() => {
     if (basemapById.has(activeBasemapId)) {
@@ -1745,6 +2207,71 @@ export default function BurialMap() {
       setActiveBasemapId(defaultBasemap.id);
     }
   }, [activeBasemapId, basemapById, defaultBasemap]);
+
+  useEffect(() => {
+    if (!SITE_TWIN_CONFIG?.manifestPublicPath || typeof window === "undefined") {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const manifestUrl = getPublicAssetUrl(SITE_TWIN_CONFIG.manifestPublicPath);
+
+    fetch(manifestUrl, { signal: controller.signal })
+      .then((response) => (
+        response.ok
+          ? response.json()
+          : EMPTY_SITE_TWIN_MANIFEST
+      ))
+      .then((manifest) => {
+        setSiteTwinManifest(normalizeSiteTwinManifest(manifest));
+      })
+      .catch((error) => {
+        if (error?.name === "AbortError") {
+          return;
+        }
+
+        setSiteTwinManifest(EMPTY_SITE_TWIN_MANIFEST);
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    const shouldLoadSiteTwinCandidates = Boolean(
+      (overlayVisibility.siteTwin || isDev) &&
+      siteTwinManifest?.graveCandidates?.url
+    );
+    if (!shouldLoadSiteTwinCandidates || typeof window === "undefined") {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const candidatesUrl = getPublicAssetUrl(siteTwinManifest.graveCandidates.url);
+
+    fetch(candidatesUrl, { signal: controller.signal })
+      .then((response) => (
+        response.ok
+          ? response.json()
+          : normalizeSiteTwinFeatureCollection()
+      ))
+      .then((featureCollection) => {
+        setSiteTwinCandidates(normalizeSiteTwinFeatureCollection(featureCollection));
+      })
+      .catch((error) => {
+        if (error?.name === "AbortError") {
+          return;
+        }
+
+        setSiteTwinCandidates(normalizeSiteTwinFeatureCollection());
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [isDev, overlayVisibility.siteTwin, siteTwinManifest]);
+
   const getOverlayElement = useCallback(() => sidebarOverlayRef.current, []);
   const fitMapBoundsInViewport = useCallback((map, bounds, options = {}) => {
     fitBoundsInVisibleViewport(map, bounds, {
@@ -1797,9 +2324,8 @@ export default function BurialMap() {
       return;
     }
 
-    pendingPopupBurialRef.current = null;
-    getMapInstance()?.closePopup?.();
-  }, [getMapInstance, shouldUseMapPopups]);
+    closeMapPopup();
+  }, [closeMapPopup, shouldUseMapPopups]);
 
   useEffect(() => {
     if (!isDev || typeof window === 'undefined') {
@@ -1823,10 +2349,45 @@ export default function BurialMap() {
   }, [isDev, isPmtilesEnabled]);
 
   useEffect(() => {
+    if (!isDev || typeof window === "undefined") {
+      setSiteTwinDebugState(getDefaultSiteTwinDebugState());
+      return;
+    }
+
+    try {
+      const storedValue = window.localStorage.getItem(SITE_TWIN_DEBUG_STORAGE_KEY);
+      if (!storedValue) {
+        setSiteTwinDebugState(getDefaultSiteTwinDebugState());
+        return;
+      }
+
+      setSiteTwinDebugState(normalizeSiteTwinDebugState(JSON.parse(storedValue)));
+    } catch (_error) {
+      setSiteTwinDebugState(getDefaultSiteTwinDebugState());
+    }
+  }, [isDev]);
+
+  useEffect(() => {
+    if (!isDev || typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        SITE_TWIN_DEBUG_STORAGE_KEY,
+        JSON.stringify(normalizeSiteTwinDebugState(siteTwinDebugState))
+      );
+    } catch (_error) {
+      // Ignore storage failures in private browsing and constrained environments.
+    }
+  }, [isDev, siteTwinDebugState]);
+
+  useEffect(() => {
     if (isFieldPacketsEnabled) return;
 
     setFieldPacket(null);
     setFieldPacketNotice(null);
+    setSharedLinkLandingState(null);
   }, [isFieldPacketsEnabled]);
 
   useEffect(() => {
@@ -1842,6 +2403,31 @@ export default function BurialMap() {
       window.clearTimeout(timeoutId);
     };
   }, [fieldPacketNotice]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const nextTitle = fieldPacket?.selectedRecords?.length
+      ? `${fieldPacketPresentation.title} | ${APP_DOCUMENT_TITLE}`
+      : APP_DOCUMENT_TITLE;
+    const nextDescription = fieldPacket?.selectedRecords?.length
+      ? fieldPacketPresentation.description
+      : APP_DESCRIPTION;
+
+    document.title = nextTitle;
+    setDocumentMetaContent('meta[name="description"]', nextDescription);
+    setDocumentMetaContent('meta[property="og:title"]', nextTitle);
+    setDocumentMetaContent('meta[property="og:description"]', nextDescription);
+    setDocumentMetaContent('meta[property="og:url"]', typeof window === "undefined" ? "" : window.location.href);
+    setDocumentMetaContent('meta[name="twitter:title"]', nextTitle);
+    setDocumentMetaContent('meta[name="twitter:description"]', nextDescription);
+  }, [
+    fieldPacket,
+    fieldPacketPresentation.description,
+    fieldPacketPresentation.title,
+  ]);
 
   useEffect(() => {
     if (initialDeepLinkNeedsBurialData) {
@@ -1876,6 +2462,10 @@ export default function BurialMap() {
 
     return counts;
   }, [burialSectionIndex]);
+  const sectionOverviewMarkers = useMemo(
+    () => buildSectionOverviewMarkers(MAP_SECTIONS, sectionBurialCounts),
+    [sectionBurialCounts]
+  );
 
   const burialLookup = useMemo(
     () => buildBurialLookup(burialRecords),
@@ -2007,11 +2597,32 @@ export default function BurialMap() {
     );
   }), [handleLocationError, updateLocationFromPosition]);
 
+  const focusUserLocationOnMap = useCallback((location, { animate = !shouldReduceMapMotion } = {}) => {
+    const map = getMapInstance();
+    if (!map || !location) {
+      return;
+    }
+
+    const targetLatLng = {
+      lat: location.latitude,
+      lng: location.longitude,
+    };
+    const targetZoom = Math.max(
+      typeof map.getZoom === "function" ? map.getZoom() : MAP_ZOOM,
+      ZOOM_LEVELS.SECTION
+    );
+
+    map.setView(targetLatLng, targetZoom, { animate });
+    panMapIntoViewport(map, targetLatLng, { animate: false });
+  }, [getMapInstance, panMapIntoViewport, shouldReduceMapMotion]);
+
   const onLocateMarker = useCallback(async () => {
     const location = await requestCurrentLocation();
     if (!location || !navigator.geolocation) {
       return;
     }
+
+    focusUserLocationOnMap(location);
 
     if (watchId) {
       navigator.geolocation.clearWatch(watchId);
@@ -2019,7 +2630,10 @@ export default function BurialMap() {
 
     const id = navigator.geolocation.watchPosition(
       (position) => {
-        updateLocationFromPosition(position);
+        const nextLocation = updateLocationFromPosition(position);
+        if (nextLocation && activeRouteBurialIdRef.current) {
+          setRoutingOrigin([nextLocation.latitude, nextLocation.longitude]);
+        }
       },
       (error) => {
         handleLocationError(error);
@@ -2031,7 +2645,13 @@ export default function BurialMap() {
       }
     );
     setWatchId(id);
-  }, [handleLocationError, requestCurrentLocation, updateLocationFromPosition, watchId]);
+  }, [
+    focusUserLocationOnMap,
+    handleLocationError,
+    requestCurrentLocation,
+    updateLocationFromPosition,
+    watchId,
+  ]);
 
   const getPopupLayerForBurial = useCallback((burial) => {
     if (!burial) return null;
@@ -2042,6 +2662,31 @@ export default function BurialMap() {
 
     return selectedMarkerLayersRef.current.get(burial.id) || null;
   }, []);
+  const handlePopupBurialOpen = useCallback((burial) => {
+    popupBurialIdRef.current = burial?.id || null;
+  }, []);
+  const handlePopupBurialClose = useCallback((burial) => {
+    pendingPopupBurialRef.current = null;
+
+    const burialId = cleanRecordValue(burial?.id) || popupBurialIdRef.current;
+    if (!burialId) {
+      return;
+    }
+
+    if (popupBurialIdRef.current === burialId) {
+      popupBurialIdRef.current = null;
+    }
+
+    if (!shouldUseMapPopupsRef.current) {
+      return;
+    }
+
+    updateSelectionState((currentSelectionState) => (
+      currentSelectionState.activeBurialId === burialId
+        ? clearSelectionFocus(currentSelectionState)
+        : currentSelectionState
+    ));
+  }, [updateSelectionState]);
 
   const openPopupForBurial = useCallback((burial) => {
     if (!shouldUseMapPopups) {
@@ -2087,7 +2732,6 @@ export default function BurialMap() {
   const focusBurial = useCallback((
     burial,
     {
-      addToSelection = false,
       animate = true,
       openTourPopup = true,
       preserveViewport = false,
@@ -2095,15 +2739,7 @@ export default function BurialMap() {
   ) => {
     if (!burial) return;
 
-    if (addToSelection) {
-      setSelectedBurials((prev) => (
-        prev.some((item) => item.id === burial.id)
-          ? prev
-          : [...prev, burial]
-      ));
-    }
-
-    setActiveBurialId(burial.id);
+    updateSelectionState((currentSelectionState) => focusSelectionBurial(currentSelectionState, burial));
 
     const map = getMapInstance();
     if (map && Array.isArray(burial.coordinates)) {
@@ -2153,21 +2789,24 @@ export default function BurialMap() {
     if (openTourPopup) {
       focusBurialPopup(burial);
     }
-  }, [focusBurialPopup, getMapInstance, panMapIntoViewport]);
+  }, [focusBurialPopup, getMapInstance, panMapIntoViewport, updateSelectionState]);
 
   const selectBurial = useCallback((burial, options = {}) => {
-    focusBurial(burial, { addToSelection: true, ...options });
+    focusBurial(burial, options);
   }, [focusBurial]);
 
   /**
    * Removes a burial from search results
    */
   const removeFromResults = useCallback((burialId) => {
-    setSelectedBurials((prev) => prev.filter((burial) => burial.id !== burialId));
+    updateSelectionState((currentSelectionState) => removeSelectionBurial(currentSelectionState, burialId));
 
     if (activeRouteBurialIdRef.current === burialId) {
       setRoutingOrigin(null);
       setRoutingDestination(null);
+      setRouteGeoJson(null);
+      setIsRouteLoading(false);
+      setRouteError("");
       setActiveRouteBurialId(null);
     }
 
@@ -2175,20 +2814,23 @@ export default function BurialMap() {
       setDirectionsMenuAnchorEl(null);
       setDirectionsMenuBurial(null);
     }
-  }, []);
+  }, [updateSelectionState]);
 
   /**
    * Clears all search results
    */
   const clearSelectedBurials = useCallback(() => {
-    setSelectedBurials([]);
-    setActiveBurialId(null);
+    updateSelectionState(createMapSelectionState());
     setRoutingOrigin(null);
     setRoutingDestination(null);
+    setRouteGeoJson(null);
+    setIsRouteLoading(false);
+    setRouteError("");
     setActiveRouteBurialId(null);
     setDirectionsMenuAnchorEl(null);
     setDirectionsMenuBurial(null);
-  }, []);
+    closeMapPopup();
+  }, [closeMapPopup, updateSelectionState]);
 
   const handleOpenAppMenu = useCallback((event) => {
     setAppMenuAnchorEl(event.currentTarget);
@@ -2229,11 +2871,13 @@ export default function BurialMap() {
     ];
   }, [getMapInstance]);
 
-  const createFieldPacketFromSelection = useCallback(() => {
+  const createFieldPacketFromSelection = useCallback(({ announce = true } = {}) => {
     if (!isFieldPacketsEnabled) return null;
 
     if (selectedBurials.length === 0) {
-      showFieldPacketNotice("Select one or more records to create a field packet.", "warning");
+      if (announce) {
+        showFieldPacketNotice("Select one or more records to create a share link.", "warning");
+      }
       return null;
     }
 
@@ -2248,12 +2892,14 @@ export default function BurialMap() {
     });
 
     setFieldPacket(nextFieldPacket);
-    showFieldPacketNotice(
-      fieldPacket
-        ? "Field packet refreshed from the current selection."
-        : "Field packet created from the current selection.",
-      "success"
-    );
+    if (announce) {
+      showFieldPacketNotice(
+        fieldPacket
+          ? "Share details updated from the current selection."
+          : "Share link created from the current selection.",
+        "success"
+      );
+    }
 
     return nextFieldPacket;
   }, [
@@ -2279,58 +2925,75 @@ export default function BurialMap() {
     });
   }, []);
 
-  const getFieldPacketShareUrl = useCallback((packetState = fieldPacket) => {
+  const resolveFieldPacketForSharing = useCallback(() => {
+    if (!isFieldPacketsEnabled) {
+      return null;
+    }
+
+    if (selectedBurials.length > 0) {
+      return createFieldPacketFromSelection({ announce: false });
+    }
+
+    return fieldPacket;
+  }, [
+    createFieldPacketFromSelection,
+    fieldPacket,
+    isFieldPacketsEnabled,
+    selectedBurials.length,
+  ]);
+
+  const getFieldPacketShareUrl = useCallback((packetState = null) => {
     if (!isFieldPacketsEnabled || typeof window === "undefined") {
       return "";
     }
 
     const nextPacket = packetState?.selectedRecords?.length
       ? packetState
-      : createFieldPacketFromSelection();
+      : resolveFieldPacketForSharing();
     if (!nextPacket) return "";
 
     return buildFieldPacketShareUrl({
       packet: nextPacket,
       currentUrl: window.location.href,
     });
-  }, [createFieldPacketFromSelection, fieldPacket, isFieldPacketsEnabled]);
+  }, [isFieldPacketsEnabled, resolveFieldPacketForSharing]);
 
   const copyFieldPacketLink = useCallback(async () => {
-    const shareUrl = getFieldPacketShareUrl();
+    const nextPacket = resolveFieldPacketForSharing();
+    const shareUrl = getFieldPacketShareUrl(nextPacket);
     if (!shareUrl) {
-      showFieldPacketNotice("Field packet link unavailable.", "warning");
+      showFieldPacketNotice("Share link unavailable.", "warning");
       return;
     }
 
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
-        showFieldPacketNotice("Field packet link copied.", "success");
+        showFieldPacketNotice("Share link copied.", "success");
         return;
       }
 
       if (typeof window !== "undefined" && typeof window.prompt === "function") {
-        window.prompt("Copy field packet link", shareUrl);
-        showFieldPacketNotice("Field packet link ready to copy.", "neutral");
+        window.prompt("Copy share link", shareUrl);
+        showFieldPacketNotice("Share link ready to copy.", "neutral");
         return;
       }
 
       showFieldPacketNotice("Clipboard access unavailable in this browser.", "warning");
     } catch (error) {
-      console.error("Failed to copy field packet link:", error);
-      showFieldPacketNotice("Failed to copy the field packet link.", "warning");
+      console.error("Failed to copy share link:", error);
+      showFieldPacketNotice("Failed to copy the share link.", "warning");
     }
-  }, [getFieldPacketShareUrl, showFieldPacketNotice]);
+  }, [getFieldPacketShareUrl, resolveFieldPacketForSharing, showFieldPacketNotice]);
 
   const shareFieldPacket = useCallback(async () => {
-    const nextPacket = fieldPacket?.selectedRecords?.length
-      ? fieldPacket
-      : createFieldPacketFromSelection();
+    const nextPacket = resolveFieldPacketForSharing();
     if (!nextPacket) return;
+    const nextPacketPresentation = buildSharedSelectionPresentation(nextPacket);
 
     const shareUrl = getFieldPacketShareUrl(nextPacket);
     if (!shareUrl) {
-      showFieldPacketNotice("Field packet link unavailable.", "warning");
+      showFieldPacketNotice("Share link unavailable.", "warning");
       return;
     }
 
@@ -2341,28 +3004,28 @@ export default function BurialMap() {
 
     try {
       await navigator.share({
-        title: nextPacket.name,
-        text: nextPacket.note || `${nextPacket.selectedRecords.length} selected record${nextPacket.selectedRecords.length === 1 ? "" : "s"}`,
+        title: nextPacketPresentation.title,
+        text: nextPacketPresentation.description,
         url: shareUrl,
       });
-      showFieldPacketNotice("Field packet shared.", "success");
+      showFieldPacketNotice("Share link shared.", "success");
     } catch (error) {
       if (error?.name === "AbortError") return;
 
-      console.error("Failed to share field packet:", error);
+      console.error("Failed to share link:", error);
       showFieldPacketNotice("Unable to open the native share sheet.", "warning");
     }
   }, [
     copyFieldPacketLink,
-    createFieldPacketFromSelection,
-    fieldPacket,
     getFieldPacketShareUrl,
+    resolveFieldPacketForSharing,
     showFieldPacketNotice,
   ]);
 
   const clearFieldPacket = useCallback(() => {
     setFieldPacket(null);
-    showFieldPacketNotice("Field packet cleared.", "neutral");
+    setSharedLinkLandingState(null);
+    showFieldPacketNotice("Saved share details cleared.", "neutral");
   }, [showFieldPacketNotice]);
 
   const handleInstallApp = useCallback(async () => {
@@ -2424,8 +3087,8 @@ export default function BurialMap() {
             </div>
           `,
           className: 'custom-cluster-icon',
-          iconSize: [34, 34],
-          iconAnchor: [17, 17],
+          iconSize: [30, 30],
+          iconAnchor: [15, 15],
         });
       }
     });
@@ -2455,39 +3118,41 @@ export default function BurialMap() {
     activeSectionMarkerIdRef.current = nextActiveId || null;
   }, []);
 
+  const showSectionTooltip = useCallback((layer, tooltip, label) => {
+    tooltip.setContent(label);
+    if (!layer.getTooltip()) {
+      layer.bindTooltip(tooltip);
+    }
+    layer.openTooltip();
+  }, []);
+
+  const hideSectionTooltip = useCallback((layer) => {
+    if (typeof layer.closeTooltip === 'function') {
+      layer.closeTooltip();
+    }
+    if (layer.getTooltip()) {
+      layer.unbindTooltip();
+    }
+  }, []);
+
   const syncSectionTooltips = useCallback(() => {
     const map = getMapInstance();
     if (!map) return;
 
     const zoom = map.getZoom();
     sectionFeatureLayersRef.current.forEach(({ layer, tooltip, sectionValue, label }) => {
-      const isHovered = hoveredSectionIdRef.current === String(sectionValue);
       const shouldShowTooltip =
-        isHovered ||
         zoom >= ZOOM_LEVELS.SECTION ||
         `${sectionValue}` === `${sectionFilter}`;
 
       if (shouldShowTooltip) {
-        tooltip.setContent(label);
-        if (!layer.getTooltip()) {
-          layer.bindTooltip(tooltip);
-        }
-        layer.openTooltip();
+        showSectionTooltip(layer, tooltip, label);
         return;
       }
 
-      if (typeof layer.closeTooltip === 'function') {
-        layer.closeTooltip();
-      }
-      if (layer.getTooltip()) {
-        layer.unbindTooltip();
-      }
-      // Ensure the tooltip DOM element is removed for permanent tooltips
-      if (tooltip && tooltip._container && tooltip._container.parentNode) {
-        tooltip._container.parentNode.removeChild(tooltip._container);
-      }
+      hideSectionTooltip(layer);
     });
-  }, [getMapInstance, sectionFilter]);
+  }, [getMapInstance, hideSectionTooltip, sectionFilter, showSectionTooltip]);
 
   const scheduleSectionTooltipSync = useCallback(() => {
     if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
@@ -2505,30 +3170,39 @@ export default function BurialMap() {
     });
   }, [syncSectionTooltips]);
 
-  const restoreSectionLayerWeight = useCallback((sectionId) => {
+  const restoreSectionLayerWeight = useCallback((sectionId, layerOverride = null) => {
     const section = sectionFeatureLayersRef.current.get(String(sectionId));
-    if (!section?.layer) return;
+    const targetLayer = layerOverride || section?.layer;
+    if (!targetLayer) return;
 
-    section.layer.setStyle({
-      weight: `${section.sectionValue}` === `${sectionFilter}` ? 2 : 1,
+    targetLayer.setStyle({
+      weight: `${sectionId}` === `${sectionFilter}` ? 2 : 1,
     });
   }, [sectionFilter]);
 
   const clearHoveredSection = useCallback(() => {
-    const hoveredSectionId = hoveredSectionIdRef.current;
-    if (!hoveredSectionId) return;
+    const { clearedHoverState } = clearLeafletSectionHover({
+      sectionId: hoveredSectionIdRef.current,
+      layer: hoveredSectionLayerRef.current,
+    });
+    if (!clearedHoverState) return;
 
     hoveredSectionIdRef.current = null;
-    restoreSectionLayerWeight(hoveredSectionId);
+    hoveredSectionLayerRef.current = null;
+
+    hideSectionTooltip(clearedHoverState.layer);
+    restoreSectionLayerWeight(clearedHoverState.sectionId, clearedHoverState.layer);
+
     scheduleSectionTooltipSync();
-  }, [restoreSectionLayerWeight, scheduleSectionTooltipSync]);
+  }, [
+    hideSectionTooltip,
+    restoreSectionLayerWeight,
+    scheduleSectionTooltipSync,
+  ]);
 
   const handleHoverBurialChange = useCallback((nextBurialId) => {
-    const normalizedBurialId = nextBurialId ?? null;
-    setHoveredBurialId((currentBurialId) => (
-      currentBurialId === normalizedBurialId ? currentBurialId : normalizedBurialId
-    ));
-  }, []);
+    updateSelectionState((currentSelectionState) => setSelectionHover(currentSelectionState, nextBurialId));
+  }, [updateSelectionState]);
 
   const clearHoveredBurialIfCurrent = useCallback((burialId) => {
     if (!burialId) {
@@ -2536,10 +3210,12 @@ export default function BurialMap() {
       return;
     }
 
-    setHoveredBurialId((currentBurialId) => (
-      currentBurialId === burialId ? null : currentBurialId
+    updateSelectionState((currentSelectionState) => (
+      currentSelectionState.hoveredBurialId === burialId
+        ? setSelectionHover(currentSelectionState, null)
+        : currentSelectionState
     ));
-  }, [handleHoverBurialChange]);
+  }, [handleHoverBurialChange, updateSelectionState]);
 
   const syncLeafletSelectedMarkerIcon = useCallback((burialId, layerOverride = null) => {
     if (isCustomMapEngineEnabled || !burialId) {
@@ -2548,7 +3224,7 @@ export default function BurialMap() {
 
     const layer = layerOverride || selectedMarkerLayersRef.current.get(burialId);
     const markerNumber = selectedMarkerOrderById.get(burialId);
-    if (!layer?.setIcon || !markerNumber) {
+    if (!layer || !markerNumber) {
       return;
     }
 
@@ -2556,7 +3232,8 @@ export default function BurialMap() {
       hoveredBurialIdRef.current === burialId ||
       activeBurialIdRef.current === burialId;
 
-    layer.setIcon(createNumberedIcon(markerNumber, isHighlighted));
+    const markerElement = layer.getElement?.();
+    markerElement?.classList.toggle("custom-div-icon--highlighted", isHighlighted);
     if (typeof layer.setZIndexOffset === "function") {
       layer.setZIndexOffset(isHighlighted ? 1200 : 1000);
     }
@@ -2640,15 +3317,21 @@ export default function BurialMap() {
       animate: false,
       openTourPopup: true,
     });
-    const snappedDestination = findNearestRoadPoint(
+    const snappedDestination = snapPointToRoadNetwork(
       burial.coordinates[1],
-      burial.coordinates[0]
+      burial.coordinates[0],
+      roadRoutingGraph
     );
 
+    setRouteError("");
     setRoutingOrigin([location.latitude, location.longitude]);
-    setRoutingDestination(snappedDestination);
+    setRoutingDestination(
+      snappedDestination
+        ? [snappedDestination.lat, snappedDestination.lng]
+        : [burial.coordinates[1], burial.coordinates[0]]
+    );
     setActiveRouteBurialId(burial.id);
-  }, [lat, lng, requestCurrentLocation, selectBurial]);
+  }, [lat, lng, requestCurrentLocation, roadRoutingGraph, selectBurial]);
 
   /**
    * Stops the current navigation
@@ -2656,6 +3339,9 @@ export default function BurialMap() {
   const stopRouting = useCallback(() => {
     setRoutingOrigin(null);
     setRoutingDestination(null);
+    setRouteGeoJson(null);
+    setIsRouteLoading(false);
+    setRouteError("");
     setActiveRouteBurialId(null);
   }, []);
 
@@ -2686,6 +3372,71 @@ export default function BurialMap() {
 
     window.open(link.href, link.target, 'noopener,noreferrer');
   }, [lat, lng]);
+
+  useEffect(() => {
+    if (!routingOrigin || !routingDestination) {
+      setRouteGeoJson(null);
+      setIsRouteLoading(false);
+      return undefined;
+    }
+
+    const abortController = typeof AbortController === "function"
+      ? new AbortController()
+      : null;
+    let ignore = false;
+
+    setRouteGeoJson(null);
+    setIsRouteLoading(true);
+    setRouteError("");
+
+    void calculateWalkingRoute({
+      from: routingOrigin,
+      provider: routingProvider,
+      roadGraph: roadRoutingGraph,
+      to: routingDestination,
+      signal: abortController?.signal,
+    }).then((routeResult) => {
+      if (ignore) {
+        return;
+      }
+
+      setRouteGeoJson(routeResult.geojson);
+      setIsRouteLoading(false);
+
+      if (isLatLngBoundsExpressionValid(routeResult.bounds)) {
+        const map = getMapInstance();
+        if (map) {
+          fitMapBoundsInViewport(map, routeResult.bounds, {
+            maxZoom: ZOOM_LEVELS.INDIVIDUAL,
+          });
+        }
+      }
+    }).catch((error) => {
+      if (ignore || error?.name === "AbortError") {
+        return;
+      }
+
+      console.error("Routing error:", error);
+      setRouteGeoJson(null);
+      setIsRouteLoading(false);
+      setRouteError(getRoutingErrorMessage(error));
+      setRoutingOrigin(null);
+      setRoutingDestination(null);
+      setActiveRouteBurialId(null);
+    });
+
+    return () => {
+      ignore = true;
+      abortController?.abort?.();
+    };
+  }, [
+    fitMapBoundsInViewport,
+    getMapInstance,
+    roadRoutingGraph,
+    routingProvider,
+    routingDestination,
+    routingOrigin,
+  ]);
 
   //-----------------------------------------------------------------------------
   // Effects
@@ -2875,24 +3626,11 @@ export default function BurialMap() {
   }, [directionsMenuBurial]);
 
   useEffect(() => {
-    if (selectedBurials.length === 0) {
-      if (activeBurialId !== null) {
-        setActiveBurialId(null);
-      }
-      return;
-    }
-
-    if (!selectedBurials.some((burial) => burial.id === activeBurialId)) {
-      setActiveBurialId(selectedBurials[0].id);
-    }
-  }, [activeBurialId, selectedBurials]);
-
-  useEffect(() => {
     if (!burialRecordsById.size) return;
 
-    setSelectedBurials((prev) => {
+    updateSelectionState((currentSelectionState) => {
       let changed = false;
-      const next = prev.map((burial) => {
+      const nextSelectionState = refreshSelectionBurials(currentSelectionState, (burial) => {
         if (burial?.source !== "burial") return burial;
 
         const latest = burialRecordsById.get(burial.id);
@@ -2913,8 +3651,7 @@ export default function BurialMap() {
         changed = true;
         return latest;
       });
-
-      return changed ? next : prev;
+      return changed ? nextSelectionState : currentSelectionState;
     });
 
     setDirectionsMenuBurial((current) => {
@@ -2923,7 +3660,7 @@ export default function BurialMap() {
       const latest = burialRecordsById.get(current.id);
       return latest || current;
     });
-  }, [burialRecordsById]);
+  }, [burialRecordsById, updateSelectionState]);
 
   useEffect(() => {
     if (activeBurialId === null) return;
@@ -2964,6 +3701,8 @@ export default function BurialMap() {
       onOpenDirectionsMenu: (event) => {
         handleOpenDirectionsMenu(event, burial);
       },
+      onPopupClose: handlePopupBurialClose,
+      onPopupOpen: handlePopupBurialOpen,
       onRemove: () => {
         removeFromResults(burial.id);
         marker.closePopup();
@@ -2979,10 +3718,20 @@ export default function BurialMap() {
         preserveViewport: true,
       });
     });
+    marker.on('mouseover', () => {
+      handleHoverBurialChange(burial.id);
+    });
+    marker.on('mouseout', () => {
+      clearHoveredBurialIfCurrent(burial.id);
+    });
 
     return marker;
   }, [
+    clearHoveredBurialIfCurrent,
     handleOpenDirectionsMenu,
+    handlePopupBurialClose,
+    handlePopupBurialOpen,
+    handleHoverBurialChange,
     removeFromResults,
     schedulePopupLayout,
     selectBurial,
@@ -3082,13 +3831,8 @@ export default function BurialMap() {
   ]);
 
   useEffect(() => {
-    activeBurialIdRef.current = activeBurialId;
     syncActiveSectionMarker(activeBurialId);
   }, [activeBurialId, syncActiveSectionMarker]);
-
-  useEffect(() => {
-    hoveredBurialIdRef.current = hoveredBurialId;
-  }, [hoveredBurialId]);
 
   useEffect(() => {
     syncLeafletSelectedMarkerIcons();
@@ -3215,6 +3959,33 @@ export default function BurialMap() {
     };
   }, [clearHoveredSection, getMapInstance, isCustomMapEngineEnabled, markSectionInputMode]);
 
+  useEffect(() => {
+    if (isCustomMapEngineEnabled) {
+      return undefined;
+    }
+
+    const map = getMapInstance();
+    if (!map) return undefined;
+    const clearInterruptedBurialHover = () => {
+      const hoveredBurialId = hoveredBurialIdRef.current;
+      if (!hoveredBurialId) {
+        return;
+      }
+
+      clearHoveredBurialIfCurrent(hoveredBurialId);
+    };
+
+    map.on("movestart", clearInterruptedBurialHover);
+    map.on("zoomstart", clearInterruptedBurialHover);
+    window.addEventListener("blur", clearInterruptedBurialHover);
+
+    return () => {
+      map.off("movestart", clearInterruptedBurialHover);
+      map.off("zoomstart", clearInterruptedBurialHover);
+      window.removeEventListener("blur", clearInterruptedBurialHover);
+    };
+  }, [clearHoveredBurialIfCurrent, getMapInstance, isCustomMapEngineEnabled]);
+
   const resetMapToDefaultBounds = useCallback(() => {
     const map = getMapInstance();
     if (!map) return;
@@ -3239,6 +4010,7 @@ export default function BurialMap() {
   const activateSectionBrowse = useCallback((sectionValue, bounds) => {
     const nextSection = sectionValue || "";
     requestBurialDataLoad();
+    clearActiveBurialFocus({ clearHover: true });
     setSectionFilter(nextSection);
     setLotTierFilter("");
     setFilterType("lot");
@@ -3247,31 +4019,32 @@ export default function BurialMap() {
       setSelectedTour(null);
       const sectionBurialCount = sectionBurialCounts.get(String(nextSection));
       const shouldAutoShowMarkers = Number.isFinite(sectionBurialCount) &&
-        sectionBurialCount > 0 &&
-        sectionBurialCount <= SECTION_MARKER_AUTO_SHOW_LIMIT;
+        sectionBurialCount > 0;
       setShowAllBurials(shouldAutoShowMarkers);
       focusSectionOnMap(nextSection, bounds);
       return;
     }
 
     setShowAllBurials(false);
-  }, [focusSectionOnMap, requestBurialDataLoad, sectionBurialCounts]);
+  }, [clearActiveBurialFocus, focusSectionOnMap, requestBurialDataLoad, sectionBurialCounts]);
 
   const clearSectionFilters = useCallback(() => {
+    clearActiveBurialFocus({ clearHover: true });
     setLotTierFilter("");
     setFilterType("lot");
     setSectionFilter("");
     setShowAllBurials(false);
     resetMapToDefaultBounds();
-  }, [resetMapToDefaultBounds]);
+  }, [clearActiveBurialFocus, resetMapToDefaultBounds]);
 
   const handleTourSelect = useCallback((tourName) => {
+    clearActiveBurialFocus({ clearHover: true });
     setSelectedTour(tourName);
     setSectionFilter("");
     setLotTierFilter("");
     setFilterType("lot");
     setShowAllBurials(false);
-  }, []);
+  }, [clearActiveBurialFocus]);
 
   const focusTourOnMap = useCallback((tourName) => {
     const map = getMapInstance();
@@ -3302,7 +4075,9 @@ export default function BurialMap() {
           ? burialRecordsById.get(record.id) || record
           : record
       ));
-      const nextActiveBurial = packetSelections.find((record) => record.id === nextFieldPacket.activeBurialId) || packetSelections[0] || null;
+      const nextActiveBurial = nextFieldPacket.activeBurialId
+        ? packetSelections.find((record) => record.id === nextFieldPacket.activeBurialId) || null
+        : null;
 
       if (nextFieldPacket.selectedTour) {
         handleTourSelect(nextFieldPacket.selectedTour);
@@ -3311,10 +4086,16 @@ export default function BurialMap() {
       }
 
       setFieldPacket(nextFieldPacket);
+      setSharedLinkLandingState({
+        restoredAt: Date.now(),
+      });
 
       if (packetSelections.length > 0) {
-        setSelectedBurials(packetSelections);
-        setActiveBurialId(nextActiveBurial?.id || null);
+        updateSelectionState((currentSelectionState) => replaceSelectionBurials(currentSelectionState, {
+          selectedBurials: packetSelections,
+          activeBurialId: nextActiveBurial?.id || null,
+          hoveredBurialId: null,
+        }));
 
         const map = getMapInstance();
         if (map) {
@@ -3330,10 +4111,12 @@ export default function BurialMap() {
         }
       }
 
-      showFieldPacketNotice("Field packet loaded from link.", "neutral");
+      showFieldPacketNotice("Shared selection loaded from link.", "neutral");
       didApplyUrlStateRef.current = true;
       return;
     }
+
+    setSharedLinkLandingState(null);
 
     if (deepLink.selectedTourName) {
       handleTourSelect(deepLink.selectedTourName);
@@ -3370,6 +4153,7 @@ export default function BurialMap() {
     selectBurial,
     showFieldPacketNotice,
     tourNames,
+    updateSelectionState,
   ]);
 
   //=============================================================================
@@ -3426,21 +4210,33 @@ export default function BurialMap() {
           return;
         }
 
-        if (hoveredSectionIdRef.current && hoveredSectionIdRef.current !== sectionId) {
-          restoreSectionLayerWeight(hoveredSectionIdRef.current);
+        const { clearedHoverState, nextHoverState } = beginLeafletSectionHover(
+          {
+            sectionId: hoveredSectionIdRef.current,
+            layer: hoveredSectionLayerRef.current,
+          },
+          {
+            sectionId,
+            layer,
+          }
+        );
+
+        if (clearedHoverState) {
+          hideSectionTooltip(clearedHoverState.layer);
+          restoreSectionLayerWeight(clearedHoverState.sectionId, clearedHoverState.layer);
+          scheduleSectionTooltipSync();
         }
 
-        hoveredSectionIdRef.current = sectionId;
+        hoveredSectionIdRef.current = nextHoverState.sectionId;
+        hoveredSectionLayerRef.current = nextHoverState.layer;
         layer.setStyle({ weight: 6 });
-        tooltip.setContent(label);
-        if (!layer.getTooltip()) {
-          layer.bindTooltip(tooltip);
-        }
-        layer.openTooltip();
-        scheduleSectionTooltipSync();
+        showSectionTooltip(layer, tooltip, label);
       },
       mouseout: () => {
-        if (hoveredSectionIdRef.current === sectionId) {
+        if (isLeafletSectionLayerHovered({
+          sectionId: hoveredSectionIdRef.current,
+          layer: hoveredSectionLayerRef.current,
+        }, layer)) {
           clearHoveredSection();
           return;
         }
@@ -3448,24 +4244,18 @@ export default function BurialMap() {
         restoreSectionLayerWeight(sectionId);
       },
       add: () => {
-        if (typeof layer.closeTooltip === 'function') {
-          layer.closeTooltip();
-        }
-        if (layer.getTooltip()) {
-          layer.unbindTooltip();
-        }
+        hideSectionTooltip(layer);
         scheduleSectionTooltipSync();
       },
       remove: () => {
-        if (hoveredSectionIdRef.current === sectionId) {
+        if (isLeafletSectionLayerHovered({
+          sectionId: hoveredSectionIdRef.current,
+          layer: hoveredSectionLayerRef.current,
+        }, layer)) {
           hoveredSectionIdRef.current = null;
+          hoveredSectionLayerRef.current = null;
         }
-        if (typeof layer.closeTooltip === 'function') {
-          layer.closeTooltip();
-        }
-        if (layer.getTooltip()) {
-          layer.unbindTooltip();
-        }
+        hideSectionTooltip(layer);
         sectionFeatureLayersRef.current.delete(String(sectionValue));
         scheduleSectionTooltipSync();
       },
@@ -3473,9 +4263,11 @@ export default function BurialMap() {
   }, [
     activateSectionBrowse,
     clearHoveredSection,
+    hideSectionTooltip,
     restoreSectionLayerWeight,
     scheduleSectionTooltipSync,
     sectionFilter,
+    showSectionTooltip,
   ]);
 
   const ensureTourLayerLoaded = useCallback(async (tourName) => {
@@ -3520,7 +4312,11 @@ export default function BurialMap() {
             definition.key,
             tourName,
             selectBurial,
+            handleHoverBurialChange,
+            clearHoveredBurialIfCurrent,
             handleOpenDirectionsMenu,
+            handlePopupBurialClose,
+            handlePopupBurialOpen,
             removeFromResults,
             (browseResult, featureLayer) => {
               tourFeatureLayersRef.current.set(browseResult.id, featureLayer);
@@ -3559,7 +4355,11 @@ export default function BurialMap() {
       setLoadingTourName((current) => (current === tourName ? '' : current));
     }
   }, [
+    clearHoveredBurialIfCurrent,
     handleOpenDirectionsMenu,
+    handlePopupBurialClose,
+    handlePopupBurialOpen,
+    handleHoverBurialChange,
     removeFromResults,
     resolveTourBrowseResult,
     schedulePopupLayout,
@@ -3666,7 +4466,7 @@ export default function BurialMap() {
         onLotTierFilterChange={setLotTierFilter}
         onClearFieldPacket={clearFieldPacket}
         onCopyFieldPacketLink={copyFieldPacketLink}
-        onCreateFieldPacket={createFieldPacketFromSelection}
+        onInstallApp={handleInstallApp}
         onOpenAppMenu={handleOpenAppMenu}
         onOpenDirectionsMenu={handleOpenDirectionsMenu}
         onRemoveSelectedBurial={removeFromResults}
@@ -3689,12 +4489,14 @@ export default function BurialMap() {
         selectedTour={selectedTour}
         showAllBurials={showAllBurials}
         showIosInstallHint={showIosInstallHint}
+        sharedLinkLandingState={sharedLinkLandingState}
         status={status}
         tourDefinitions={tourDefinitions}
         tourLayerError={tourLayerError}
         tourResults={selectedTour ? (tourResultsByName[selectedTour] || EMPTY_TOUR_RESULTS) : EMPTY_TOUR_RESULTS}
         tourStyles={tourStyles}
         uniqueSections={uniqueSections}
+        iosAppStoreUrl={isAppleMobile ? IOS_APP_STORE_URL : ""}
       />
 
       <Menu
@@ -3702,7 +4504,7 @@ export default function BurialMap() {
         open={appMenuOpen}
         onClose={handleCloseAppMenu}
       >
-        {isDev && <MenuItem disabled>{`Renderer: ${mapEngine === "custom" ? "Custom Preview" : "Leaflet"}`}</MenuItem>}
+        {isDev && <MenuItem disabled>{`Renderer: ${mapEngine === "custom" ? "Custom Renderer (Preview)" : "Leaflet (Production)"}`}</MenuItem>}
         {isDev && mapEngine !== "leaflet" && (
           <MenuItem
             onClick={() => {
@@ -3710,7 +4512,7 @@ export default function BurialMap() {
               handleMapEngineChange("leaflet");
             }}
           >
-            Use Leaflet Renderer
+            Use Leaflet (Production)
           </MenuItem>
         )}
         {isDev && mapEngine !== "custom" && (
@@ -3738,14 +4540,10 @@ export default function BurialMap() {
             disabled={!fieldPacket?.selectedRecords?.length && selectedBurials.length === 0}
             onClick={() => {
               handleCloseAppMenu();
-              if (fieldPacket?.selectedRecords?.length) {
-                void copyFieldPacketLink();
-                return;
-              }
-              createFieldPacketFromSelection();
+              void copyFieldPacketLink();
             }}
           >
-            {fieldPacket?.selectedRecords?.length ? 'Copy field packet link' : 'Create field packet'}
+            Copy share link
           </MenuItem>
         )}
         {isFieldPacketsEnabled && fieldPacket?.selectedRecords?.length > 0 && (
@@ -3755,7 +4553,7 @@ export default function BurialMap() {
               clearFieldPacket();
             }}
           >
-            Clear field packet
+            Clear saved share details
           </MenuItem>
         )}
         {isInstalled && <MenuItem disabled>App installed on this device</MenuItem>}
@@ -3814,24 +4612,48 @@ export default function BurialMap() {
           : null}
       </Menu>
 
+      <RouteStatusOverlay
+        isCalculating={isRouteLoading}
+        routingError={routeError}
+      />
+
       {isCustomMapEngineEnabled ? (
         <>
-        <MapControlStack isMobile={isMobile}>
+        <MapControlStack isMobile={isMobile} hasExpandedPanel={isLayerControlOpen}>
           <MapLayerControl
             basemapOptions={MAP_CONTROLLED_BASEMAPS}
             activeBasemapId={activeBasemap?.id || ""}
+            isOpen={isLayerControlOpen}
             onBasemapChange={handleBasemapChange}
-              overlayOptions={MAP_OVERLAY_OPTIONS}
-              overlayVisibility={overlayVisibility}
-              onToggleOverlay={handleToggleOverlay}
-            />
-            <MapHomeButton onClick={resetMapToDefaultBounds} />
+            onOpenChange={setIsLayerControlOpen}
+            overlayOptions={MAP_OVERLAY_OPTIONS}
+            overlayVisibility={overlayVisibility}
+            onToggleOverlay={handleToggleOverlay}
+          />
+          <MapHomeButton onClick={resetMapToDefaultBounds} />
           <MapZoomControl
             isMobile={isMobile}
             onZoomIn={() => mapRef.current?.zoomIn?.()}
             onZoomOut={() => mapRef.current?.zoomOut?.()}
           />
           <MobileLocateButton isMobile={isMobile} onLocate={onLocateMarker} />
+          {isDev && SITE_TWIN_CONFIG && (
+            <SiteTwinDebugControl
+              isOverlayEnabled={overlayVisibility.siteTwin !== false}
+              mapEngine={mapEngine}
+              manifest={siteTwinManifest}
+              loadedSummary={siteTwinLoadedSummary}
+              filteredSummary={siteTwinFilteredSummary}
+              debugState={normalizedSiteTwinDebugState}
+              onToggleOverlay={(checked) => {
+                if (checked !== (overlayVisibility.siteTwin !== false)) {
+                  handleToggleOverlay("siteTwin");
+                }
+              }}
+              onUpdateDebugState={handleUpdateSiteTwinDebugState}
+              onResetDebugState={handleResetSiteTwinDebugState}
+            />
+          )}
         </MapControlStack>
 
           <CustomMapSurface
@@ -3840,6 +4662,7 @@ export default function BurialMap() {
             boundaryData={MAP_BOUNDARY}
             defaultCenter={MAP_CENTER}
             defaultZoom={MAP_ZOOM}
+            getOverlayElement={getOverlayElement}
             hoveredBurialId={hoveredBurialId}
             lat={lat}
             lng={lng}
@@ -3851,22 +4674,34 @@ export default function BurialMap() {
             onActivateSectionBrowse={activateSectionBrowse}
             onHoverBurialChange={handleHoverBurialChange}
             onOpenDirectionsMenu={handleOpenDirectionsMenu}
+            onPopupClose={handlePopupBurialClose}
+            onPopupOpen={handlePopupBurialOpen}
             onRemoveSelectedBurial={removeFromResults}
             onSelectBurial={selectBurial}
             onZoomChange={handleZoomEnd}
             roadsData={MAP_ROADS}
+            routeGeoJson={routeGeoJson}
             schedulePopupLayout={schedulePopupLayout}
             sectionBurials={sectionBurials}
             sectionFilter={sectionFilter}
+            sectionOverviewMarkers={sectionOverviewMarkers}
             sectionsData={MAP_SECTIONS}
             selectedBurials={selectedBurials}
             selectedMarkerLayersRef={selectedMarkerLayersRef}
             selectedTourResults={selectedTour ? (tourResultsByName[selectedTour] || EMPTY_TOUR_RESULTS) : EMPTY_TOUR_RESULTS}
+            showSiteTwin={overlayVisibility.siteTwin !== false}
+            showSiteTwinMonuments={normalizedSiteTwinDebugState.showMonuments}
+            showSiteTwinSurface={normalizedSiteTwinDebugState.showSurface}
             shouldUseMapPopups={shouldUseMapPopups}
             showBoundary={overlayVisibility.boundary !== false}
             showAllBurials={showAllBurials}
             showRoads={overlayVisibility.roads !== false}
-            showSections={overlayVisibility.sections !== false}
+            showSections={overlayVisibility.sections !== false && showSections}
+            showSectionOverviewMarkers={overlayVisibility.sections !== false && showSectionOverviewMarkers}
+            siteTwinCandidates={filteredSiteTwinCandidates}
+            siteTwinMonumentHeightScale={normalizedSiteTwinDebugState.monumentHeightScale}
+            siteTwinManifest={siteTwinManifest}
+            siteTwinSurfaceOpacity={siteTwinSurfaceOpacity}
             tourFeatureLayersRef={tourFeatureLayersRef}
             tourStyles={tourStyles}
           />
@@ -3889,17 +4724,32 @@ export default function BurialMap() {
             fitMapBoundsInViewport={fitMapBoundsInViewport}
             getSectionStyle={getSectionStyle}
             isDev={isDev}
+            isLayerControlOpen={isLayerControlOpen}
             isMobile={isMobile}
             isPmtilesEnabled={isPmtilesEnabled}
+            mapEngine={mapEngine}
             mapRef={mapRef}
             onBasemapChange={handleBasemapChange}
             onEachSectionFeature={onEachSectionFeature}
+            onLayerControlOpenChange={setIsLayerControlOpen}
             onLocateMarker={onLocateMarker}
+            onResetSiteTwinDebugState={handleResetSiteTwinDebugState}
+            onSelectSection={activateSectionBrowse}
             onToggleOverlay={handleToggleOverlay}
             onSelectBurial={selectBurial}
+            onUpdateSiteTwinDebugState={handleUpdateSiteTwinDebugState}
             overlayVisibility={overlayVisibility}
             overlayMaps={overlayMaps}
+            siteTwinDebugState={normalizedSiteTwinDebugState}
+            siteTwinFilteredSummary={siteTwinFilteredSummary}
+            siteTwinLoadedSummary={siteTwinLoadedSummary}
+            siteTwinManifest={siteTwinManifest}
+            showSiteTwinSurface={normalizedSiteTwinDebugState.showSurface}
+            siteTwinSurfaceOpacity={siteTwinSurfaceOpacity}
+            sectionOverviewMarkers={sectionOverviewMarkers}
             selectedTour={selectedTour}
+            showSections={overlayVisibility.sections && showSections}
+            showSectionOverviewMarkers={overlayVisibility.sections && showSectionOverviewMarkers}
             tourNames={tourNames}
           />
 
@@ -3909,10 +4759,10 @@ export default function BurialMap() {
             </Marker>
           )}
 
-          {routingOrigin && routingDestination && (
-            <RoutingControl
-              from={routingOrigin}
-              to={routingDestination}
+          {routeGeoJson && (
+            <GeoJSON
+              data={routeGeoJson}
+              style={ROUTE_LINE_STYLE}
             />
           )}
 
@@ -3935,7 +4785,11 @@ export default function BurialMap() {
                 mouseout: () => clearHoveredBurialIfCurrent(burial.id),
                 click: () => handleMarkerClick(burial),
                 popupopen: ({ popup }) => {
+                  handlePopupBurialOpen(burial);
                   schedulePopupLayout(popup);
+                },
+                popupclose: () => {
+                  handlePopupBurialClose(burial);
                 },
               }}
               zIndexOffset={1000}

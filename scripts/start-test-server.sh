@@ -39,6 +39,8 @@ if [ ! -x "$REACT_SCRIPTS_BIN" ]; then
   exit 1
 fi
 
+bun run sync:profile-shell
+
 if is_port_in_use "$IMAGE_SERVER_HOST" "$IMAGE_SERVER_PORT"; then
   echo "Using existing test image server at http://${IMAGE_SERVER_HOST}:${IMAGE_SERVER_PORT}"
 else

@@ -5,15 +5,14 @@ import {
   getMapStorageStrategy,
 } from "./backend";
 import {
+  LEAFLET_ADAPTER_RUNTIME_KIND,
   MAP_LAYER_KINDS,
   MAP_RUNTIME_API_VERSION,
   MAP_RUNTIME_EVENTS,
+  MAP_RUNTIME_KINDS,
 } from "./contracts";
 
 export const MAP_ENGINE_MANIFEST_VERSION = 1;
-
-const CUSTOM_RUNTIME_KIND = "custom";
-const LEAFLET_ADAPTER_KIND = "leaflet-adapter";
 
 export const getMapEngineManifest = (appProfile = {}) => {
   const backendDescriptor = getMapBackendDescriptor(appProfile);
@@ -28,7 +27,7 @@ export const getMapEngineManifest = (appProfile = {}) => {
     engineName: `${appProfile.productName || "App"} Custom Map Engine`,
     runtimeApiVersion: MAP_RUNTIME_API_VERSION,
     backendApiVersion: backendDescriptor.apiVersion,
-    runtimeKinds: [CUSTOM_RUNTIME_KIND, LEAFLET_ADAPTER_KIND],
+    runtimeKinds: [...MAP_RUNTIME_KINDS],
     runtimeEvents: [...MAP_RUNTIME_EVENTS],
     layerKinds: [...MAP_LAYER_KINDS],
     appNeeds: [
@@ -36,31 +35,31 @@ export const getMapEngineManifest = (appProfile = {}) => {
         id: "burial-search-popup",
         label: "Burial search selection and popup inspection",
         status: "shipped",
-        runtimeKinds: [CUSTOM_RUNTIME_KIND, LEAFLET_ADAPTER_KIND],
+        runtimeKinds: [...MAP_RUNTIME_KINDS],
       },
       {
         id: "section-browse",
         label: "Section polygon browsing, scoped results, and section marker toggles",
         status: "shipped",
-        runtimeKinds: [CUSTOM_RUNTIME_KIND, LEAFLET_ADAPTER_KIND],
+        runtimeKinds: [...MAP_RUNTIME_KINDS],
       },
       {
         id: "tour-stops",
         label: "Tour stop selection and popup inspection",
         status: "shipped",
-        runtimeKinds: [CUSTOM_RUNTIME_KIND, LEAFLET_ADAPTER_KIND],
+        runtimeKinds: [...MAP_RUNTIME_KINDS],
       },
       {
         id: "mobile-selected-actions",
         label: "Mobile selected-person actions and bottom-sheet coordination",
         status: "shipped",
-        runtimeKinds: [CUSTOM_RUNTIME_KIND, LEAFLET_ADAPTER_KIND],
+        runtimeKinds: [...MAP_RUNTIME_KINDS],
       },
       {
         id: "deep-links",
         label: "Deep-link restoration into selected records and viewport state",
         status: "shipped",
-        runtimeKinds: [CUSTOM_RUNTIME_KIND, LEAFLET_ADAPTER_KIND],
+        runtimeKinds: [...MAP_RUNTIME_KINDS],
       },
       {
         id: "static-geoparquet-builds",
@@ -70,15 +69,15 @@ export const getMapEngineManifest = (appProfile = {}) => {
       },
       {
         id: "on-map-routing",
-        label: "GraphHopper on-map routing",
+        label: "Valhalla and local-road on-map routing",
         status: "adapter-backed",
-        runtimeKinds: [LEAFLET_ADAPTER_KIND],
+        runtimeKinds: [...MAP_RUNTIME_KINDS],
       },
       {
         id: "live-geolocation",
         label: "Live location controls and device geolocation",
         status: "adapter-backed",
-        runtimeKinds: [LEAFLET_ADAPTER_KIND],
+        runtimeKinds: [...MAP_RUNTIME_KINDS],
       },
       {
         id: "authoring-editing",
@@ -92,7 +91,7 @@ export const getMapEngineManifest = (appProfile = {}) => {
       envVar: "REACT_APP_ENABLE_CUSTOM_MAP_ENGINE",
       queryOverride: "mapEngine=custom|leaflet",
       stickyStorageKey: "fab:enableCustomMapEngine",
-      defaultRuntimeKind: LEAFLET_ADAPTER_KIND,
+      defaultRuntimeKind: LEAFLET_ADAPTER_RUNTIME_KIND,
     },
     basemapRegistry: {
       defaultBasemapId: appProfile.map?.defaultBasemapId || "",

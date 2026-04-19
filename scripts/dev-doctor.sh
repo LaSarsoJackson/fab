@@ -85,10 +85,10 @@ else
   status_warn "Missing src/data/TourBiographyAliases.json. Run 'bun run build:tour-data'."
 fi
 
-if has_env_key REACT_APP_GRAPHHOPPER_API_KEY; then
-  status_ok "GraphHopper API key configured"
+if command -v docker >/dev/null 2>&1; then
+  status_ok "Docker available for offline Valhalla routing"
 else
-  status_warn "GraphHopper API key not configured. Directions will be limited locally."
+  status_warn "Docker not installed. Local/offline Valhalla routing scripts will be unavailable."
 fi
 
 if has_env_key REACT_APP_DEV_IMAGE_SERVER_ORIGIN; then
