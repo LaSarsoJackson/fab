@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  buildOfflineWalkingRouteUrl,
   buildRoadRoutingGraph,
+  buildOfflineWalkingRouteUrl,
   buildWalkingRouteUrl,
   calculateWalkingRoute,
   fetchWalkingRoute,
   getRoutingErrorMessage,
   snapPointToRoadNetwork,
-} from "../src/features/map";
+} from "../src/features/map/mapRouting";
 
 const SIMPLE_ROADS = {
   type: "FeatureCollection",
@@ -23,6 +23,34 @@ const SIMPLE_ROADS = {
             [-73.72811, 42.7061],
             [-73.72154, 42.70911],
           ],
+        ],
+      },
+      properties: {},
+    },
+  ],
+};
+
+const FRAGMENTED_ROADS = {
+  type: "FeatureCollection",
+  features: [
+    {
+      type: "Feature",
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [-73.732, 42.704],
+          [-73.731, 42.705],
+        ],
+      },
+      properties: {},
+    },
+    {
+      type: "Feature",
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [-73.730999995, 42.705000004],
+          [-73.73, 42.706],
         ],
       },
       properties: {},
@@ -133,10 +161,27 @@ describe("map routing helpers", () => {
     expect(route.distance).toBeGreaterThan(0);
     expect(route.time).toBeGreaterThan(0);
     expect(route.geojson.features[0].geometry.coordinates.length).toBeGreaterThanOrEqual(3);
-    expect(route.bounds[0][0]).toBeCloseTo(42.70418, 3);
-    expect(route.bounds[0][1]).toBeCloseTo(-73.73198, 3);
+    expect(route.geojson.features[0].geometry.coordinates[0]).toEqual([-73.73195, 42.7042]);
+    expect(route.geojson.features[0].geometry.coordinates.at(-1)).toEqual([-73.72157, 42.70908]);
+    expect(route.bounds[0][0]).toBeCloseTo(42.7042, 3);
+    expect(route.bounds[0][1]).toBeCloseTo(-73.73195, 3);
     expect(route.bounds[1][0]).toBeCloseTo(42.70911, 3);
     expect(route.bounds[1][1]).toBeCloseTo(-73.72154, 3);
+  });
+
+  test("reconnects sub-meter road gaps before calculating a local route", async () => {
+    const roadGraph = buildRoadRoutingGraph(FRAGMENTED_ROADS);
+    const route = await calculateWalkingRoute({
+      provider: "local",
+      roadGraph,
+      from: [42.704, -73.732],
+      to: [42.706, -73.73],
+    });
+
+    expect(route.provider).toBe("local");
+    expect(route.geojson.features[0].geometry.coordinates.length).toBeGreaterThanOrEqual(3);
+    expect(route.geojson.features[0].geometry.coordinates[0]).toEqual([-73.732, 42.704]);
+    expect(route.geojson.features[0].geometry.coordinates.at(-1)).toEqual([-73.73, 42.706]);
   });
 
   test("snaps arbitrary points onto the bundled road graph", () => {
@@ -184,6 +229,60 @@ describe("map routing helpers", () => {
 
     expect(requestedUrl.startsWith("/__valhalla/route?json=")).toBe(true);
     expect(route.provider).toBe("valhalla");
+  });
+
+  test("prefers the bundled road graph when both route endpoints are on-site", async () => {
+    let requestedExternalRoute = false;
+    const roadGraph = buildRoadRoutingGraph(SIMPLE_ROADS);
+    const route = await calculateWalkingRoute({
+      provider: "api",
+      roadGraph,
+      from: [42.7042, -73.73195],
+      to: [42.70908, -73.72157],
+      fetchImpl: async () => {
+        requestedExternalRoute = true;
+        throw new Error("external provider should not be used for on-site routing");
+      },
+    });
+
+    expect(requestedExternalRoute).toBe(false);
+    expect(route.provider).toBe("local");
+  });
+
+  test("keeps using the external provider when the origin is off-site", async () => {
+    let requestedExternalRoute = false;
+    const roadGraph = buildRoadRoutingGraph(SIMPLE_ROADS);
+    const route = await calculateWalkingRoute({
+      provider: "api",
+      roadGraph,
+      from: [42.72, -73.75],
+      to: [42.70908, -73.72157],
+      fetchImpl: async () => {
+        requestedExternalRoute = true;
+        return {
+          ok: true,
+          json: async () => ({
+            code: "Ok",
+            routes: [
+              {
+                distance: 240,
+                duration: 180,
+                geometry: {
+                  type: "LineString",
+                  coordinates: [
+                    [-73.75, 42.72],
+                    [-73.72157, 42.70908],
+                  ],
+                },
+              },
+            ],
+          }),
+        };
+      },
+    });
+
+    expect(requestedExternalRoute).toBe(true);
+    expect(route.provider).toBe("api");
   });
 
   test("surfaces routing errors with provider-aware user-facing copy", () => {

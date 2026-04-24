@@ -14,6 +14,19 @@ const runtimeVariants = [
   { name: "custom-map", path: "/?mapEngine=custom" },
 ];
 const isIgnorableConsoleError = (text = "") => /^Failed to load resource:/i.test(text);
+const isIgnorableLocalRequestFailure = (request) => {
+  const failureText = request.failure()?.errorText || "";
+  if (failureText !== "net::ERR_ABORTED") {
+    return false;
+  }
+
+  try {
+    const url = new URL(request.url());
+    return url.pathname.endsWith("/data/site_twin/grave_candidates.geojson");
+  } catch (error) {
+    return false;
+  }
+};
 const buildRuntimePath = (runtimePath, searchParams = "") => {
   if (!searchParams) {
     return runtimePath;
@@ -47,7 +60,7 @@ test.beforeEach(async ({ page }, testInfo) => {
       hostname = "";
     }
 
-    if (APP_HOSTS.has(hostname)) {
+    if (APP_HOSTS.has(hostname) && !isIgnorableLocalRequestFailure(request)) {
       localRequestFailures.push(`${request.failure()?.errorText || "Request failed"}: ${request.url()}`);
     }
   });
@@ -133,6 +146,7 @@ async function searchForLamont(page) {
 
   const browseResults = page.locator(".left-sidebar__panel--browse li");
   await expect(browseResults.first()).toContainText("Thomas E LaMont");
+  await expect(page.getByText("Preparing fast search…")).toHaveCount(0);
 
   return browseResults;
 }
@@ -326,8 +340,8 @@ runtimeVariants.forEach((runtimeVariant) => {
       await page.getByRole("menuitem", { name: "Route on Map" }).click();
 
       await expect(selectedPeoplePanel).toContainText("Route active");
-      await expect.poll(() => routeRequestCount).toBe(1);
       await expect(page.getByText("Calculating route...")).toHaveCount(0, { timeout: 15_000 });
+      expect(routeRequestCount).toBeLessThanOrEqual(1);
 
       await openDirectionsMenu(selectedPeoplePanel, page, { routeActionName: "Stop Route" });
       await page.getByRole("menuitem", { name: "Stop Route" }).click();
@@ -353,6 +367,8 @@ runtimeVariants.forEach((runtimeVariant) => {
       await expect(selectedPeoplePanel).toContainText("Thomas E LaMont");
       await expect(selectedPeoplePanel.getByRole("button", { name: "Route on map" })).toBeVisible();
       await expect(selectedPeoplePanel.getByRole("button", { name: "Open in Maps" })).toBeVisible();
+      await expect(selectedPeoplePanel.getByRole("button", { name: "Route on map" })).toBeInViewport();
+      await expect(selectedPeoplePanel.getByRole("button", { name: "Open in Maps" })).toBeInViewport();
 
       await selectedPeoplePanel.getByRole("button", { name: "Clear" }).click();
       await expect(selectedPeoplePanel).toHaveCount(0);

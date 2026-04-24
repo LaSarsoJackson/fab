@@ -1,9 +1,8 @@
 import { buildLocationSummary, formatBrowseResultName } from "../browse/browseResults";
-import { APP_PROFILE, getAppFeature } from "../../config/appProfile";
-import { FEATURE_FLAGS } from "../../shared/runtime/runtimeEnv";
-import { getTourStyle } from "../tours/tourStyles";
+import { APP_PROFILE } from "../fab/profile";
 import { resolvePortraitImageName } from "../tours/tourDerivedData";
-const BOUTIQUE_RECORD_PRESENTATION = getAppFeature("boutiqueRecordPresentation");
+const RECORD_PRESENTATION = APP_PROFILE.features?.recordPresentation || null;
+const TOUR_STYLES = APP_PROFILE.features?.tours?.styles || {};
 const DEFAULT_RECORD_SOURCE_LABEL = APP_PROFILE.labels?.defaultRecordSourceLabel || "Asset record";
 
 /**
@@ -17,11 +16,8 @@ export const cleanRecordValue = (value) => {
 };
 
 const resolveRecordBiographyLink = (record = {}) => {
-  if (
-    FEATURE_FLAGS.fabRecordPresentation &&
-    typeof BOUTIQUE_RECORD_PRESENTATION?.resolveBiographyLink === "function"
-  ) {
-    return cleanRecordValue(BOUTIQUE_RECORD_PRESENTATION.resolveBiographyLink(record));
+  if (typeof RECORD_PRESENTATION?.resolveBiographyLink === "function") {
+    return cleanRecordValue(RECORD_PRESENTATION.resolveBiographyLink(record));
   }
 
   return cleanRecordValue(record.biographyLink || record.Tour_Bio);
@@ -103,22 +99,16 @@ export const resolveRecordDates = (record = {}) => {
 };
 
 const resolveRecordImageUrl = (imageName) => {
-  if (
-    FEATURE_FLAGS.fabRecordPresentation &&
-    typeof BOUTIQUE_RECORD_PRESENTATION?.resolveImageUrl === "function"
-  ) {
-    return cleanRecordValue(BOUTIQUE_RECORD_PRESENTATION.resolveImageUrl(imageName));
+  if (typeof RECORD_PRESENTATION?.resolveImageUrl === "function") {
+    return cleanRecordValue(RECORD_PRESENTATION.resolveImageUrl(imageName));
   }
 
   return "";
 };
 
 const buildPopupRows = (record = {}) => {
-  if (
-    FEATURE_FLAGS.fabRecordPresentation &&
-    typeof BOUTIQUE_RECORD_PRESENTATION?.buildPopupRows === "function"
-  ) {
-    return BOUTIQUE_RECORD_PRESENTATION.buildPopupRows(record, {
+  if (typeof RECORD_PRESENTATION?.buildPopupRows === "function") {
+    return RECORD_PRESENTATION.buildPopupRows(record, {
       buildLocationSummary,
       cleanRecordValue,
       resolveRecordDates,
@@ -138,7 +128,7 @@ const buildPopupRows = (record = {}) => {
 const buildPopupSourceLabel = (record = {}) => (
   cleanRecordValue(
     record.tourName ||
-    (record.source === "tour" ? getTourStyle(record.tourKey)?.name : DEFAULT_RECORD_SOURCE_LABEL)
+    (record.source === "tour" ? TOUR_STYLES[record.tourKey]?.name : DEFAULT_RECORD_SOURCE_LABEL)
   )
 );
 
@@ -150,14 +140,14 @@ const buildPopupSourceLabel = (record = {}) => (
 export const buildPopupViewModel = (record = {}) => {
   const portraitPath = cleanRecordValue(resolvePortraitImageName(record));
   const biographyLink = resolveRecordBiographyLink(record);
-  const noImageUrl = cleanRecordValue(BOUTIQUE_RECORD_PRESENTATION?.noImageUrl);
+  const noImageUrl = cleanRecordValue(RECORD_PRESENTATION?.noImageUrl);
   const hasPortrait = Boolean(portraitPath && portraitPath !== "NONE");
   const hasBiographyLink = Boolean(biographyLink);
   const imageUrl = hasPortrait ? resolveRecordImageUrl(portraitPath) : (hasBiographyLink ? noImageUrl : "");
   const heading = cleanRecordValue(formatBrowseResultName(record));
   const imageLinkUrl = biographyLink || "";
   const imageHint = imageUrl && hasBiographyLink
-    ? cleanRecordValue(BOUTIQUE_RECORD_PRESENTATION?.biographyImageHint)
+    ? cleanRecordValue(RECORD_PRESENTATION?.biographyImageHint)
     : "";
   const rows = buildPopupRows(record);
 

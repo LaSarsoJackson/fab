@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getPopupViewportPadding } from "../src/features/map";
+import { getPopupViewportPadding } from "../src/features/map/popupViewport";
 
 describe("getPopupViewportPadding", () => {
   test("keeps popups clear of a full-height desktop sidebar", () => {

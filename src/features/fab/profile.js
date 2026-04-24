@@ -4,15 +4,117 @@ import {
   createOverlaySourceSpec,
 } from "../map/engine/contracts";
 import { BOUNDARY_BBOX, LOCATION_BUFFER_BOUNDARY } from "../map/generatedBounds";
-import {
-  FAB_BIOGRAPHY_IMAGE_HINT,
-  FAB_NO_IMAGE_URL,
-  buildFabPopupRows,
-  resolveFabBiographyLink,
-  resolveFabRecordImageUrl,
-} from "./presentation";
-import { FAB_SITE_CONFIG } from "./siteConfig";
 import { FAB_TOUR_DEFINITIONS, FAB_TOUR_STYLES, enrichFabTourRecord } from "./tours";
+
+const stripLeadingSlash = (value = "") => String(value).trim().replace(/^\/+/, "");
+const stripTrailingSlash = (value = "") => String(value).trim().replace(/\/+$/, "");
+
+const FAB_SITE_ROOT_URL = "https://www.albany.edu/arce";
+const FAB_SITE_NAME = "Albany Rural Cemetery";
+const FAB_ADMIN_SITE_NAME = "Albany Rural Cemetery Admin";
+const FAB_HOME_URL = `${FAB_SITE_ROOT_URL}/`;
+const FAB_IMAGE_DIRECTORY = "images";
+const FAB_NO_IMAGE_FILE_NAME = "no-image.jpg";
+const FAB_BIOGRAPHY_IMAGE_HINT = "Tap the image to open the ARCE biography.";
+const FAB_IOS_APP_STORE_URL = "https://apps.apple.com/us/app/albany-grave-finder/id6746413050";
+const FAB_DEV_IMAGE_SERVER_ORIGIN = (process.env.REACT_APP_DEV_IMAGE_SERVER_ORIGIN || "")
+  .trim()
+  .replace(/\/+$/, "");
+
+const buildFabSiteUrl = (path = "") => {
+  const baseUrl = stripTrailingSlash(FAB_HOME_URL);
+  const normalizedPath = stripLeadingSlash(path);
+
+  return normalizedPath ? `${baseUrl}/${normalizedPath}` : `${baseUrl}/`;
+};
+
+const buildFabImageUrl = (fileName = "") => (
+  buildFabSiteUrl(`${FAB_IMAGE_DIRECTORY}/${stripLeadingSlash(fileName)}`)
+);
+
+const FAB_NO_IMAGE_URL = buildFabImageUrl(FAB_NO_IMAGE_FILE_NAME);
+
+const cleanFabValue = (value) => {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+};
+
+const normalizeFabPageLink = (value = "") => {
+  const normalized = cleanFabValue(value);
+  if (!normalized || /^(none|unknown)$/i.test(normalized)) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(normalized)) {
+    return normalized;
+  }
+
+  const trimmed = normalized.replace(/^\/+/, "");
+  if (/\.(?:jpe?g|png|gif|webp|svg)$/i.test(trimmed)) {
+    return "";
+  }
+
+  if (/^[a-z]+:/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (/\.html?$/i.test(trimmed)) {
+    return buildFabSiteUrl(trimmed);
+  }
+
+  return buildFabSiteUrl(`${trimmed}.html`);
+};
+
+const resolveFabBiographyLink = (record = {}) => (
+  normalizeFabPageLink(record.biographyLink) || normalizeFabPageLink(record.Tour_Bio)
+);
+
+const resolveFabRecordImageUrl = (imageName) => {
+  if (!imageName || imageName === "NONE") return FAB_NO_IMAGE_URL;
+
+  const normalizedImageName = String(imageName).trim();
+  const imageFileName = /\.[a-z0-9]+$/i.test(normalizedImageName)
+    ? normalizedImageName
+    : `${normalizedImageName}.jpg`;
+
+  if (process.env.NODE_ENV === "development" && FAB_DEV_IMAGE_SERVER_ORIGIN) {
+    return `${FAB_DEV_IMAGE_SERVER_ORIGIN}/src/data/images/${imageFileName}`;
+  }
+
+  return buildFabImageUrl(imageFileName);
+};
+
+const buildFabPopupRows = (record = {}, helpers = {}) => {
+  const {
+    buildLocationSummary = () => "",
+    resolveRecordDates = () => ({ birth: "", death: "" }),
+  } = helpers;
+  const { birth, death } = resolveRecordDates(record);
+  const title = cleanFabValue(record.Titles || record.extraTitle);
+  const rank = cleanFabValue(record.Highest_Ra);
+  const initialTerm = cleanFabValue(record.Initial_Te);
+  const subsequentTerm = cleanFabValue(record.Subsequent);
+  const unit = cleanFabValue(record.Unit);
+  const location = cleanFabValue(buildLocationSummary(record));
+  const headstone = cleanFabValue(record.Headstone_);
+  const service = cleanFabValue(record.Service_Re);
+  const headstoneLabel = headstone.toLowerCase().startsWith("headstone")
+    ? headstone
+    : `Headstone ${headstone}`;
+
+  return [
+    title ? { label: "Role", value: title } : null,
+    rank && rank !== title ? { label: "Rank", value: rank } : null,
+    initialTerm ? { label: "Initial term", value: initialTerm } : null,
+    subsequentTerm ? { label: "Subsequent term", value: subsequentTerm } : null,
+    unit ? { label: "Unit", value: unit } : null,
+    location ? { label: "Location", value: location } : null,
+    birth ? { label: "Born", value: birth } : null,
+    death ? { label: "Died", value: death } : null,
+    headstone ? { label: "Headstone", value: headstoneLabel } : null,
+    service ? { label: "Service", value: service } : null,
+  ].filter(Boolean);
+};
 
 const buildCoreDataModule = (definition) => ({
   group: "Core data",
@@ -58,10 +160,9 @@ const CORE_DATA_MODULES = [
 const TOUR_MODULES = FAB_TOUR_DEFINITIONS.map((definition) => ({
   id: `tour:${definition.key}`,
   label: definition.name,
-  description: "Boutique tour-stop data used for browsing, popups, and matching.",
-  group: "FAB boutique features",
+  description: "Tour-stop data used for browsing, popups, and matching.",
+  group: "Tours",
   kind: "tour",
-  featureFlag: "fabTours",
   tourKey: definition.key,
   fileName: definition.fileName,
   sourcePath: definition.sourcePath,
@@ -140,7 +241,7 @@ const MAP_OVERLAY_SOURCES = [
     type: "json",
     format: "json",
     publicPath: "/data/site_twin/manifest.json",
-    buildCommand: "python3 scripts/geospatial/build_site_twin.py --terrain-only",
+    buildCommand: "bun run build:site-twin:terrain",
     status: "experimental",
   },
 ].map(createOverlaySourceSpec);
@@ -200,7 +301,7 @@ const MAP_OPTIMIZATION_ARTIFACTS = [
     sourceModuleId: "burials",
     publicPath: "/data/site_twin/manifest.json",
     filePath: "public/data/site_twin/manifest.json",
-    buildCommand: "python3 scripts/geospatial/build_site_twin.py --terrain-only",
+    buildCommand: "bun run build:site-twin:terrain",
     status: "experimental",
     notes: "Static manifest for the cemetery terrain image and grave candidate overlays.",
   },
@@ -212,35 +313,35 @@ const MAP_OPTIMIZATION_ARTIFACTS = [
     sourceModuleId: "burials",
     publicPath: "/data/site_twin/grave_candidates.geojson",
     filePath: "public/data/site_twin/grave_candidates.geojson",
-    buildCommand: "python3 scripts/geospatial/build_site_twin.py --terrain-only",
+    buildCommand: "bun run build:site-twin:terrain",
     status: "experimental",
     notes: "Static monument candidate points sampled from terrain derivatives and burial geometry.",
   },
 ].map(createOptimizationArtifactSpec);
 
-export const FAB_APP_PROFILE = {
+export const APP_PROFILE = {
   id: "fab",
   productName: "FAB",
   brand: {
-    appName: FAB_SITE_CONFIG.siteName,
-    adminName: FAB_SITE_CONFIG.adminSiteName,
-    mapLoadingTitle: FAB_SITE_CONFIG.siteName,
+    appName: FAB_SITE_NAME,
+    adminName: FAB_ADMIN_SITE_NAME,
+    mapLoadingTitle: FAB_SITE_NAME,
     mapLoadingMessage: "Loading map experience…",
-    adminLoadingTitle: FAB_SITE_CONFIG.adminSiteName,
+    adminLoadingTitle: FAB_ADMIN_SITE_NAME,
     adminLoadingMessage: "Loading development admin studio…",
   },
   shell: {
-    homeUrl: FAB_SITE_CONFIG.homeUrl,
-    headerEyebrow: FAB_SITE_CONFIG.siteName,
-    headerTitle: FAB_SITE_CONFIG.shell.headerTitle,
-    documentTitle: FAB_SITE_CONFIG.shell.documentTitle,
-    description: FAB_SITE_CONFIG.shell.description,
-    manifestName: FAB_SITE_CONFIG.shell.manifestName,
-    manifestShortName: FAB_SITE_CONFIG.shell.manifestShortName,
-    noScriptMessage: FAB_SITE_CONFIG.shell.noScriptMessage,
+    homeUrl: FAB_HOME_URL,
+    headerEyebrow: FAB_SITE_NAME,
+    headerTitle: "Burial Finder",
+    documentTitle: "Albany Rural Cemetery Burial Finder",
+    description: "Installable burial locator for Albany Rural Cemetery with fast search, tours, navigation, and shareable map links.",
+    manifestName: "Albany Rural Cemetery Burial Finder",
+    manifestShortName: "Burial Finder",
+    noScriptMessage: "You need to enable JavaScript to run the ARC Find-A-Burial App.",
   },
   distribution: {
-    iosAppStoreUrl: FAB_SITE_CONFIG.distribution.iosAppStoreUrl,
+    iosAppStoreUrl: FAB_IOS_APP_STORE_URL,
   },
   labels: {
     primaryRecordSingular: "burial",
@@ -268,7 +369,7 @@ export const FAB_APP_PROFILE = {
       tourName: ["tourName"],
       extraTitle: ["Titles", "extraTitle"],
     },
-    boutiqueTourRecord: {
+    tourRecord: {
       objectId: ["OBJECTID", "id"],
       firstName: ["First_Name", "First_name"],
       lastName: ["Last_Name"],
@@ -297,8 +398,12 @@ export const FAB_APP_PROFILE = {
     searchIndexPublicPath: "/data/Search_Burials.json",
     searchIndexFilePath: "public/data/Search_Burials.json",
     siteTwinManifestPublicPath: "/data/site_twin/manifest.json",
-    boutiqueMatchesFilePath: "src/data/TourMatches.json",
+    tourMatchesFilePath: "src/data/TourMatches.json",
     generatedConstantsFilePath: "src/features/map/generatedBounds.js",
+  },
+  runtimeStorageKeys: {
+    pmtilesExperiment: "fab:enablePmtilesExperiment",
+    siteTwinDebug: "fab:siteTwinDebugState",
   },
   map: {
     center: [42.704180, -73.731980],
@@ -318,9 +423,8 @@ export const FAB_APP_PROFILE = {
       locating: "Locating...",
       unsupported: "Geolocation is not supported by your browser",
       unavailable: "Unable to retrieve your location",
-      outOfBounds: `You must be within 5 miles of ${FAB_SITE_CONFIG.siteName}`,
+      outOfBounds: `You must be within 5 miles of ${FAB_SITE_NAME}`,
     },
-    pmtilesExperimentStorageKey: "fab:enablePmtilesExperiment",
     defaultBasemapId: "imagery",
     basemaps: MAP_BASEMAPS,
     overlaySources: MAP_OVERLAY_SOURCES,
@@ -344,14 +448,12 @@ export const FAB_APP_PROFILE = {
   ],
   features: {
     tours: {
-      featureFlag: "fabTours",
       label: "Tour",
       definitions: FAB_TOUR_DEFINITIONS,
       styles: FAB_TOUR_STYLES,
       enrichRecord: enrichFabTourRecord,
     },
-    boutiqueRecordPresentation: {
-      featureFlag: "fabRecordPresentation",
+    recordPresentation: {
       defaultSourceLabel: "Burial record",
       noImageUrl: FAB_NO_IMAGE_URL,
       biographyImageHint: FAB_BIOGRAPHY_IMAGE_HINT,

@@ -19,7 +19,7 @@ import DirectionsIcon from "@mui/icons-material/Directions";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { BottomSheet } from "react-spring-bottom-sheet";
 import "react-spring-bottom-sheet/dist/style.css";
-import { APP_PROFILE } from "./config/appProfile";
+import { APP_PROFILE } from "./features/fab/profile";
 import {
   BrowseWorkspacePanel,
   buildLifeDatesSummary,
@@ -35,13 +35,16 @@ import {
   MIN_BROWSE_QUERY_LENGTH,
 } from "./features/browse";
 import { buildSharedSelectionPresentation } from "./features/deeplinks";
-import { buildPopupViewModel, cleanRecordValue } from "./features/map";
+import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordPresentation";
 import { useBurialSidebarBrowseState } from "./hooks/useBurialSidebarBrowseState";
 import {
   MOBILE_SHEET_STATES,
   useBurialSidebarMobileSheetState,
 } from "./hooks/useBurialSidebarMobileSheetState";
-import { getRuntimeEnv } from "./shared/runtime";
+import {
+  getRuntimeEnv,
+  isFieldPacketsEnabled as resolveFieldPacketsEnabled,
+} from "./shared/runtime";
 
 const rowShellStyles = {
   transition: "background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease",
@@ -51,6 +54,12 @@ const rowShellStyles = {
   position: "relative",
   overflow: "hidden",
   isolation: "isolate",
+};
+
+const selectedRowShellStyles = {
+  ...rowShellStyles,
+  contentVisibility: "visible",
+  containIntrinsicSize: "auto",
 };
 
 const interactiveCardButtonSx = {
@@ -70,16 +79,53 @@ const interactiveCardButtonSx = {
   },
 };
 
+const selectionTextWrapSx = {
+  overflowWrap: "anywhere",
+  wordBreak: "break-word",
+};
+
+const buildSelectionActionLayoutSx = () => ({
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 7.75rem), 1fr))",
+  gap: 0.75,
+  mt: 1,
+  px: 1.2,
+  pb: 1.2,
+  position: "relative",
+  zIndex: 1,
+  alignItems: "stretch",
+});
+
+const buildSelectionBadgeSx = ({ color, isLead = false }) => ({
+  width: isLead ? 24 : 20,
+  height: isLead ? 24 : 20,
+  borderRadius: "50%",
+  backgroundColor: color,
+  color: "white",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontWeight: 700,
+  fontSize: isLead ? "12px" : "11px",
+  lineHeight: 1,
+  border: "2px solid rgba(255, 255, 255, 0.96)",
+  boxShadow: isLead
+    ? "0 6px 14px rgba(20, 33, 43, 0.18)"
+    : "0 4px 10px rgba(20, 33, 43, 0.14)",
+  flexShrink: 0,
+  mt: 0.2,
+});
+
 const panelSurfaceStyles = {
   position: "relative",
   overflow: "hidden",
   isolation: "isolate",
-  border: "1px solid rgba(20, 33, 43, 0.08)",
-  background: "linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 250, 251, 0.92))",
-  boxShadow: "0 20px 44px rgba(20, 33, 43, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.72)",
-  backdropFilter: "blur(18px)",
-  WebkitBackdropFilter: "blur(18px)",
-  borderRadius: "24px",
+  border: "1px solid rgba(20, 33, 43, 0.06)",
+  background: "rgba(255, 255, 255, 0.9)",
+  boxShadow: "0 14px 30px rgba(20, 33, 43, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.76)",
+  backdropFilter: "blur(16px)",
+  WebkitBackdropFilter: "blur(16px)",
+  borderRadius: "20px",
 };
 
 const TOUR_LABEL = APP_PROFILE.features?.tours?.label || "Tour";
@@ -491,12 +537,12 @@ function SelectedPeopleList({
               onMouseEnter={() => onHoverBurialChange(burial.id)}
               onMouseLeave={() => onHoverBurialChange(null)}
               sx={{
-                ...rowShellStyles,
+                ...selectedRowShellStyles,
                 border: isActive
-                  ? "1px solid rgba(255, 255, 255, 0.82)"
-                  : "1px solid rgba(255, 255, 255, 0.6)",
+                  ? "1px solid rgba(47, 107, 87, 0.14)"
+                  : "1px solid rgba(20, 33, 43, 0.07)",
                 background: isActive
-                  ? "var(--surface-card-active)"
+                  ? "rgba(247, 250, 248, 0.98)"
                   : isHovered
                     ? "var(--surface-card-hover)"
                     : "var(--surface-card)",
@@ -509,20 +555,6 @@ function SelectedPeopleList({
                   background: isActive ? "var(--surface-card-active-hover)" : "var(--surface-card-hover)",
                   boxShadow: isActive ? "var(--shadow-row-active-hover)" : "var(--shadow-row-hover)",
                 },
-                "&::after": (isActive || isRouteActive) ? {
-                  content: "\"\"",
-                  position: "absolute",
-                  inset: "10px auto 10px 10px",
-                  width: "3px",
-                  borderRadius: "999px",
-                  background: isRouteActive
-                    ? "linear-gradient(180deg, rgba(39, 110, 207, 0.92), rgba(97, 153, 229, 0.54))"
-                    : "var(--accent-rail)",
-                  boxShadow: isRouteActive
-                    ? "0 0 12px rgba(39, 110, 207, 0.22)"
-                    : "var(--accent-rail-shadow)",
-                  pointerEvents: "none",
-                } : undefined,
               }}
             >
               <ButtonBase
@@ -535,42 +567,40 @@ function SelectedPeopleList({
                 onClick={() => onFocusSelectedBurial(burial)}
                 sx={{
                   ...interactiveCardButtonSx,
+                  position: "relative",
                   pb: 1.1,
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
                   <Box
-                    sx={{
-                      width: isActive || isHovered ? "32px" : "24px",
-                      height: isActive || isHovered ? "32px" : "24px",
-                      borderRadius: "50%",
-                      backgroundColor: markerColors[markerIndex % markerColors.length],
-                      color: "white",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: "bold",
-                      fontSize: isActive || isHovered ? "16px" : "14px",
-                      border: isActive || isHovered ? "3px solid white" : "2px solid white",
-                      boxShadow: isActive || isHovered
-                        ? "0 0 8px rgba(0,0,0,0.6)"
-                        : "0 0 4px rgba(0,0,0,0.4)",
-                      transition: "width 0.2s ease, height 0.2s ease, font-size 0.2s ease, border-width 0.2s ease, box-shadow 0.2s ease",
-                    }}
+                    sx={buildSelectionBadgeSx({
+                      color: markerColors[markerIndex % markerColors.length],
+                    })}
                   >
                     {markerIndex + 1}
                   </Box>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography variant="subtitle1" sx={{ lineHeight: 1.2 }}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{ lineHeight: 1.2, ...selectionTextWrapSx }}
+                    >
                       {formatBrowseResultName(burial)}
                     </Typography>
                     {buildLocationSummary(burial) && (
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 0.5, ...selectionTextWrapSx }}
+                      >
                         {buildLocationSummary(burial)}
                       </Typography>
                     )}
                     {([burial.Birth && `Born ${burial.Birth}`, burial.Death && `Died ${burial.Death}`].filter(Boolean).length > 0) && (
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={selectionTextWrapSx}
+                      >
                         {[burial.Birth && `Born ${burial.Birth}`, burial.Death && `Died ${burial.Death}`]
                           .filter(Boolean)
                           .join(" • ")}
@@ -614,37 +644,25 @@ function SelectedPeopleList({
                 className={isMobile
                   ? "selected-person-actions selected-person-actions--mobile"
                   : "selected-person-actions"}
-                sx={{
-                  display: isMobile ? "grid" : "flex",
-                  gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : undefined,
-                  flexWrap: isMobile ? undefined : "wrap",
-                  gap: 0.75,
-                  mt: 1,
-                }}
+                sx={buildSelectionActionLayoutSx()}
               >
                 <Button
                   className="left-sidebar__selection-action left-sidebar__selection-action--primary"
+                  fullWidth
                   size="small"
                   variant="contained"
                   startIcon={<DirectionsIcon />}
-                  sx={isMobile ? { minWidth: 0 } : undefined}
                   onClick={(event) => onOpenDirectionsMenu(event, burial)}
                 >
                   Directions
                 </Button>
                 <Button
                   className="left-sidebar__selection-action left-sidebar__selection-action--secondary"
+                  fullWidth
                   size="small"
                   variant="text"
                   color="inherit"
                   startIcon={<CloseIcon />}
-                  sx={isMobile
-                    ? {
-                      gridColumn: "1 / -1",
-                      minWidth: 0,
-                      justifyContent: "center",
-                    }
-                    : undefined}
                   onClick={(event) => {
                     event.stopPropagation();
                     onRemoveSelectedBurial(burial.id);
@@ -681,29 +699,17 @@ function SelectionLeadCard({
       onMouseEnter={() => onHoverBurialChange?.(burial.id)}
       onMouseLeave={() => onHoverBurialChange?.(null)}
       sx={{
-        ...rowShellStyles,
+        ...selectedRowShellStyles,
         mt: 1.5,
-        border: "1px solid rgba(255, 255, 255, 0.82)",
+        border: isActive
+          ? "1px solid rgba(47, 107, 87, 0.14)"
+          : "1px solid rgba(20, 33, 43, 0.07)",
         background: isActive
-          ? (isHovered ? "var(--surface-card-active-hover)" : "var(--surface-card-active)")
+          ? (isHovered ? "rgba(243, 248, 245, 0.98)" : "rgba(247, 250, 248, 0.98)")
           : (isHovered ? "var(--surface-card-hover)" : "var(--surface-card)"),
         boxShadow: isActive
           ? (isHovered ? "var(--shadow-row-active-hover)" : "var(--shadow-row-active)")
           : (isHovered ? "var(--shadow-row-hover)" : "var(--shadow-row)"),
-        "&::after": (isActive || isRouteActive) ? {
-          content: "\"\"",
-          position: "absolute",
-          inset: "10px auto 10px 10px",
-          width: "3px",
-          borderRadius: "999px",
-          background: isRouteActive
-            ? "linear-gradient(180deg, rgba(39, 110, 207, 0.92), rgba(97, 153, 229, 0.54))"
-            : "var(--accent-rail)",
-          boxShadow: isRouteActive
-            ? "0 0 12px rgba(39, 110, 207, 0.22)"
-            : "var(--accent-rail-shadow)",
-          pointerEvents: "none",
-        } : undefined,
       }}
     >
       <ButtonBase
@@ -716,26 +722,16 @@ function SelectionLeadCard({
         onBlur={() => onHoverBurialChange?.(null)}
         sx={{
           ...interactiveCardButtonSx,
+          position: "relative",
           pb: 1.1,
         }}
       >
         <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
           <Box
-            sx={{
-              width: 30,
-              height: 30,
-              borderRadius: "50%",
-              backgroundColor: markerColor,
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 700,
-              fontSize: "15px",
-              border: "3px solid white",
-              boxShadow: "0 0 8px rgba(0,0,0,0.45)",
-              flexShrink: 0,
-            }}
+            sx={buildSelectionBadgeSx({
+              color: markerColor,
+              isLead: true,
+            })}
           >
             {burialIndex + 1}
           </Box>
@@ -751,18 +747,29 @@ function SelectionLeadCard({
                 mb: 0.5,
               }}
             >
-              {isActive ? "Focused burial" : "Pinned burial"}
+              {isActive ? "Current selection" : "Selected burial"}
             </Typography>
-            <Typography variant="subtitle2" sx={{ lineHeight: 1.2, fontSize: "1.04rem" }}>
+            <Typography
+              variant="subtitle2"
+              sx={{ lineHeight: 1.2, fontSize: "1.04rem", ...selectionTextWrapSx }}
+            >
               {formatBrowseResultName(burial)}
             </Typography>
             {buildLocationSummary(burial) && (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mt: 0.35, ...selectionTextWrapSx }}
+              >
                 {buildLocationSummary(burial)}
               </Typography>
             )}
             {([burial.Birth && `Born ${burial.Birth}`, burial.Death && `Died ${burial.Death}`].filter(Boolean).length > 0) && (
-              <Typography variant="body2" color="text.secondary">
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={selectionTextWrapSx}
+              >
                 {[burial.Birth && `Born ${burial.Birth}`, burial.Death && `Died ${burial.Death}`]
                   .filter(Boolean)
                   .join(" • ")}
@@ -798,20 +805,14 @@ function SelectionLeadCard({
         className={isMobile
           ? "selected-person-actions selected-person-actions--mobile"
           : "selected-person-actions"}
-        sx={{
-          display: isMobile ? "grid" : "flex",
-          gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : undefined,
-          flexWrap: isMobile ? undefined : "wrap",
-          gap: 0.75,
-          mt: 1,
-        }}
+        sx={buildSelectionActionLayoutSx()}
       >
         <Button
           className="left-sidebar__selection-action left-sidebar__selection-action--primary"
+          fullWidth
           size="small"
           variant="contained"
           startIcon={<DirectionsIcon />}
-          sx={isMobile ? { minWidth: 0 } : undefined}
           onClick={(event) => {
             event.stopPropagation();
             onOpenDirectionsMenu(event, burial);
@@ -821,17 +822,11 @@ function SelectionLeadCard({
         </Button>
         <Button
           className="left-sidebar__selection-action left-sidebar__selection-action--secondary"
+          fullWidth
           size="small"
           variant="text"
           color="inherit"
           startIcon={<CloseIcon />}
-          sx={isMobile
-            ? {
-              gridColumn: "1 / -1",
-              minWidth: 0,
-              justifyContent: "center",
-            }
-            : undefined}
           onClick={(event) => {
             event.stopPropagation();
             onRemoveSelectedBurial(burial.id);
@@ -847,6 +842,7 @@ function SelectionLeadCard({
 function SelectedPlaceCard({
   burial,
   burialIndex,
+  isCompact = false,
   isRouteActive,
   markerColor,
   onOpenExternalDirections,
@@ -857,6 +853,8 @@ function SelectedPlaceCard({
 }) {
   const popupView = useMemo(() => buildPopupViewModel(burial), [burial]);
   const popupKey = burial?.id || popupView.heading;
+  const locationSummary = buildLocationSummary(burial);
+  const lifeSummary = buildLifeDatesSummary(burial);
   const [mediaUrl, setMediaUrl] = useState(() => popupView.imageUrl || "");
 
   useEffect(() => {
@@ -873,6 +871,97 @@ function SelectedPlaceCard({
       return "";
     });
   }, [popupView.imageFallbackUrl]);
+
+  if (isCompact) {
+    const hasCompactMeta = Boolean(isRouteActive || tourStyle);
+
+    return (
+      <Box
+        sx={{
+          mt: 1,
+          borderRadius: 2,
+          border: "1px solid var(--panel-border)",
+          backgroundColor: "rgba(255, 255, 255, 0.92)",
+          overflow: "hidden",
+        }}
+      >
+        <Box className="popup-card left-sidebar__selected-place-card left-sidebar__selected-place-card--compact">
+          {popupView.sourceLabel && (
+            <Box component="p" className="popup-card__eyebrow">
+              {popupView.sourceLabel}
+            </Box>
+          )}
+          <Box component="h3" className="popup-card__title">
+            {popupView.heading}
+          </Box>
+          {locationSummary && (
+            <Box component="p" className="popup-card__subtitle">
+              {locationSummary}
+            </Box>
+          )}
+          {lifeSummary && (
+            <Box component="p" className="popup-card__hint">
+              {lifeSummary}
+            </Box>
+          )}
+          {hasCompactMeta && (
+            <Box className="left-sidebar__selected-place-card-meta">
+              {isRouteActive && (
+                <Chip
+                  size="small"
+                  label="Route active"
+                  sx={{
+                    backgroundColor: "var(--accent-soft)",
+                    color: "var(--accent-strong)",
+                  }}
+                />
+              )}
+              {tourStyle && (
+                <Chip
+                  size="small"
+                  label={burial.tourName || tourStyle.name}
+                  sx={{
+                    backgroundColor: tourStyle.color,
+                    color: "white",
+                  }}
+                />
+              )}
+            </Box>
+          )}
+          <Box className="popup-card__actions left-sidebar__selected-place-card-actions">
+            <button
+              type="button"
+              className="popup-card__action popup-card__action--primary"
+              onClick={() => {
+                if (isRouteActive) {
+                  onStopRouting?.();
+                  return;
+                }
+
+                onStartRouting?.(burial);
+              }}
+            >
+              {isRouteActive ? "Stop route" : "Route on map"}
+            </button>
+            <button
+              type="button"
+              className="popup-card__action popup-card__action--secondary"
+              onClick={() => onOpenExternalDirections?.(burial)}
+            >
+              Open in Maps
+            </button>
+            <button
+              type="button"
+              className="popup-card__action popup-card__action--ghost"
+              onClick={() => onRemoveSelectedBurial(burial.id)}
+            >
+              Remove
+            </button>
+          </Box>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -1050,9 +1139,9 @@ function SelectedSummaryPanel({
   const isRouteActive = activeRouteBurialId === leadBurial.id;
   const leadTourStyle = tourStyles[leadBurial.tourKey];
   const selectedBurialOrderById = new Map(selectedBurials.map((burial, index) => [burial.id, index]));
-  const selectionSummaryLabel = selectedBurials.length === 1
-    ? "Pinned for focus & directions"
-    : `${selectedBurials.length} pinned for focus & directions`;
+  const selectionSummaryLabel = "Pinned for focus & directions";
+  const shouldShowSelectionToggle = isMobile && hasMultipleSelectedBurials;
+  const shouldShowSecondarySelections = secondarySelectedBurials.length > 0 && (!isMobile || isExpanded);
 
   return (
     <Box
@@ -1094,7 +1183,7 @@ function SelectedSummaryPanel({
             gap: 0.75,
           }}
         >
-          {hasMultipleSelectedBurials && (
+          {shouldShowSelectionToggle && (
             <Button
               size="small"
               variant={isExpanded ? "outlined" : "contained"}
@@ -1121,6 +1210,7 @@ function SelectedSummaryPanel({
         <SelectedPlaceCard
           burial={leadBurial}
           burialIndex={leadBurialIndex}
+          isCompact
           isRouteActive={isRouteActive}
           markerColor={markerColors[leadBurialIndex % markerColors.length]}
           onOpenExternalDirections={onOpenExternalDirections}
@@ -1146,7 +1236,7 @@ function SelectedSummaryPanel({
         />
       )}
 
-      {secondarySelectedBurials.length > 0 && isExpanded && (
+      {shouldShowSecondarySelections && (
         <Box
           className="left-sidebar__selected-scroll left-sidebar__selected-scroll--summary"
           sx={{
@@ -1435,13 +1525,10 @@ function BurialSidebar({
   tourStyles,
   uniqueSections,
 }) {
-  const {
-    isDev,
-    featureFlags,
-  } = getRuntimeEnv();
+  const { isDev } = getRuntimeEnv();
   const areFieldPacketsEnabled = typeof isFieldPacketsEnabled === "boolean"
     ? isFieldPacketsEnabled
-    : featureFlags.fieldPackets;
+    : resolveFieldPacketsEnabled();
   const hasTourBrowse = tourDefinitions.length > 0;
   const initialBrowseSource = useMemo(
     () => {
@@ -1820,9 +1907,11 @@ function BurialSidebar({
   const searchShellNotices = useMemo(() => {
     return buildSearchShellNotices({
       burialRecordCount: burialRecords.length,
+      browseResultCount: browseResults.length,
       defaultLocationStatus: DEFAULT_LOCATION_STATUS,
       activeLocationStatus: LOCATION_ACTIVE_STATUS,
       locatingLocationStatus: LOCATION_LOCATING_STATUS,
+      hasActiveBrowseQuery: Boolean(browseQuery.trim()),
       isBurialDataLoading,
       isInstalled,
       isOnline,
@@ -1833,6 +1922,8 @@ function BurialSidebar({
     });
   }, [
     burialRecords.length,
+    browseQuery,
+    browseResults.length,
     isBurialDataLoading,
     isInstalled,
     isOnline,
@@ -1943,6 +2034,29 @@ function BurialSidebar({
     />
   ) : null;
 
+  const selectedSummaryContent = selectedBurials.length > 0 ? (
+    <SelectedSummaryPanel
+      activeBurialId={activeBurialId}
+      activeRouteBurialId={activeRouteBurialId}
+      hoveredBurialId={hoveredBurialId}
+      isExpanded={isSelectedSummaryExpanded}
+      isMobile={isMobile}
+      markerColors={markerColors}
+      onClearSelectedBurials={onClearSelectedBurials}
+      onFocusSelectedBurial={onFocusSelectedBurial}
+      onHoverBurialChange={onHoverBurialChange}
+      onOpenExternalDirections={onOpenExternalDirections}
+      onOpenDirectionsMenu={onOpenDirectionsMenu}
+      onRemoveSelectedBurial={onRemoveSelectedBurial}
+      onStartRouting={onStartRouting}
+      onStopRouting={onStopRouting}
+      onToggleExpanded={toggleSelectedSummary}
+      selectedBurialRefs={selectedBurialRefs}
+      selectedBurials={selectedBurials}
+      tourStyles={tourStyles}
+    />
+  ) : null;
+
   const browseWorkspaceContent = (
     <BrowseWorkspacePanel
       autocompleteComponentsProps={autocompleteComponentsProps}
@@ -1974,6 +2088,7 @@ function BurialSidebar({
       onSectionSelection={handleSectionSelection}
       onToggleSectionMarkers={handleToggleSectionMarkers}
       onTourSelection={handleTourSelection}
+      priorityContent={shouldShowBrowseResults ? selectedSummaryContent : null}
       resultsContent={browseResultsContent}
       searchPlaceholder={searchPlaceholder}
       searchShellNotices={searchShellNotices}
@@ -2064,28 +2179,7 @@ function BurialSidebar({
     <Box sx={{ p: 1.25, display: "grid", gap: 1.25 }}>
       {browseWorkspaceContent}
 
-      {selectedBurials.length > 0 && (
-        <SelectedSummaryPanel
-          activeBurialId={activeBurialId}
-          activeRouteBurialId={activeRouteBurialId}
-          hoveredBurialId={hoveredBurialId}
-          isExpanded={isSelectedSummaryExpanded}
-          isMobile={isMobile}
-          markerColors={markerColors}
-          onClearSelectedBurials={onClearSelectedBurials}
-          onFocusSelectedBurial={onFocusSelectedBurial}
-          onHoverBurialChange={onHoverBurialChange}
-          onOpenExternalDirections={onOpenExternalDirections}
-          onOpenDirectionsMenu={onOpenDirectionsMenu}
-          onRemoveSelectedBurial={onRemoveSelectedBurial}
-          onStartRouting={onStartRouting}
-          onStopRouting={onStopRouting}
-          onToggleExpanded={toggleSelectedSummary}
-          selectedBurialRefs={selectedBurialRefs}
-          selectedBurials={selectedBurials}
-          tourStyles={tourStyles}
-        />
-      )}
+      {selectedBurials.length > 0 && !shouldShowBrowseResults && selectedSummaryContent}
 
       {shouldShowFieldPacketPanel && (
         <FieldPacketPanel

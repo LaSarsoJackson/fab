@@ -22,6 +22,9 @@ as the controller that drives a selected runtime.
 - [`docs/map-engine-api.md`](./map-engine-api.md): runtime and data-backend API contract for the engine
 - [`docs/map-engine-geoparquet.md`](./map-engine-geoparquet.md): static data-format strategy, GeoParquet migration plan, and PMTiles relationship
 - [`docs/codebase-structure.md`](./codebase-structure.md): repo ownership map and directory responsibilities
+- [`src/features/map/mapChrome.jsx`](../src/features/map/mapChrome.jsx): shared map controls, overlays, and debug chrome used by both runtimes
+- [`src/features/map/mapDomain.js`](../src/features/map/mapDomain.js): the single home for pure map business rules such as selection-state actions/reduction, section grouping, location filtering, hover guards, and PMTiles glyph logic
+- [`src/features/map/mapRouting.js`](../src/features/map/mapRouting.js): the single home for route building, local road-graph routing, external routing requests, and provider fallback behavior
 - [`src/features/tours/tourDerivedData.js`](../src/features/tours/tourDerivedData.js): canonical biography/portrait inference for uneven tour datasets and the helpers used to generate alias metadata
 - [`src/features/map/mapRecordPresentation.js`](../src/features/map/mapRecordPresentation.js): shared record cleanup, popup view-model generation, ARCE biography/image link normalization, and defensive date formatting
 - [`src/features/tours/tourBurialMatching.js`](../src/features/tours/tourBurialMatching.js): heuristics for matching tour stops to burial records and normalizing tour results into the shared browse-result shape
@@ -57,3 +60,6 @@ Changes in these areas should be tested together because the code paths converge
 - popup rendering
 
 If one of those flows changes, verify the others still land on the same selected record and popup behavior.
+Search results, section burial markers, tour stops, direct marker clicks, popup
+close, hover, and deep-link restoration should all update selected records
+through the reducer/actions in `mapDomain.js`.

@@ -1,13 +1,15 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  clearSelectionFocus,
+  clearMapSelectionFocus,
+  clearMapSelectionFocusForRecord,
   createMapSelectionState,
-  focusSelectionBurial,
-  removeSelectionBurial,
-  replaceSelectionBurials,
-  setSelectionHover,
-} from "../src/features/map";
+  focusMapSelectionRecord,
+  reduceMapSelectionState,
+  removeMapSelectionRecord,
+  replaceMapSelectionRecords,
+  setMapSelectionHover,
+} from "../src/features/map/mapDomain";
 
 const annaTracy = {
   id: "burial:1:99:18",
@@ -40,7 +42,10 @@ const notableTourStop = {
 
 describe("map selection state", () => {
   test("search result selection pins the record and focuses it", () => {
-    const state = focusSelectionBurial(createMapSelectionState(), annaTracy);
+    const state = reduceMapSelectionState(
+      createMapSelectionState(),
+      focusMapSelectionRecord(annaTracy)
+    );
 
     expect(state).toEqual({
       selectedBurials: [annaTracy],
@@ -50,12 +55,17 @@ describe("map selection state", () => {
   });
 
   test("section browse clears active focus while keeping pinned records", () => {
-    const state = clearSelectionFocus(
-      setSelectionHover(
-        focusSelectionBurial(createMapSelectionState(), annaTracy),
-        annaTracy.id
-      ),
-      { clearHover: true }
+    const focusedState = reduceMapSelectionState(
+      createMapSelectionState(),
+      focusMapSelectionRecord(annaTracy)
+    );
+    const hoveredState = reduceMapSelectionState(
+      focusedState,
+      setMapSelectionHover(annaTracy.id)
+    );
+    const state = reduceMapSelectionState(
+      hoveredState,
+      clearMapSelectionFocus({ clearHover: true })
     );
 
     expect(state).toEqual({
@@ -66,11 +76,11 @@ describe("map selection state", () => {
   });
 
   test("section-marker selection switches the active pinned record", () => {
-    const initialState = replaceSelectionBurials(createMapSelectionState(), {
-      selectedBurials: [annaTracy, thomasTracy],
-      activeBurialId: annaTracy.id,
-    });
-    const state = focusSelectionBurial(initialState, thomasTracy);
+    const initialState = reduceMapSelectionState(createMapSelectionState(), replaceMapSelectionRecords({
+      records: [annaTracy, thomasTracy],
+      activeRecordId: annaTracy.id,
+    }));
+    const state = reduceMapSelectionState(initialState, focusMapSelectionRecord(thomasTracy));
 
     expect(state).toEqual({
       selectedBurials: [annaTracy, thomasTracy],
@@ -80,11 +90,11 @@ describe("map selection state", () => {
   });
 
   test("tour-stop selection adds the stop to the pinned set and focuses it", () => {
-    const initialState = replaceSelectionBurials(createMapSelectionState(), {
-      selectedBurials: [annaTracy],
-      activeBurialId: annaTracy.id,
-    });
-    const state = focusSelectionBurial(initialState, notableTourStop);
+    const initialState = reduceMapSelectionState(createMapSelectionState(), replaceMapSelectionRecords({
+      records: [annaTracy],
+      activeRecordId: annaTracy.id,
+    }));
+    const state = reduceMapSelectionState(initialState, focusMapSelectionRecord(notableTourStop));
 
     expect(state).toEqual({
       selectedBurials: [annaTracy, notableTourStop],
@@ -94,11 +104,11 @@ describe("map selection state", () => {
   });
 
   test("popup-close clear keeps pinned records while removing active focus", () => {
-    const initialState = replaceSelectionBurials(createMapSelectionState(), {
-      selectedBurials: [annaTracy, notableTourStop],
-      activeBurialId: notableTourStop.id,
-    });
-    const state = clearSelectionFocus(initialState);
+    const initialState = reduceMapSelectionState(createMapSelectionState(), replaceMapSelectionRecords({
+      records: [annaTracy, notableTourStop],
+      activeRecordId: notableTourStop.id,
+    }));
+    const state = reduceMapSelectionState(initialState, clearMapSelectionFocus());
 
     expect(state).toEqual({
       selectedBurials: [annaTracy, notableTourStop],
@@ -108,15 +118,95 @@ describe("map selection state", () => {
   });
 
   test("removing the active record clears active and hover without reassigning focus", () => {
-    const initialState = replaceSelectionBurials(createMapSelectionState(), {
-      selectedBurials: [annaTracy, thomasTracy],
-      activeBurialId: annaTracy.id,
-      hoveredBurialId: annaTracy.id,
-    });
-    const state = removeSelectionBurial(initialState, annaTracy.id);
+    const initialState = reduceMapSelectionState(createMapSelectionState(), replaceMapSelectionRecords({
+      records: [annaTracy, thomasTracy],
+      activeRecordId: annaTracy.id,
+      hoveredRecordId: annaTracy.id,
+    }));
+    const state = reduceMapSelectionState(initialState, removeMapSelectionRecord(annaTracy.id));
 
     expect(state).toEqual({
       selectedBurials: [thomasTracy],
+      activeBurialId: null,
+      hoveredBurialId: null,
+    });
+  });
+
+  test("reducer gives search, direct-marker, and tour-stop selections one focus path", () => {
+    const afterSearch = reduceMapSelectionState(
+      createMapSelectionState(),
+      focusMapSelectionRecord(annaTracy)
+    );
+    const afterDirectMarker = reduceMapSelectionState(
+      afterSearch,
+      focusMapSelectionRecord(thomasTracy)
+    );
+    const afterTourStop = reduceMapSelectionState(
+      afterDirectMarker,
+      focusMapSelectionRecord(notableTourStop)
+    );
+
+    expect(afterTourStop).toEqual({
+      selectedBurials: [annaTracy, thomasTracy, notableTourStop],
+      activeBurialId: notableTourStop.id,
+      hoveredBurialId: null,
+    });
+  });
+
+  test("reducer restores deep-link selections without inventing a different active model", () => {
+    const state = reduceMapSelectionState(createMapSelectionState(), replaceMapSelectionRecords({
+      records: [annaTracy, notableTourStop],
+      activeRecordId: notableTourStop.id,
+    }));
+
+    expect(state).toEqual({
+      selectedBurials: [annaTracy, notableTourStop],
+      activeBurialId: notableTourStop.id,
+      hoveredBurialId: null,
+    });
+  });
+
+  test("reducer clears stale popup focus only for the record that closed", () => {
+    const initialState = reduceMapSelectionState(createMapSelectionState(), replaceMapSelectionRecords({
+      records: [annaTracy, thomasTracy],
+      activeRecordId: thomasTracy.id,
+    }));
+
+    expect(
+      reduceMapSelectionState(initialState, clearMapSelectionFocusForRecord(annaTracy.id))
+    ).toEqual(initialState);
+    expect(
+      reduceMapSelectionState(initialState, clearMapSelectionFocusForRecord(thomasTracy.id))
+    ).toEqual({
+      selectedBurials: [annaTracy, thomasTracy],
+      activeBurialId: null,
+      hoveredBurialId: null,
+    });
+  });
+
+  test("reducer handles section focus clearing, hover, and removal through the same state shape", () => {
+    const focusedState = reduceMapSelectionState(
+      createMapSelectionState(),
+      focusMapSelectionRecord(annaTracy)
+    );
+    const hoveredState = reduceMapSelectionState(
+      focusedState,
+      setMapSelectionHover(annaTracy.id)
+    );
+    const browsedSectionState = reduceMapSelectionState(
+      hoveredState,
+      clearMapSelectionFocus({ clearHover: true })
+    );
+
+    expect(browsedSectionState).toEqual({
+      selectedBurials: [annaTracy],
+      activeBurialId: null,
+      hoveredBurialId: null,
+    });
+    expect(
+      reduceMapSelectionState(hoveredState, removeMapSelectionRecord(annaTracy.id))
+    ).toEqual({
+      selectedBurials: [],
       activeBurialId: null,
       hoveredBurialId: null,
     });

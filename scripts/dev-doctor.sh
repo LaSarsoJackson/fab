@@ -67,6 +67,17 @@ else
   status_warn "GeoParquet toolchain not installed. 'build:geoparquet' and 'validate:geoparquet' need a Python with geopandas, pyarrow, and shapely."
 fi
 
+if SITE_TWIN_PYTHON="$("$GEOSPATIAL_PYTHON_RESOLVER" numpy osgeo 2>/dev/null)"; then
+  SITE_TWIN_PYTHON_VERSION="$("$SITE_TWIN_PYTHON" -c 'import platform; print(platform.python_version())')"
+  if command -v pdal >/dev/null 2>&1; then
+    status_ok "Site twin toolchain ready (${SITE_TWIN_PYTHON} / Python ${SITE_TWIN_PYTHON_VERSION}; pdal)"
+  else
+    status_warn "Site twin Python ready (${SITE_TWIN_PYTHON} / Python ${SITE_TWIN_PYTHON_VERSION}) but pdal is missing. 'build:site-twin' preview builds need PDAL."
+  fi
+else
+  status_warn "Site twin geospatial toolchain not installed. 'build:site-twin' needs a Python with numpy and GDAL bindings."
+fi
+
 if command -v tippecanoe >/dev/null 2>&1; then
   status_ok "PMTiles toolchain ready (tippecanoe)"
 else

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { APP_PROFILE } from "../src/config/appProfile";
+import { APP_PROFILE } from "../src/features/fab/profile";
 import {
   getMapBackendDescriptor,
   getMapStorageStrategy,

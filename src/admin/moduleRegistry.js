@@ -1,4 +1,4 @@
-import { APP_PROFILE } from "../config/appProfile";
+import { APP_PROFILE } from "../features/fab/profile";
 
 export const DATA_MODULES = APP_PROFILE.dataModules || [];
 

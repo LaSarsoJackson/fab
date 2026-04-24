@@ -17,6 +17,17 @@ const createCanvasContext = () => ({
   stroke: jest.fn(),
 });
 
+const setRuntimeSurfaceRect = (runtime, { left = 0, top = 0, width, height }) => {
+  runtime.surface.getBoundingClientRect = jest.fn(() => ({
+    left,
+    top,
+    width,
+    height,
+    right: left + width,
+    bottom: top + height,
+  }));
+};
+
 describe("CustomMapRuntime", () => {
   let originalResizeObserver;
   let originalGetContext;
@@ -369,6 +380,155 @@ describe("CustomMapRuntime", () => {
     expect(settledCenter.lng).toBeCloseTo(initialCenter.lng, 8);
 
     performanceNowSpy.mockRestore();
+    runtime.destroy();
+  });
+
+  test("supports two-finger pinch zoom and pan on touch surfaces", () => {
+    const container = document.createElement("div");
+    Object.defineProperty(container, "clientWidth", {
+      configurable: true,
+      value: 1200,
+    });
+    Object.defineProperty(container, "clientHeight", {
+      configurable: true,
+      value: 800,
+    });
+    document.body.appendChild(container);
+
+    const runtime = new CustomMapRuntime({
+      center: [42.7061, -73.7322],
+      zoom: 14,
+      minZoom: 13,
+      maxZoom: 25,
+    });
+
+    runtime.mount(container);
+    setRuntimeSurfaceRect(runtime, { width: 1200, height: 800 });
+
+    const initialCenter = runtime.getCenter();
+    const initialZoom = runtime.getZoom();
+    const moveStart = jest.fn();
+    const zoomStart = jest.fn();
+    const moveEnd = jest.fn();
+    const zoomEnd = jest.fn();
+
+    runtime.on("movestart", moveStart);
+    runtime.on("zoomstart", zoomStart);
+    runtime.on("moveend", moveEnd);
+    runtime.on("zoomend", zoomEnd);
+
+    runtime.handlePointerDown({
+      pointerId: 1,
+      pointerType: "touch",
+      clientX: 500,
+      clientY: 400,
+    });
+    runtime.handlePointerDown({
+      pointerId: 2,
+      pointerType: "touch",
+      clientX: 700,
+      clientY: 400,
+    });
+    runtime.handlePointerMove({
+      pointerId: 1,
+      pointerType: "touch",
+      clientX: 460,
+      clientY: 400,
+    });
+    runtime.handlePointerMove({
+      pointerId: 2,
+      pointerType: "touch",
+      clientX: 780,
+      clientY: 400,
+    });
+
+    expect(runtime.getZoom()).toBeGreaterThan(initialZoom);
+    expect(runtime.getCenter().lng).not.toBeCloseTo(initialCenter.lng, 8);
+    expect(moveStart).toHaveBeenCalledTimes(1);
+    expect(zoomStart).toHaveBeenCalledTimes(1);
+
+    runtime.handlePointerUp({
+      pointerId: 1,
+      pointerType: "touch",
+      clientX: 460,
+      clientY: 400,
+    });
+
+    expect(moveEnd).toHaveBeenCalledTimes(1);
+    expect(zoomEnd).toHaveBeenCalledTimes(1);
+
+    runtime.handlePointerUp({
+      pointerId: 2,
+      pointerType: "touch",
+      clientX: 780,
+      clientY: 400,
+    });
+
+    runtime.destroy();
+  });
+
+  test("uses client coordinates for touch taps when offset coordinates are unavailable", () => {
+    const container = document.createElement("div");
+    Object.defineProperty(container, "clientWidth", {
+      configurable: true,
+      value: 640,
+    });
+    Object.defineProperty(container, "clientHeight", {
+      configurable: true,
+      value: 480,
+    });
+    document.body.appendChild(container);
+
+    const runtime = new CustomMapRuntime({
+      center: [42.70418, -73.73198],
+      zoom: 14,
+    });
+
+    runtime.mount(container);
+    setRuntimeSurfaceRect(runtime, { width: 640, height: 480 });
+
+    const onPointClick = jest.fn();
+    runtime.setLayers([{
+      id: "selected-burials",
+      kind: "points",
+      interactive: true,
+      points: [{
+        id: "anna-tracy",
+        coordinates: [-73.73198, 42.70418],
+        record: { id: "anna-tracy" },
+      }],
+      pointStyle: {
+        radius: 8,
+        hitRadius: 18,
+      },
+      onPointClick,
+    }]);
+
+    const point = runtime.projectCoordinates([-73.73198, 42.70418]);
+    runtime.handlePointerDown({
+      pointerId: 1,
+      pointerType: "touch",
+      clientX: point.x,
+      clientY: point.y,
+    });
+    runtime.handlePointerUp({
+      pointerId: 1,
+      pointerType: "touch",
+      clientX: point.x,
+      clientY: point.y,
+    });
+
+    expect(onPointClick).toHaveBeenCalledTimes(1);
+    expect(onPointClick.mock.calls[0][0]).toEqual(expect.objectContaining({
+      runtime,
+      target: expect.objectContaining({
+        layerId: "selected-burials",
+        pointEntry: expect.objectContaining({
+          id: "anna-tracy",
+        }),
+      }),
+    }));
+
     runtime.destroy();
   });
 

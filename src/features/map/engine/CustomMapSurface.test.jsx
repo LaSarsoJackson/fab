@@ -4,6 +4,7 @@ import React from "react";
 import { act, render } from "@testing-library/react";
 
 import { CustomMapSurface } from "./CustomMapSurface";
+import { MAP_PRESENTATION_POLICY } from "../mapDomain";
 
 const mockCreateCustomMapRuntime = jest.fn();
 
@@ -56,7 +57,7 @@ const baseProps = {
   shouldUseMapPopups: false,
   showAllBurials: false,
   showBoundary: true,
-  showRoads: true,
+  showRoads: false,
   showSections: true,
   tourFeatureLayersRef: { current: new Map() },
   tourStyles: {},
@@ -169,7 +170,7 @@ describe("CustomMapSurface", () => {
     expect(onPopupClose).toHaveBeenCalledWith(popupRecord);
   });
 
-  test("configures section burials to uncluster at terminal zoom and offset stacked markers", () => {
+  test("configures section burials to uncluster at terminal zoom without offsetting markers", () => {
     const sectionBurial = {
       id: "grave-a",
       Section: "107",
@@ -181,6 +182,7 @@ describe("CustomMapSurface", () => {
     render(
       <CustomMapSurface
         {...baseProps}
+        maxZoom={19}
         showAllBurials
         sectionFilter="107"
         sectionBurials={[sectionBurial]}
@@ -191,15 +193,69 @@ describe("CustomMapSurface", () => {
     const sectionBurialsLayer = layerSpecs.find((layer) => layer.id === "section-burials");
 
     expect(sectionBurialsLayer).toBeDefined();
-    expect(sectionBurialsLayer.disableClusteringAtZoom).toBe(21);
+    expect(sectionBurialsLayer.clusterRadius).toBe(MAP_PRESENTATION_POLICY.sectionBurialClusterRadius);
+    expect(sectionBurialsLayer.disableClusteringAtZoom).toBe(19);
 
     const pointStyle = sectionBurialsLayer.pointStyle(
       { id: sectionBurial.id, record: sectionBurial },
-      { getZoom: () => 21 }
+      { getZoom: () => 19 }
     );
 
-    expect(pointStyle.offsetX || pointStyle.offsetY).not.toBe(0);
-    expect(pointStyle.guideColor).toBeTruthy();
+    expect(pointStyle.offsetX).toBeUndefined();
+    expect(pointStyle.offsetY).toBeUndefined();
+    expect(pointStyle.guideColor).toBeUndefined();
+  });
+
+  test("expands section burial clusters to the individual marker zoom", () => {
+    const sectionBurials = [
+      {
+        id: "grave-a",
+        Section: "107",
+        coordinates: [-73.73198, 42.70418],
+      },
+      {
+        id: "grave-b",
+        Section: "107",
+        coordinates: [-73.73196, 42.7042],
+      },
+    ];
+
+    render(
+      <CustomMapSurface
+        {...baseProps}
+        maxZoom={19}
+        showAllBurials
+        sectionFilter="107"
+        sectionBurials={sectionBurials}
+      />
+    );
+
+    const layerSpecs = runtime.setLayers.mock.calls.at(-1)?.[0] || [];
+    const sectionBurialsLayer = layerSpecs.find((layer) => layer.id === "section-burials");
+    const fitBounds = jest.fn();
+    const setView = jest.fn();
+
+    sectionBurialsLayer.onClusterClick({
+      target: {
+        pointEntry: {
+          members: sectionBurials.map((record) => ({
+            coordinates: record.coordinates,
+            record,
+          })),
+        },
+      },
+      runtime: {
+        fitBounds,
+        getZoom: () => 17,
+        setView,
+      },
+    });
+
+    expect(setView).toHaveBeenCalledWith(expect.objectContaining({
+      lat: expect.any(Number),
+      lng: expect.any(Number),
+    }), 19);
+    expect(fitBounds).not.toHaveBeenCalled();
   });
 
   test("gives hovered burial markers stronger hit targets and visual emphasis", () => {
@@ -223,6 +279,16 @@ describe("CustomMapSurface", () => {
 
     const layerSpecs = runtime.setLayers.mock.calls.at(-1)?.[0] || [];
     const sectionBurialsLayer = layerSpecs.find((layer) => layer.id === "section-burials");
+    const basePointStyle = sectionBurialsLayer.pointStyle(
+      { id: sectionBurial.id, record: sectionBurial },
+      {
+        getZoom: () => 18,
+        selectionState: {
+          activeId: null,
+          hoveredId: null,
+        },
+      }
+    );
     const pointStyle = sectionBurialsLayer.pointStyle(
       { id: sectionBurial.id, record: sectionBurial },
       {
@@ -234,9 +300,46 @@ describe("CustomMapSurface", () => {
       }
     );
 
-    expect(pointStyle.radius).toBeGreaterThan(5);
-    expect(pointStyle.hitRadius).toBeGreaterThan(14);
-    expect(pointStyle.fillOpacity).toBeGreaterThan(0.82);
+    expect(pointStyle.radius).toBeGreaterThan(basePointStyle.radius);
+    expect(pointStyle.hitRadius).toBeGreaterThan(basePointStyle.hitRadius);
+    expect(pointStyle.fillOpacity).toBeGreaterThan(basePointStyle.fillOpacity);
+  });
+
+  test("keeps roads hidden unless explicitly enabled", () => {
+    render(
+      <CustomMapSurface
+        {...baseProps}
+        showRoads={undefined}
+      />
+    );
+
+    const layerSpecs = runtime.setLayers.mock.calls.at(-1)?.[0] || [];
+    expect(layerSpecs.some((layer) => layer.id === "roads")).toBe(false);
+  });
+
+  test("shows section affordance markers before a section is selected", () => {
+    const affordanceMarker = {
+      id: "section-affordance:107",
+      sectionValue: "107",
+      lat: 42.70418,
+      lng: -73.73198,
+      bounds: [[42.7038, -73.7323], [42.7045, -73.7316]],
+    };
+
+    render(
+      <CustomMapSurface
+        {...baseProps}
+        sectionAffordanceMarkers={[affordanceMarker]}
+        showSectionAffordanceMarkers
+      />
+    );
+
+    const layerSpecs = runtime.setLayers.mock.calls.at(-1)?.[0] || [];
+    const sectionAffordanceLayer = layerSpecs.find((layer) => layer.id === "section-affordances");
+
+    expect(sectionAffordanceLayer).toBeDefined();
+    expect(sectionAffordanceLayer.points).toHaveLength(1);
+    expect(sectionAffordanceLayer.pointStyle.variant).toBe("grave-affordance");
   });
 
   test("does not treat hovered clusters as hovered burials", () => {
@@ -413,5 +516,39 @@ describe("CustomMapSurface", () => {
     expect(pointStyle.baseWidthMeters).toBeGreaterThan(1);
     expect(pointStyle.heightMeters).toBe(0.84);
     expect(pointStyle.heightScale).toBe(1.75);
+  });
+
+  test("prefixes site twin surface assets with the configured public url", () => {
+    const originalPublicUrl = process.env.PUBLIC_URL;
+    process.env.PUBLIC_URL = "/fab";
+
+    try {
+      render(
+        <CustomMapSurface
+          {...baseProps}
+          showSiteTwin
+          showSiteTwinSurface
+          siteTwinManifest={{
+            status: "ready",
+            terrainImage: {
+              url: "/data/site_twin/terrain_surface.png",
+              bounds: [
+                [42.69418, -73.74198],
+                [42.71418, -73.72198],
+              ],
+              opacity: 0.9,
+            },
+          }}
+          siteTwinCandidates={{ type: "FeatureCollection", features: [] }}
+        />
+      );
+
+      const layerSpecs = runtime.setLayers.mock.calls.at(-1)?.[0] || [];
+      const siteTwinSurfaceLayer = layerSpecs.find((layer) => layer.id === "site-twin-surface");
+
+      expect(siteTwinSurfaceLayer?.url).toBe("/fab/data/site_twin/terrain_surface.png");
+    } finally {
+      process.env.PUBLIC_URL = originalPublicUrl;
+    }
   });
 });

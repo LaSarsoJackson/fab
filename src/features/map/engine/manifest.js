@@ -11,8 +11,14 @@ import {
   MAP_RUNTIME_EVENTS,
   MAP_RUNTIME_KINDS,
 } from "./contracts";
+import {
+  formatRuntimeFlagQueryOverride,
+  RUNTIME_FEATURE_FLAGS,
+} from "../../../shared/runtime";
 
 export const MAP_ENGINE_MANIFEST_VERSION = 1;
+
+const CUSTOM_MAP_ENGINE_FLAG = RUNTIME_FEATURE_FLAGS.customMapEngine;
 
 export const getMapEngineManifest = (appProfile = {}) => {
   const backendDescriptor = getMapBackendDescriptor(appProfile);
@@ -87,10 +93,10 @@ export const getMapEngineManifest = (appProfile = {}) => {
       },
     ],
     runtimeSelection: {
-      featureFlag: "customMapEngine",
-      envVar: "REACT_APP_ENABLE_CUSTOM_MAP_ENGINE",
-      queryOverride: "mapEngine=custom|leaflet",
-      stickyStorageKey: "fab:enableCustomMapEngine",
+      featureFlag: CUSTOM_MAP_ENGINE_FLAG.id,
+      envVar: CUSTOM_MAP_ENGINE_FLAG.envKey,
+      queryOverride: formatRuntimeFlagQueryOverride(CUSTOM_MAP_ENGINE_FLAG),
+      stickyStorageKey: CUSTOM_MAP_ENGINE_FLAG.storageKey,
       defaultRuntimeKind: LEAFLET_ADAPTER_RUNTIME_KIND,
     },
     basemapRegistry: {

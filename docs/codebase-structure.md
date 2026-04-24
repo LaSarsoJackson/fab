@@ -14,19 +14,19 @@ so there is a clearer answer to "where should this change go?"
 
 - [`src/features/browse/`](../src/features/browse): search indexing, browse result shaping, and shared record labels
 - [`src/features/tours/`](../src/features/tours): tour definitions, alias recovery, tour styles, and burial-tour reconciliation
-- [`src/features/map/`](../src/features/map): popup view-models, selection helpers, viewport helpers, generated bounds, and the custom engine runtime contract under `engine/`
+- [`src/features/map/`](../src/features/map): popup view-models, a single `mapDomain.js` module for pure map rules and selection-state reduction, a single `mapRouting.js` module for route construction and provider fallback, runtime-agnostic map chrome, viewport helpers, generated bounds, and the custom engine runtime contract under `engine/`
 - [`src/features/deeplinks/`](../src/features/deeplinks): shared-link encoding and URL/deep-link state
 - [`src/features/navigation/`](../src/features/navigation): external directions/navigation URL building
 
 ## Shared Helpers
 
 - [`src/shared/geo/`](../src/shared/geo): generic GeoJSON bounds and validation helpers
-- [`src/shared/runtime/`](../src/shared/runtime): runtime environment and feature-flag helpers
+- [`src/shared/runtime/`](../src/shared/runtime): runtime environment helpers, centralized runtime-flag definitions, and real environment-dependent toggles
 
 ## Admin And Profile Layers
 
 - [`src/admin/`](../src/admin): file-backed data modules, workbook import/export, and update-bundle packaging
-- [`src/config/appProfile.js`](../src/config/appProfile.js): active profile selection and shared registries
+- [`src/features/fab/profile.js`](../src/features/fab/profile.js): single source of truth for FAB app configuration, hosted URLs, shell copy, record presentation callbacks, map metadata, feature registrations, and app-scoped browser storage keys
 - [`src/features/fab/`](../src/features/fab): FAB-specific branding, tours, and presentation behavior
 
 ## Data And Build Outputs

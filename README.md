@@ -42,6 +42,8 @@ Optional tools:
 
 - `geopandas`, `pyarrow`, and `shapely` for GeoParquet conversion and parity
   validation
+- `numpy`, GDAL Python bindings, and `pdal` for the site twin / digital twin
+  preview pipeline
 - `tippecanoe` for PMTiles generation
 - Docker for the optional local/offline Valhalla routing workflow
 
@@ -131,6 +133,11 @@ Useful overrides:
 - `bun run build:geoparquet`: convert the burial source JSON into GeoParquet
 - `bun run validate:geoparquet`: verify GeoParquet parity with the JSON source
 - `bun run build:pmtiles`: generate PMTiles experiment artifacts
+- `bun run build:site-twin`: fetch the latest ortho/LiDAR inputs and build the
+  site twin preview package
+- `bun run build:site-twin:terrain`: build the terrain-only site twin preview
+- `bun run build:site-twin:metadata`: resolve the latest source metadata
+  without downloading large inputs
 
 Test split:
 
@@ -146,7 +153,7 @@ Source-of-truth data lives in:
 - [`src/data/ARC_Sections.json`](./src/data/ARC_Sections.json)
 - [`src/data/ARC_Roads.json`](./src/data/ARC_Roads.json)
 - [`src/data/ARC_Boundary.json`](./src/data/ARC_Boundary.json)
-- tour definitions referenced from [`src/features/tours/tourDefinitions.js`](./src/features/tours/tourDefinitions.js)
+- tour definitions and datasets in [`src/features/fab/tours.js`](./src/features/fab/tours.js)
 
 Generated artifacts live in:
 
@@ -179,6 +186,8 @@ Start with these documents:
   the clean-room standalone engine surface
 - [docs/codebase-structure.md](./docs/codebase-structure.md) for directory
   ownership and placement rules
+- [docs/geospatial-site-twin.md](./docs/geospatial-site-twin.md) for the
+  cemetery digital twin/site twin pipeline
 
 Common entry points:
 
@@ -191,7 +200,7 @@ Common entry points:
   result shaping
 - [`src/features/tours/`](./src/features/tours): tour definitions, alias
   generation, and burial-tour reconciliation
-- [`src/features/map/`](./src/features/map): popup models, selection helpers,
+- [`src/features/map/`](./src/features/map): popup models, selection reducer/actions,
   viewport helpers, and runtime-specific map logic
 - [`src/admin/`](./src/admin): file-backed admin modules, workbook import and
   export, and update bundles

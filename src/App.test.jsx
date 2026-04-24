@@ -4,7 +4,7 @@ import React from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import App from "./App";
-import { APP_PROFILE } from "./config/appProfile";
+import { APP_PROFILE } from "./features/fab/profile";
 import { isAdminStudioEnabled } from "./shared/runtime";
 
 jest.mock("./Map", () => ({

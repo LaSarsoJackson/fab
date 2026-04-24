@@ -4,7 +4,7 @@ import React from "react";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import BurialSidebar from "./BurialSidebar";
-import { APP_PROFILE } from "./config/appProfile";
+import { APP_PROFILE } from "./features/fab/profile";
 import { buildBurialBrowseResult, buildSearchIndex } from "./features/browse";
 
 const mockBottomSheetState = { currentHeight: 0, lastProps: null, snapTo: jest.fn() };
@@ -353,7 +353,7 @@ describe("BurialSidebar", () => {
     });
 
     const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
-    expect(within(browseWorkspace).getByText("Anna Tracy")).toBeInTheDocument();
+    expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
 
     rerender(
       <BurialSidebar
@@ -367,7 +367,7 @@ describe("BurialSidebar", () => {
     );
 
     const nextBrowseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
-    expect(within(nextBrowseWorkspace).getByText("Anna Tracy")).toBeInTheDocument();
+    expect(within(nextBrowseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
     expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
   });
 
@@ -678,21 +678,18 @@ describe("BurialSidebar", () => {
 
     expect(screen.getByText("Selection")).toBeInTheDocument();
     const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
-    expect(within(browseWorkspace).getByText("Anna Tracy")).toBeInTheDocument();
+    expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
     expect(within(screen.getByText("Selection").closest(".left-sidebar__panel")).getByRole("button", { name: "Route on map" })).toBeInTheDocument();
 
     const selectedSummary = screen.getByText("Selection").closest(".left-sidebar__panel");
-    expect(within(selectedSummary).getByRole("button", { name: "Show list" })).toBeInTheDocument();
-
-    fireEvent.click(within(selectedSummary).getByRole("button", { name: "Show list" }));
-
     expect(within(selectedSummary).getByText("Thomas Tracy")).toBeInTheDocument();
+    expect(within(selectedSummary).getByRole("button", { name: "Hide list" })).toBeInTheDocument();
 
     fireEvent.click(within(selectedSummary).getByRole("button", { name: "Hide list" }));
 
     expect(within(selectedSummary).queryByText("Thomas Tracy")).not.toBeInTheDocument();
     expect(within(selectedSummary).getByRole("button", { name: "Show list" })).toBeInTheDocument();
-    expect(within(browseWorkspace).getByText("Anna Tracy")).toBeInTheDocument();
+    expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
 
     fireEvent.click(within(selectedSummary).getByRole("button", { name: "Clear" }));
 
@@ -720,7 +717,50 @@ describe("BurialSidebar", () => {
     expect(browseWorkspace).not.toBeNull();
     expect(within(browseWorkspace).getByText("Browse")).toBeInTheDocument();
     expect(within(browseWorkspace).getByLabelText("Search burials")).toBeInTheDocument();
-    expect(within(browseWorkspace).getByText("Anna Tracy")).toBeInTheDocument();
+    expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
+  });
+
+  domTest("surfaces the current selection above browse results when both are present", () => {
+    renderSidebar({
+      activeBurialId: burialRecords[0].id,
+      sectionFilter: "99",
+      selectedBurials: burialRecords,
+      showAllBurials: true,
+    });
+
+    flushBrowseTimers();
+
+    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const selectionPanel = within(browseWorkspace).getByText("Selection").closest(".left-sidebar__panel");
+    const resultsList = within(browseWorkspace)
+      .getAllByRole("list")
+      .find((list) => !list.closest(".left-sidebar__selected-scroll"));
+
+    expect(selectionPanel).not.toBeNull();
+    expect(resultsList).not.toBeNull();
+    expect(
+      selectionPanel.compareDocumentPosition(resultsList) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  domTest("promotes selected mobile actions above browse controls", () => {
+    renderSidebar({
+      isMobile: true,
+      activeBurialId: burialRecords[0].id,
+      initialQuery: "anna",
+      selectedBurials: [burialRecords[0]],
+    });
+
+    flushBrowseTimers();
+
+    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const selectionPanel = within(browseWorkspace).getByText("Selection").closest(".left-sidebar__panel");
+    const searchInput = within(browseWorkspace).getByLabelText("Search burials");
+
+    expect(within(selectionPanel).getByRole("button", { name: "Route on map" })).toBeInTheDocument();
+    expect(
+      selectionPanel.compareDocumentPosition(searchInput) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
   domTest("hides the idle results panel when there is no active browse context", () => {
@@ -756,7 +796,7 @@ describe("BurialSidebar", () => {
     expect(selectedScroll).not.toBeNull();
     expect(within(selectedScroll).getByRole("list")).toBeInTheDocument();
     expect(browseWorkspace).not.toBeNull();
-    expect(within(browseWorkspace).getByText("Anna Tracy")).toBeInTheDocument();
+    expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
   });
 
   domTest("tracks selected row hover by burial id", () => {
@@ -776,14 +816,14 @@ describe("BurialSidebar", () => {
     expect(onHoverBurialChange).toHaveBeenNthCalledWith(2, null);
   });
 
-  domTest("labels the lead selection as pinned when records remain selected but no burial is actively focused", () => {
+  domTest("labels the lead selection as selected when records remain selected but no burial is actively focused", () => {
     renderSidebar({
       activeBurialId: null,
       selectedBurials: [burialRecords[0]],
     });
 
-    expect(screen.getByText("Pinned burial")).toBeInTheDocument();
-    expect(screen.queryByText("Focused burial")).not.toBeInTheDocument();
+    expect(screen.getByText("Selected burial")).toBeInTheDocument();
+    expect(screen.queryByText("Current selection")).not.toBeInTheDocument();
   });
 
   domTest("uses the current selection context when the layout switches to mobile", () => {

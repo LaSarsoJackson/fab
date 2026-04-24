@@ -29,7 +29,7 @@ Notes:
 The admin studio treats each file-backed dataset as a module:
 
 - core map layers such as `Geo_Burials.json`, `ARC_Sections.json`, `ARC_Roads.json`, and `ARC_Boundary.json`
-- every tour dataset declared in `src/features/tours/tourDefinitions.js`
+- every tour dataset declared in `src/features/fab/tours.js`
 
 Generated artifacts such as `public/data/Search_Burials.json`, `src/data/TourMatches.json`, and `src/features/map/generatedBounds.js` are not edited directly. They are regenerated when you export an update bundle after editing burials, tours, or boundary data.
 

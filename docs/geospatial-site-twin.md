@@ -41,25 +41,25 @@ The app-consumable static package is also written to `public/data/site_twin/`:
 Metadata-only dry run:
 
 ```bash
-python3 scripts/geospatial/build_site_twin.py --metadata-only
+bun run build:site-twin:metadata
 ```
 
 Full native download plus preview build:
 
 ```bash
-python3 scripts/geospatial/build_site_twin.py
+bun run build:site-twin
 ```
 
 Terrain-only prototype build for renderer iteration:
 
 ```bash
-python3 scripts/geospatial/build_site_twin.py --terrain-only
+bun run build:site-twin:terrain
 ```
 
 Override AOI or municipality:
 
 ```bash
-python3 scripts/geospatial/build_site_twin.py \
+bash ./scripts/geospatial/run_site_twin.sh \
   --aoi path/to/boundary.geojson \
   --county Albany \
   --municipality Colonie
@@ -69,5 +69,6 @@ python3 scripts/geospatial/build_site_twin.py \
 
 - The current Albany Rural Cemetery default resolves to 2024 Colonie ortho imagery on the NYS GIS site.
 - The intersecting raw 3DEP LiDAR currently resolves to the `NY_Columbia_Rensselaer_2016` Planetary Computer project for this AOI.
-- The script uses GDAL Python bindings already present on this machine plus the `pdal` CLI for COPC metadata capture and COPC-derived raster fallback.
+- Use `scripts/geospatial/run_site_twin.sh` when you need to pass custom flags. It resolves a Python interpreter with `numpy` and GDAL bindings before calling `build_site_twin.py`.
+- The preview build path uses GDAL Python bindings plus the `pdal` CLI for COPC metadata capture and COPC-derived raster fallback.
 - On this machine, the staged 3DEP derivative TIFFs are LERC-compressed and the local GDAL build cannot open them. The pipeline now falls back to deriving DTM, DSM, HAG, intensity, and classification preview rasters directly from the raw COPC LiDAR when that happens.

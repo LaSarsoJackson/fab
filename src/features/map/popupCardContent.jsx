@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { Box } from "@mui/material";
 
-import { stopMapInteractionPropagation } from "./interactionGuards";
+import { stopMapInteractionPropagation } from "./mapDomain";
 import { buildPopupViewModel, cleanRecordValue } from "./mapRecordPresentation";
 
 export const createMapRecordKey = (record, index = 0) => (
@@ -158,7 +158,7 @@ export function PopupCardContent({
         </button>
         <button
           type="button"
-          className="popup-card__action popup-card__action--ghost"
+          className="popup-card__action popup-card__action--secondary"
           onClick={(event) => {
             stopMapInteractionPropagation(event);
             onRemove?.();

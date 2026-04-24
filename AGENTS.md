@@ -8,19 +8,22 @@ This file is the fast orientation guide for automated maintainers working in
 1. [`README.md`](./README.md) for the product/runtime overview and core commands
 2. [`CONTRIBUTING.md`](./CONTRIBUTING.md) for setup, validation, and review expectations
 3. [`docs/architecture-index.md`](./docs/architecture-index.md) for the shortest path to the right architecture note
-4. [`docs/codebase-structure.md`](./docs/codebase-structure.md) for directory ownership
-5. [`docs/map-architecture.md`](./docs/map-architecture.md) before touching `src/Map.jsx`
-6. [`docs/static-admin-studio.md`](./docs/static-admin-studio.md) before changing admin data-edit flows
-7. [`docs/app-profile-architecture.md`](./docs/app-profile-architecture.md) before adding FAB-specific behavior
-8. [`docs/ui-principles.md`](./docs/ui-principles.md) before changing shared UI patterns
-9. [`docs/unified-stack-roadmap.md`](./docs/unified-stack-roadmap.md) when planning work that affects FABFG or the shared stack
+
+Then read only the task-specific note you need:
+
+- [`docs/codebase-structure.md`](./docs/codebase-structure.md) for directory ownership
+- [`docs/map-architecture.md`](./docs/map-architecture.md) before touching `src/Map.jsx`
+- [`docs/static-admin-studio.md`](./docs/static-admin-studio.md) before changing admin data-edit flows
+- [`docs/app-profile-architecture.md`](./docs/app-profile-architecture.md) before changing FAB-only app configuration
+- [`docs/ui-principles.md`](./docs/ui-principles.md) before changing shared UI patterns
+- [`docs/unified-stack-roadmap.md`](./docs/unified-stack-roadmap.md) when planning work that affects FABFG or the shared stack
 
 ## Repo Rules Of Thumb
 
 - Keep React state, refs, and Leaflet lifecycle work in [`src/Map.jsx`](./src/Map.jsx) and the top-level app shells.
 - Put pure record transforms in the owning feature folder under [`src/features/`](./src/features).
 - Put domain-neutral helpers in [`src/shared/`](./src/shared).
-- Keep FAB-only branding, presentation, and profile wiring under [`src/features/fab/`](./src/features/fab).
+- Keep FAB-only branding, hosted URLs, presentation callbacks, and profile wiring in [`src/features/fab/profile.js`](./src/features/fab/profile.js) and tour definitions in [`src/features/fab/tours.js`](./src/features/fab/tours.js).
 - Do not add new helpers back into the retired flat `src/lib` layout.
 
 ## High-Value Entry Points
@@ -30,7 +33,7 @@ This file is the fast orientation guide for automated maintainers working in
 - [`src/AdminApp.jsx`](./src/AdminApp.jsx): static admin workspace
 - [`src/features/browse/`](./src/features/browse): search indexing and browse-result shaping
 - [`src/features/tours/`](./src/features/tours): tour definitions, alias generation, burial-tour reconciliation
-- [`src/features/map/`](./src/features/map): popup presentation, viewport helpers, selection guards
+- [`src/features/map/`](./src/features/map): popup presentation, viewport helpers, selection reducer/actions
 - [`src/admin/`](./src/admin): file-backed admin module registry, exports, workbook import/export, update bundles
 
 ## Source Vs Generated Files
@@ -41,7 +44,7 @@ Treat these as source-of-truth inputs:
 - [`src/data/ARC_Sections.json`](./src/data/ARC_Sections.json)
 - [`src/data/ARC_Roads.json`](./src/data/ARC_Roads.json)
 - [`src/data/ARC_Boundary.json`](./src/data/ARC_Boundary.json)
-- tour definitions and datasets referenced from [`src/features/tours/tourDefinitions.js`](./src/features/tours/tourDefinitions.js)
+- tour definitions and datasets in [`src/features/fab/tours.js`](./src/features/fab/tours.js)
 
 Treat these as generated artifacts:
 
@@ -74,7 +77,7 @@ If you change map or selection behavior:
 
 If you change runtime/profile wiring:
 
-1. Verify feature flags still behave in development and production.
+1. Verify runtime toggles and environment-specific behavior still behave in development and production.
 2. Run the automated tests that cover the touched modules.
 
 ## Commands

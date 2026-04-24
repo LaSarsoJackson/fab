@@ -32,10 +32,12 @@ import {
 } from "./projection";
 
 const DRAG_THRESHOLD = 4;
+const PINCH_DISTANCE_THRESHOLD = 6;
 const DEFAULT_CLUSTER_RADIUS = 44;
 const WHEEL_ZOOM_DELTA_THRESHOLD = 72;
 const WHEEL_ZOOM_RESET_DELAY = 180;
 const CAMERA_ANIMATION_DURATION = 170;
+const TOUCH_POINTER_TYPES = new Set(["touch", "pen"]);
 
 const toDomStyle = (value) => `${Math.round(value * 1000) / 1000}px`;
 const DEFAULT_SURFACE_CURSOR = "grab";
@@ -56,6 +58,18 @@ const normalizeWheelDelta = (event, viewportHeight = 0) => {
 };
 
 const easeOutCubic = (progress) => 1 - Math.pow(1 - progress, 3);
+
+const getScreenPointDistance = (left, right) => Math.hypot(
+  (right.x || 0) - (left.x || 0),
+  (right.y || 0) - (left.y || 0)
+);
+
+const getScreenPointMidpoint = (left, right) => ({
+  x: ((left.x || 0) + (right.x || 0)) / 2,
+  y: ((left.y || 0) + (right.y || 0)) / 2,
+});
+
+const getPointerType = (event = {}) => String(event.pointerType || "").toLowerCase();
 
 const haversineDistance = (left, right) => {
   const earthRadiusMeters = 6371000;
@@ -226,16 +240,16 @@ const drawClusterPoint = (context, point, count, options = {}) => {
 
   context.save();
   context.shadowColor = isHovered
-    ? "rgba(20, 33, 43, 0.18)"
-    : "rgba(20, 33, 43, 0.12)";
-  context.shadowBlur = isHovered ? 14 : 10;
+    ? "rgba(20, 33, 43, 0.16)"
+    : "rgba(20, 33, 43, 0.1)";
+  context.shadowBlur = isHovered ? 12 : 8;
   context.shadowOffsetY = 4;
   context.beginPath();
   context.arc(point.x, point.y, isHovered ? 16.5 : 15, 0, Math.PI * 2);
-  context.fillStyle = "rgba(255, 248, 239, 0.94)";
+  context.fillStyle = "rgba(248, 251, 250, 0.94)";
   context.strokeStyle = isHovered
-    ? "rgba(123, 78, 36, 0.36)"
-    : "rgba(123, 78, 36, 0.22)";
+    ? "rgba(47, 75, 67, 0.38)"
+    : "rgba(47, 75, 67, 0.22)";
   context.lineWidth = isHovered ? 1.75 : 1.25;
   context.fill();
   context.stroke();
@@ -243,8 +257,8 @@ const drawClusterPoint = (context, point, count, options = {}) => {
   context.beginPath();
   context.arc(point.x, point.y, isHovered ? 11.5 : 10.5, 0, Math.PI * 2);
   context.fillStyle = isHovered
-    ? "rgba(205, 110, 34, 0.94)"
-    : "rgba(217, 123, 43, 0.82)";
+    ? "rgba(82, 112, 102, 0.94)"
+    : "rgba(101, 123, 114, 0.84)";
   context.fill();
 
   context.fillStyle = "#ffffff";
@@ -252,6 +266,48 @@ const drawClusterPoint = (context, point, count, options = {}) => {
   context.textAlign = "center";
   context.textBaseline = "middle";
   context.fillText(count > 99 ? "99+" : String(count), point.x, point.y + 0.5);
+  context.restore();
+};
+
+const drawGraveAffordancePoint = (context, point, style = {}) => {
+  const radius = Number.isFinite(style.radius) ? style.radius : 13;
+  const haloRadius = radius + 1.5;
+  const tombWidth = radius * 0.92;
+  const tombHeight = radius * 1.08;
+  const left = point.x - (tombWidth / 2);
+  const right = point.x + (tombWidth / 2);
+  const top = point.y - (tombHeight * 0.58);
+  const bottom = point.y + (tombHeight * 0.44);
+  const archHeight = tombWidth * 0.5;
+
+  context.save();
+  context.beginPath();
+  context.arc(point.x, point.y, haloRadius, 0, Math.PI * 2);
+  context.fillStyle = normalizeColor(style.haloColor, "rgba(255, 255, 255, 0.12)");
+  context.fill();
+
+  context.beginPath();
+  context.moveTo(left, bottom);
+  context.lineTo(left, top + archHeight);
+  context.quadraticCurveTo(left, top, point.x, top);
+  context.quadraticCurveTo(right, top, right, top + archHeight);
+  context.lineTo(right, bottom);
+  context.closePath();
+  context.fillStyle = normalizeColor(style.fillColor, "rgba(108, 121, 131, 0.3)");
+  context.fill();
+
+  context.lineWidth = Number.isFinite(style.weight) ? style.weight : 1.35;
+  context.strokeStyle = normalizeColor(style.color, "rgba(242, 247, 249, 0.84)");
+  context.stroke();
+
+  context.beginPath();
+  context.strokeStyle = normalizeColor(style.glyphColor, "rgba(255, 255, 255, 0.84)");
+  context.lineCap = "round";
+  context.moveTo(point.x - (tombWidth * 0.18), top + (tombHeight * 0.4));
+  context.lineTo(point.x + (tombWidth * 0.18), top + (tombHeight * 0.4));
+  context.moveTo(point.x, top + (tombHeight * 0.22));
+  context.lineTo(point.x, top + (tombHeight * 0.58));
+  context.stroke();
   context.restore();
 };
 
@@ -537,7 +593,9 @@ export class CustomMapRuntime {
     this.height = 0;
     this.hitTargets = [];
     this.sortedHitTargets = [];
+    this.activePointers = new Map();
     this.pointerState = null;
+    this.pinchState = null;
     this.dragDistance = 0;
     this.hoverTarget = null;
     this.popupState = null;
@@ -602,6 +660,10 @@ export class CustomMapRuntime {
     this.canvas = null;
     this.hitTargets = [];
     this.sortedHitTargets = [];
+    this.activePointers.clear();
+    this.pointerState = null;
+    this.pinchState = null;
+    this.dragDistance = 0;
     this.popupState = null;
     this.hoverTarget = null;
     this.tileImages.clear();
@@ -631,7 +693,7 @@ export class CustomMapRuntime {
   }
 
   syncSurfaceCursor(target = this.hoverTarget) {
-    if (this.pointerState?.moved) {
+    if (this.pointerState?.moved || this.pinchState?.moved) {
       this.updateSurfaceCursor("grabbing");
       return;
     }
@@ -1056,6 +1118,104 @@ export class CustomMapRuntime {
     return this.popupState;
   }
 
+  getSurfacePoint(event = {}) {
+    if (Number.isFinite(event.offsetX) && Number.isFinite(event.offsetY)) {
+      return {
+        x: event.offsetX,
+        y: event.offsetY,
+      };
+    }
+
+    const surfaceRect = this.surface?.getBoundingClientRect?.();
+    if (
+      surfaceRect &&
+      Number.isFinite(event.clientX) &&
+      Number.isFinite(event.clientY)
+    ) {
+      return {
+        x: event.clientX - surfaceRect.left,
+        y: event.clientY - surfaceRect.top,
+      };
+    }
+
+    return {
+      x: this.width / 2,
+      y: this.height / 2,
+    };
+  }
+
+  updateActivePointer(event = {}) {
+    if (!Number.isFinite(event.pointerId)) {
+      return null;
+    }
+
+    const point = this.getSurfacePoint(event);
+    const pointerEntry = {
+      pointerId: event.pointerId,
+      pointerType: getPointerType(event),
+      clientX: Number.isFinite(event.clientX) ? event.clientX : point.x,
+      clientY: Number.isFinite(event.clientY) ? event.clientY : point.y,
+      point,
+    };
+
+    this.activePointers.set(event.pointerId, pointerEntry);
+    return pointerEntry;
+  }
+
+  getActiveTouchPointers() {
+    return [...this.activePointers.values()].filter((pointerEntry) => (
+      TOUCH_POINTER_TYPES.has(pointerEntry.pointerType)
+    ));
+  }
+
+  startDragGesture(pointerEntry) {
+    if (!pointerEntry) {
+      return;
+    }
+
+    this.pinchState = null;
+    this.pointerState = {
+      pointerId: pointerEntry.pointerId,
+      startX: pointerEntry.clientX,
+      startY: pointerEntry.clientY,
+      center: this.getCenter(),
+      moved: false,
+    };
+    this.dragDistance = 0;
+  }
+
+  startPinchGesture(pointerEntries = this.getActiveTouchPointers()) {
+    const pinchPointers = pointerEntries.slice(0, 2);
+    if (pinchPointers.length < 2) {
+      return false;
+    }
+
+    const dragWasMoving = Boolean(this.pointerState?.moved);
+    const midpoint = getScreenPointMidpoint(
+      pinchPointers[0].point,
+      pinchPointers[1].point
+    );
+    const startDistance = Math.max(
+      1,
+      getScreenPointDistance(pinchPointers[0].point, pinchPointers[1].point)
+    );
+
+    this.pointerState = null;
+    this.dragDistance = 0;
+    this.pinchState = {
+      pointerIds: pinchPointers.map((pointerEntry) => pointerEntry.pointerId),
+      startMidpoint: midpoint,
+      startDistance,
+      startZoom: this.getZoom(),
+      anchorLatLng: this.containerPointToLatLng(midpoint.x, midpoint.y),
+      moved: dragWasMoving,
+      emittedMoveStart: dragWasMoving,
+      zooming: false,
+    };
+    this.syncSurfaceCursor();
+    return true;
+  }
+
   clearHoverTarget(originalEvent = null) {
     if (!this.hoverTarget) {
       this.syncSurfaceCursor(null);
@@ -1098,14 +1258,14 @@ export class CustomMapRuntime {
     if (!isPrimaryPointerButton(event)) return;
 
     this.stop();
-    this.pointerState = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      center: this.getCenter(),
-      moved: false,
-    };
-    this.dragDistance = 0;
+    const pointerEntry = this.updateActivePointer(event);
+    if (this.getActiveTouchPointers().length >= 2) {
+      this.startPinchGesture();
+      this.surface.setPointerCapture?.(event.pointerId);
+      return;
+    }
+
+    this.startDragGesture(pointerEntry);
     this.surface.setPointerCapture?.(event.pointerId);
     this.syncSurfaceCursor();
   }
@@ -1113,9 +1273,85 @@ export class CustomMapRuntime {
   handlePointerMove(event) {
     if (!this.surface) return;
 
+    const pointerEntry = this.updateActivePointer(event);
+
+    if (this.pinchState?.pointerIds.includes(event.pointerId)) {
+      const pinchPointers = this.pinchState.pointerIds
+        .map((pointerId) => this.activePointers.get(pointerId))
+        .filter(Boolean);
+      if (pinchPointers.length < 2) {
+        return;
+      }
+
+      const midpoint = getScreenPointMidpoint(
+        pinchPointers[0].point,
+        pinchPointers[1].point
+      );
+      const distance = Math.max(
+        1,
+        getScreenPointDistance(pinchPointers[0].point, pinchPointers[1].point)
+      );
+      const midpointTravel = getScreenPointDistance(
+        this.pinchState.startMidpoint,
+        midpoint
+      );
+      const distanceTravel = Math.abs(distance - this.pinchState.startDistance);
+      const nextZoom = Math.max(
+        this.minZoom,
+        Math.min(
+          this.maxZoom,
+          this.pinchState.startZoom + Math.log2(distance / this.pinchState.startDistance)
+        )
+      );
+      const isZoomChanged = Math.abs(nextZoom - this.pinchState.startZoom) > CAMERA_STATE_EPSILON;
+
+      if (
+        !this.pinchState.moved &&
+        midpointTravel <= DRAG_THRESHOLD &&
+        distanceTravel <= PINCH_DISTANCE_THRESHOLD &&
+        !isZoomChanged
+      ) {
+        return;
+      }
+
+      if (!this.pinchState.moved) {
+        this.pinchState.moved = true;
+        this.clearHoverTarget(event);
+      }
+
+      if (!this.pinchState.emittedMoveStart) {
+        this.pinchState.emittedMoveStart = true;
+        this.emit("movestart", { target: this, originalEvent: event });
+      }
+
+      if (isZoomChanged && !this.pinchState.zooming) {
+        this.pinchState.zooming = true;
+        this.emit("zoomstart", { target: this, originalEvent: event });
+      }
+
+      const anchorWorldPoint = projectLngLat(
+        [this.pinchState.anchorLatLng.lng, this.pinchState.anchorLatLng.lat],
+        nextZoom,
+        this.tileSize
+      );
+      const nextCenterWorldPoint = {
+        x: anchorWorldPoint.x - (midpoint.x - (this.width / 2)),
+        y: anchorWorldPoint.y - (midpoint.y - (this.height / 2)),
+      };
+
+      this.applyCameraState({
+        center: unprojectPoint(nextCenterWorldPoint, nextZoom, this.tileSize),
+        zoom: nextZoom,
+      }, {
+        clampToBounds: false,
+      });
+      this.syncSurfaceCursor();
+      return;
+    }
+
     if (this.pointerState?.pointerId === event.pointerId) {
-      const deltaX = event.clientX - this.pointerState.startX;
-      const deltaY = event.clientY - this.pointerState.startY;
+      const deltaX = pointerEntry.clientX - this.pointerState.startX;
+      const deltaY = pointerEntry.clientY - this.pointerState.startY;
       this.dragDistance = Math.max(this.dragDistance, Math.hypot(deltaX, deltaY));
 
       if (this.dragDistance <= DRAG_THRESHOLD) {
@@ -1147,7 +1383,7 @@ export class CustomMapRuntime {
       return;
     }
 
-    const target = this.pickTarget(event.offsetX, event.offsetY);
+    const target = this.pickTarget(pointerEntry.point.x, pointerEntry.point.y);
     if (areInteractiveTargetsEqual(this.hoverTarget, target)) {
       return;
     }
@@ -1156,12 +1392,43 @@ export class CustomMapRuntime {
     this.syncSurfaceCursor(target);
     this.emit("hover", {
       target,
-      latlng: this.containerPointToLatLng(event.offsetX, event.offsetY),
+      latlng: this.containerPointToLatLng(pointerEntry.point.x, pointerEntry.point.y),
       originalEvent: event,
     });
   }
 
   handlePointerUp(event) {
+    const surfacePoint = this.getSurfacePoint(event);
+    const pinchState = this.pinchState;
+    const wasPinchPointer = Boolean(
+      pinchState?.pointerIds?.includes?.(event.pointerId)
+    );
+
+    this.activePointers.delete(event.pointerId);
+    this.surface?.releasePointerCapture?.(event.pointerId);
+
+    if (wasPinchPointer) {
+      const remainingTouchPointers = this.getActiveTouchPointers();
+      if (remainingTouchPointers.length >= 2) {
+        this.startPinchGesture(remainingTouchPointers);
+        return;
+      }
+
+      this.pinchState = null;
+      this.pointerState = null;
+      this.dragDistance = 0;
+      this.syncSurfaceCursor();
+
+      if (pinchState?.moved) {
+        this.applyCameraState(this.cameraState);
+        this.emit("moveend", { target: this, originalEvent: event });
+        if (pinchState.zooming) {
+          this.emit("zoomend", { target: this, originalEvent: event });
+        }
+      }
+      return;
+    }
+
     if (!this.pointerState || this.pointerState.pointerId !== event.pointerId) {
       return;
     }
@@ -1175,7 +1442,6 @@ export class CustomMapRuntime {
     const wasDrag = this.pointerState.moved;
     this.pointerState = null;
     this.dragDistance = 0;
-    this.surface?.releasePointerCapture?.(event.pointerId);
 
     if (wasDrag) {
       this.applyCameraState(this.cameraState);
@@ -1184,8 +1450,8 @@ export class CustomMapRuntime {
       return;
     }
 
-    const latlng = this.containerPointToLatLng(event.offsetX, event.offsetY);
-    const target = this.pickTarget(event.offsetX, event.offsetY, latlng);
+    const latlng = this.containerPointToLatLng(surfacePoint.x, surfacePoint.y);
+    const target = this.pickTarget(surfacePoint.x, surfacePoint.y, latlng);
     this.syncSurfaceCursor(target);
 
     if (target?.onClick) {
@@ -1219,6 +1485,8 @@ export class CustomMapRuntime {
       return;
     }
 
+    const surfacePoint = this.getSurfacePoint(event);
+
     this.wheelDeltaAccumulator += normalizedDelta;
     this.resetWheelAccumulator();
 
@@ -1235,8 +1503,8 @@ export class CustomMapRuntime {
 
     this.setViewAroundScreenPoint(
       {
-        x: Number.isFinite(event.offsetX) ? event.offsetX : this.width / 2,
-        y: Number.isFinite(event.offsetY) ? event.offsetY : this.height / 2,
+        x: surfacePoint.x,
+        y: surfacePoint.y,
       },
       nextZoom,
       {
@@ -1587,6 +1855,9 @@ export class CustomMapRuntime {
       drawPointGuide(context, anchorPoint, point, style);
 
       switch (style.variant) {
+        case "grave-affordance":
+          drawGraveAffordancePoint(context, point, style);
+          break;
         case "numbered":
           drawNumberedPoint(context, point, style);
           break;

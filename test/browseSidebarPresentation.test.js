@@ -121,6 +121,24 @@ describe("browse sidebar presentation helpers", () => {
     ]);
   });
 
+  test("suppresses fast-search setup notice once visible query results exist", () => {
+    expect(buildSearchShellNotices({
+      burialRecordCount: 100,
+      browseResultCount: 12,
+      defaultLocationStatus: "Location inactive",
+      activeLocationStatus: "Location active",
+      locatingLocationStatus: "Locating...",
+      hasActiveBrowseQuery: true,
+      isBurialDataLoading: false,
+      isInstalled: true,
+      isOnline: true,
+      isSearchIndexReady: false,
+      loadingTourName: "",
+      showIosInstallHint: false,
+      status: "Location inactive",
+    })).toEqual([]);
+  });
+
   test("builds browse scope chips from the active browse context", () => {
     expect(buildBrowseScopeChips({
       browseSource: "section",

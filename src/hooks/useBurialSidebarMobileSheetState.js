@@ -64,7 +64,7 @@ export function useBurialSidebarMobileSheetState({
   });
   const [mobileSheetState, setMobileSheetState] = useState(() => initialMobileSheetState);
   const [isSelectedSummaryExpanded, setIsSelectedSummaryExpanded] = useState(
-    () => selectedBurialsLength > 0
+    () => selectedBurialsLength > 1
   );
   const sheetRef = useRef(null);
   const previousSelectedCountRef = useRef(selectedBurialsLength);
@@ -182,6 +182,11 @@ export function useBurialSidebarMobileSheetState({
       setIsSelectedSummaryExpanded(false);
       if (!hasActiveBrowseContext) {
         collapseMobileSheet();
+      }
+    } else if (selectedBurialsLength > previousSelectedCount && selectedBurialsLength > 1) {
+      setIsSelectedSummaryExpanded(true);
+      if (resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
+        expandMobileSheet();
       }
     } else if (
       !previousHasActiveBrowseContext

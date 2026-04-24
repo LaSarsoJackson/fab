@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { APP_PROFILE } from "../src/config/appProfile";
+import { APP_PROFILE } from "../src/features/fab/profile";
+import { formatRuntimeFlagQueryOverride, RUNTIME_FEATURE_FLAGS } from "../src/shared/runtime";
 import {
   getMapEngineManifest,
   MAP_BACKEND_API_VERSION,
@@ -10,6 +11,8 @@ import {
 
 describe("map engine manifest", () => {
   test("describes the custom engine in application terms instead of Leaflet terms", () => {
+    const customMapEngineFlag = RUNTIME_FEATURE_FLAGS.customMapEngine;
+
     expect(getMapEngineManifest(APP_PROFILE)).toMatchObject({
       manifestVersion: MAP_ENGINE_MANIFEST_VERSION,
       engineId: "fab-custom-map-engine",
@@ -19,8 +22,10 @@ describe("map engine manifest", () => {
       runtimeKinds: ["custom", "leaflet-adapter"],
       layerKinds: ["geojson", "image", "points"],
       runtimeSelection: {
-        featureFlag: "customMapEngine",
-        envVar: "REACT_APP_ENABLE_CUSTOM_MAP_ENGINE",
+        featureFlag: customMapEngineFlag.id,
+        envVar: customMapEngineFlag.envKey,
+        queryOverride: formatRuntimeFlagQueryOverride(customMapEngineFlag),
+        stickyStorageKey: customMapEngineFlag.storageKey,
         defaultRuntimeKind: "leaflet-adapter",
       },
       basemapRegistry: {

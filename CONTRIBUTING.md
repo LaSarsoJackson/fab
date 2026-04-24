@@ -46,13 +46,40 @@ Common commands:
 - `bun run build:pmtiles`: regenerate PMTiles experiment artifacts
 - `bun run deploy`: build and publish the GitHub Pages deployment
 
+## Project structure
+
+Primary entry points:
+
+- [`src/App.js`](./src/App.js): top-level theme, runtime metadata, and route shell
+- [`src/Map.jsx`](./src/Map.jsx): map orchestration, selection state, and runtime wiring
+- [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx): search, browse, and selected-record UI
+- [`src/AdminApp.jsx`](./src/AdminApp.jsx): static admin workspace
+
+Key folders:
+
+- [`src/features/browse/`](./src/features/browse): search indexing and browse-result shaping
+- [`src/features/map/`](./src/features/map): map-specific runtime helpers, popup models, shared map chrome, and selection logic
+- [`src/features/tours/`](./src/features/tours): tour definitions, matching, and derived metadata
+- [`src/features/deeplinks/`](./src/features/deeplinks): shared-link encoding and field packet state
+- [`src/shared/`](./src/shared): domain-neutral helpers such as runtime flags and GeoJSON utilities
+- [`scripts/`](./scripts): build-time generators, migrations, geospatial loaders, and deployment wrappers
+
+If you are not sure where a change belongs, stop at
+[`docs/codebase-structure.md`](./docs/codebase-structure.md) before adding a new helper.
+
 ## Placement rules
 
 - Keep React state, refs, and runtime orchestration in the top-level shells such
   as [`src/Map.jsx`](./src/Map.jsx) and [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx).
+- Keep pure map business rules in [`src/features/map/mapDomain.js`](./src/features/map/mapDomain.js)
+  so selection state, section logic, hover rules, geolocation filtering, and map-specific
+  styling stay discoverable.
+- Keep route building, bundled-road routing, and provider fallback rules in
+  [`src/features/map/mapRouting.js`](./src/features/map/mapRouting.js) so map
+  navigation logic has one home.
 - Put pure transforms in the owning feature folder under [`src/features/`](./src/features).
 - Put domain-neutral helpers in [`src/shared/`](./src/shared).
-- Keep FAB-only behavior in [`src/features/fab/`](./src/features/fab).
+- Keep FAB-only behavior in [`src/features/fab/profile.js`](./src/features/fab/profile.js) for app/profile/presentation defaults and [`src/features/fab/tours.js`](./src/features/fab/tours.js) for tour definitions.
 - Do not add new helpers back under the retired `src/lib` layout.
 
 ## Source and generated files
@@ -63,7 +90,7 @@ Treat these as source-of-truth inputs:
 - [`src/data/ARC_Sections.json`](./src/data/ARC_Sections.json)
 - [`src/data/ARC_Roads.json`](./src/data/ARC_Roads.json)
 - [`src/data/ARC_Boundary.json`](./src/data/ARC_Boundary.json)
-- tour files referenced by [`src/features/tours/tourDefinitions.js`](./src/features/tours/tourDefinitions.js)
+- tour files declared in [`src/features/fab/tours.js`](./src/features/fab/tours.js)
 
 Treat these as generated artifacts:
 
@@ -81,6 +108,13 @@ bun run build:data
 
 ## Validation
 
+Recommended automated checks:
+
+- pure helper or data-shaping changes: `bun run test:bun`
+- DOM/component changes: `bun run test:dom`
+- cross-cutting or release-ready changes: `bun run check`
+- narrow retest during iteration: `bun test <path-to-test>` or `node_modules/.bin/jest --config ./jest.dom.config.cjs <path-to-test>`
+
 If you change map or selection behavior:
 
 1. Test search result click.
@@ -88,6 +122,8 @@ If you change map or selection behavior:
 3. Test tour stop selection.
 4. Test deep-link restoration.
 5. Check desktop and mobile drawer behavior.
+6. Keep selected-record, active-record, and hover updates on the reducer/actions
+   in [`src/features/map/mapDomain.js`](./src/features/map/mapDomain.js).
 
 If you change source data:
 
@@ -97,7 +133,7 @@ If you change source data:
 
 If you change runtime or profile wiring:
 
-1. Verify feature flags in both development and production behavior.
+1. Verify runtime toggles and environment-specific behavior in both development and production.
 2. Run the automated tests for the touched modules.
 3. Check whether `FABFG` needs a corresponding change.
 

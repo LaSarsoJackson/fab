@@ -608,6 +608,7 @@ export default function BrowseWorkspacePanel({
   onClearSectionFilters, onClearTourSelection, onFilterTypeSelection,
   onLocateUser, onLotTierChange, onRequestBurialDataLoad, onSectionSelection,
   onToggleSectionMarkers, onTourSelection,
+  priorityContent = null,
   resultsContent = null,
   searchPlaceholder, searchShellNotices = [],
   sectionFilter, selectedSectionOption, selectedTour, showAllBurials,
@@ -615,6 +616,8 @@ export default function BrowseWorkspacePanel({
   tourDefinitions = [], tourLabel = "Tour", tourStyles = {}, uniqueSections = [],
 }) {
   const selectedTourDefinition = tourDefinitions.find((definition) => definition.name === selectedTour) || null;
+  const shouldPromotePriorityContent = Boolean(isMobile && priorityContent);
+  const inlinePriorityContent = shouldPromotePriorityContent ? null : priorityContent;
 
   return (
     <Box
@@ -627,6 +630,15 @@ export default function BrowseWorkspacePanel({
         minHeight: 0,
       }}
     >
+      {shouldPromotePriorityContent ? (
+        <>
+          <Box className="left-sidebar__browse-priority left-sidebar__browse-priority--mobile">
+            {priorityContent}
+          </Box>
+          <Divider className="left-sidebar__browse-workspace-divider" sx={{ my: 1.2 }} />
+        </>
+      ) : null}
+
       <Box
         className="left-sidebar__browse-composer left-sidebar__browse-composer--embedded"
         sx={{
@@ -691,10 +703,22 @@ export default function BrowseWorkspacePanel({
         />
       </Box>
 
-      {resultsContent ? (
+      {(inlinePriorityContent || resultsContent) ? (
         <>
           <Divider className="left-sidebar__browse-workspace-divider" />
-          {resultsContent}
+          {inlinePriorityContent ? (
+            <Box className="left-sidebar__browse-priority" sx={{ mt: 1.2 }}>
+              {inlinePriorityContent}
+            </Box>
+          ) : null}
+          {inlinePriorityContent && resultsContent ? (
+            <Divider className="left-sidebar__browse-workspace-divider" sx={{ mt: 1.2 }} />
+          ) : null}
+          {resultsContent ? (
+            <Box sx={{ mt: inlinePriorityContent ? 1.2 : 0 }}>
+              {resultsContent}
+            </Box>
+          ) : null}
         </>
       ) : null}
     </Box>

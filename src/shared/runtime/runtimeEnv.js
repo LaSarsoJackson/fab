@@ -1,17 +1,73 @@
 /**
- * Feature flags default toward stable user-facing behavior, while unfinished
- * runtime experiments remain opt-in through env or query overrides.
+ * Runtime toggles are reserved for experiments or environment-only behavior.
+ * Stable FAB product features should live in the app profile instead.
  */
+const freezeArray = (values = []) => Object.freeze([...values]);
+
+const createBooleanRuntimeFlag = (definition) => Object.freeze({
+  ...definition,
+  enabledQueryValues: freezeArray(definition.enabledQueryValues || []),
+  disabledQueryValues: freezeArray(definition.disabledQueryValues || []),
+});
+
+export const RUNTIME_FEATURE_FLAGS = Object.freeze({
+  fieldPackets: createBooleanRuntimeFlag({
+    id: "fieldPackets",
+    defaultValue: true,
+    envKey: "REACT_APP_ENABLE_FIELD_PACKETS",
+  }),
+  customMapEngine: createBooleanRuntimeFlag({
+    id: "customMapEngine",
+    defaultValue: false,
+    envKey: "REACT_APP_ENABLE_CUSTOM_MAP_ENGINE",
+    queryParamName: "mapEngine",
+    enabledQueryValues: ["custom"],
+    disabledQueryValues: ["leaflet"],
+    storageKey: "fab:enableCustomMapEngine",
+  }),
+});
+
+export const ROUTING_PROVIDER_RUNTIME = Object.freeze({
+  id: "routingProvider",
+  defaultValue: "api",
+  envKey: "REACT_APP_DEV_ROUTING_PROVIDER",
+  queryParamName: "routing",
+  storageKey: "fab:routingProvider",
+  validValues: freezeArray(["api", "local", "valhalla"]),
+  legacy: Object.freeze({
+    envKey: "REACT_APP_ENABLE_CLIENT_SIDE_ROUTING",
+    queryParamName: "clientSideRouting",
+    storageKey: "fab:enableClientSideRouting",
+  }),
+});
+
+export const DEFAULT_RUNTIME_FEATURE_FLAGS = Object.freeze({
+  fieldPackets: RUNTIME_FEATURE_FLAGS.fieldPackets.defaultValue,
+  customMapEngine: RUNTIME_FEATURE_FLAGS.customMapEngine.defaultValue,
+  routingProvider: ROUTING_PROVIDER_RUNTIME.defaultValue,
+});
+
+export const formatRuntimeFlagQueryOverride = (flagDefinition = {}) => {
+  const queryParamName = flagDefinition.queryParamName || "";
+  if (!queryParamName) {
+    return "";
+  }
+
+  const enabledValues = flagDefinition.enabledQueryValues?.join("|") || "";
+  const disabledValues = flagDefinition.disabledQueryValues?.join("|") || "";
+
+  return `${queryParamName}=${[enabledValues, disabledValues].filter(Boolean).join("|")}`;
+};
+
 const resolveBooleanFlag = (value, fallback = false) => {
   if (value === true || value === "true") return true;
   if (value === false || value === "false") return false;
   return fallback;
 };
 
-const CUSTOM_MAP_ENGINE_STORAGE_KEY = "fab:enableCustomMapEngine";
-const ROUTING_PROVIDER_STORAGE_KEY = "fab:routingProvider";
-const LEGACY_CLIENT_SIDE_ROUTING_STORAGE_KEY = "fab:enableClientSideRouting";
-const VALID_ROUTING_PROVIDERS = new Set(["api", "local", "valhalla"]);
+const CUSTOM_MAP_ENGINE_FLAG = RUNTIME_FEATURE_FLAGS.customMapEngine;
+const FIELD_PACKETS_FLAG = RUNTIME_FEATURE_FLAGS.fieldPackets;
+const VALID_ROUTING_PROVIDERS = new Set(ROUTING_PROVIDER_RUNTIME.validValues);
 
 const readStoredRuntimeOverride = (storageKey) => {
   if (typeof window === "undefined") {
@@ -73,26 +129,15 @@ const resolveStickyRuntimeFlag = ({
   return envValue;
 };
 
-const buildStickyFlagResolver = ({
-  disabledQueryValues,
-  enabledQueryValues,
-  envKey,
-  queryParamName,
-  storageKey,
-}) => (env, fallback = false) => resolveStickyRuntimeFlag({
-  disabledQueryValues,
-  enabledQueryValues,
-  envValue: resolveBooleanFlag(env[envKey], fallback),
-  queryParamName,
-  storageKey,
-});
-
-const resolveCustomMapEngineFlag = buildStickyFlagResolver({
-  envKey: "REACT_APP_ENABLE_CUSTOM_MAP_ENGINE",
-  queryParamName: "mapEngine",
-  storageKey: CUSTOM_MAP_ENGINE_STORAGE_KEY,
-  enabledQueryValues: ["custom"],
-  disabledQueryValues: ["leaflet"],
+const resolveCustomMapEngineFlag = (env) => resolveStickyRuntimeFlag({
+  disabledQueryValues: CUSTOM_MAP_ENGINE_FLAG.disabledQueryValues,
+  enabledQueryValues: CUSTOM_MAP_ENGINE_FLAG.enabledQueryValues,
+  envValue: resolveBooleanFlag(
+    env[CUSTOM_MAP_ENGINE_FLAG.envKey],
+    CUSTOM_MAP_ENGINE_FLAG.defaultValue
+  ),
+  queryParamName: CUSTOM_MAP_ENGINE_FLAG.queryParamName,
+  storageKey: CUSTOM_MAP_ENGINE_FLAG.storageKey,
 });
 
 const normalizeRoutingProvider = (value) => {
@@ -113,38 +158,40 @@ const resolveLegacyClientSideRoutingOverride = (value) => {
 };
 
 const resolveRoutingProviderFlag = (env, { isDev }) => {
-  const envProvider = normalizeRoutingProvider(env.REACT_APP_DEV_ROUTING_PROVIDER) || (
-    resolveBooleanFlag(env.REACT_APP_ENABLE_CLIENT_SIDE_ROUTING, false)
+  const envProvider = normalizeRoutingProvider(env[ROUTING_PROVIDER_RUNTIME.envKey]) || (
+    resolveBooleanFlag(env[ROUTING_PROVIDER_RUNTIME.legacy.envKey], false)
       ? "local"
-      : "api"
+      : ROUTING_PROVIDER_RUNTIME.defaultValue
   );
 
   if (!isDev || typeof window === "undefined") {
-    return isDev ? envProvider : "api";
+    return isDev ? envProvider : ROUTING_PROVIDER_RUNTIME.defaultValue;
   }
 
   const searchParams = new URLSearchParams(window.location.search);
-  const queryProvider = normalizeRoutingProvider(searchParams.get("routing"));
+  const queryProvider = normalizeRoutingProvider(
+    searchParams.get(ROUTING_PROVIDER_RUNTIME.queryParamName)
+  );
   if (queryProvider) {
     return queryProvider;
   }
 
   const legacyQueryProvider = resolveLegacyClientSideRoutingOverride(
-    searchParams.get("clientSideRouting")
+    searchParams.get(ROUTING_PROVIDER_RUNTIME.legacy.queryParamName)
   );
   if (legacyQueryProvider) {
     return legacyQueryProvider;
   }
 
   const storedProvider = normalizeRoutingProvider(
-    readStoredRuntimeOverride(ROUTING_PROVIDER_STORAGE_KEY)
+    readStoredRuntimeOverride(ROUTING_PROVIDER_RUNTIME.storageKey)
   );
   if (storedProvider) {
     return storedProvider;
   }
 
   const legacyStoredProvider = resolveLegacyClientSideRoutingOverride(
-    readStoredRuntimeOverride(LEGACY_CLIENT_SIDE_ROUTING_STORAGE_KEY)
+    readStoredRuntimeOverride(ROUTING_PROVIDER_RUNTIME.legacy.storageKey)
   );
   if (legacyStoredProvider) {
     return legacyStoredProvider;
@@ -160,10 +207,11 @@ export const getRuntimeEnv = (env = process.env) => {
   const isDev = appEnvironment !== "production";
   const routingProvider = resolveRoutingProviderFlag(env, { isDev });
   const featureFlags = {
-    fieldPackets: resolveBooleanFlag(env.REACT_APP_ENABLE_FIELD_PACKETS, true),
-    fabTours: resolveBooleanFlag(env.REACT_APP_ENABLE_FAB_TOURS, true),
-    fabRecordPresentation: resolveBooleanFlag(env.REACT_APP_ENABLE_FAB_RECORD_PRESENTATION, true),
-    customMapEngine: resolveCustomMapEngineFlag(env, false),
+    fieldPackets: resolveBooleanFlag(
+      env[FIELD_PACKETS_FLAG.envKey],
+      DEFAULT_RUNTIME_FEATURE_FLAGS.fieldPackets
+    ),
+    customMapEngine: resolveCustomMapEngineFlag(env),
     routingProvider,
   };
 
@@ -178,15 +226,38 @@ export const isAdminStudioEnabled = (env = process.env) => (
   getRuntimeEnv(env).isDev
 );
 
+export const isFieldPacketsEnabled = (featureFlags = DEFAULT_RUNTIME_FEATURE_FLAGS) => (
+  typeof featureFlags?.fieldPackets === "boolean"
+    ? featureFlags.fieldPackets
+    : RUNTIME_FEATURE_FLAGS.fieldPackets.defaultValue
+);
+
+export const isCustomMapEngineEnabled = (featureFlags = DEFAULT_RUNTIME_FEATURE_FLAGS) => (
+  typeof featureFlags?.customMapEngine === "boolean"
+    ? featureFlags.customMapEngine
+    : RUNTIME_FEATURE_FLAGS.customMapEngine.defaultValue
+);
+
+export const getRuntimeRoutingProvider = (featureFlags = DEFAULT_RUNTIME_FEATURE_FLAGS) => {
+  const provider = String(featureFlags?.routingProvider || "").trim().toLowerCase();
+  return ROUTING_PROVIDER_RUNTIME.validValues.includes(provider)
+    ? provider
+    : ROUTING_PROVIDER_RUNTIME.defaultValue;
+};
+
+export const getMapEngineKind = (featureFlags = DEFAULT_RUNTIME_FEATURE_FLAGS) => (
+  isCustomMapEngineEnabled(featureFlags) ? "custom" : "leaflet"
+);
+
 export const setStoredCustomMapEngineOverride = (isEnabled) => (
   writeStoredRuntimeOverride(
-    CUSTOM_MAP_ENGINE_STORAGE_KEY,
+    CUSTOM_MAP_ENGINE_FLAG.storageKey,
     isEnabled ? "true" : "false"
   )
 );
 
 export const clearStoredCustomMapEngineOverride = () => (
-  writeStoredRuntimeOverride(CUSTOM_MAP_ENGINE_STORAGE_KEY, null)
+  writeStoredRuntimeOverride(CUSTOM_MAP_ENGINE_FLAG.storageKey, null)
 );
 
 export const setStoredRoutingProviderOverride = (provider) => {
@@ -196,12 +267,12 @@ export const setStoredRoutingProviderOverride = (provider) => {
   }
 
   const wroteProvider = writeStoredRuntimeOverride(
-    ROUTING_PROVIDER_STORAGE_KEY,
+    ROUTING_PROVIDER_RUNTIME.storageKey,
     normalizedProvider
   );
 
   const wroteLegacyValue = writeStoredRuntimeOverride(
-    LEGACY_CLIENT_SIDE_ROUTING_STORAGE_KEY,
+    ROUTING_PROVIDER_RUNTIME.legacy.storageKey,
     normalizedProvider === "local" ? "true" : "false"
   );
 
@@ -209,8 +280,8 @@ export const setStoredRoutingProviderOverride = (provider) => {
 };
 
 export const clearStoredRoutingProviderOverride = () => (
-  writeStoredRuntimeOverride(ROUTING_PROVIDER_STORAGE_KEY, null) &&
-  writeStoredRuntimeOverride(LEGACY_CLIENT_SIDE_ROUTING_STORAGE_KEY, null)
+  writeStoredRuntimeOverride(ROUTING_PROVIDER_RUNTIME.storageKey, null) &&
+  writeStoredRuntimeOverride(ROUTING_PROVIDER_RUNTIME.legacy.storageKey, null)
 );
 
 export const {

@@ -4,9 +4,9 @@ import SearchBurials from "../public/data/Search_Burials.json";
 import AlbanyMayors from "../src/data/AlbanyMayors_fixed.json";
 import GAR from "../src/data/GAR_fixed.json";
 import { buildBurialBrowseResult, buildTourBrowseResult } from "../src/features/browse";
+import { APP_PROFILE } from "../src/features/fab/profile";
 import { FAB_TOUR_DEFINITIONS } from "../src/features/fab/tours";
-import { FAB_NO_IMAGE_URL } from "../src/features/fab/presentation";
-import { buildPopupViewModel } from "../src/features/map";
+import { buildPopupViewModel } from "../src/features/map/mapRecordPresentation";
 import {
   buildBurialLookup,
   harmonizeBurialBrowseResult,
@@ -14,6 +14,8 @@ import {
   resolvePortraitImageName,
 } from "../src/features/tours";
 import TourMatches from "../src/data/TourMatches.json";
+
+const FAB_NO_IMAGE_URL = APP_PROFILE.features.recordPresentation.noImageUrl;
 
 const getTourRecord = (dataset, matcher, tourKey, tourName) => {
   const feature = dataset.features.find((candidate) => matcher(candidate.properties || {}));

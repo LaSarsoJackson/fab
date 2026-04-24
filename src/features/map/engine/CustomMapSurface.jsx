@@ -1,18 +1,25 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { getGeoJsonBounds, isLatLngBoundsExpressionValid } from "../../../shared/geo";
+import { buildPublicAssetUrl } from "../../../shared/runtime";
 import { PopupCardContent } from "../popupCardContent";
 import { getPopupViewportPadding } from "../popupViewport";
-import { formatSectionOverviewMarkerLabel } from "../sectionOverviewMarkers";
+import {
+  formatSectionOverviewMarkerLabel,
+  MAP_PRESENTATION_POLICY,
+  resolveClusterExpansionZoom,
+  resolveSectionBurialDisableClusteringZoom,
+  getSectionBurialMarkerStyle,
+  getSectionPolygonStyle,
+  ROAD_LAYER_STYLE,
+} from "../mapDomain";
 import { buildSiteTwinPointEntries, isSiteTwinReady } from "../siteTwin";
-import { getStackedBurialMarkerOffset } from "./burialMarkerOffsets";
 import { createCustomMapRuntime } from "./customRuntime";
 
 const EMPTY_SECTION_OVERVIEW_MARKERS = [];
 const POPUP_ANCHOR_GAP = 14;
 const POPUP_MIN_ANCHOR_INSET = 28;
 const POPUP_AUTOPAN_EPSILON = 0.5;
-const SECTION_BURIAL_DISABLE_CLUSTERING_ZOOM = 21;
 const SITE_TWIN_DISABLE_CLUSTERING_ZOOM = 18;
 const BURIAL_HOVER_LAYER_IDS = new Set([
   "selected-burials",
@@ -32,6 +39,18 @@ const buildPointFeatureCollection = (points) => ({
       },
     })),
 });
+
+const getLatLngBoundsCenter = (bounds) => {
+  if (!isLatLngBoundsExpressionValid(bounds)) {
+    return null;
+  }
+
+  const [[south, west], [north, east]] = bounds;
+  return {
+    lat: (south + north) / 2,
+    lng: (west + east) / 2,
+  };
+};
 
 const buildPopupAutoPanPadding = ({
   containerRect,
@@ -113,8 +132,7 @@ export function CustomMapSurface({
   defaultCenter,
   defaultZoom,
   hoveredBurialId,
-  lat,
-  lng,
+  locationAccuracyGeoJson,
   mapRef,
   markerColors,
   getOverlayElement,
@@ -132,6 +150,7 @@ export function CustomMapSurface({
   roadsData,
   routeGeoJson,
   schedulePopupLayout,
+  sectionAffordanceMarkers = EMPTY_SECTION_OVERVIEW_MARKERS,
   sectionBurials,
   sectionFilter,
   sectionOverviewMarkers = EMPTY_SECTION_OVERVIEW_MARKERS,
@@ -145,13 +164,15 @@ export function CustomMapSurface({
   showBoundary = true,
   shouldUseMapPopups,
   showAllBurials,
-  showRoads = true,
+  showRoads = false,
+  showSectionAffordanceMarkers = false,
   showSections = true,
   showSectionOverviewMarkers = false,
   siteTwinCandidates,
   siteTwinMonumentHeightScale = 1,
   siteTwinManifest,
   siteTwinSurfaceOpacity,
+  trackedLocation,
   tourFeatureLayersRef,
   tourStyles,
 }) {
@@ -173,6 +194,11 @@ export function CustomMapSurface({
     ),
     [markerColors, selectedBurials]
   );
+  const sectionBurialDisableClusteringZoom = useMemo(
+    () => resolveSectionBurialDisableClusteringZoom({ maxZoom }),
+    [maxZoom]
+  );
+  const sectionBurialClusterRadius = MAP_PRESENTATION_POLICY.sectionBurialClusterRadius;
   const getRuntimePopupHandle = useCallback(
     () => runtimeRef.current?.popupHandle || null,
     []
@@ -254,7 +280,7 @@ export function CustomMapSurface({
       nextLayers.push({
         id: "site-twin-surface",
         kind: "image",
-        url: siteTwinManifest.terrainImage.url,
+        url: buildPublicAssetUrl(siteTwinManifest.terrainImage.url),
         bounds: siteTwinManifest.terrainImage.bounds,
         opacity: Number.isFinite(siteTwinSurfaceOpacity)
           ? siteTwinSurfaceOpacity
@@ -268,12 +294,7 @@ export function CustomMapSurface({
         id: "roads",
         kind: "geojson",
         geojson: roadsData,
-        style: {
-          color: "#000000",
-          weight: 2,
-          opacity: 1,
-          fillOpacity: 0.1,
-        },
+        style: ROAD_LAYER_STYLE,
       });
     }
 
@@ -298,17 +319,12 @@ export function CustomMapSurface({
         geojson: sectionsData,
         interactive: true,
         featureId: (feature) => String(feature?.properties?.Section || ""),
-        style: (feature) => {
-          const featureSectionId = String(feature?.properties?.Section || "");
-          const isActive = featureSectionId === `${sectionFilter}`;
-          const isHovered = featureSectionId && featureSectionId === hoveredSectionId;
-          return {
-            fillColor: isActive ? "#4a90e2" : isHovered ? "#e4edf7" : "#f8f9fa",
-            fillOpacity: isActive ? 0.4 : isHovered ? 0.16 : 0.05,
-            color: isActive ? "#2c5282" : isHovered ? "#58738d" : "#999",
-            weight: isActive ? 2.5 : isHovered ? 2.25 : 1,
-          };
-        },
+        style: (feature) => getSectionPolygonStyle({
+          sectionId: feature?.properties?.Section,
+          activeSectionId: sectionFilter,
+          hoveredSectionId,
+          showAllBurials,
+        }),
         onFeatureClick: ({ target }) => {
           const feature = target?.feature;
           const sectionValue = feature?.properties?.Section;
@@ -317,6 +333,39 @@ export function CustomMapSurface({
           }
 
           onActivateSectionBrowse?.(sectionValue, getGeoJsonBounds(feature));
+        },
+      });
+    }
+
+    if (showSections && showSectionAffordanceMarkers) {
+      nextLayers.push({
+        id: "section-affordances",
+        kind: "points",
+        interactive: true,
+        points: sectionAffordanceMarkers
+          .filter((entry) => Number.isFinite(entry?.lat) && Number.isFinite(entry?.lng))
+          .map((entry) => ({
+            id: entry.id,
+            coordinates: [entry.lng, entry.lat],
+            record: entry,
+          })),
+        pointStyle: {
+          variant: "grave-affordance",
+          radius: 13,
+          fillColor: "rgba(108, 121, 131, 0.3)",
+          color: "rgba(242, 247, 249, 0.84)",
+          glyphColor: "rgba(255, 255, 255, 0.84)",
+          haloColor: "rgba(255, 255, 255, 0.12)",
+          weight: 1.35,
+          hitRadius: 18,
+        },
+        onPointClick: ({ target }) => {
+          const markerRecord = target?.pointEntry?.record;
+          if (!markerRecord?.sectionValue) {
+            return;
+          }
+
+          onActivateSectionBrowse?.(markerRecord.sectionValue, markerRecord.bounds);
         },
       });
     }
@@ -376,6 +425,44 @@ export function CustomMapSurface({
       });
     }
 
+    if (locationAccuracyGeoJson?.features?.length) {
+      nextLayers.push({
+        id: "user-location-accuracy",
+        kind: "geojson",
+        geojson: locationAccuracyGeoJson,
+        style: {
+          color: "#185e4a",
+          weight: 2,
+          opacity: 0.72,
+          fillColor: "#2f8f73",
+          fillOpacity: 0.16,
+        },
+      });
+    }
+
+    if (
+      Number.isFinite(trackedLocation?.latitude) &&
+      Number.isFinite(trackedLocation?.longitude)
+    ) {
+      nextLayers.push({
+        id: "user-location",
+        kind: "points",
+        interactive: false,
+        points: [{
+          id: "user-location",
+          coordinates: [trackedLocation.longitude, trackedLocation.latitude],
+          record: trackedLocation,
+        }],
+        pointStyle: {
+          radius: 9,
+          fillColor: "#1f8a69",
+          fillOpacity: 0.96,
+          color: "#ffffff",
+          weight: 3,
+        },
+      });
+    }
+
     if (showSiteTwin && showSiteTwinMonuments && siteTwinPoints.length > 0) {
       nextLayers.push({
         id: "site-twin-monuments",
@@ -417,8 +504,8 @@ export function CustomMapSurface({
         kind: "points",
         interactive: true,
         clustered: true,
-        disableClusteringAtZoom: SECTION_BURIAL_DISABLE_CLUSTERING_ZOOM,
-        clusterRadius: 40,
+        disableClusteringAtZoom: sectionBurialDisableClusteringZoom,
+        clusterRadius: sectionBurialClusterRadius,
         points: sectionBurials
           .filter((record) => Array.isArray(record?.coordinates))
           .map((record) => ({
@@ -427,26 +514,15 @@ export function CustomMapSurface({
             record,
           })),
         pointStyle: (entry, runtime) => {
-          const zoom = runtime?.getZoom?.() || 0;
           const isActive = entry?.record?.id === runtime?.selectionState?.activeId;
           const isHovered = entry?.record?.id === runtime?.selectionState?.hoveredId;
-          const offset = zoom >= SECTION_BURIAL_DISABLE_CLUSTERING_ZOOM
-            ? getStackedBurialMarkerOffset(zoom, entry?.record)
-            : { dx: 0, dy: 0 };
 
-          return {
-            radius: isActive ? 7.5 : isHovered ? 6.25 : 5,
-            fillColor: isActive ? "#2c5282" : isHovered ? "#2f6fb2" : "#4a90e2",
-            fillOpacity: isActive ? 0.96 : isHovered ? 0.92 : 0.82,
-            color: "#ffffff",
-            weight: isActive || isHovered ? 2.5 : 2,
-            offsetX: offset.dx,
-            offsetY: offset.dy,
-            guideColor: (offset.dx || offset.dy)
-              ? (isActive || isHovered ? "rgba(44, 82, 130, 0.36)" : "rgba(44, 82, 130, 0.24)")
-              : null,
-            hitRadius: isActive ? 18 : isHovered ? 16 : 14,
-          };
+          return getSectionBurialMarkerStyle(entry?.record, {
+            currentZoom: runtime?.getZoom?.(),
+            individualMarkerMinZoom: sectionBurialDisableClusteringZoom,
+            isActive,
+            isHovered,
+          });
         },
         onPointClick: ({ target }) => {
           const record = target?.pointEntry?.record;
@@ -469,9 +545,24 @@ export function CustomMapSurface({
           ));
 
           if (isLatLngBoundsExpressionValid(clusterBounds)) {
-            runtime.fitBounds(clusterBounds, {
-              maxZoom: SECTION_BURIAL_DISABLE_CLUSTERING_ZOOM,
+            const currentZoom = runtime?.getZoom?.();
+            const targetZoom = resolveClusterExpansionZoom({
+              currentZoom,
+              disableClusteringAtZoom: sectionBurialDisableClusteringZoom,
             });
+            const targetCenter = getLatLngBoundsCenter(clusterBounds);
+
+            if (
+              targetCenter &&
+              Number.isFinite(currentZoom) &&
+              targetZoom > currentZoom &&
+              typeof runtime?.setView === "function"
+            ) {
+              runtime.setView(targetCenter, targetZoom);
+              return;
+            }
+
+            runtime.fitBounds(clusterBounds, { maxZoom: targetZoom });
           }
         },
       });
@@ -560,36 +651,18 @@ export function CustomMapSurface({
       });
     }
 
-    if (lat && lng) {
-      nextLayers.push({
-        id: "user-location",
-        kind: "points",
-        points: [
-          {
-            id: "user-location",
-            coordinates: [lng, lat],
-          },
-        ],
-        pointStyle: {
-          radius: 7,
-          fillColor: "#185e4a",
-          fillOpacity: 0.92,
-          color: "#ffffff",
-          weight: 2,
-        },
-      });
-    }
-
     return nextLayers;
   }, [
     boundaryData,
-    lat,
-    lng,
+    locationAccuracyGeoJson,
     onActivateSectionBrowse,
     onSelectBurial,
     roadsData,
     routeGeoJson,
+    sectionAffordanceMarkers,
     sectionBurials,
+    sectionBurialClusterRadius,
+    sectionBurialDisableClusteringZoom,
     sectionFilter,
     sectionOverviewMarkers,
     sectionsData,
@@ -599,6 +672,7 @@ export function CustomMapSurface({
     showBoundary,
     showAllBurials,
     showRoads,
+    showSectionAffordanceMarkers,
     showSections,
     showSectionOverviewMarkers,
     showSiteTwin,
@@ -609,6 +683,7 @@ export function CustomMapSurface({
     siteTwinMonumentHeightScale,
     siteTwinManifest,
     siteTwinSurfaceOpacity,
+    trackedLocation,
     tourStyles,
   ]);
 

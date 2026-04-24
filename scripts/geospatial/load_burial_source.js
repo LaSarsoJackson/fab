@@ -4,7 +4,7 @@ import { execFile } from "child_process";
 import { fileURLToPath } from "url";
 import { promisify } from "util";
 
-import { APP_PROFILE } from "../../src/config/appProfile.js";
+import { APP_PROFILE } from "../../src/features/fab/profile.js";
 import {
   getOptimizationArtifactsByRole,
   getPreferredBuildSourceArtifact,

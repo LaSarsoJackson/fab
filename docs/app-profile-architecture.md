@@ -1,31 +1,36 @@
 # App Profile Architecture
 
-This repo now treats FAB as the active profile rather than the hardcoded app.
+This repo now treats FAB as a single concrete app, not as a hypothetical
+multi-profile shell.
 
 ## Goal
 
-Keep the runtime shell reusable for a generic 2D asset-management app while
-making Albany-specific behavior obvious and easy to disable or replace.
+Keep FAB-specific behavior obvious without layering extra indirection on top of
+the one app that actually ships.
 
 ## Current Split
 
-- [`src/config/appProfile.js`](../src/config/appProfile.js): tiny active-profile boundary used by shared shell code. It should stay small and expose the active profile, not grow a second set of alias registries.
-- [`src/features/fab/profile.js`](../src/features/fab/profile.js): FAB-specific branding, bundled data modules, map defaults, basemap/source registries, optimization-artifact metadata, field aliases, and feature registrations.
-- [`src/features/fab/siteConfig.js`](../src/features/fab/siteConfig.js): FAB-only hosted URL roots, shell copy, and other migration-sensitive constants that should move together.
+- [`src/features/fab/profile.js`](../src/features/fab/profile.js): direct source of truth for FAB-only hosted URL roots, branding, shell copy, record presentation callbacks, app-scoped browser storage keys, bundled data modules, map defaults, basemap/source registries, optimization-artifact metadata, field aliases, and feature registrations.
 - [`src/features/fab/tours.js`](../src/features/fab/tours.js): FAB tour definitions, styling, and tour-record enrichment.
-- [`src/features/fab/presentation.js`](../src/features/fab/presentation.js): FAB-only ARCE biography/image behavior and popup row shaping.
-- [`src/admin/moduleRegistry.js`](../src/admin/moduleRegistry.js): reads modules from the active profile instead of rebuilding a local hardcoded list.
+- [`src/admin/moduleRegistry.js`](../src/admin/moduleRegistry.js): reads modules from the app profile instead of rebuilding a local hardcoded list.
 - [`src/features/browse/browseResults.js`](../src/features/browse/browseResults.js): reads field aliases from the profile so source-field assumptions are not embedded directly in the browse pipeline.
 
-## Feature Flags
+## Runtime Toggles
 
-The boutique FAB surfaces are explicit:
+Only real experiments or environment-dependent behavior belong in
+[`src/shared/runtime/runtimeEnv.js`](../src/shared/runtime/runtimeEnv.js), which owns both flag definitions and resolution:
 
-- `fabTours`
-- `fabRecordPresentation`
 - `fieldPackets`
+- `customMapEngine`
+- development routing-provider overrides
 
-Those flags live in [`src/shared/runtime/runtimeEnv.js`](../src/shared/runtime/runtimeEnv.js).
+Stable FAB product features such as tours and record presentation should stay in
+[`APP_PROFILE.features`](../src/features/fab/profile.js) instead of pretending to
+be rollout flags.
+
+PMTiles and site-twin development controls are app-owned map tools, not shared
+runtime feature flags. Their browser storage keys live under
+`APP_PROFILE.runtimeStorageKeys`.
 
 ## Editing Guidance
 
@@ -33,15 +38,15 @@ When adding generic asset-management behavior:
 
 1. Extend the shared shell or the profile contract.
 2. Put FAB-only logic under `src/features/fab/`.
-3. Keep `src/config/appProfile.js` narrow. If a caller only needs `dataModules`, tour definitions, or a single feature, derive it beside that caller instead of exporting another alias constant from the config layer.
+3. Import [`APP_PROFILE`](../src/features/fab/profile.js) directly instead of routing through another alias layer.
 4. Avoid importing Albany datasets, ARCE URLs, or tour metadata directly from the app shell.
-5. Prefer profile fields or feature callbacks over new `if FAB` branches in shared code.
+5. Prefer profile fields or feature callbacks over new hardcoded branches in shared code.
 
 The static web shell follows the same rule: [`public/index.html`](../public/index.html)
 and [`public/manifest.json`](../public/manifest.json) are synced from
 [`public/index.template.html`](../public/index.template.html),
 [`public/manifest.template.json`](../public/manifest.template.json), and the
-active profile via `bun run sync:profile-shell`.
+FAB app profile via `bun run sync:profile-shell`.
 
 For map work specifically:
 

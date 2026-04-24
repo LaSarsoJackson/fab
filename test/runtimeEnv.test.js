@@ -42,8 +42,6 @@ describe("getRuntimeEnv", () => {
       isDev: true,
       featureFlags: {
         customMapEngine: false,
-        fabRecordPresentation: true,
-        fabTours: true,
         fieldPackets: true,
         routingProvider: "api",
       },
@@ -66,8 +64,6 @@ describe("getRuntimeEnv", () => {
       isDev: false,
       featureFlags: {
         customMapEngine: false,
-        fabRecordPresentation: true,
-        fabTours: true,
         fieldPackets: true,
         routingProvider: "api",
       },
@@ -88,16 +84,12 @@ describe("getRuntimeEnv", () => {
       REACT_APP_ENVIRONMENT: "development",
       REACT_APP_ENABLE_CUSTOM_MAP_ENGINE: "true",
       REACT_APP_ENABLE_FIELD_PACKETS: "true",
-      REACT_APP_ENABLE_FAB_TOURS: "false",
-      REACT_APP_ENABLE_FAB_RECORD_PRESENTATION: "false",
       REACT_APP_DEV_ROUTING_PROVIDER: "valhalla",
     })).toEqual({
       appEnvironment: "development",
       isDev: true,
       featureFlags: {
         customMapEngine: true,
-        fabRecordPresentation: false,
-        fabTours: false,
         fieldPackets: true,
         routingProvider: "valhalla",
       },
@@ -150,8 +142,6 @@ describe("getRuntimeEnv", () => {
       isDev: true,
       featureFlags: {
         customMapEngine: true,
-        fabRecordPresentation: true,
-        fabTours: true,
         fieldPackets: true,
         routingProvider: "local",
       },

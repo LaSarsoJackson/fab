@@ -28,6 +28,9 @@ Use this file to decide which note to read before making a change.
 - Working on GeoParquet, PMTiles, or static geospatial artifacts:
   [map-engine-geoparquet.md](./map-engine-geoparquet.md)
 
+- Working on the cemetery site twin / digital twin pipeline:
+  [geospatial-site-twin.md](./geospatial-site-twin.md)
+
 - Changing where helpers or feature code should live:
   [codebase-structure.md](./codebase-structure.md)
 

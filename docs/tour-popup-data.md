@@ -18,7 +18,7 @@ canonical fields so the popup layer can stay simple.
 
 ## Runtime Flow
 
-1. Raw tour GeoJSON is defined in [`src/features/tours/tourDefinitions.js`](../src/features/tours/tourDefinitions.js).
+1. Raw tour GeoJSON is defined in [`src/features/fab/tours.js`](../src/features/fab/tours.js).
 2. [`src/data/TourBiographyAliases.json`](../src/data/TourBiographyAliases.json) is generated from the bundled tour datasets.
 3. [`src/features/browse/browseResults.js`](../src/features/browse/browseResults.js) calls `buildTourBrowseResult(...)` and attaches canonical fields:
    - `portraitImageName`

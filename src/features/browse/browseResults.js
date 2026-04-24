@@ -1,12 +1,11 @@
 import { normalizeName, smartSearch } from "./burialSearch";
-import { APP_PROFILE, getAppFeature } from "../../config/appProfile";
-import { FEATURE_FLAGS } from "../../shared/runtime/runtimeEnv";
+import { APP_PROFILE } from "../fab/profile";
 
 export const MIN_BROWSE_QUERY_LENGTH = 2;
 const VALID_BROWSE_SOURCES = new Set(["all", "section", "tour"]);
 const PRIMARY_RECORD_FIELDS = APP_PROFILE.fieldAliases?.primaryRecord || {};
-const TOUR_RECORD_FIELDS = APP_PROFILE.fieldAliases?.boutiqueTourRecord || {};
-const TOUR_FEATURE = getAppFeature("tours");
+const TOUR_RECORD_FIELDS = APP_PROFILE.fieldAliases?.tourRecord || {};
+const TOUR_FEATURE = APP_PROFILE.features?.tours || null;
 const UNKNOWN_PRIMARY_RECORD_LABEL = APP_PROFILE.labels?.unknownPrimaryRecord || "Unknown burial";
 const DEFAULT_TOUR_LOCATION_LABEL = APP_PROFILE.labels?.defaultTourLocationLabel || "Tour location";
 
@@ -186,9 +185,8 @@ export const buildTourBrowseResult = (feature, { tourKey, tourName } = {}) => {
   const grave = readRecordValue(properties, TOUR_RECORD_FIELDS, "grave");
   const displayName = fullName || buildHeadstoneLabel(section, lot, row, position);
   const coordinates = feature.geometry?.coordinates || properties.coordinates || null;
-  const activeTourFeature = FEATURE_FLAGS.fabTours ? TOUR_FEATURE : null;
-  const tourFeatureMetadata = typeof activeTourFeature?.enrichRecord === "function"
-    ? activeTourFeature.enrichRecord({
+  const tourFeatureMetadata = typeof TOUR_FEATURE?.enrichRecord === "function"
+    ? TOUR_FEATURE.enrichRecord({
         ...properties,
         Full_Name: fullName || properties.Full_Name,
         displayName,

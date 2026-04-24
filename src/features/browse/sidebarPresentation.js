@@ -53,9 +53,11 @@ export const getSearchShellNoticeStyles = (tone) => {
 
 export const buildSearchShellNotices = ({
   burialRecordCount = 0,
+  browseResultCount = 0,
   defaultLocationStatus = "Location inactive",
   activeLocationStatus = "Location active",
   locatingLocationStatus = "Locating...",
+  hasActiveBrowseQuery = false,
   isBurialDataLoading,
   isInstalled,
   isOnline,
@@ -95,7 +97,11 @@ export const buildSearchShellNotices = ({
       tone: "neutral",
       label: "Loading burials…",
     });
-  } else if (burialRecordCount > 0 && !isSearchIndexReady) {
+  } else if (
+    burialRecordCount > 0 &&
+    !isSearchIndexReady &&
+    !(hasActiveBrowseQuery && browseResultCount > 0)
+  ) {
     notices.push({
       key: "search-readying",
       tone: "neutral",

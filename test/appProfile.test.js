@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { APP_PROFILE, getAppFeature } from "../src/config/appProfile";
+import { APP_PROFILE } from "../src/features/fab/profile";
 import { DATA_MODULES } from "../src/admin/moduleRegistry";
 
-const TOUR_FEATURE = getAppFeature("tours");
+const TOUR_FEATURE = APP_PROFILE.features?.tours || null;
 const TOUR_DEFINITIONS = TOUR_FEATURE?.definitions || [];
 const TOUR_STYLES = TOUR_FEATURE?.styles || {};
 
@@ -14,27 +14,28 @@ describe("app profile", () => {
     expect(DATA_MODULES.some((definition) => definition.id === APP_PROFILE.moduleIds.boundary)).toBe(true);
   });
 
-  test("keeps boutique FAB tours behind an explicit feature flag boundary", () => {
-    expect(TOUR_FEATURE.featureFlag).toBe("fabTours");
+  test("keeps tour definitions and styles in the app profile instead of a second registry layer", () => {
     expect(TOUR_DEFINITIONS.length).toBeGreaterThan(0);
-    expect(
-      DATA_MODULES
-        .filter((definition) => definition.kind === "tour")
-        .every((definition) => definition.featureFlag === "fabTours")
-    ).toBe(true);
+    expect(DATA_MODULES.filter((definition) => definition.kind === "tour")).toHaveLength(TOUR_DEFINITIONS.length);
     expect(Object.keys(TOUR_STYLES)).toHaveLength(TOUR_DEFINITIONS.length);
   });
 
-  test("keeps boutique record presentation behind an explicit feature flag boundary", () => {
-    expect(APP_PROFILE.features.boutiqueRecordPresentation.featureFlag).toBe("fabRecordPresentation");
-    expect(typeof APP_PROFILE.features.boutiqueRecordPresentation.resolveBiographyLink).toBe("function");
-    expect(typeof APP_PROFILE.features.boutiqueRecordPresentation.resolveImageUrl).toBe("function");
+  test("exposes FAB record presentation directly from the app profile", () => {
+    expect(typeof APP_PROFILE.features.recordPresentation.resolveBiographyLink).toBe("function");
+    expect(typeof APP_PROFILE.features.recordPresentation.resolveImageUrl).toBe("function");
   });
 
   test("exposes the iPhone app listing used by shared-link install prompts", () => {
     expect(APP_PROFILE.distribution.iosAppStoreUrl).toBe(
       "https://apps.apple.com/us/app/albany-grave-finder/id6746413050"
     );
+  });
+
+  test("keeps FAB-owned browser storage keys in the profile contract", () => {
+    expect(APP_PROFILE.runtimeStorageKeys).toEqual({
+      pmtilesExperiment: "fab:enablePmtilesExperiment",
+      siteTwinDebug: "fab:siteTwinDebugState",
+    });
   });
 
   test("documents the map source and optimization formats needed for invisible GeoParquet migration", () => {

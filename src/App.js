@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { isAdminHash } from "./admin/adminHash";
-import { APP_PROFILE } from "./config/appProfile";
+import { APP_PROFILE } from "./features/fab/profile";
 import { isAdminStudioEnabled, syncDocumentMetadata } from "./shared/runtime";
 import "./App.css";
 
