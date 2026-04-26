@@ -1,13 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { buildSearchIndex } from "../src/lib/burialSearch";
+import { buildSearchIndex } from "../src/features/browse/burialSearch";
 import {
   buildBrowseResults,
+  buildBurialSectionIndex,
   buildBurialBrowseResult,
   buildTourBrowseResult,
   filterBurialRecordsBySection,
   formatBrowseResultName,
   getBrowseSourceMode,
-} from "../src/lib/browseResults";
+} from "../src/features/browse/browseResults";
 
 const getTourName = (record) => {
   if (record.title === "Notable") return "Notables Tour 2020";
@@ -71,6 +72,7 @@ const burialRecords = burialFeatures.map((feature) => (
 ));
 
 const searchIndex = buildSearchIndex(burialRecords, { getTourName });
+const sectionIndex = buildBurialSectionIndex(burialRecords);
 
 describe("buildBurialBrowseResult", () => {
   test("normalizes a burial feature into the browse-result shape", () => {
@@ -164,6 +166,24 @@ describe("browse source helpers", () => {
       }).map((item) => item.id)
     ).toEqual([burialRecords[2].id]);
   });
+
+  test("reuses the section index when one is provided", () => {
+    expect(
+      filterBurialRecordsBySection([], { sectionFilter: "99" }, { sectionIndex }).map((item) => item.id)
+    ).toEqual([burialRecords[0].id, burialRecords[1].id]);
+
+    expect(
+      filterBurialRecordsBySection(
+        [],
+        {
+          sectionFilter: "18",
+          lotTierFilter: "2",
+          filterType: "tier",
+        },
+        { sectionIndex }
+      ).map((item) => item.id)
+    ).toEqual([burialRecords[2].id]);
+  });
 });
 
 describe("buildBrowseResults", () => {
@@ -217,7 +237,8 @@ describe("buildBrowseResults", () => {
     const { results } = buildBrowseResults({
       browseSource: "section",
       query: "anna",
-      burialRecords,
+      burialRecords: [],
+      sectionIndex,
       sectionFilter: "99",
       getTourName,
     });

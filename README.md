@@ -1,366 +1,230 @@
-# FAB (`fab`)
+# FAB
 
-`fab` is the main web application for the Albany Rural Cemetery burial-finder experience. It is a React app and installable PWA that provides:
+FAB is the web application behind the Albany Rural Cemetery burial finder. It
+is a React app and installable PWA for:
 
-- burial search
-- map browsing by section and tour
-- on-site navigation and directions
-- deep links used by the hosted web app and the native wrapper
+- searching burial records
+- browsing the cemetery map by section or tour
+- opening directions for on-site navigation
+- sharing direct links that restore selections and map views
+- restoring shared URLs and deep links
 
-This repository is the core product surface. If the map, search, tours, routing, or shared UI are wrong, the fix usually starts here.
+This repository owns the shared web experience. The same hosted URLs are used
+directly on the web and inside `FABFG`, the native wrapper app.
 
-## Relationship To The Other Projects
+## Project layout
 
-There are three systems to keep straight:
+The broader product surface is split across three systems:
 
-1. `fab`
-   This repo. It owns the shared web experience, data pipeline, map behavior, deep links, and PWA shell.
-2. `FABFG`
-   A separate native wrapper app that loads hosted `fab` URLs inside a native shell.
-3. `albany.edu/arce`
-   The institutional production host for the promoted static build, plus a source of some legacy content and image assets.
+- `fab`: this repository, which owns the shared web app, data pipeline, map
+  behavior, and deep-link handling
+- `FABFG`: the native wrapper that loads hosted `fab` URLs in a native shell
+- `albany.edu/arce`: the institutional production host for the promoted static
+  build, along with some legacy content and image assets
 
 Primary links:
 
-- Source repo: [github.com/LaSarsoJackson/fab](https://github.com/LaSarsoJackson/fab)
-- GitHub Pages deploy: [lasarsojackson.github.io/fab](https://lasarsojackson.github.io/fab/)
+- Source repository: [github.com/LaSarsoJackson/fab](https://github.com/LaSarsoJackson/fab)
+- GitHub Pages deployment: [lasarsojackson.github.io/fab](https://lasarsojackson.github.io/fab/)
 - Production site: [albany.edu/arce](https://www.albany.edu/arce/)
-- Native wrapper repo: [github.com/LaSarsoJackson/FABFG](https://github.com/LaSarsoJackson/FABFG)
+- Native wrapper repository: [github.com/LaSarsoJackson/FABFG](https://github.com/LaSarsoJackson/FABFG)
 - iOS app: [Albany Grave Finder on the App Store](https://apps.apple.com/us/app/albany-grave-finder/id6746413050)
 
-How they fit together:
+## Get started
 
-```mermaid
-flowchart LR
-  FAB["fab<br/>React app + PWA source"] --> GH["GitHub Pages<br/>repo-controlled hosted build"]
-  FAB --> BUILD["build/<br/>static production artifact"]
-  BUILD --> FTP["ARCE FTP upload<br/>manual promotion"]
-  FTP --> PROD["albany.edu/arce<br/>production deployment"]
-  GH --> FABFG["FABFG<br/>native wrapper repo"]
-  PROD --> FABFG
-  FABFG --> IOS["iOS app"]
-```
-
-Practical rule of thumb:
-
-- Change `fab` for map/search/tour/deep-link/PWA work.
-- Change `FABFG` for native tabs, packaging, or wrapper-level behavior.
-- Change ARCE content separately when the issue is a legacy page, hosted image, or institutional content asset.
-
-## Get Started
-
-### Prerequisites
+### Requirements
 
 - Node `>= 20` from [.nvmrc](./.nvmrc)
 - Bun `>= 1.3`
 - Python 3 for the local image server used in development
-- Optional GraphHopper API key if you need full routing behavior locally
+
+Optional tools:
+
+- `geopandas`, `pyarrow`, and `shapely` for GeoParquet conversion and parity
+  validation
+- `numpy`, GDAL Python bindings, and `pdal` for the site twin / digital twin
+  preview pipeline
+- `tippecanoe` for PMTiles generation
+- Docker for the optional local/offline Valhalla routing workflow
 
 ### Install
-
-Recommended:
 
 ```bash
 bun install
 ```
 
-Fallback:
+### Configure local environment
+
+Create a local `.env` file when you need routing overrides or want to override
+the default image origin:
 
 ```bash
-npm install
-```
-
-### Configure Local Environment
-
-Create a local `.env` file when you need routing or local portrait/image support:
-
-```bash
-REACT_APP_GRAPHHOPPER_API_KEY=your_key_here
+REACT_APP_DEV_ROUTING_PROVIDER=api
+REACT_APP_VALHALLA_API_URL=https://valhalla1.openstreetmap.de
+REACT_APP_VALHALLA_PROXY_PATH=/__valhalla
 REACT_APP_DEV_IMAGE_SERVER_ORIGIN=http://127.0.0.1:8000
 ```
 
 Notes:
 
-- Routing will be limited without `REACT_APP_GRAPHHOPPER_API_KEY`.
-- `REACT_APP_DEV_IMAGE_SERVER_ORIGIN` is used for local image references in popups and detail views.
+- Routing providers:
+  `api` uses the hosted Valhalla HTTP API,
+  `local` uses the bundled `src/data/ARC_Roads.json` road graph in-browser,
+  `valhalla` uses the local dev proxy for an offline Valhalla instance.
+- `REACT_APP_DEV_ROUTING_PROVIDER` is honored in development only. The default
+  provider is `api`.
+- `REACT_APP_VALHALLA_API_URL` only affects the hosted `api` provider.
+- `REACT_APP_VALHALLA_PROXY_PATH` defaults to `/__valhalla` and is used by the
+  development proxy for local/offline Valhalla.
+- Shared route hashes, deep-link query keys, provider ids, Valhalla defaults,
+  and external directions URL builders live in `src/shared/routing`.
+- The route destination is still snapped against the bundled cemetery road
+  network before routing so the app continues to respect the project’s local
+  road geometry even when the hosted or offline Valhalla provider is active.
+- `bun run start` defaults `REACT_APP_DEV_IMAGE_SERVER_ORIGIN` to the local
+  companion image server on `http://127.0.0.1:8000`.
+- The static admin studio at `#/admin` is development-only for now. It opens
+  when `REACT_APP_ENVIRONMENT` resolves to development and is hidden in
+  production builds.
 
-### Run The App
+### Run the app
 
-Recommended:
+Start with the environment check:
+
+```bash
+bun run doctor
+```
+
+Then launch the development stack:
 
 ```bash
 bun run start
 ```
 
-Fallback:
-
-```bash
-npm run start
-```
-
-This starts:
-
-- the React dev server
-- the local image server on `http://127.0.0.1:8000`
-- the app in development mode with `REACT_APP_ENVIRONMENT=development`
+This starts the React dev server, refreshes derived tour alias data, and serves
+local images on `http://127.0.0.1:8000`.
 
 Default local URL:
 
 - [http://localhost:3000](http://localhost:3000)
 
-### Most Important Developer Commands
+Useful overrides:
 
-Regenerate derived data after changing source cemetery data:
+- `FAB_SKIP_TOUR_DATA=1`: skip the alias refresh on restart
+- `FAB_SKIP_IMAGE_SERVER=1`: skip the local image server
+- `FAB_IMAGE_SERVER_PORT=9000`: run the image server on a different port
+- `FAB_GEOSPATIAL_PYTHON=/path/to/python`: force a specific Python interpreter
+  for geospatial tooling
 
-```bash
-bun run build:data
-```
+## Common commands
 
-Run tests:
+- `bun run start`: start the development environment
+- `bun run routing:offline:start`: start or create the local Valhalla container
+- `bun run routing:offline:stop`: stop the local Valhalla container
+- `bun run doctor`: check local prerequisites and optional tooling
+- `bun run lint`: run the repository ESLint baseline across app, unit, and browser tests
+- `bun run test`: run the default automated test suite
+- `bun run check`: run `doctor`, `lint`, and the default test suite
+- `bun run build`: create a production build
+- `bun run deploy`: build and publish the GitHub Pages deployment
+- `bun run build:tour-data`: regenerate tour biography aliases
+- `bun run build:data`: regenerate search data, tour matches, and generated map
+  bounds
+- `bun run build:geoparquet`: convert the burial source JSON into GeoParquet
+- `bun run validate:geoparquet`: verify GeoParquet parity with the JSON source
+- `bun run build:pmtiles`: generate PMTiles experiment artifacts
+- `bun run build:site-twin`: fetch the latest ortho/LiDAR inputs and build the
+  site twin preview package
+- `bun run build:site-twin:terrain`: build the terrain-only site twin preview
+- `bun run build:site-twin:metadata`: resolve the latest source metadata
+  without downloading large inputs
 
-```bash
-bun test
-```
+Test split:
 
-Create a production build:
+- `bun run test:bun`: module and data tests
+- `bun run test:dom`: React DOM and component tests
+- `bun run test:e2e`: Playwright browser coverage
 
-```bash
-bun run build
-```
-
-Deploy the GitHub Pages version:
-
-```bash
-bun run deploy
-```
-
-## How The Project Works
-
-### Runtime Model
-
-At runtime, `fab` is a client-side React app centered around [src/Map.jsx](./src/Map.jsx).
-
-The main flows are:
-
-- load a lightweight burial search index
-- harmonize those burial records with precomputed tour matches
-- lazily build the client-side search index
-- render map overlays, section browsing, selected markers, and tours
-- open directions and deep links from the same shared record model
-
-Key point:
-
-- marker clusters are the default and canonical rendering path for burial browsing
-- PMTiles is not the default map mode, including in development
-- PMTiles is only available as an explicit dev toggle from the in-app menu for experimentation and validation
-
-### Data Pipeline
-
-The app does not do its heaviest data work on every page load anymore.
+## Data pipeline
 
 Source-of-truth data lives in:
 
-- `src/data/Geo_Burials.json`
-- `src/data/ARC_Sections.json`
-- `src/data/ARC_Roads.json`
-- the tour definition modules referenced by `src/lib/tourDefinitions.js`
+- [`src/data/Geo_Burials.json`](./src/data/Geo_Burials.json)
+- [`src/data/ARC_Sections.json`](./src/data/ARC_Sections.json)
+- [`src/data/ARC_Roads.json`](./src/data/ARC_Roads.json)
+- [`src/data/ARC_Boundary.json`](./src/data/ARC_Boundary.json)
+- tour definitions and datasets in [`src/features/fab/tours.js`](./src/features/fab/tours.js)
 
 Generated artifacts live in:
 
-- `public/data/Search_Burials.json`
-- `src/data/TourMatches.json`
-- `src/lib/constants.js`
+- [`src/data/TourBiographyAliases.json`](./src/data/TourBiographyAliases.json)
+- [`src/data/TourMatches.json`](./src/data/TourMatches.json)
+- [`public/data/Search_Burials.json`](./public/data/Search_Burials.json)
+- [`src/features/map/generatedBounds.js`](./src/features/map/generatedBounds.js)
 
-`bun run build:data` runs [scripts/precalculate-metadata.js](./scripts/precalculate-metadata.js), which:
-
-1. loads the burial source data
-2. loads tour data
-3. matches tour stops against burial records
-4. writes the minified search index used by the client
-5. writes static bounds/constants used by the app
-
-If you change source cemetery data and do not regenerate these files, the app can behave inconsistently.
-
-### Map Rendering Model
-
-The map has a few distinct rendering paths:
-
-- section polygons
-- roads and cemetery boundary overlays
-- selected/pinned burial markers
-- section-level clustered burial markers when section browsing is active
-- lazily loaded tour layers
-- optional PMTiles experiment in development only
-
-The intended behavior is:
-
-- browsing a section uses the marker-cluster path
-- selecting from search, section, or tour should resolve to the same burial record shape
-- a selection should focus and behave the same regardless of where in the UI it started
-
-If you change selection logic, validate all of these:
-
-- search result click
-- selected-person card click
-- section polygon click
-- section marker click
-- tour stop click
-- deep-link selection
-
-### Tours
-
-Tours are defined through [src/lib/tourDefinitions.js](./src/lib/tourDefinitions.js) and loaded lazily. The app:
-
-- loads tour GeoJSON only when needed
-- precomputes cross-links between burial records and tour records
-- normalizes tour browse results into the same UI model used elsewhere
-
-That means a tour stop and a burial record should feel like the same object from the UI’s point of view, even if they came from different datasets.
-
-### Public Asset Paths
-
-This app is deployed under `/fab` on GitHub Pages, so public assets must be loaded via `process.env.PUBLIC_URL` rather than raw `/data/...` absolute paths.
-
-If you see JSON requests returning `<!DOCTYPE html>`, check whether a data file was accidentally fetched from the wrong base path.
-
-## Repo Tour
-
-Start here when you are orienting yourself:
-
-- [src/Map.jsx](./src/Map.jsx): main app shell, map orchestration, selections, tours, routing, overlays
-- [src/BurialSidebar.jsx](./src/BurialSidebar.jsx): search UI, browse controls, mobile drawer, selected/results panels
-- [src/lib/burialSearch.js](./src/lib/burialSearch.js): indexing, normalization, search helpers
-- [src/lib/browseResults.js](./src/lib/browseResults.js): shared UI result shaping
-- [src/lib/tourMetadata.js](./src/lib/tourMetadata.js): harmonizing burial and tour metadata
-- [src/lib/constants.js](./src/lib/constants.js): generated map bounds and related constants
-- [src/data/](./src/data/): local GeoJSON and generated metadata used at build/runtime
-- [public/data/Search_Burials.json](./public/data/Search_Burials.json): generated lightweight search payload
-- [scripts/precalculate-metadata.js](./scripts/precalculate-metadata.js): data generation script
-- [scripts/dev-start.sh](./scripts/dev-start.sh): development startup wrapper
-- [scripts/build-production.sh](./scripts/build-production.sh): production build wrapper
-- [scripts/deploy-production.sh](./scripts/deploy-production.sh): GitHub Pages deploy wrapper
-
-## Development Workflow
-
-### Common Change Types
-
-If you change source data:
-
-1. edit the relevant files in `src/data/`
-2. run `bun run build:data`
-3. test search, section browse, and tours
-
-If you change map UI or selection behavior:
-
-1. test desktop and mobile
-2. test section browse and tour flows
-3. test that selected markers and popups still match the clicked record
-
-If you change anything under `public/` or public data fetching:
-
-1. verify it still works under `localhost`
-2. verify it still works under the `/fab` GitHub Pages base path
-
-### Mobile Drawer Expectations
-
-The mobile sidebar is a bottom drawer, not a desktop card squeezed onto a phone screen.
-
-The intended model is:
-
-- collapsed: minimal search shell
-- peek: search plus browse controls
-- full: selected people and results work area
-
-If you touch `src/BurialSidebar.jsx` or related CSS, validate that the drawer still behaves like a drawer and not just a styled panel.
-
-### Dev vs Production
-
-Environment mode is driven by `REACT_APP_ENVIRONMENT`.
-
-- `scripts/dev-start.sh` starts the app as `development`
-- `scripts/build-production.sh` builds as `production`
-- `scripts/deploy-production.sh` always deploys the production build
-
-Production should not expose developer-only chrome. Development can show lightweight dev context where it helps.
-
-## Deployment
-
-The deployment flow is intentionally split into two environments.
-
-### 1. GitHub Pages
-
-Use this for repo-controlled public validation:
+If you change source data, regenerate derived outputs instead of editing them by
+hand:
 
 ```bash
-bun run deploy
-```
-
-This runs the production build and publishes `build/` to GitHub Pages.
-
-### 2. ARCE Production
-
-This repo does not currently automate the institutional production publish.
-
-Current flow:
-
-1. build and validate the release candidate
-2. publish to GitHub Pages for validation
-3. promote the approved static build from `build/`
-4. upload the static files to the ARCE FTP host
-
-Important:
-
-- GitHub Pages is the easiest public validation target
-- ARCE is the real production deployment
-- a change here can affect both the hosted web app and the native wrapper app
-
-## Deep Links And Wrapper Integration
-
-The native wrapper and shared URLs depend on query-driven state in `fab`.
-
-Important patterns include:
-
-- `?view=burials`
-- `?view=tours`
-- `?section=<value>`
-- `?tour=<name fragment>`
-- `?q=<search text>`
-
-If you change deep-link handling, verify whether `FABFG` needs a corresponding update.
-
-## Troubleshooting
-
-### Burial data fails to load and JSON parsing complains about HTML
-
-Usually means a public asset path is wrong for the current host base path. Check any `fetch()` or static asset URL that starts with `/`.
-
-### Tours or search results do not match the right burial record
-
-Regenerate derived data with:
-
-```bash
+bun run build:tour-data
 bun run build:data
 ```
 
-Then retest the selection flow from:
+When `src/data/Geo_Burials.parquet` exists, the build pipeline prefers it and
+falls back to `src/data/Geo_Burials.json` if the GeoParquet toolchain is not
+available.
 
-- search
-- section browse
-- tours
-- deep links
+## Architecture notes
 
-### A change works on the web but not in the iOS app
+Start with these documents:
 
-Decide whether the problem is:
+- [CONTRIBUTING.md](./CONTRIBUTING.md) for contributor workflow and validation
+- [AGENTS.md](./AGENTS.md) for repo-specific automation and maintainer notes
+- [docs/architecture-index.md](./docs/architecture-index.md) for a guide to the
+  architecture notes
+- [docs/codebase-structure.md](./docs/codebase-structure.md) for directory
+  ownership and placement rules
+- [docs/routing-architecture.md](./docs/routing-architecture.md) for client
+  route, deep-link, directions-link, and routing-provider URL ownership
+- [docs/geospatial-site-twin.md](./docs/geospatial-site-twin.md) for the
+  cemetery digital twin/site twin pipeline
 
-- the shared hosted experience in `fab`
-- the native shell behavior in `FABFG`
-- an external ARCE-hosted content dependency
+Common entry points:
 
-## Additional Context
+- [`src/Map.jsx`](./src/Map.jsx): map orchestration, selections, overlays, and
+  routing
+- [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx): search, browse controls,
+  selected record UI, and mobile drawer behavior
+- [`src/AdminApp.jsx`](./src/AdminApp.jsx): static admin workspace
+- [`src/features/browse/`](./src/features/browse): search indexing and browse
+  result shaping
+- [`src/features/tours/`](./src/features/tours): tour definitions, alias
+  generation, and burial-tour reconciliation
+- [`src/features/map/`](./src/features/map): popup models, selection reducer/actions,
+  viewport helpers, and runtime-specific map logic
+- [`src/shared/routing/`](./src/shared/routing): route hashes, query keys,
+  routing provider ids, Valhalla URL defaults/builders, and external directions links
+- [`src/admin/`](./src/admin): file-backed admin modules, workbook import and
+  export, and update bundles
 
-See [docs/arce-content-upgrade-plan.md](./docs/arce-content-upgrade-plan.md) for broader migration and cross-project notes involving:
+## Deployment notes
 
-- the legacy ARCE web presence
-- `fab`
-- `FABFG`
+There are two relevant hosted environments:
+
+- GitHub Pages is the repo-controlled public validation target. Use
+  `bun run deploy` to publish that version.
+- `albany.edu/arce` is the institutional production deployment. Promotion to
+  that host is still manual.
+
+The app is served under `/fab` on GitHub Pages, so public asset URLs must honor
+`process.env.PUBLIC_URL`. If a data fetch returns `<!DOCTYPE html>`, check the
+requested path first.
+
+Because `FABFG` consumes hosted `fab` URLs, any change to shared routing,
+selection state, or deep links should be checked in both the web app and the
+native wrapper.
+
+## Contributing
+
+Contributions are welcome. Start with [CONTRIBUTING.md](./CONTRIBUTING.md) for
+setup, validation expectations, and pull request guidance.

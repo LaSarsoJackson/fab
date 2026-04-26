@@ -12,10 +12,9 @@ import CivilWarTour20 from "../src/data/CivilWarTour20.json";
 import SocietyPillarsTour20 from "../src/data/SocietyPillarsTour20.json";
 import AlbanyMayors from "../src/data/AlbanyMayors_fixed.json";
 import GAR from "../src/data/GAR_fixed.json";
-import { buildTourBrowseResult, formatBrowseResultName } from "../src/lib/browseResults";
-import { hasValidGeoJsonCoordinates } from "../src/lib/geoJsonBounds";
-import { TOUR_DEFINITIONS } from "../src/lib/tourDefinitions";
-import { TOUR_STYLES } from "../src/lib/tourStyles";
+import { buildTourBrowseResult, formatBrowseResultName } from "../src/features/browse/browseResults";
+import { TOUR_DEFINITIONS, TOUR_STYLES } from "../src/features/fab/profile";
+import { hasValidGeoJsonCoordinates } from "../src/shared/geo/geoJsonBounds";
 
 const TOUR_DATASETS_BY_KEY = {
   Lot7: ProjectedSec75Headstones,
@@ -85,11 +84,28 @@ describe("tour definitions", () => {
       displayName: "Pieter Schuyler",
       Section: "29",
       Lot: "66",
+      portraitImageName: "Schuyler70a.jpg",
+      biographyLink: "Schuyler70",
     });
 
     expect(garRecord.tourKey).toBe("GAR");
     expect(garRecord.tourName).toBe("Grand Army of the Republic");
     expect(formatBrowseResultName(garRecord).length).toBeGreaterThan(0);
     expect(garRecord.secondaryText).toContain("Died");
+  });
+
+  test("recovers biography slugs for fixed-format tours from canonical aliases", () => {
+    const abeelFeature = AlbanyMayors.features.find(
+      (feature) => feature.properties?.Full_Name === "Johannes Abeel"
+    );
+    expect(abeelFeature).toBeTruthy();
+
+    const abeelRecord = buildTourBrowseResult(abeelFeature, {
+      tourKey: "MayorsOfAlbany",
+      tourName: "Mayors of Albany",
+    });
+
+    expect(abeelRecord.biographyLink).toBe("Abeel75");
+    expect(abeelRecord.portraitImageName).toBe("");
   });
 });

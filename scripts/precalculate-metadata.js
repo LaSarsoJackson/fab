@@ -1,14 +1,21 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import * as turf from '@turf/turf';
 
-import { TOUR_DEFINITIONS } from '../src/lib/tourDefinitions.js';
-import { buildTourBrowseResult, buildBurialBrowseResult, formatBrowseResultName, buildBrowseSecondaryText } from '../src/lib/browseResults.js';
-import { normalizeName } from '../src/lib/burialSearch.js';
-import { buildTourLookup } from '../src/lib/tourMetadata.js';
+import { loadBurialFeatureCollection } from "./geospatial/load_burial_source.js";
+import { buildBurialBrowseResult, buildTourBrowseResult } from "../src/features/browse/browseResults.js";
+import { normalizeName } from "../src/features/browse/burialSearch.js";
+import { TOUR_DEFINITIONS } from "../src/features/fab/profile.js";
+import { buildTourLookup } from "../src/features/tours/tourRecordHarmonization.js";
 
-const __dirname = new URL('.', import.meta.url).pathname;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Generate the build-time artifacts that keep runtime search and popup
+ * enrichment cheap: the tour match table, the minified search payload, and the
+ * static boundary constants.
+ */
 const cleanValue = (value) => {
   if (value === null || value === undefined) return '';
   return String(value).trim();
@@ -98,6 +105,8 @@ const scoreTourBurialMatch = (tourRecord, burialRecord) => {
 const findMatchingTourRecord = (burialRecord, tourLookup) => {
   if (!burialRecord || burialRecord.source !== "burial") return null;
 
+  // Runtime tour->burial matching works in the opposite direction. The build
+  // step mirrors the same heuristic so search records can be enriched up front.
   const candidates = tourLookup?.bySectionLot?.get(buildSectionLotKey(burialRecord)) || [];
   if (!candidates.length) return null;
 
@@ -114,6 +123,20 @@ const findMatchingTourRecord = (burialRecord, tourLookup) => {
 
   return bestScore >= 7 ? bestCandidate : null;
 };
+
+/**
+ * The build pipeline needs the normalized burial browse record for both tour
+ * matching and the compact search artifact. Build it once so `build:data`
+ * spends time on the matching heuristic itself instead of recomputing the same
+ * browse shape in two full passes over ~97k burials.
+ */
+const buildNormalizedBurialEntries = (burialFeatures, { getTourName } = {}) => (
+  burialFeatures.map((feature) => ({
+    feature,
+    properties: feature.properties || {},
+    burialRecord: buildBurialBrowseResult(feature, { getTourName }),
+  }))
+);
 
 async function precalculate() {
   console.log('Loading TOUR_DEFINITIONS...');
@@ -134,24 +157,26 @@ async function precalculate() {
   console.log(`Loaded ${loadedRecords.length} tour records.`);
   const tourLookup = buildTourLookup(loadedRecords);
 
-  console.log('Loading Geo_Burials.json...');
-  const rawBurials = await fs.readFile(path.join(__dirname, '../src/data/Geo_Burials.json'), 'utf8');
-  const burialsData = JSON.parse(rawBurials);
+  console.log('Loading burial source data...');
+  const { featureCollection: burialsData, source: burialSource } = await loadBurialFeatureCollection();
   const burialFeatures = burialsData.features || [];
-  console.log(`Loaded ${burialFeatures.length} burial features.`);
+  console.log(
+    `Loaded ${burialFeatures.length} burial features from ${burialSource.format} (${burialSource.filePath}).`
+  );
 
   const getTourName = (option = {}) => {
-      // Mocked out simpler version since TOURS isn't loaded here but we don't strictly need it for matching
-      return cleanValue(option.tourName || option.title || option.tourKey || '');
+    // The precompute step only needs a stable label for normalized browse
+    // records, not the full runtime tour registry.
+    return cleanValue(option.tourName || option.title || option.tourKey || '');
   };
+  const normalizedBurialEntries = buildNormalizedBurialEntries(burialFeatures, { getTourName });
 
   const matches = {};
   let matchCount = 0;
 
   console.log('Matching burials to tours...');
-  for (let i = 0; i < burialFeatures.length; i++) {
-    const feature = burialFeatures[i];
-    const burialRecord = buildBurialBrowseResult(feature, { getTourName });
+  for (let i = 0; i < normalizedBurialEntries.length; i++) {
+    const { burialRecord } = normalizedBurialEntries[i];
     const matchedTour = findMatchingTourRecord(burialRecord, tourLookup);
     
     if (matchedTour) {
@@ -171,21 +196,19 @@ async function precalculate() {
   console.log(`Wrote matches to ${outputPath}`);
 
   console.log('Generating minified search index...');
-  const searchBurials = burialFeatures.map((feature) => {
-    const props = feature.properties;
-    const burialRecord = buildBurialBrowseResult(feature, { getTourName });
+  const searchBurials = normalizedBurialEntries.map(({ feature, properties, burialRecord }) => {
     const match = matches[burialRecord.id];
 
     return {
-      i: props.OBJECTID,
-      f: cleanValue(props.First_Name),
-      l: cleanValue(props.Last_Name),
-      s: cleanValue(props.Section),
-      lo: cleanValue(props.Lot),
-      g: cleanValue(props.Grave),
-      t: cleanValue(props.Tier),
-      b: cleanValue(props.Birth),
-      d: cleanValue(props.Death),
+      i: properties.OBJECTID,
+      f: cleanValue(properties.First_Name),
+      l: cleanValue(properties.Last_Name),
+      s: cleanValue(properties.Section),
+      lo: cleanValue(properties.Lot),
+      g: cleanValue(properties.Grave),
+      t: cleanValue(properties.Tier),
+      b: cleanValue(properties.Birth),
+      d: cleanValue(properties.Death),
       tk: match ? match.tourKey : '',
       c: feature.geometry?.coordinates || null,
       n: burialRecord.fullNameNormalized,
@@ -195,14 +218,13 @@ async function precalculate() {
   });
 
   const searchOutputPath = path.join(__dirname, '../public/data/Search_Burials.json');
-  try {
-    const publicDataDir = path.join(__dirname, '../public/data');
-    await fs.mkdir(publicDataDir, { recursive: true });
-  } catch (err) {}
+  const publicDataDir = path.join(__dirname, '../public/data');
+  await fs.mkdir(publicDataDir, { recursive: true });
   await fs.writeFile(searchOutputPath, JSON.stringify(searchBurials));
   console.log(`Wrote minified search index to ${searchOutputPath}`);
   
-  // Let's also precalculate constants like BBOX and Buffers
+  // Write static boundary helpers once so the client does not recompute them on
+  // every page load.
   console.log('Loading BOUNDARY_POLYGON for static boundary calculations...');
   const boundaryModule = await import('../src/data/ARC_Boundary.json');
   const BOUNDARY_POLYGON = boundaryModule.default?.features?.[0] || boundaryModule.features?.[0];
@@ -210,7 +232,7 @@ async function precalculate() {
   const BOUNDARY_BBOX = turf.bbox(BOUNDARY_POLYGON);
   const LOCATION_BUFFER_BOUNDARY = turf.buffer(BOUNDARY_POLYGON, 8, { units: 'kilometers' });
 
-  const constantsPath = path.join(__dirname, '../src/lib/constants.js');
+  const constantsPath = path.join(__dirname, "../src/features/map/generatedBounds.js");
   const constantsContent = `// Auto-generated by scripts/precalculate-metadata.js
 export const BOUNDARY_BBOX = ${JSON.stringify(BOUNDARY_BBOX)};
 export const LOCATION_BUFFER_BOUNDARY = ${JSON.stringify(LOCATION_BUFFER_BOUNDARY)};
@@ -219,4 +241,7 @@ export const LOCATION_BUFFER_BOUNDARY = ${JSON.stringify(LOCATION_BUFFER_BOUNDAR
   console.log(`Wrote constants to ${constantsPath}`);
 }
 
-precalculate().catch(console.error);
+precalculate().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

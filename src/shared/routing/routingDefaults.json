@@ -1,0 +1,5 @@
+{
+  "defaultValhallaApiUrl": "https://valhalla1.openstreetmap.de",
+  "defaultLocalValhallaProxyPath": "/__valhalla",
+  "defaultLocalValhallaProxyTarget": "http://127.0.0.1:8002"
+}

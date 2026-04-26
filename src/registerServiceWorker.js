@@ -1,3 +1,5 @@
+import { buildPublicAssetUrl } from "./shared/runtime/runtimeEnv";
+
 const registerServiceWorker = () => {
   if (process.env.NODE_ENV !== 'production') {
     return;
@@ -9,7 +11,7 @@ const registerServiceWorker = () => {
 
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register(`${process.env.PUBLIC_URL}/service-worker.js`)
+      .register(buildPublicAssetUrl("/service-worker.js"))
       .catch((error) => {
         console.error('Service worker registration failed:', error);
       });
