@@ -26,6 +26,22 @@ const BURIAL_HOVER_LAYER_IDS = new Set([
   "section-burials",
   "tour-results",
 ]);
+const formatSectionClusterCountLabel = (count = 0) => {
+  const normalizedCount = Math.max(0, Number(count) || 0);
+  if (normalizedCount >= 1000) {
+    return `${(normalizedCount / 1000).toFixed(normalizedCount >= 10000 ? 0 : 1).replace(/\.0$/, "")}k`;
+  }
+
+  return String(normalizedCount);
+};
+
+const getSectionClusterMarkerRadius = (count = 0) => {
+  const normalizedCount = Math.max(0, Number(count) || 0);
+  if (normalizedCount >= 3000) return 17;
+  if (normalizedCount >= 1500) return 16;
+  if (normalizedCount >= 700) return 15.5;
+  return 15;
+};
 
 const buildPointFeatureCollection = (points) => ({
   type: "FeatureCollection",
@@ -166,6 +182,7 @@ export function CustomMapSurface({
   showAllBurials,
   showRoads = false,
   showSectionAffordanceMarkers = false,
+  showSectionClusterMarkers = false,
   showSections = true,
   showSectionOverviewMarkers = false,
   siteTwinCandidates,
@@ -349,15 +366,53 @@ export function CustomMapSurface({
             coordinates: [entry.lng, entry.lat],
             record: entry,
           })),
-        pointStyle: {
-          variant: "grave-affordance",
-          radius: 13,
-          fillColor: "rgba(108, 121, 131, 0.3)",
-          color: "rgba(242, 247, 249, 0.84)",
-          glyphColor: "rgba(255, 255, 255, 0.84)",
-          haloColor: "rgba(255, 255, 255, 0.12)",
-          weight: 1.35,
-          hitRadius: 18,
+        pointStyle: (entry) => {
+          const markerSize = Number(entry?.record?.size);
+          const radius = Number.isFinite(markerSize) ? markerSize / 2 : 13;
+
+          return {
+            variant: "grave-affordance",
+            radius,
+            fillColor: "rgba(108, 121, 131, 0.3)",
+            color: "rgba(242, 247, 249, 0.84)",
+            glyphColor: "rgba(255, 255, 255, 0.84)",
+            haloColor: "rgba(255, 255, 255, 0.12)",
+            weight: 1.35,
+            hitRadius: Math.max(18, radius + 5),
+          };
+        },
+        onPointClick: ({ target }) => {
+          const markerRecord = target?.pointEntry?.record;
+          if (!markerRecord?.sectionValue) {
+            return;
+          }
+
+          onActivateSectionBrowse?.(markerRecord.sectionValue, markerRecord.bounds);
+        },
+      });
+    }
+
+    if (showSections && showSectionClusterMarkers) {
+      nextLayers.push({
+        id: "section-clusters",
+        kind: "points",
+        interactive: true,
+        points: sectionOverviewMarkers
+          .filter((entry) => Number.isFinite(entry?.lat) && Number.isFinite(entry?.lng))
+          .map((entry) => ({
+            id: entry.id,
+            coordinates: [entry.lng, entry.lat],
+            record: entry,
+          })),
+        pointStyle: (entry) => {
+          const count = Number(entry?.record?.count) || 0;
+          return {
+            variant: "section-cluster",
+            count,
+            labelText: formatSectionClusterCountLabel(count),
+            radius: getSectionClusterMarkerRadius(count),
+            hitRadius: 20,
+          };
         },
         onPointClick: ({ target }) => {
           const markerRecord = target?.pointEntry?.record;
@@ -673,6 +728,7 @@ export function CustomMapSurface({
     showAllBurials,
     showRoads,
     showSectionAffordanceMarkers,
+    showSectionClusterMarkers,
     showSections,
     showSectionOverviewMarkers,
     showSiteTwin,
@@ -701,7 +757,7 @@ export function CustomMapSurface({
 
   useEffect(() => {
     setHoveredSectionId(null);
-  }, [sectionFilter, showSectionOverviewMarkers]);
+  }, [sectionFilter, showSectionClusterMarkers, showSectionOverviewMarkers]);
 
   useEffect(() => {
     if (!selectedMarkerLayersRef) {
@@ -920,7 +976,7 @@ export function CustomMapSurface({
         return;
       }
 
-      if (target?.layerId === "section-overview") {
+      if (target?.layerId === "section-overview" || target?.layerId === "section-clusters") {
         onHoverBurialChange?.(null);
         setHoveredSectionId(String(target.pointEntry?.record?.sectionValue || "") || null);
         return;

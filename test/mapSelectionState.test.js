@@ -89,6 +89,38 @@ describe("map selection state", () => {
     });
   });
 
+  test("clicking a hovered marker promotes focus and clears transient hover", () => {
+    const initialState = reduceMapSelectionState(createMapSelectionState(), replaceMapSelectionRecords({
+      records: [annaTracy, thomasTracy],
+      activeRecordId: annaTracy.id,
+      hoveredRecordId: thomasTracy.id,
+    }));
+    const state = reduceMapSelectionState(initialState, focusMapSelectionRecord(thomasTracy));
+
+    expect(state).toEqual({
+      selectedBurials: [annaTracy, thomasTracy],
+      activeBurialId: thomasTracy.id,
+      hoveredBurialId: null,
+    });
+  });
+
+  test("hover updates do not compete with the active focused marker", () => {
+    const focusedState = reduceMapSelectionState(
+      createMapSelectionState(),
+      focusMapSelectionRecord(annaTracy)
+    );
+    const state = reduceMapSelectionState(
+      focusedState,
+      setMapSelectionHover(annaTracy.id)
+    );
+
+    expect(state).toEqual({
+      selectedBurials: [annaTracy],
+      activeBurialId: annaTracy.id,
+      hoveredBurialId: null,
+    });
+  });
+
   test("tour-stop selection adds the stop to the pinned set and focuses it", () => {
     const initialState = reduceMapSelectionState(createMapSelectionState(), replaceMapSelectionRecords({
       records: [annaTracy],

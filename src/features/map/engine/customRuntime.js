@@ -237,6 +237,11 @@ const drawPointGuide = (context, anchorPoint, point, style = {}) => {
 
 const drawClusterPoint = (context, point, count, options = {}) => {
   const isHovered = Boolean(options.hovered);
+  const outerRadius = Number.isFinite(options.radius)
+    ? options.radius + (isHovered ? 1.5 : 0)
+    : (isHovered ? 16.5 : 15);
+  const innerRadius = Math.max(6, outerRadius - 4.5);
+  const label = options.labelText || (count > 99 ? "99+" : String(count));
 
   context.save();
   context.shadowColor = isHovered
@@ -245,7 +250,7 @@ const drawClusterPoint = (context, point, count, options = {}) => {
   context.shadowBlur = isHovered ? 12 : 8;
   context.shadowOffsetY = 4;
   context.beginPath();
-  context.arc(point.x, point.y, isHovered ? 16.5 : 15, 0, Math.PI * 2);
+  context.arc(point.x, point.y, outerRadius, 0, Math.PI * 2);
   context.fillStyle = "rgba(248, 251, 250, 0.94)";
   context.strokeStyle = isHovered
     ? "rgba(47, 75, 67, 0.38)"
@@ -255,17 +260,17 @@ const drawClusterPoint = (context, point, count, options = {}) => {
   context.stroke();
 
   context.beginPath();
-  context.arc(point.x, point.y, isHovered ? 11.5 : 10.5, 0, Math.PI * 2);
+  context.arc(point.x, point.y, innerRadius, 0, Math.PI * 2);
   context.fillStyle = isHovered
     ? "rgba(82, 112, 102, 0.94)"
     : "rgba(101, 123, 114, 0.84)";
   context.fill();
 
   context.fillStyle = "#ffffff";
-  context.font = "700 11px Manrope, sans-serif";
+  context.font = `700 ${outerRadius >= 17 ? 10.5 : 11}px Manrope, sans-serif`;
   context.textAlign = "center";
   context.textBaseline = "middle";
-  context.fillText(count > 99 ? "99+" : String(count), point.x, point.y + 0.5);
+  context.fillText(label, point.x, point.y + 0.5);
   context.restore();
 };
 
@@ -1855,6 +1860,12 @@ export class CustomMapRuntime {
       drawPointGuide(context, anchorPoint, point, style);
 
       switch (style.variant) {
+        case "section-cluster":
+          drawClusterPoint(context, point, style.count || 0, {
+            labelText: style.labelText,
+            radius: style.radius,
+          });
+          break;
         case "grave-affordance":
           drawGraveAffordancePoint(context, point, style);
           break;

@@ -35,6 +35,10 @@ export const MAP_PRESENTATION_POLICY = Object.freeze({
   sectionBurialIndividualMinZoom: 20,
   sectionBurialClusterRadius: 64,
 });
+export const SECTION_AFFORDANCE_MARKER_SIZE_RANGE = Object.freeze({
+  min: 25,
+  max: 31,
+});
 
 const normalizeSectionValue = (value) => {
   if (value === null || value === undefined) {
@@ -205,13 +209,17 @@ export const createMapSelectionState = ({
   const nextSelectedBurials = dedupeSelectedBurials(selectedBurials);
   const selectedBurialIds = new Set(nextSelectedBurials.map((burial) => burial.id));
   const nextActiveBurialId = normalizeBurialId(activeBurialId);
+  const activeSelectedBurialId = nextActiveBurialId && selectedBurialIds.has(nextActiveBurialId)
+    ? nextActiveBurialId
+    : null;
+  const nextHoveredBurialId = normalizeBurialId(hoveredBurialId);
 
   return {
     selectedBurials: nextSelectedBurials,
-    activeBurialId: nextActiveBurialId && selectedBurialIds.has(nextActiveBurialId)
-      ? nextActiveBurialId
+    activeBurialId: activeSelectedBurialId,
+    hoveredBurialId: nextHoveredBurialId !== activeSelectedBurialId
+      ? nextHoveredBurialId
       : null,
-    hoveredBurialId: normalizeBurialId(hoveredBurialId),
   };
 };
 
@@ -225,6 +233,7 @@ const focusSelectionBurial = (selectionState, burial) => {
     ...selectionState,
     selectedBurials: upsertSelectedBurial(selectionState?.selectedBurials, burial),
     activeBurialId: burialId,
+    hoveredBurialId: null,
   });
 };
 
@@ -452,21 +461,51 @@ export const buildSectionBoundsById = (sectionsGeoJson = {}) => {
   return new Map(sectionBounds.map(({ sectionValue, bounds }) => [sectionValue, bounds]));
 };
 
-export const buildSectionAffordanceMarkers = (sectionsGeoJson = {}) => (
-  buildGroupedSectionBounds(buildSectionFeatureGroups(sectionsGeoJson))
+export const resolveSectionAffordanceMarkerSize = ({
+  count = 0,
+  maxCount = 0,
+} = {}) => {
+  const normalizedCount = Math.max(0, Number(count) || 0);
+  const normalizedMaxCount = Math.max(normalizedCount, Number(maxCount) || 0);
+
+  if (normalizedMaxCount <= 0) {
+    return SECTION_AFFORDANCE_MARKER_SIZE_RANGE.min;
+  }
+
+  const countRatio = Math.sqrt(normalizedCount / normalizedMaxCount);
+  const markerSize = SECTION_AFFORDANCE_MARKER_SIZE_RANGE.min + (
+    countRatio *
+    (SECTION_AFFORDANCE_MARKER_SIZE_RANGE.max - SECTION_AFFORDANCE_MARKER_SIZE_RANGE.min)
+  );
+
+  return Number(markerSize.toFixed(1));
+};
+
+export const buildSectionAffordanceMarkers = (sectionsGeoJson = {}, sectionCounts = new Map()) => {
+  const maxCount = Math.max(
+    0,
+    ...Array.from(sectionCounts.values())
+      .map((value) => Number(value) || 0)
+      .filter((value) => value > 0)
+  );
+
+  return buildGroupedSectionBounds(buildSectionFeatureGroups(sectionsGeoJson))
     .map(({ sectionValue, bounds }) => {
       const [[south, west], [north, east]] = bounds;
+      const count = sectionCounts.get(sectionValue) || 0;
 
       return {
         id: `section-affordance:${sectionValue}`,
         sectionValue,
+        count,
+        size: resolveSectionAffordanceMarkerSize({ count, maxCount }),
         lat: (south + north) / 2,
         lng: (west + east) / 2,
         bounds,
       };
     })
-    .filter(Boolean)
-);
+    .filter(Boolean);
+};
 
 export const buildSectionOverviewMarkers = (sectionsGeoJson = {}, sectionCounts = new Map()) => (
   buildGroupedSectionBounds(buildSectionFeatureGroups(sectionsGeoJson))
@@ -503,7 +542,7 @@ export const formatSectionOverviewMarkerLabel = (marker = {}) => {
 
 export const resolveSectionOverlayVisibility = ({
   currentZoom = 0,
-  preferOverviewMarkers = true,
+  preferOverviewMarkers = false,
   sectionDetailMinZoom = MAP_PRESENTATION_POLICY.sectionDetailMinZoom,
   sectionFilter = "",
   sectionOverviewMarkerMinZoom = MAP_PRESENTATION_POLICY.sectionOverviewMarkerMinZoom,
@@ -533,8 +572,8 @@ export const resolveSectionOverlayVisibility = ({
 
 export const resolveSectionAffordanceMarkerVisibility = ({
   currentZoom = 0,
-  preferOverviewMarkers = true,
-  sectionAffordanceMarkerMinZoom = 15,
+  preferOverviewMarkers = false,
+  sectionAffordanceMarkerMinZoom = MAP_PRESENTATION_POLICY.sectionOverviewMarkerMinZoom,
   sectionDetailMinZoom = MAP_PRESENTATION_POLICY.sectionDetailMinZoom,
   sectionFilter = "",
   selectedTour = null,
@@ -553,6 +592,20 @@ export const resolveSectionAffordanceMarkerVisibility = ({
     currentZoom >= sectionAffordanceMarkerMinZoom &&
     currentZoom < sectionDetailMinZoom
   );
+};
+
+export const resolveSectionClusterMarkerVisibility = ({
+  currentZoom = 0,
+  sectionDetailMinZoom = MAP_PRESENTATION_POLICY.sectionDetailMinZoom,
+  sectionFilter = "",
+  selectedTour = null,
+} = {}) => {
+  const hasFocusedContext = Boolean(
+    normalizeSectionValue(sectionFilter) ||
+    normalizeSectionValue(selectedTour)
+  );
+
+  return !hasFocusedContext && currentZoom >= sectionDetailMinZoom;
 };
 
 export const resolveSectionBurialDisableClusteringZoom = ({
@@ -584,6 +637,18 @@ export const resolveRoadOverlayVisibility = ({
   Boolean(roadOverlayVisible || hasActiveRoute || hasTrackedLocation)
 );
 
+export const areRouteLatLngTuplesEquivalent = (left, right) => (
+  Array.isArray(left) &&
+  Array.isArray(right) &&
+  Number(left[0]) === Number(right[0]) &&
+  Number(left[1]) === Number(right[1])
+);
+
+export const shouldResetRouteGeometryForRequest = ({
+  renderedDestination,
+  requestedDestination,
+} = {}) => !areRouteLatLngTuplesEquivalent(renderedDestination, requestedDestination);
+
 export const resolveMapPresentationPolicy = ({
   currentZoom = 0,
   maxZoom,
@@ -592,10 +657,11 @@ export const resolveMapPresentationPolicy = ({
   roadOverlayVisible = false,
   hasActiveRoute = false,
   hasTrackedLocation = false,
+  preferSectionOverviewMarkers = false,
 } = {}) => {
   const sectionVisibility = resolveSectionOverlayVisibility({
     currentZoom,
-    preferOverviewMarkers: true,
+    preferOverviewMarkers: preferSectionOverviewMarkers,
     sectionDetailMinZoom: MAP_PRESENTATION_POLICY.sectionDetailMinZoom,
     sectionFilter,
     sectionOverviewMarkerMinZoom: MAP_PRESENTATION_POLICY.sectionOverviewMarkerMinZoom,
@@ -610,7 +676,12 @@ export const resolveMapPresentationPolicy = ({
     ...sectionVisibility,
     showSectionAffordanceMarkers: resolveSectionAffordanceMarkerVisibility({
       currentZoom,
-      preferOverviewMarkers: true,
+      preferOverviewMarkers: preferSectionOverviewMarkers,
+      sectionFilter,
+      selectedTour,
+    }),
+    showSectionClusterMarkers: resolveSectionClusterMarkerVisibility({
+      currentZoom,
       sectionFilter,
       selectedTour,
     }),

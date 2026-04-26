@@ -318,18 +318,29 @@ describe("CustomMapSurface", () => {
   });
 
   test("shows section affordance markers before a section is selected", () => {
-    const affordanceMarker = {
-      id: "section-affordance:107",
-      sectionValue: "107",
-      lat: 42.70418,
-      lng: -73.73198,
-      bounds: [[42.7038, -73.7323], [42.7045, -73.7316]],
-    };
+    const affordanceMarkers = [
+      {
+        id: "section-affordance:107",
+        sectionValue: "107",
+        lat: 42.70418,
+        lng: -73.73198,
+        size: 25,
+        bounds: [[42.7038, -73.7323], [42.7045, -73.7316]],
+      },
+      {
+        id: "section-affordance:108",
+        sectionValue: "108",
+        lat: 42.70518,
+        lng: -73.73298,
+        size: 31,
+        bounds: [[42.7048, -73.7333], [42.7055, -73.7326]],
+      },
+    ];
 
     render(
       <CustomMapSurface
         {...baseProps}
-        sectionAffordanceMarkers={[affordanceMarker]}
+        sectionAffordanceMarkers={affordanceMarkers}
         showSectionAffordanceMarkers
       />
     );
@@ -338,8 +349,51 @@ describe("CustomMapSurface", () => {
     const sectionAffordanceLayer = layerSpecs.find((layer) => layer.id === "section-affordances");
 
     expect(sectionAffordanceLayer).toBeDefined();
-    expect(sectionAffordanceLayer.points).toHaveLength(1);
-    expect(sectionAffordanceLayer.pointStyle.variant).toBe("grave-affordance");
+    expect(sectionAffordanceLayer.points).toHaveLength(2);
+    const smallStyle = sectionAffordanceLayer.pointStyle(sectionAffordanceLayer.points[0]);
+    const largeStyle = sectionAffordanceLayer.pointStyle(sectionAffordanceLayer.points[1]);
+    expect(smallStyle.variant).toBe("grave-affordance");
+    expect(largeStyle.radius).toBeGreaterThan(smallStyle.radius);
+    expect(largeStyle.radius - smallStyle.radius).toBeLessThanOrEqual(3);
+  });
+
+  test("shows section cluster markers after the overview affordance band", () => {
+    const onActivateSectionBrowse = jest.fn();
+    const sectionMarker = {
+      id: "section-overview:49",
+      sectionValue: "49",
+      count: 1284,
+      lat: 42.70418,
+      lng: -73.73198,
+      bounds: [[42.7038, -73.7323], [42.7045, -73.7316]],
+    };
+
+    render(
+      <CustomMapSurface
+        {...baseProps}
+        onActivateSectionBrowse={onActivateSectionBrowse}
+        sectionOverviewMarkers={[sectionMarker]}
+        showSectionClusterMarkers
+      />
+    );
+
+    const layerSpecs = runtime.setLayers.mock.calls.at(-1)?.[0] || [];
+    const sectionClusterLayer = layerSpecs.find((layer) => layer.id === "section-clusters");
+    expect(sectionClusterLayer).toBeDefined();
+    expect(sectionClusterLayer.points).toHaveLength(1);
+
+    const style = sectionClusterLayer.pointStyle(sectionClusterLayer.points[0]);
+    expect(style.variant).toBe("section-cluster");
+    expect(style.labelText).toBe("1.3k");
+
+    sectionClusterLayer.onPointClick({
+      target: {
+        pointEntry: {
+          record: sectionMarker,
+        },
+      },
+    });
+    expect(onActivateSectionBrowse).toHaveBeenCalledWith("49", sectionMarker.bounds);
   });
 
   test("does not treat hovered clusters as hovered burials", () => {

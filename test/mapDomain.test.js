@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   areLocationCandidatesEquivalent,
+  areRouteLatLngTuplesEquivalent,
   beginLeafletSectionHover,
   buildLocationAccuracyGeoJson,
   buildSectionAffordanceMarkers,
@@ -23,6 +24,8 @@ import {
   LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS,
   LOCATION_MAX_ACCEPTABLE_ACCURACY_METERS,
   normalizeLocationPosition,
+  resolveSectionAffordanceMarkerSize,
+  resolveSectionClusterMarkerVisibility,
   resolveClusterExpansionZoom,
   resolveMapPresentationPolicy,
   resolveRoadOverlayVisibility,
@@ -33,6 +36,7 @@ import {
   selectBestRecentLocationCandidate,
   shouldHandleSectionHover,
   shouldIgnoreSectionBackgroundSelection,
+  shouldResetRouteGeometryForRequest,
   shouldRejectLocationCandidate,
   shouldShowPersistentSectionTooltips,
   smoothLocationCandidate,
@@ -236,15 +240,19 @@ describe("mapDomain", () => {
       ]);
     });
 
-    test("builds one affordance and overview marker per grouped section", () => {
-      const affordanceMarkers = buildSectionAffordanceMarkers(sectionsGeoJson);
-      const overviewMarkers = buildSectionOverviewMarkers(sectionsGeoJson, new Map([
-        ["4", 484],
-        ["7", 485],
-      ]));
+    test("builds affordance and overview markers from grouped section counts", () => {
+      const sectionCounts = new Map([
+        ["4", 250],
+        ["7", 1000],
+      ]);
+      const affordanceMarkers = buildSectionAffordanceMarkers(sectionsGeoJson, sectionCounts);
+      const overviewMarkers = buildSectionOverviewMarkers(sectionsGeoJson, sectionCounts);
 
       expect(affordanceMarkers).toHaveLength(2);
       expect(affordanceMarkers[0].id).toBe("section-affordance:4");
+      expect(affordanceMarkers[0].count).toBe(250);
+      expect(affordanceMarkers[0].size).toBeLessThan(affordanceMarkers[1].size);
+      expect(affordanceMarkers[1].size - affordanceMarkers[0].size).toBeLessThanOrEqual(3);
       expect(affordanceMarkers[0].lat).toBeCloseTo(42.7055);
       expect(affordanceMarkers[0].lng).toBeCloseTo(-73.7335);
 
@@ -257,6 +265,22 @@ describe("mapDomain", () => {
         [42.704, -73.735],
         [42.707, -73.732],
       ]);
+    });
+
+    test("keeps count-driven section affordance sizing restrained", () => {
+      const smallSectionSize = resolveSectionAffordanceMarkerSize({
+        count: 100,
+        maxCount: 1600,
+      });
+      const largeSectionSize = resolveSectionAffordanceMarkerSize({
+        count: 1600,
+        maxCount: 1600,
+      });
+
+      expect(smallSectionSize).toBeGreaterThanOrEqual(25);
+      expect(largeSectionSize).toBeLessThanOrEqual(31);
+      expect(largeSectionSize).toBeGreaterThan(smallSectionSize);
+      expect(largeSectionSize - smallSectionSize).toBeLessThanOrEqual(5);
     });
 
     test("formats section labels and selection guards consistently", () => {
@@ -276,16 +300,33 @@ describe("mapDomain", () => {
       })).toBe(false);
     });
 
-    test("uses section overview markers as the default zoomed-out presentation", () => {
+    test("renders section polygons by default across the initial zoom band", () => {
       expect(resolveSectionOverlayVisibility({
         currentZoom: 14,
       })).toEqual({
-        showSectionOverviewMarkers: true,
-        showSections: false,
+        showSectionOverviewMarkers: false,
+        showSections: true,
       });
 
       expect(resolveSectionOverlayVisibility({
         currentZoom: 15,
+      })).toEqual({
+        showSectionOverviewMarkers: false,
+        showSections: true,
+      });
+
+      expect(resolveSectionOverlayVisibility({
+        currentZoom: 16,
+      })).toEqual({
+        showSectionOverviewMarkers: false,
+        showSections: true,
+      });
+    });
+
+    test("keeps section overview markers behind an explicit policy opt-in", () => {
+      expect(resolveSectionOverlayVisibility({
+        currentZoom: 14,
+        preferOverviewMarkers: true,
       })).toEqual({
         showSectionOverviewMarkers: true,
         showSections: false,
@@ -293,6 +334,7 @@ describe("mapDomain", () => {
 
       expect(resolveSectionOverlayVisibility({
         currentZoom: 16,
+        preferOverviewMarkers: true,
       })).toEqual({
         showSectionOverviewMarkers: false,
         showSections: true,
@@ -320,21 +362,38 @@ describe("mapDomain", () => {
       })).toBe(false);
     });
 
-    test("keeps section affordance icons out of the overview policy", () => {
+    test("uses grave-shaped section affordances as the default click cue", () => {
       expect(resolveSectionAffordanceMarkerVisibility({
         currentZoom: 14,
-      })).toBe(false);
+      })).toBe(true);
       expect(resolveSectionAffordanceMarkerVisibility({
         currentZoom: 15,
-      })).toBe(false);
+      })).toBe(true);
       expect(resolveSectionAffordanceMarkerVisibility({
         currentZoom: 16,
       })).toBe(false);
 
       expect(resolveSectionAffordanceMarkerVisibility({
         currentZoom: 15,
-        preferOverviewMarkers: false,
+        preferOverviewMarkers: true,
+      })).toBe(false);
+    });
+
+    test("shows section cluster markers after zooming in before a section is selected", () => {
+      expect(resolveSectionClusterMarkerVisibility({
+        currentZoom: 15,
+      })).toBe(false);
+      expect(resolveSectionClusterMarkerVisibility({
+        currentZoom: 16,
       })).toBe(true);
+      expect(resolveSectionClusterMarkerVisibility({
+        currentZoom: 18,
+        sectionFilter: "4",
+      })).toBe(false);
+      expect(resolveSectionClusterMarkerVisibility({
+        currentZoom: 18,
+        selectedTour: "Mayors",
+      })).toBe(false);
     });
 
     test("keeps marker clustering and expansion zooms explicit", () => {
@@ -368,7 +427,29 @@ describe("mapDomain", () => {
         sectionBurialClusterRadius: MAP_PRESENTATION_POLICY.sectionBurialClusterRadius,
         sectionBurialDisableClusteringZoom: 19,
         showRoads: false,
+        showSectionAffordanceMarkers: true,
+        showSectionClusterMarkers: false,
+        showSectionOverviewMarkers: false,
+        showSections: true,
+      });
+
+      expect(resolveMapPresentationPolicy({
+        currentZoom: 16,
+        maxZoom: 19,
+      })).toMatchObject({
         showSectionAffordanceMarkers: false,
+        showSectionClusterMarkers: true,
+        showSectionOverviewMarkers: false,
+        showSections: true,
+      });
+
+      expect(resolveMapPresentationPolicy({
+        currentZoom: 14,
+        maxZoom: 19,
+        preferSectionOverviewMarkers: true,
+      })).toMatchObject({
+        showSectionAffordanceMarkers: false,
+        showSectionClusterMarkers: false,
         showSectionOverviewMarkers: true,
         showSections: false,
       });
@@ -384,6 +465,29 @@ describe("mapDomain", () => {
         currentZoom: 16,
         showAllBurials: true,
       })).toBe(false);
+    });
+  });
+
+  describe("route geometry rules", () => {
+    test("keeps the current route geometry while live location refreshes the same destination", () => {
+      const destination = [42.70908, -73.72157];
+
+      expect(areRouteLatLngTuplesEquivalent(destination, [42.70908, -73.72157])).toBe(true);
+      expect(shouldResetRouteGeometryForRequest({
+        renderedDestination: destination,
+        requestedDestination: [42.70908, -73.72157],
+      })).toBe(false);
+    });
+
+    test("resets visible route geometry when a new destination is requested", () => {
+      expect(areRouteLatLngTuplesEquivalent(
+        [42.70908, -73.72157],
+        [42.7042, -73.73195]
+      )).toBe(false);
+      expect(shouldResetRouteGeometryForRequest({
+        renderedDestination: [42.70908, -73.72157],
+        requestedDestination: [42.7042, -73.73195],
+      })).toBe(true);
     });
   });
 

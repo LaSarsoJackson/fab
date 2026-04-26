@@ -61,7 +61,6 @@ import {
   beginLeafletSectionHover,
   clearLeafletSectionHover,
   focusMapSelectionRecord,
-  formatSectionOverviewMarkerLabel,
   MAP_PRESENTATION_POLICY,
   getSectionBurialMarkerStyle,
   getSectionPolygonStyle,
@@ -81,6 +80,7 @@ import {
   resolveClusterExpansionZoom,
   resolveMapPresentationPolicy,
   selectBestRecentLocationCandidate,
+  shouldResetRouteGeometryForRequest,
   shouldShowPersistentSectionTooltips,
   shouldRejectLocationCandidate,
   smoothLocationCandidate,
@@ -271,6 +271,47 @@ const CEMETERY_CLUSTER_GLYPH = `
     />
   </svg>
 `;
+const sectionClusterIcons = new Map();
+
+const formatSectionClusterCountLabel = (count = 0) => {
+  const normalizedCount = Math.max(0, Number(count) || 0);
+  if (normalizedCount >= 1000) {
+    return `${(normalizedCount / 1000).toFixed(normalizedCount >= 10000 ? 0 : 1).replace(/\.0$/, "")}k`;
+  }
+
+  return String(normalizedCount);
+};
+
+const getSectionClusterIconSize = (count = 0) => {
+  const normalizedCount = Math.max(0, Number(count) || 0);
+  if (normalizedCount >= 3000) return 34;
+  if (normalizedCount >= 1500) return 32;
+  if (normalizedCount >= 700) return 31;
+  return 30;
+};
+
+const getSectionClusterIcon = (count = 0) => {
+  const normalizedSize = getSectionClusterIconSize(count);
+  const label = formatSectionClusterCountLabel(count);
+  const cacheKey = `${normalizedSize}:${label}`;
+
+  if (!sectionClusterIcons.has(cacheKey)) {
+    sectionClusterIcons.set(cacheKey, L.divIcon({
+      html: `
+        <div class="cemetery-cluster section-cluster">
+          ${CEMETERY_CLUSTER_GLYPH}
+          <span class="cemetery-cluster__count">${label}</span>
+        </div>
+      `,
+      className: 'custom-cluster-icon section-cluster-icon',
+      iconSize: [normalizedSize, normalizedSize],
+      iconAnchor: [normalizedSize / 2, normalizedSize / 2],
+    }));
+  }
+
+  return sectionClusterIcons.get(cacheKey);
+};
+
 const SECTION_AFFORDANCE_GLYPH = `
   <svg class="section-affordance__glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
     <path
@@ -294,19 +335,23 @@ const SECTION_AFFORDANCE_GLYPH = `
     />
   </svg>
 `;
-let sectionAffordanceIcon = null;
+const sectionAffordanceIcons = new Map();
 
-const getSectionAffordanceIcon = () => {
-  if (!sectionAffordanceIcon) {
-    sectionAffordanceIcon = L.divIcon({
+const getSectionAffordanceIcon = (size = 28) => {
+  const normalizedSize = Number.isFinite(Number(size))
+    ? Math.round(Number(size))
+    : 28;
+
+  if (!sectionAffordanceIcons.has(normalizedSize)) {
+    sectionAffordanceIcons.set(normalizedSize, L.divIcon({
       html: `<div class="section-affordance">${SECTION_AFFORDANCE_GLYPH}</div>`,
       className: "section-affordance-icon",
-      iconSize: [28, 28],
-      iconAnchor: [14, 14],
-    });
+      iconSize: [normalizedSize, normalizedSize],
+      iconAnchor: [normalizedSize / 2, normalizedSize / 2],
+    }));
   }
 
-  return sectionAffordanceIcon;
+  return sectionAffordanceIcons.get(normalizedSize);
 };
 
 const isRenderableBounds = (bounds) => (
@@ -628,9 +673,41 @@ const MapSectionOverviewMarkers = memo(function MapSectionOverviewMarkers({
             offset={[0, -6]}
             className="section-label section-label--overview"
           >
-            {formatSectionOverviewMarkerLabel(marker)}
+            {`Section ${marker.sectionValue}`}
           </Tooltip>
         </CircleMarker>
+      ))}
+    </>
+  );
+});
+
+const MapSectionClusterMarkers = memo(function MapSectionClusterMarkers({
+  markers,
+  onSelectSection,
+}) {
+  if (!Array.isArray(markers) || markers.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      {markers.map((marker) => (
+        <Marker
+          key={`cluster-${marker.id}`}
+          position={[marker.lat, marker.lng]}
+          icon={getSectionClusterIcon(marker.count)}
+          eventHandlers={{
+            click: () => onSelectSection?.(marker.sectionValue, marker.bounds),
+          }}
+        >
+          <Tooltip
+            direction="top"
+            offset={[0, -8]}
+            className="section-label section-label--overview"
+          >
+            {`Section ${marker.sectionValue}`}
+          </Tooltip>
+        </Marker>
       ))}
     </>
   );
@@ -650,7 +727,7 @@ const MapSectionAffordanceMarkers = memo(function MapSectionAffordanceMarkers({
         <Marker
           key={marker.id}
           position={[marker.lat, marker.lng]}
-          icon={getSectionAffordanceIcon()}
+          icon={getSectionAffordanceIcon(marker.size)}
           eventHandlers={{
             click: () => onSelectSection?.(marker.sectionValue, marker.bounds),
           }}
@@ -660,7 +737,7 @@ const MapSectionAffordanceMarkers = memo(function MapSectionAffordanceMarkers({
             offset={[0, -8]}
             className="section-label section-label--overview"
           >
-            {`View graves in section ${marker.sectionValue}`}
+            {`Section ${marker.sectionValue}`}
           </Tooltip>
         </Marker>
       ))}
@@ -688,6 +765,7 @@ const MapStaticLayers = memo(function MapStaticLayers({
   onEachSectionFeature,
   onLayerControlOpenChange,
   onLocateMarker,
+  onZoomChange,
   onResetSiteTwinDebugState,
   onSelectSection,
   onToggleOverlay,
@@ -708,6 +786,7 @@ const MapStaticLayers = memo(function MapStaticLayers({
   selectedTour,
   showRoads,
   showSectionAffordanceMarkers,
+  showSectionClusterMarkers,
   showSections,
   showSectionOverviewMarkers,
   tourNames,
@@ -764,7 +843,7 @@ const MapStaticLayers = memo(function MapStaticLayers({
         paddedBoundaryBounds={PADDED_BOUNDARY_BOUNDS}
         maxZoom={activeBasemapMaxZoom}
       />
-      <MapController mapRef={mapRef} />
+      <MapController mapRef={mapRef} onZoomChange={onZoomChange} />
       <MapTourController selectedTour={selectedTour} overlayMaps={overlayMaps} tourNames={tourNames} />
       {overlayVisibility.siteTwin && showSiteTwinSurface && isSiteTwinReady(siteTwinManifest) && (
         <ImageOverlay
@@ -799,6 +878,12 @@ const MapStaticLayers = memo(function MapStaticLayers({
       {showSectionAffordanceMarkers && (
         <MapSectionAffordanceMarkers
           markers={sectionAffordanceMarkers}
+          onSelectSection={onSelectSection}
+        />
+      )}
+      {showSectionClusterMarkers && (
+        <MapSectionClusterMarkers
+          markers={sectionOverviewMarkers}
           onSelectSection={onSelectSection}
         />
       )}
@@ -911,7 +996,7 @@ export default function BurialMap() {
   const [tourGeoJsonByName, setTourGeoJsonByName] = useState({});
   const [tourBoundsByName, setTourBoundsByName] = useState({});
   const [tourResultsByName, setTourResultsByName] = useState({});
-  const [currentZoom, setCurrentZoom] = useState(14);
+  const [currentZoom, setCurrentZoom] = useState(MAP_ZOOM);
   const [isLayerControlOpen, setIsLayerControlOpen] = useState(false);
   const [selectionState, setSelectionState] = useState(() => createMapSelectionState());
   const [mapEngine, setMapEngine] = useState(() => getMapEngineKind(devSurfaces));
@@ -1004,6 +1089,7 @@ export default function BurialMap() {
   const locationRecentCandidatesRef = useRef([]);
   const selectedLocationFixRef = useRef(null);
   const focusLocationOnNextAcceptedFixRef = useRef(false);
+  const renderedRouteDestinationRef = useRef(null);
 
   //-----------------------------------------------------------------------------
   // Memoized Values
@@ -1103,6 +1189,7 @@ export default function BurialMap() {
     sectionDetailMinZoom,
     showRoads,
     showSectionAffordanceMarkers,
+    showSectionClusterMarkers,
     showSectionOverviewMarkers,
     showSections,
   } = mapPresentationPolicy;
@@ -1512,8 +1599,8 @@ export default function BurialMap() {
     [sectionBurialCounts, sectionsData]
   );
   const sectionAffordanceMarkers = useMemo(
-    () => buildSectionAffordanceMarkers(sectionsData),
-    [sectionsData]
+    () => buildSectionAffordanceMarkers(sectionsData, sectionBurialCounts),
+    [sectionBurialCounts, sectionsData]
   );
 
   const burialLookup = useMemo(
@@ -1774,8 +1861,12 @@ export default function BurialMap() {
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
+        const previousLocation = acceptedLocationRef.current;
         const nextLocation = updateLocationFromPosition(position);
-        if (nextLocation && focusLocationOnNextAcceptedFixRef.current) {
+        const didAcceptNewLocation = nextLocation &&
+          !areLocationCandidatesEquivalent(previousLocation, nextLocation);
+
+        if (didAcceptNewLocation && focusLocationOnNextAcceptedFixRef.current) {
           focusLocationOnNextAcceptedFixRef.current = false;
           focusUserLocationOnMap(nextLocation);
         }
@@ -1967,6 +2058,8 @@ export default function BurialMap() {
       setRouteGeoJson(null);
       setIsRouteLoading(false);
       setRouteError("");
+      activeRouteBurialIdRef.current = null;
+      renderedRouteDestinationRef.current = null;
       setActiveRouteBurialId(null);
     }
 
@@ -1986,6 +2079,8 @@ export default function BurialMap() {
     setRouteGeoJson(null);
     setIsRouteLoading(false);
     setRouteError("");
+    activeRouteBurialIdRef.current = null;
+    renderedRouteDestinationRef.current = null;
     setActiveRouteBurialId(null);
     setDirectionsMenuAnchorEl(null);
     setDirectionsMenuBurial(null);
@@ -2213,17 +2308,6 @@ export default function BurialMap() {
   const handleResultClick = useCallback((burial) => {
     focusBurial(burial);
   }, [focusBurial]);
-
-  /**
-   * Handles clicking on a marker
-   */
-  const handleMarkerClick = useCallback((burial) => {
-    selectBurial(burial, {
-      animate: false,
-      openTourPopup: true,
-      preserveViewport: true,
-    });
-  }, [selectBurial]);
 
   /**
    * Creates a marker cluster group with custom styling
@@ -2473,6 +2557,11 @@ export default function BurialMap() {
     }
   }, [dispatchSelectionAction, handleHoverBurialChange]);
 
+  const selectMapBurial = useCallback((burial, options = {}) => {
+    clearHoveredSection();
+    selectBurial(burial, options);
+  }, [clearHoveredSection, selectBurial]);
+
   const syncLeafletSelectedMarkerIcon = useCallback((burialId, layerOverride = null) => {
     if (isCustomMapRuntimeActive || !burialId) {
       return;
@@ -2578,6 +2667,7 @@ export default function BurialMap() {
     setRouteError("");
     setRoutingOrigin([location.latitude, location.longitude]);
     setRoutingDestination([burial.coordinates[1], burial.coordinates[0]]);
+    activeRouteBurialIdRef.current = burial.id;
     setActiveRouteBurialId(burial.id);
   }, [
     ensureLocationWatchActive,
@@ -2595,6 +2685,8 @@ export default function BurialMap() {
     setRouteGeoJson(null);
     setIsRouteLoading(false);
     setRouteError("");
+    activeRouteBurialIdRef.current = null;
+    renderedRouteDestinationRef.current = null;
     setActiveRouteBurialId(null);
   }, []);
 
@@ -2630,15 +2722,22 @@ export default function BurialMap() {
     if (!routingOrigin || !routingDestination) {
       setRouteGeoJson(null);
       setIsRouteLoading(false);
+      renderedRouteDestinationRef.current = null;
       return undefined;
     }
 
+    const shouldResetRouteGeometry = shouldResetRouteGeometryForRequest({
+      renderedDestination: renderedRouteDestinationRef.current,
+      requestedDestination: routingDestination,
+    });
     const abortController = typeof AbortController === "function"
       ? new AbortController()
       : null;
     let ignore = false;
 
-    setRouteGeoJson(null);
+    if (shouldResetRouteGeometry) {
+      setRouteGeoJson(null);
+    }
     setIsRouteLoading(true);
     setRouteError("");
 
@@ -2655,8 +2754,9 @@ export default function BurialMap() {
 
       setRouteGeoJson(routeResult.geojson);
       setIsRouteLoading(false);
+      renderedRouteDestinationRef.current = routingDestination;
 
-      if (isLatLngBoundsExpressionValid(routeResult.bounds)) {
+      if (shouldResetRouteGeometry && isLatLngBoundsExpressionValid(routeResult.bounds)) {
         const map = getMapInstance();
         if (map) {
           fitMapBoundsInViewport(map, routeResult.bounds, {
@@ -2670,11 +2770,17 @@ export default function BurialMap() {
       }
 
       console.error("Routing error:", error);
-      setRouteGeoJson(null);
       setIsRouteLoading(false);
       setRouteError(getRoutingErrorMessage(error));
+      if (!shouldResetRouteGeometry) {
+        return;
+      }
+
+      setRouteGeoJson(null);
       setRoutingOrigin(null);
       setRoutingDestination(null);
+      activeRouteBurialIdRef.current = null;
+      renderedRouteDestinationRef.current = null;
       setActiveRouteBurialId(null);
     });
 
@@ -3011,7 +3117,7 @@ export default function BurialMap() {
     });
 
     marker.on('click', () => {
-      selectBurial(burial, {
+      selectMapBurial(burial, {
         animate: false,
         openTourPopup: true,
         preserveViewport: true,
@@ -3034,7 +3140,7 @@ export default function BurialMap() {
     handleHoverBurialChange,
     removeFromResults,
     schedulePopupLayout,
-    selectBurial,
+    selectMapBurial,
   ]);
 
   /**
@@ -3216,17 +3322,6 @@ export default function BurialMap() {
   }, [syncAllSectionMarkerPresentation]);
 
   useEffect(() => {
-    const map = getMapInstance();
-    if (!map) return;
-
-    map.on('zoomend', handleZoomEnd);
-
-    return () => {
-      map.off('zoomend', handleZoomEnd);
-    };
-  }, [getMapInstance, handleZoomEnd]);
-
-  useEffect(() => {
     if (isCustomMapRuntimeActive) {
       return undefined;
     }
@@ -3335,6 +3430,7 @@ export default function BurialMap() {
   const activateSectionBrowse = useCallback((sectionValue, bounds) => {
     const nextSection = sectionValue || "";
     requestBurialDataLoad();
+    clearHoveredSection();
     clearActiveBurialFocus({ clearHover: true });
     setSectionFilter(nextSection);
     setLotTierFilter("");
@@ -3348,7 +3444,7 @@ export default function BurialMap() {
     }
 
     setShowAllBurials(false);
-  }, [clearActiveBurialFocus, focusSectionOnMap, requestBurialDataLoad]);
+  }, [clearActiveBurialFocus, clearHoveredSection, focusSectionOnMap, requestBurialDataLoad]);
 
   const clearSectionFilters = useCallback(() => {
     clearActiveBurialFocus({ clearHover: true });
@@ -4015,7 +4111,7 @@ export default function BurialMap() {
             onPopupClose={handlePopupBurialClose}
             onPopupOpen={handlePopupBurialOpen}
             onRemoveSelectedBurial={removeFromResults}
-            onSelectBurial={selectBurial}
+            onSelectBurial={selectMapBurial}
             onZoomChange={handleZoomEnd}
             roadsData={roadsData}
             routeGeoJson={routeGeoJson}
@@ -4036,6 +4132,7 @@ export default function BurialMap() {
             showAllBurials={showAllBurials}
             showRoads={showRoads}
             showSectionAffordanceMarkers={overlayVisibility.sections !== false && showSectionAffordanceMarkers}
+            showSectionClusterMarkers={overlayVisibility.sections !== false && showSectionClusterMarkers}
             showSections={overlayVisibility.sections !== false && showSections}
             showSectionOverviewMarkers={overlayVisibility.sections !== false && showSectionOverviewMarkers}
             siteTwinCandidates={filteredSiteTwinCandidates}
@@ -4079,11 +4176,12 @@ export default function BurialMap() {
             onResetSiteTwinDebugState={handleResetSiteTwinDebugState}
             onSelectSection={activateSectionBrowse}
             onToggleOverlay={handleToggleOverlay}
-            onSelectBurial={selectBurial}
+            onSelectBurial={selectMapBurial}
             onUpdateSiteTwinDebugState={handleUpdateSiteTwinDebugState}
             overlayVisibility={overlayVisibility}
             overlayMaps={overlayMaps}
             roadsData={roadsData}
+            onZoomChange={handleZoomEnd}
             sectionsData={sectionsData}
             siteTwinDebugState={normalizedSiteTwinDebugState}
             siteTwinFilteredSummary={siteTwinFilteredSummary}
@@ -4096,6 +4194,7 @@ export default function BurialMap() {
             selectedTour={selectedTour}
             showRoads={showRoads}
             showSectionAffordanceMarkers={overlayVisibility.sections && showSectionAffordanceMarkers}
+            showSectionClusterMarkers={overlayVisibility.sections && showSectionClusterMarkers}
             showSections={overlayVisibility.sections && showSections}
             showSectionOverviewMarkers={overlayVisibility.sections && showSectionOverviewMarkers}
             tourNames={tourNames}
@@ -4147,7 +4246,11 @@ export default function BurialMap() {
               eventHandlers={{
                 mouseover: () => handleHoverBurialChange(burial.id),
                 mouseout: () => clearHoveredBurialIfCurrent(burial.id),
-                click: () => handleMarkerClick(burial),
+                click: () => selectMapBurial(burial, {
+                  animate: false,
+                  openTourPopup: true,
+                  preserveViewport: true,
+                }),
                 popupopen: ({ popup }) => {
                   handlePopupBurialOpen(burial);
                   schedulePopupLayout(popup);

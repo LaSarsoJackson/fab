@@ -619,7 +619,7 @@ export function ActiveLeafletBasemap({ basemap, keepBuffer = DEFAULT_BASEMAP_KEE
   return <LeafletBasemapLayer basemap={basemap} keepBuffer={keepBuffer} />;
 }
 
-export function MapController({ mapRef }) {
+export function MapController({ mapRef, onZoomChange }) {
   const leafletMap = useMap();
 
   useEffect(() => {
@@ -632,6 +632,17 @@ export function MapController({ mapRef }) {
       }
     };
   }, [leafletMap, mapRef]);
+
+  useEffect(() => {
+    if (typeof onZoomChange !== "function") {
+      return undefined;
+    }
+
+    leafletMap.on("zoomend", onZoomChange);
+    return () => {
+      leafletMap.off("zoomend", onZoomChange);
+    };
+  }, [leafletMap, onZoomChange]);
 
   return null;
 }
