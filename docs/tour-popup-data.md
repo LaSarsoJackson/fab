@@ -23,7 +23,7 @@ canonical fields so the popup layer can stay simple.
 3. [`src/features/browse/browseResults.js`](../src/features/browse/browseResults.js) calls `buildTourBrowseResult(...)` and attaches canonical fields:
    - `portraitImageName`
    - `biographyLink`
-4. [`src/features/tours/tourMetadata.js`](../src/features/tours/tourMetadata.js) carries those canonical fields into matched burial records.
+4. [`src/features/tours/tourRecordHarmonization.js`](../src/features/tours/tourRecordHarmonization.js) carries those canonical fields into matched burial records and normalizes tour stops against canonical burial records.
 5. [`src/features/map/mapRecordPresentation.js`](../src/features/map/mapRecordPresentation.js) builds one popup view model from the normalized record.
 6. [`src/Map.jsx`](../src/Map.jsx) only renders the popup component and manages Leaflet lifecycle.
 
@@ -81,6 +81,12 @@ If you are changing how biographies are inferred:
 - keep the inference rule generic
 - prefer stronger matching keys over looser ones
 - do not add popup-specific conditionals in `Map.jsx`
+
+If you are changing how tour and burial records are matched or enriched:
+
+- edit [`src/features/tours/tourRecordHarmonization.js`](../src/features/tours/tourRecordHarmonization.js)
+- keep the same logic shared by runtime browse results and admin/generated artifacts
+- cover the change in [`test/tourRecordHarmonization.test.js`](../test/tourRecordHarmonization.test.js)
 
 If you are changing popup presentation:
 

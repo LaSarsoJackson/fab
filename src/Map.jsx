@@ -40,58 +40,39 @@ import BurialSidebar from "./BurialSidebar";
 import {
   buildBurialSectionIndex,
   buildBurialBrowseResult,
-  buildSearchIndex,
   buildTourBrowseResult,
   filterBurialRecordsBySection,
   formatBrowseResultName,
+} from "./features/browse/browseResults";
+import {
+  buildSearchIndex,
   smartSearch,
   sortSectionValues,
-} from "./features/browse";
+} from "./features/browse/burialSearch";
 import {
-  ActiveLeafletBasemap,
   areLocationCandidatesEquivalent,
-  buildRoadRoutingGraph,
   buildLocationAccuracyGeoJson,
   clearMapSelectionFocus,
   clearMapSelectionFocusForRecord,
-  CustomZoomControl,
-  createMapRecordKey,
   createMapSelectionState,
-  DefaultExtentButton,
   buildSectionAffordanceMarkers,
   buildSectionBoundsById,
   buildSectionOverviewMarkers,
   beginLeafletSectionHover,
-  calculateWalkingRoute,
   clearLeafletSectionHover,
-  cleanRecordValue,
-  ExperimentalBurialGlyphSymbolizer,
   focusMapSelectionRecord,
   formatSectionOverviewMarkerLabel,
-  getEmptyCoreMapData,
-  getRoutingErrorMessage,
   MAP_PRESENTATION_POLICY,
   getSectionBurialMarkerStyle,
   getSectionPolygonStyle,
   hasIndexedBurialPlacement,
   LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS,
   LOCATION_RECENT_FIX_WINDOW_MS,
-  MapBounds,
-  MapControlStack,
-  MapController,
-  MapHomeButton,
-  MapLayerControl,
-  MapZoomControl,
-  MobileLocateButton,
   normalizeLocationPosition,
   inferPointerType,
   isLeafletSectionLayerHovered,
-  LeafletGeoJsonLayer,
   isTouchLikePointerType,
-  loadCoreMapData,
   PMTILES_EXPERIMENT_GLYPH_PALETTE,
-  PmtilesExperimentLegend,
-  PopupCardContent,
   ROAD_LAYER_STYLE,
   reduceMapSelectionState,
   refreshMapSelectionRecords,
@@ -99,9 +80,7 @@ import {
   replaceMapSelectionRecords,
   resolveClusterExpansionZoom,
   resolveMapPresentationPolicy,
-  RouteStatusOverlay,
   selectBestRecentLocationCandidate,
-  SiteTwinDebugControl,
   shouldShowPersistentSectionTooltips,
   shouldRejectLocationCandidate,
   smoothLocationCandidate,
@@ -109,39 +88,60 @@ import {
   shouldIgnoreSectionBackgroundSelection,
   resetMapSelection,
   setMapSelectionHover,
-} from "./features/map";
-import { CustomMapSurface } from "./features/map/engine/CustomMapSurface";
+  ExperimentalBurialGlyphSymbolizer,
+} from "./features/map/mapDomain";
+import { getEmptyCoreMapData, loadCoreMapData } from "./features/map/coreMapData";
 import {
+  ActiveLeafletBasemap,
+  CustomZoomControl,
+  DefaultExtentButton,
   fitBoundsInVisibleViewport,
+  LeafletGeoJsonLayer,
+  MapBounds,
+  MapControlStack,
+  MapController,
+  MapHomeButton,
+  MapLayerControl,
+  MapZoomControl,
+  MobileLocateButton,
+  PmtilesExperimentLegend,
+  RouteStatusOverlay,
   panIntoVisibleViewport,
   schedulePopupInView,
-} from "./features/map/leafletViewport";
-import { buildDirectionsLink } from "./features/navigation";
+  SiteTwinDebugControl,
+} from "./features/map/mapChrome";
+import { cleanRecordValue } from "./features/map/mapRecordPresentation";
+import { PopupCardContent, createMapRecordKey } from "./features/map/popupCardContent";
+import { calculateWalkingRoute, getRoutingErrorMessage, buildRoadRoutingGraph } from "./features/map/mapRouting";
+import { CustomMapSurface } from "./features/map/engine/CustomMapSurface";
 import {
   buildFieldPacketShareUrl,
   buildFieldPacketState,
-  buildSharedSelectionPresentation,
+} from "./features/deeplinks/fieldPackets";
+import { buildSharedSelectionPresentation } from "./features/deeplinks/sharePresentation";
+import {
   parseDeepLinkState,
-} from "./features/deeplinks";
+} from "./features/deeplinks/urlState";
 import {
   buildBurialLookup,
   harmonizeBurialBrowseResult,
   harmonizeTourBrowseResult,
-  TOUR_DEFINITIONS,
-  TOUR_STYLES,
-} from "./features/tours";
-import { getGeoJsonBounds, hasValidGeoJsonCoordinates, isLatLngBoundsExpressionValid } from "./shared/geo";
+} from "./features/tours/tourRecordHarmonization";
+import { TOUR_DEFINITIONS, TOUR_STYLES } from "./features/fab/profile";
+import { getGeoJsonBounds, hasValidGeoJsonCoordinates, isLatLngBoundsExpressionValid } from "./shared/geo/geoJsonBounds";
+import { buildDirectionsLink } from "./shared/routing";
 import {
   cancelIdleTask,
   buildPublicAssetUrl,
+  DEVELOPMENT_SURFACES,
+  getDevelopmentRoutingProvider,
   getMapEngineKind,
   getRuntimeEnv,
-  getRuntimeRoutingProvider,
   isFieldPacketsEnabled as resolveFieldPacketsEnabled,
   scheduleIdleTask,
-  setStoredCustomMapEngineOverride,
+  setStoredDevelopmentSurfaceOverride,
   syncDocumentMetadata,
-} from "./shared/runtime";
+} from "./shared/runtime/runtimeEnv";
 import {
   DEFAULT_SITE_TWIN_DEBUG_STATE,
   EMPTY_SITE_TWIN_MANIFEST,
@@ -217,7 +217,7 @@ const GEOLOCATION_REQUEST_OPTIONS = {
   maximumAge: 0,
   timeout: 20000,
 };
-const PMTILES_EXPERIMENT_STORAGE_KEY = APP_PROFILE.runtimeStorageKeys.pmtilesExperiment;
+const PMTILES_EXPERIMENT_SURFACE = DEVELOPMENT_SURFACES.pmtilesExperiment;
 const SECTION_MARKER_BATCH_SIZE = 300;
 const SEARCH_INDEX_PUBLIC_PATH = APP_PROFILE.artifacts.searchIndexPublicPath;
 const EMPTY_TOUR_RESULTS = [];
@@ -230,7 +230,7 @@ const DEFAULT_MAX_MAP_ZOOM = MAP_BASEMAPS.reduce((highestZoom, basemap) => (
     : highestZoom
 ), MAP_PRESENTATION_POLICY.sectionBurialIndividualMinZoom);
 const SITE_TWIN_CONFIG = APP_PROFILE.map.siteTwin || null;
-const SITE_TWIN_DEBUG_STORAGE_KEY = APP_PROFILE.runtimeStorageKeys.siteTwinDebug;
+const SITE_TWIN_DEBUG_STORAGE_KEY = APP_PROFILE.devStorageKeys.siteTwinDebug;
 const MAP_OVERLAY_OPTIONS = [
   { id: "roads", label: "Roads", defaultVisible: false },
   { id: "boundary", label: "Boundary", defaultVisible: true },
@@ -889,9 +889,10 @@ export default function BurialMap() {
   const runtimeEnv = useMemo(() => getRuntimeEnv(), []);
   const {
     isDev,
+    devSurfaces,
     featureFlags,
   } = runtimeEnv;
-  const routingProvider = getRuntimeRoutingProvider(featureFlags);
+  const routingProvider = getDevelopmentRoutingProvider(devSurfaces);
   const isFieldPacketsEnabled = resolveFieldPacketsEnabled(featureFlags);
   const tourDefinitions = TOUR_DEFINITIONS;
   const tourStyles = TOUR_STYLES;
@@ -913,7 +914,7 @@ export default function BurialMap() {
   const [currentZoom, setCurrentZoom] = useState(14);
   const [isLayerControlOpen, setIsLayerControlOpen] = useState(false);
   const [selectionState, setSelectionState] = useState(() => createMapSelectionState());
-  const [mapEngine, setMapEngine] = useState(() => getMapEngineKind(featureFlags));
+  const [mapEngine, setMapEngine] = useState(() => getMapEngineKind(devSurfaces));
   const [selectedTour, setSelectedTour] = useState(null);
   const [activeBasemapId, setActiveBasemapId] = useState(() => (
     MAP_CONTROLLED_BASEMAPS.some((basemap) => basemap.id === DEFAULT_BASEMAP_ID)
@@ -944,7 +945,7 @@ export default function BurialMap() {
   const [installPromptEvent, setInstallPromptEvent] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
-  const [isPmtilesEnabled, setIsPmtilesEnabled] = useState(false);
+  const [isPmtilesEnabled, setIsPmtilesEnabled] = useState(() => Boolean(devSurfaces.pmtilesExperiment));
   const [hasRequestedBurialData, setHasRequestedBurialData] = useState(false);
   const [fieldPacket, setFieldPacket] = useState(null);
   const [fieldPacketNotice, setFieldPacketNotice] = useState(null);
@@ -1016,7 +1017,7 @@ export default function BurialMap() {
     () => buildRoadRoutingGraph(roadsData),
     [roadsData]
   );
-  const isCustomMapEngineEnabled = mapEngine === "custom";
+  const isCustomMapRuntimeActive = mapEngine === "custom";
   const selectedMarkerOrderById = useMemo(
     () => new Map(selectedBurials.map((burial, index) => [burial.id, index + 1])),
     [selectedBurials]
@@ -1228,7 +1229,10 @@ export default function BurialMap() {
         return currentEngine;
       }
 
-      setStoredCustomMapEngineOverride(nextEngine === "custom");
+      setStoredDevelopmentSurfaceOverride(
+        DEVELOPMENT_SURFACES.customMapEngine.id,
+        nextEngine === "custom"
+      );
       return nextEngine;
     });
   }, [isDev]);
@@ -1384,23 +1388,14 @@ export default function BurialMap() {
   }, [closeMapPopup, shouldUseMapPopups]);
 
   useEffect(() => {
-    if (!isDev || typeof window === 'undefined') {
+    if (!isDev) {
       setIsPmtilesEnabled(false);
       return;
     }
 
-    const storedValue = window.localStorage.getItem(PMTILES_EXPERIMENT_STORAGE_KEY);
-    setIsPmtilesEnabled(storedValue === 'true');
-  }, [isDev]);
-
-  useEffect(() => {
-    if (!isDev || typeof window === 'undefined') {
-      return;
-    }
-
-    window.localStorage.setItem(
-      PMTILES_EXPERIMENT_STORAGE_KEY,
-      isPmtilesEnabled ? 'true' : 'false'
+    setStoredDevelopmentSurfaceOverride(
+      PMTILES_EXPERIMENT_SURFACE.id,
+      isPmtilesEnabled
     );
   }, [isDev, isPmtilesEnabled]);
 
@@ -2479,7 +2474,7 @@ export default function BurialMap() {
   }, [dispatchSelectionAction, handleHoverBurialChange]);
 
   const syncLeafletSelectedMarkerIcon = useCallback((burialId, layerOverride = null) => {
-    if (isCustomMapEngineEnabled || !burialId) {
+    if (isCustomMapRuntimeActive || !burialId) {
       return;
     }
 
@@ -2498,17 +2493,17 @@ export default function BurialMap() {
     if (typeof layer.setZIndexOffset === "function") {
       layer.setZIndexOffset(isHighlighted ? 1200 : 1000);
     }
-  }, [isCustomMapEngineEnabled, selectedMarkerOrderById]);
+  }, [isCustomMapRuntimeActive, selectedMarkerOrderById]);
 
   const syncLeafletSelectedMarkerIcons = useCallback(() => {
-    if (isCustomMapEngineEnabled) {
+    if (isCustomMapRuntimeActive) {
       return;
     }
 
     selectedMarkerOrderById.forEach((_, burialId) => {
       syncLeafletSelectedMarkerIcon(burialId);
     });
-  }, [isCustomMapEngineEnabled, selectedMarkerOrderById, syncLeafletSelectedMarkerIcon]);
+  }, [isCustomMapRuntimeActive, selectedMarkerOrderById, syncLeafletSelectedMarkerIcon]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -3046,7 +3041,7 @@ export default function BurialMap() {
    * Update section burial marker display
    */
   useEffect(() => {
-    if (isCustomMapEngineEnabled) {
+    if (isCustomMapRuntimeActive) {
       sectionMarkersByIdRef.current = new Map();
       activeSectionMarkerIdRef.current = null;
       hoveredSectionMarkerIdRef.current = null;
@@ -3136,18 +3131,18 @@ export default function BurialMap() {
     showAllBurials,
     syncInteractiveSectionMarkers,
     getMapInstance,
-    isCustomMapEngineEnabled,
+    isCustomMapRuntimeActive,
   ]);
 
   useEffect(() => {
-    if (isCustomMapEngineEnabled || !showAllBurials || !sectionFilter) {
+    if (isCustomMapRuntimeActive || !showAllBurials || !sectionFilter) {
       return;
     }
 
     syncAllSectionMarkerPresentation();
   }, [
     currentZoom,
-    isCustomMapEngineEnabled,
+    isCustomMapRuntimeActive,
     sectionFilter,
     showAllBurials,
     syncAllSectionMarkerPresentation,
@@ -3162,7 +3157,7 @@ export default function BurialMap() {
   }, [
     activeBurialId,
     hoveredBurialId,
-    isCustomMapEngineEnabled,
+    isCustomMapRuntimeActive,
     selectedMarkerOrderById,
     syncLeafletSelectedMarkerIcons,
   ]);
@@ -3179,7 +3174,7 @@ export default function BurialMap() {
     if (openPopupForBurial(pendingBurial)) {
       pendingPopupBurialRef.current = null;
     }
-  }, [activeBurialId, isCustomMapEngineEnabled, openPopupForBurial, selectedBurials, selectedTour, shouldUseMapPopups]);
+  }, [activeBurialId, isCustomMapRuntimeActive, openPopupForBurial, selectedBurials, selectedTour, shouldUseMapPopups]);
 
   useEffect(() => {
     if (!shouldUseMapPopups || activeBurialId === null || typeof window === "undefined") {
@@ -3203,7 +3198,7 @@ export default function BurialMap() {
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeBurialId, isCustomMapEngineEnabled, openPopupForBurial, selectedBurials, shouldUseMapPopups]);
+  }, [activeBurialId, isCustomMapRuntimeActive, openPopupForBurial, selectedBurials, shouldUseMapPopups]);
 
   /**
    * Handle map zoom changes
@@ -3232,7 +3227,7 @@ export default function BurialMap() {
   }, [getMapInstance, handleZoomEnd]);
 
   useEffect(() => {
-    if (isCustomMapEngineEnabled) {
+    if (isCustomMapRuntimeActive) {
       return undefined;
     }
 
@@ -3244,10 +3239,10 @@ export default function BurialMap() {
         sectionTooltipSyncFrameRef.current = null;
       }
     };
-  }, [currentZoom, isCustomMapEngineEnabled, scheduleSectionTooltipSync, sectionFilter, showAllBurials]);
+  }, [currentZoom, isCustomMapRuntimeActive, scheduleSectionTooltipSync, sectionFilter, showAllBurials]);
 
   useEffect(() => {
-    if (isCustomMapEngineEnabled) {
+    if (isCustomMapRuntimeActive) {
       return undefined;
     }
 
@@ -3287,10 +3282,10 @@ export default function BurialMap() {
       window.removeEventListener('touchstart', handleSectionInputStart, true);
       window.removeEventListener('blur', handleInterruptedSectionHover);
     };
-  }, [clearHoveredSection, getMapInstance, isCustomMapEngineEnabled, markSectionInputMode]);
+  }, [clearHoveredSection, getMapInstance, isCustomMapRuntimeActive, markSectionInputMode]);
 
   useEffect(() => {
-    if (isCustomMapEngineEnabled) {
+    if (isCustomMapRuntimeActive) {
       return undefined;
     }
 
@@ -3314,7 +3309,7 @@ export default function BurialMap() {
       map.off("zoomstart", clearInterruptedBurialHover);
       window.removeEventListener("blur", clearInterruptedBurialHover);
     };
-  }, [clearHoveredBurialIfCurrent, getMapInstance, isCustomMapEngineEnabled]);
+  }, [clearHoveredBurialIfCurrent, getMapInstance, isCustomMapRuntimeActive]);
 
   const resetMapToDefaultBounds = useCallback(() => {
     const map = getMapInstance();
@@ -3640,7 +3635,7 @@ export default function BurialMap() {
       const tourBounds = getGeoJsonBounds(sanitizedGeoJson);
       let layer = null;
 
-      if (!isCustomMapEngineEnabled) {
+      if (!isCustomMapRuntimeActive) {
         layer = L.geoJSON(sanitizedGeoJson, {
           pointToLayer: createTourMarker(definition.key, tourStyles),
           onEachFeature: createOnEachTourFeature(
@@ -3699,7 +3694,7 @@ export default function BurialMap() {
     resolveTourBrowseResult,
     schedulePopupLayout,
     selectBurial,
-    isCustomMapEngineEnabled,
+    isCustomMapRuntimeActive,
     tourDefinitionsByName,
     tourStyles,
   ]);
@@ -3714,12 +3709,12 @@ export default function BurialMap() {
 
   useEffect(() => {
     if (!selectedTour || !selectedTourBounds) return;
-    if (!isCustomMapEngineEnabled && !selectedTourLayer) return;
-    if (isCustomMapEngineEnabled && !selectedTourGeoJson) return;
+    if (!isCustomMapRuntimeActive && !selectedTourLayer) return;
+    if (isCustomMapRuntimeActive && !selectedTourGeoJson) return;
     focusTourOnMap(selectedTour);
   }, [
     focusTourOnMap,
-    isCustomMapEngineEnabled,
+    isCustomMapRuntimeActive,
     selectedTour,
     selectedTourBounds,
     selectedTourGeoJson,
@@ -3840,7 +3835,7 @@ export default function BurialMap() {
         open={appMenuOpen}
         onClose={handleCloseAppMenu}
       >
-        {isDev && <MenuItem disabled>{`Renderer: ${mapEngine === "custom" ? "Custom Renderer (Preview)" : "Leaflet (Production)"}`}</MenuItem>}
+        {isDev && <MenuItem disabled>{`Map mode: ${mapEngine === "custom" ? "Preview" : "Standard"}`}</MenuItem>}
         {isDev && mapEngine !== "leaflet" && (
           <MenuItem
             onClick={() => {
@@ -3848,7 +3843,7 @@ export default function BurialMap() {
               handleMapEngineChange("leaflet");
             }}
           >
-            Use Leaflet (Production)
+            Use standard map
           </MenuItem>
         )}
         {isDev && mapEngine !== "custom" && (
@@ -3858,7 +3853,7 @@ export default function BurialMap() {
               handleMapEngineChange("custom");
             }}
           >
-            Use Custom Renderer (Preview)
+            Try preview map
           </MenuItem>
         )}
         {isDev && (
@@ -3868,7 +3863,7 @@ export default function BurialMap() {
               handleTogglePmtilesExperiment();
             }}
           >
-            {isPmtilesEnabled ? 'Disable PMTiles experiment' : 'Enable PMTiles experiment'}
+            {isPmtilesEnabled ? 'Hide detailed grave layer' : 'Show detailed grave layer'}
           </MenuItem>
         )}
         {isFieldPacketsEnabled && (
@@ -3961,7 +3956,7 @@ export default function BurialMap() {
         routingError={routeError}
       />
 
-      {isCustomMapEngineEnabled ? (
+      {isCustomMapRuntimeActive ? (
         <>
         <MapControlStack isMobile={isMobile}>
           <MapLayerControl

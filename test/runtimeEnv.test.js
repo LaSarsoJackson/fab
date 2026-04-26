@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
-  clearStoredCustomMapEngineOverride,
-  clearStoredRoutingProviderOverride,
+  clearStoredDevelopmentRoutingProvider,
+  clearStoredDevelopmentSurfaceOverride,
+  DEVELOPMENT_SURFACES,
   getRuntimeEnv,
   isAdminStudioEnabled,
-  setStoredCustomMapEngineOverride,
-  setStoredRoutingProviderOverride,
-} from "../src/shared/runtime";
+  setStoredDevelopmentRoutingProvider,
+  setStoredDevelopmentSurfaceOverride,
+} from "../src/shared/runtime/runtimeEnv";
 
 const originalWindow = globalThis.window;
 
@@ -41,8 +42,13 @@ describe("getRuntimeEnv", () => {
       appEnvironment: "development",
       isDev: true,
       featureFlags: {
-        customMapEngine: false,
         fieldPackets: true,
+      },
+      devSurfaces: {
+        adminStudio: true,
+        customMapEngine: false,
+        pmtilesExperiment: false,
+        siteTwinDebug: true,
         routingProvider: "api",
       },
     });
@@ -51,20 +57,24 @@ describe("getRuntimeEnv", () => {
   test("resolves the local road provider from the dev routing env flag", () => {
     expect(getRuntimeEnv({
       REACT_APP_DEV_ROUTING_PROVIDER: "local",
-    }).featureFlags.routingProvider).toBe("local");
+    }).devSurfaces.routingProvider).toBe("local");
   });
 
   test("keeps non-api routing overrides development-only", () => {
     expect(getRuntimeEnv({
       REACT_APP_ENVIRONMENT: "production",
       REACT_APP_DEV_ROUTING_PROVIDER: "valhalla",
-      REACT_APP_ENABLE_CLIENT_SIDE_ROUTING: "true",
     })).toEqual({
       appEnvironment: "production",
       isDev: false,
       featureFlags: {
-        customMapEngine: false,
         fieldPackets: true,
+      },
+      devSurfaces: {
+        adminStudio: false,
+        customMapEngine: false,
+        pmtilesExperiment: false,
+        siteTwinDebug: false,
         routingProvider: "api",
       },
     });
@@ -79,7 +89,7 @@ describe("getRuntimeEnv", () => {
     })).toBe(false);
   });
 
-  test("allows explicit feature flag overrides", () => {
+  test("allows explicit runtime feature and development-surface overrides", () => {
     expect(getRuntimeEnv({
       REACT_APP_ENVIRONMENT: "development",
       REACT_APP_ENABLE_CUSTOM_MAP_ENGINE: "true",
@@ -89,8 +99,13 @@ describe("getRuntimeEnv", () => {
       appEnvironment: "development",
       isDev: true,
       featureFlags: {
-        customMapEngine: true,
         fieldPackets: true,
+      },
+      devSurfaces: {
+        adminStudio: true,
+        customMapEngine: true,
+        pmtilesExperiment: false,
+        siteTwinDebug: true,
         routingProvider: "valhalla",
       },
     });
@@ -100,8 +115,8 @@ describe("getRuntimeEnv", () => {
     globalThis.window = createWindowStub({
       search: "?routing=valhalla&mapEngine=custom",
       storage: new Map([
-        ["fab:routingProvider", "local"],
-        ["fab:enableCustomMapEngine", "false"],
+        ["fab:dev:routingProvider", "local"],
+        ["fab:dev:customMapEngine", "false"],
       ]),
     });
 
@@ -110,18 +125,8 @@ describe("getRuntimeEnv", () => {
       REACT_APP_ENABLE_CUSTOM_MAP_ENGINE: "false",
     });
 
-    expect(runtimeEnv.featureFlags.routingProvider).toBe("valhalla");
-    expect(runtimeEnv.featureFlags.customMapEngine).toBe(true);
-  });
-
-  test("supports the legacy client-side routing query parameter", () => {
-    globalThis.window = createWindowStub({
-      search: "?clientSideRouting=true",
-    });
-
-    expect(getRuntimeEnv({
-      REACT_APP_DEV_ROUTING_PROVIDER: "api",
-    }).featureFlags.routingProvider).toBe("local");
+    expect(runtimeEnv.devSurfaces.routingProvider).toBe("valhalla");
+    expect(runtimeEnv.devSurfaces.customMapEngine).toBe(true);
   });
 
   test("falls back cleanly when localStorage access throws", () => {
@@ -141,8 +146,13 @@ describe("getRuntimeEnv", () => {
       appEnvironment: "development",
       isDev: true,
       featureFlags: {
-        customMapEngine: true,
         fieldPackets: true,
+      },
+      devSurfaces: {
+        adminStudio: true,
+        customMapEngine: true,
+        pmtilesExperiment: false,
+        siteTwinDebug: true,
         routingProvider: "local",
       },
     });
@@ -152,25 +162,29 @@ describe("getRuntimeEnv", () => {
     const storage = new Map();
     globalThis.window = createWindowStub({ storage });
 
-    expect(setStoredCustomMapEngineOverride(true)).toBe(true);
-    expect(storage.get("fab:enableCustomMapEngine")).toBe("true");
+    expect(setStoredDevelopmentSurfaceOverride(DEVELOPMENT_SURFACES.customMapEngine.id, true)).toBe(true);
+    expect(storage.get("fab:dev:customMapEngine")).toBe("true");
 
-    expect(setStoredRoutingProviderOverride("valhalla")).toBe(true);
-    expect(storage.get("fab:routingProvider")).toBe("valhalla");
-    expect(storage.get("fab:enableClientSideRouting")).toBe("false");
+    expect(setStoredDevelopmentSurfaceOverride(DEVELOPMENT_SURFACES.pmtilesExperiment.id, true)).toBe(true);
+    expect(storage.get("fab:dev:pmtilesExperiment")).toBe("true");
+
+    expect(setStoredDevelopmentRoutingProvider("valhalla")).toBe(true);
+    expect(storage.get("fab:dev:routingProvider")).toBe("valhalla");
 
     const runtimeEnv = getRuntimeEnv({
       REACT_APP_ENABLE_CUSTOM_MAP_ENGINE: "false",
       REACT_APP_DEV_ROUTING_PROVIDER: "api",
     });
 
-    expect(runtimeEnv.featureFlags.customMapEngine).toBe(true);
-    expect(runtimeEnv.featureFlags.routingProvider).toBe("valhalla");
+    expect(runtimeEnv.devSurfaces.customMapEngine).toBe(true);
+    expect(runtimeEnv.devSurfaces.pmtilesExperiment).toBe(true);
+    expect(runtimeEnv.devSurfaces.routingProvider).toBe("valhalla");
 
-    expect(clearStoredRoutingProviderOverride()).toBe(true);
-    expect(clearStoredCustomMapEngineOverride()).toBe(true);
-    expect(storage.has("fab:routingProvider")).toBe(false);
-    expect(storage.has("fab:enableClientSideRouting")).toBe(false);
-    expect(storage.has("fab:enableCustomMapEngine")).toBe(false);
+    expect(clearStoredDevelopmentRoutingProvider()).toBe(true);
+    expect(clearStoredDevelopmentSurfaceOverride(DEVELOPMENT_SURFACES.customMapEngine.id)).toBe(true);
+    expect(clearStoredDevelopmentSurfaceOverride(DEVELOPMENT_SURFACES.pmtilesExperiment.id)).toBe(true);
+    expect(storage.has("fab:dev:routingProvider")).toBe(false);
+    expect(storage.has("fab:dev:customMapEngine")).toBe(false);
+    expect(storage.has("fab:dev:pmtilesExperiment")).toBe(false);
   });
 });

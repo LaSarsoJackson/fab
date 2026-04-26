@@ -4,7 +4,7 @@ import {
   buildFieldPacketShareUrl,
   buildFieldPacketState,
   parseFieldPacketValue,
-} from "../src/features/deeplinks";
+} from "../src/features/deeplinks/fieldPackets";
 
 const selectedRecords = [
   {
@@ -94,14 +94,13 @@ describe("fieldPackets", () => {
     });
     const shareUrl = buildFieldPacketShareUrl({
       packet,
-      currentUrl: "https://example.com/app?view=tours&tour=notables&packet=legacy",
+      currentUrl: "https://example.com/app?view=tours&tour=notables",
     });
     const parsedShareUrl = new URL(shareUrl);
     const parsedPacket = parseFieldPacketValue(parsedShareUrl.searchParams.get("share"));
 
     expect(parsedShareUrl.searchParams.get("view")).toBeNull();
     expect(parsedShareUrl.searchParams.get("tour")).toBeNull();
-    expect(parsedShareUrl.searchParams.get("packet")).toBeNull();
     expect(parsedPacket).toEqual(packet);
   });
 

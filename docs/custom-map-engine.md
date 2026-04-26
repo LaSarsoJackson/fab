@@ -19,9 +19,7 @@ Documentation posture:
 The engine is the combination of:
 
 - the runtime contract in [`src/features/map/engine/contracts.js`](../src/features/map/engine/contracts.js)
-- the standalone-oriented entry point in [`src/features/map/engine/standalone.js`](../src/features/map/engine/standalone.js)
 - the backend contract in [`src/features/map/engine/backend.js`](../src/features/map/engine/backend.js)
-- the app-specific manifest in [`src/features/map/engine/manifest.js`](../src/features/map/engine/manifest.js)
 - the custom renderer in [`src/features/map/engine/customRuntime.js`](../src/features/map/engine/customRuntime.js)
 - the React bridge in [`src/features/map/engine/CustomMapSurface.jsx`](../src/features/map/engine/CustomMapSurface.jsx)
 - the compatibility adapter in [`src/features/map/engine/leafletRuntime.js`](../src/features/map/engine/leafletRuntime.js)
@@ -33,7 +31,6 @@ The engine is the combination of:
 ## Current Position
 
 The current runtime API version is `1`.
-The current engine manifest version is `1`.
 
 Today the engine supports:
 
@@ -48,8 +45,9 @@ Today the engine supports:
 
 Leaflet still carries the production-default behavior and rollback coverage.
 The custom runtime now has verified parity for FAB's core search, browse, deep
-link, route-on-map, locate, and mobile selection flows, and remains behind the
-feature flag for rollout control rather than because those flows are missing.
+link, route-on-map, locate, and mobile selection flows, and remains a
+development surface for rollout control rather than because those flows are
+missing.
 
 ## Ownership Model
 
@@ -90,7 +88,6 @@ long-term static-optimization path is:
 That migration is documented in:
 
 - [`docs/map-engine-api.md`](./map-engine-api.md)
-- [`docs/map-engine-standalone-api.md`](./map-engine-standalone-api.md)
 - [`docs/map-engine-fab-spec.md`](./map-engine-fab-spec.md)
 - [`docs/map-engine-geoparquet.md`](./map-engine-geoparquet.md)
 
@@ -100,6 +97,6 @@ These are accurate statements about the current architecture:
 
 - FAB owns its own map runtime contract and runtime selection.
 - FAB ships a custom map renderer behind that contract.
-- Leaflet remains the production-default adapter and rollback path while the custom runtime stays feature-flagged for rollout control.
+- Leaflet remains the production-default adapter and rollback path while the custom runtime stays behind the `customMapEngine` development surface for rollout control.
 - The engine’s basemap, overlay, and optimization-artifact registry is profile-driven.
 - The static data pipeline can prefer GeoParquet without changing the user-facing map behavior.

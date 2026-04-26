@@ -26,7 +26,7 @@ describe("core map data helpers", () => {
     });
   });
 
-  test("loads boundary, roads, and sections through the shared module registry contract", async () => {
+  test("loads boundary, roads, and sections through the profile data-module contract", async () => {
     const resolvedModuleIds = [];
     const loadedModuleIds = [];
     const profile = {

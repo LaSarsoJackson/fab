@@ -1,4 +1,4 @@
-import { getDataModule, loadDataModule } from "../../admin/moduleRegistry";
+import { getDataModule, loadDataModule } from "../fab/profile";
 
 export const EMPTY_MAP_FEATURE_COLLECTION = Object.freeze({
   type: "FeatureCollection",

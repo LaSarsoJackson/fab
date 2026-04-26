@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
 import tourBiographyAliases from "../src/data/TourBiographyAliases.json";
-import { buildTourBiographyAliases, TOUR_DEFINITIONS } from "../src/features/tours";
+import { TOUR_DEFINITIONS } from "../src/features/fab/profile";
+import { buildTourBiographyAliases } from "../src/features/tours/tourDerivedData";
 
 describe("tour derived data", () => {
   test("checked-in biography aliases stay in sync with the bundled tour datasets", async () => {

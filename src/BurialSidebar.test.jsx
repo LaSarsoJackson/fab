@@ -5,7 +5,8 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import BurialSidebar from "./BurialSidebar";
 import { APP_PROFILE } from "./features/fab/profile";
-import { buildBurialBrowseResult, buildSearchIndex } from "./features/browse";
+import { buildBurialBrowseResult } from "./features/browse/browseResults";
+import { buildSearchIndex } from "./features/browse/burialSearch";
 
 const mockBottomSheetState = { currentHeight: 0, lastProps: null, snapTo: jest.fn() };
 

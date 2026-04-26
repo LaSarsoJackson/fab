@@ -37,20 +37,20 @@ const buildInstructionsSheetRows = (snapshot, moduleDefinition) => ([
     value: moduleDefinition.label,
   },
   {
-    item: "Source file",
+    item: "Dataset location",
     value: moduleDefinition.sourcePath,
   },
   {
     item: "How to update",
-    value: "Edit rows in the data sheet, then import the workbook back into the admin studio.",
+    value: "Edit rows in the data sheet, then import the workbook back into the records workspace.",
   },
   {
     item: "Internal row ID",
-    value: `Do not delete the ${getAdminRowIdField()} column. It lets the admin tool merge workbook edits back into the right feature.`,
+    value: `Do not delete the ${getAdminRowIdField()} column. It lets the records workspace merge workbook edits back into the right feature.`,
   },
   {
     item: "Publishing",
-    value: "After reviewing edits in the admin studio, download the updated source JSON or update bundle and promote those files through the normal static deploy flow.",
+    value: "After reviewing edits, download the updated dataset or review package and continue through the normal publishing workflow.",
   },
   {
     item: "Geometry",

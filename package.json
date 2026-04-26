@@ -42,7 +42,6 @@
     "build:site-twin:terrain": "bash ./scripts/geospatial/run_site_twin.sh --terrain-only",
     "build:site-twin:metadata": "bash ./scripts/geospatial/run_site_twin.sh --metadata-only",
     "build:data": "bun run build:tour-data && bun run scripts/precalculate-metadata.js",
-    "describe:map-engine": "bun run scripts/geospatial/describe_map_engine.js",
     "validate:geoparquet": "bun run scripts/geospatial/validate_burial_source_parity.js",
     "build": "bash ./scripts/build-production.sh",
     "doctor": "bash ./scripts/dev-doctor.sh",

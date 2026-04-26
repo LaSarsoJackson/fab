@@ -1,4 +1,4 @@
-import { loadDataModule } from "./moduleRegistry";
+import { loadDataModule } from "../features/fab/profile";
 import {
   buildModuleSnapshot,
   extendSnapshotSchema,

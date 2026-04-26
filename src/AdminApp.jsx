@@ -26,8 +26,6 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import MapIcon from "@mui/icons-material/Map";
 import { DataGrid } from "@mui/x-data-grid";
 
-import { isAdminHash } from "./admin/adminHash";
-import { downloadArrayBuffer, downloadJsonFile } from "./admin/downloads";
 import { exportSnapshotToWorkbook, mergeImportedRows, parseWorkbookFile } from "./admin/excel";
 import {
   buildEmptyRow,
@@ -37,7 +35,7 @@ import {
   materializeSnapshotForExport,
   serializeSnapshotToFeatureCollection,
 } from "./admin/geoJsonData";
-import { DATA_MODULES, getDataModule } from "./admin/moduleRegistry";
+import { DATA_MODULES, getDataModule } from "./features/fab/profile";
 import { buildUpdateBundle } from "./admin/packageBuilder";
 import {
   formatModuleCount,
@@ -48,11 +46,40 @@ import {
   updateSetMembership,
   upsertDraftSnapshot,
 } from "./admin/adminAppState";
+import { APP_ROUTE_IDS, isAdminHash, navigateToAppRoute } from "./shared/routing";
 
 const PAGE_SIZE = 50;
 
 const geometryFieldKeys = getGeometryFieldKeys();
 const adminRowIdField = getAdminRowIdField();
+
+const triggerDownload = (blob, fileName) => {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+
+  window.setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 1000);
+};
+
+const downloadJsonFile = (fileName, value) => {
+  triggerDownload(
+    new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }),
+    fileName
+  );
+};
+
+const downloadArrayBuffer = (fileName, buffer, mimeType) => {
+  triggerDownload(
+    new Blob([buffer], { type: mimeType }),
+    fileName
+  );
+};
 
 export default function AdminApp() {
   const fileInputRef = useRef(null);
@@ -166,7 +193,7 @@ export default function AdminApp() {
     if (!selectedSnapshot || !activeDraft) return;
 
     setSnapshot(selectedModuleId, upsertDraftSnapshot(selectedSnapshot, activeDraft), { dirty: true });
-    setFeedback(`${selectedModule?.label || "Module"} updated in the current browser draft.`);
+    setFeedback(`${selectedModule?.label || "Dataset"} updated in the current draft.`);
     closeEditor();
   }, [activeDraft, closeEditor, selectedModule?.label, selectedModuleId, selectedSnapshot, setSnapshot]);
 
@@ -223,13 +250,13 @@ export default function AdminApp() {
       setFeedback(`${selectedModule.fileName} downloaded.`);
     } catch (error) {
       console.error(error);
-      setErrorMessage(`JSON export failed: ${error.message}`);
+      setErrorMessage(`Dataset export failed: ${error.message}`);
     }
   }, [selectedModule, selectedSnapshot]);
 
   const handleDownloadUpdateBundle = useCallback(async () => {
     if (dirtyModuleIds.size === 0) {
-      setFeedback("No module edits are waiting to be packaged.");
+      setFeedback("No draft changes are waiting to export.");
       return;
     }
 
@@ -246,10 +273,10 @@ export default function AdminApp() {
         buffer,
         "application/zip"
       );
-      setFeedback(`${includedFiles.length} files packaged for the static update flow.`);
+      setFeedback(`${includedFiles.length} updated file${includedFiles.length === 1 ? "" : "s"} added to the review package.`);
     } catch (error) {
       console.error(error);
-      setErrorMessage(`Update bundle failed: ${error.message}`);
+      setErrorMessage(`Review package export failed: ${error.message}`);
     } finally {
       setIsBusy(false);
     }
@@ -264,7 +291,7 @@ export default function AdminApp() {
     try {
       const snapshot = await loadModuleSnapshot(selectedModule);
       setSnapshot(selectedModuleId, snapshot, { dirty: false });
-      setFeedback(`${selectedModule.label} reset to the bundled source file.`);
+      setFeedback(`${selectedModule.label} reset to the saved copy.`);
     } catch (error) {
       console.error(error);
       setErrorMessage(`Reset failed: ${error.message}`);
@@ -301,32 +328,28 @@ export default function AdminApp() {
           >
             <Box>
               <Typography variant="overline" sx={{ letterSpacing: "0.16em", color: "#5a6a5e" }}>
-                Static Admin Studio
+                Records Workspace
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-                File-backed content editing for the static site
+                Edit cemetery records
               </Typography>
               <Typography variant="body1" sx={{ maxWidth: 860, color: "#425348" }}>
-                This development-only admin mode edits the bundled source files in-browser. Nothing is written
-                to a server yet. Review the changes here, then export updated JSON or a zip bundle and promote
-                those files through the existing static deploy workflow.
+                Review changes here, then export a review package for the publishing workflow.
               </Typography>
             </Box>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} alignItems={{ xs: "stretch", sm: "center" }}>
-              <Chip label="Development only" color="warning" variant="outlined" />
+              <Chip label="Draft workspace" color="warning" variant="outlined" />
               <Chip
-                label={`${dirtyModuleIds.size} dirty module${dirtyModuleIds.size === 1 ? "" : "s"}`}
+                label={`${dirtyModuleIds.size} changed dataset${dirtyModuleIds.size === 1 ? "" : "s"}`}
                 color={dirtyModuleIds.size > 0 ? "warning" : "default"}
                 variant={dirtyModuleIds.size > 0 ? "filled" : "outlined"}
               />
               <Button
                 variant="outlined"
                 startIcon={<MapIcon />}
-                onClick={() => {
-                  window.location.hash = "";
-                }}
+                onClick={() => navigateToAppRoute(APP_ROUTE_IDS.map)}
               >
-                Return To Map
+                Return to map
               </Button>
               <Button
                 variant="contained"
@@ -334,7 +357,7 @@ export default function AdminApp() {
                 onClick={handleDownloadUpdateBundle}
                 disabled={isBusy}
               >
-                Download Update Bundle
+                Download review package
               </Button>
             </Stack>
           </Stack>
@@ -374,7 +397,7 @@ export default function AdminApp() {
                 Editable datasets
               </Typography>
               <Typography variant="body2" sx={{ color: "#55655a" }}>
-                Core map layers and tours loaded from static files.
+                Burial records, map layers, and tours available for review.
               </Typography>
             </Box>
             <Divider />
@@ -405,7 +428,7 @@ export default function AdminApp() {
                                 {snapshot ? formatModuleCount(snapshot) : moduleDefinition.description}
                               </Typography>
                               <Stack direction="row" spacing={0.75} flexWrap="wrap">
-                                <Chip size="small" label={moduleDefinition.fileName} variant="outlined" />
+                                <Chip size="small" label={moduleDefinition.group} variant="outlined" />
                                 {isDirty && <Chip size="small" label="Draft changes" color="warning" />}
                               </Stack>
                             </Stack>
@@ -443,7 +466,7 @@ export default function AdminApp() {
                       {selectedModule?.description}
                     </Typography>
                     <Stack direction="row" spacing={1} sx={{ mt: 1.25 }} flexWrap="wrap">
-                      {selectedModule && <Chip size="small" label={selectedModule.sourcePath} variant="outlined" />}
+                      {selectedModule && <Chip size="small" label={selectedModule.group} variant="outlined" />}
                       {selectedSnapshot && <Chip size="small" label={formatModuleCount(selectedSnapshot)} />}
                       {dirtyModuleIds.has(selectedModuleId) && (
                         <Chip size="small" color="warning" label="Unexported draft changes" />
@@ -462,10 +485,10 @@ export default function AdminApp() {
                       Download Excel
                     </Button>
                     <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleDownloadModuleJson}>
-                      Download JSON
+                      Download dataset
                     </Button>
                     <Button variant="outlined" color="inherit" startIcon={<RestartAltIcon />} onClick={handleResetModule}>
-                      Reset Module
+                      Reset dataset
                     </Button>
                   </Stack>
                 </Stack>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useMap } from "react-leaflet";
+import { GeoJSON, TileLayer, useMap } from "react-leaflet";
 import {
   Box,
   ClickAwayListener,
@@ -21,7 +21,7 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import RemoveIcon from "@mui/icons-material/Remove";
 import TuneIcon from "@mui/icons-material/Tune";
 import { createLeafletMapRuntime } from "./engine/leafletRuntime";
-import { LeafletBasemapLayer } from "./leafletBasemapLayer";
+import { getPopupViewportPadding } from "./popupViewport";
 
 const DESKTOP_MAP_CONTROL_RIGHT = "12px";
 const DESKTOP_MAP_CONTROL_TOP = "12px";
@@ -29,6 +29,183 @@ const MOBILE_MAP_CONTROL_RIGHT = "calc(env(safe-area-inset-right, 0px) + 12px)";
 const MOBILE_MAP_CONTROL_TOP = "calc(env(safe-area-inset-top, 0px) + 10px)";
 const MAP_CONTROL_BUTTON_SIZE = 44;
 const DEFAULT_BASEMAP_KEEP_BUFFER = 1;
+const GEOJSON_DATA_KEYS = new WeakMap();
+let nextGeoJsonDataKey = 1;
+
+const buildPaddingPoint = (x, y) => [x, y];
+
+const getOverlayRect = (getOverlayElement) => {
+  if (typeof getOverlayElement !== "function") return undefined;
+  return getOverlayElement()?.getBoundingClientRect?.();
+};
+
+export const getLeafletViewportPadding = (
+  map,
+  {
+    basePadding = 16,
+    getOverlayElement,
+  } = {}
+) => {
+  const mapContainer = map?.getContainer?.();
+  if (!mapContainer || typeof document === "undefined") {
+    return {
+      paddingTopLeft: buildPaddingPoint(basePadding, basePadding),
+      paddingBottomRight: buildPaddingPoint(basePadding, basePadding),
+    };
+  }
+
+  const containerRect = mapContainer.getBoundingClientRect();
+  const overlayRect = getOverlayRect(getOverlayElement);
+  const { topLeft, bottomRight } = getPopupViewportPadding({
+    containerRect,
+    overlayRect,
+    basePadding,
+  });
+
+  return {
+    paddingTopLeft: buildPaddingPoint(topLeft[0], topLeft[1]),
+    paddingBottomRight: buildPaddingPoint(bottomRight[0], bottomRight[1]),
+  };
+};
+
+export const fitBoundsInVisibleViewport = (
+  map,
+  bounds,
+  {
+    getOverlayElement,
+    ...options
+  } = {}
+) => {
+  if (!map || !bounds) return;
+
+  const { paddingTopLeft, paddingBottomRight } = getLeafletViewportPadding(map, {
+    basePadding: 24,
+    getOverlayElement,
+  });
+
+  map.fitBounds(bounds, {
+    ...options,
+    paddingTopLeft,
+    paddingBottomRight,
+  });
+};
+
+export const panIntoVisibleViewport = (
+  map,
+  latLng,
+  {
+    getOverlayElement,
+    ...options
+  } = {}
+) => {
+  if (!map || !latLng) return;
+
+  const { paddingTopLeft, paddingBottomRight } = getLeafletViewportPadding(map, {
+    basePadding: 24,
+    getOverlayElement,
+  });
+
+  map.panInside(latLng, {
+    ...options,
+    paddingTopLeft,
+    paddingBottomRight,
+  });
+};
+
+export const keepPopupInView = (
+  popup,
+  {
+    getOverlayElement,
+  } = {}
+) => {
+  const map = popup?._map;
+  if (!map) return;
+
+  const { paddingTopLeft, paddingBottomRight } = getLeafletViewportPadding(map, {
+    basePadding: 16,
+    getOverlayElement,
+  });
+
+  popup.options.autoPanPaddingTopLeft = paddingTopLeft;
+  popup.options.autoPanPaddingBottomRight = paddingBottomRight;
+
+  if (typeof popup._adjustPan === "function") {
+    popup._adjustPan();
+  }
+};
+
+export const syncPopupLayout = (popup, options = {}) => {
+  if (!popup) return;
+
+  if (typeof popup.update === "function") {
+    popup.update();
+  }
+
+  keepPopupInView(popup, options);
+};
+
+export const schedulePopupInView = (popup, options = {}) => {
+  if (!popup) return;
+
+  if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+    syncPopupLayout(popup, options);
+    return;
+  }
+
+  window.requestAnimationFrame(() => {
+    syncPopupLayout(popup, options);
+  });
+};
+
+export const getLeafletGeoJsonDataKey = (featureCollection) => {
+  if (!featureCollection || typeof featureCollection !== "object") {
+    return "empty";
+  }
+
+  let dataKey = GEOJSON_DATA_KEYS.get(featureCollection);
+
+  if (!dataKey) {
+    dataKey = `geojson-${nextGeoJsonDataKey++}`;
+    GEOJSON_DATA_KEYS.set(featureCollection, dataKey);
+  }
+
+  return dataKey;
+};
+
+export const LeafletGeoJsonLayer = ({ layerId, data, ...geoJsonProps }) => (
+  <GeoJSON
+    key={`${layerId}:${getLeafletGeoJsonDataKey(data)}`}
+    data={data}
+    {...geoJsonProps}
+  />
+);
+
+export const isLeafletRasterBasemap = (basemap) => (
+  basemap?.type === "raster-xyz" &&
+  typeof basemap?.urlTemplate === "string" &&
+  basemap.urlTemplate.length > 0
+);
+
+export const LeafletBasemapLayer = ({ basemap, keepBuffer = 1 }) => {
+  if (!isLeafletRasterBasemap(basemap)) {
+    return null;
+  }
+
+  return (
+    <TileLayer
+      key={basemap.id || basemap.urlTemplate}
+      url={basemap.urlTemplate}
+      minZoom={basemap.minZoom}
+      maxZoom={basemap.maxZoom}
+      maxNativeZoom={basemap.maxZoom}
+      tileSize={basemap.tileSize || 256}
+      attribution={basemap.attribution || ""}
+      keepBuffer={keepBuffer}
+      updateWhenIdle
+      updateWhenZooming={false}
+    />
+  );
+};
 
 const mapControlShellSx = {
   borderRadius: "18px",
@@ -481,7 +658,7 @@ export function PmtilesExperimentLegend({ glyphPalette = {} }) {
           color: "rgba(24, 45, 40, 0.72)",
         }}
       >
-        PMTiles Experiment
+        Grave Detail Preview
       </Typography>
       <Typography
         sx={{
@@ -491,7 +668,7 @@ export function PmtilesExperimentLegend({ glyphPalette = {} }) {
           color: "var(--text-main)",
         }}
       >
-        Dev grave glyphs
+        Placement Detail
       </Typography>
       <Box sx={{ display: "grid", gap: "10px", marginTop: "10px" }}>
         {Object.entries(glyphPalette).map(([variant, definition]) => (
@@ -610,8 +787,8 @@ export function SiteTwinDebugControl({
           <IconButton
             onClick={() => setIsOpen((current) => !current)}
             size="small"
-            title={isOpen ? "Close site twin debug panel" : "Open site twin debug panel"}
-            aria-label={isOpen ? "Close site twin debug panel" : "Open site twin debug panel"}
+            title={isOpen ? "Close ground model controls" : "Open ground model controls"}
+            aria-label={isOpen ? "Close ground model controls" : "Open ground model controls"}
             aria-expanded={isOpen}
             sx={mapControlButtonSx}
           >
@@ -628,7 +805,7 @@ export function SiteTwinDebugControl({
                 color: "rgba(24, 45, 40, 0.72)",
               }}
             >
-              Site Twin
+              Ground Model
             </Typography>
           )}
         </Box>
@@ -650,7 +827,7 @@ export function SiteTwinDebugControl({
                   color: "var(--text-main)",
                 }}
               >
-                {renderMode === "terrain-only" ? "Terrain-only prototype" : "Ortho-relief package"}
+                {renderMode === "terrain-only" ? "Relief preview" : "Ground preview"}
               </Typography>
               <Typography
                 sx={{
@@ -659,7 +836,7 @@ export function SiteTwinDebugControl({
                   color: "rgba(24, 45, 40, 0.64)",
                 }}
               >
-                {manifest?.sourceVintageNote || "Static site-twin assets not loaded yet."}
+                {manifest?.sourceVintageNote || "Ground model is not ready yet."}
               </Typography>
             </Box>
 
@@ -689,43 +866,43 @@ export function SiteTwinDebugControl({
                   {knownHeadstoneCount.toLocaleString()}
                 </Typography>
                 <Typography sx={{ fontSize: "0.68rem", color: "rgba(24, 45, 40, 0.64)" }}>
-                  p95 height {filteredHeightP95Meters.toFixed(2)} m
+                  height guide {filteredHeightP95Meters.toFixed(2)} m
                 </Typography>
               </Box>
             </Box>
 
             <SiteTwinDebugToggleRow
               checked={isOverlayEnabled}
-              label="Twin overlay"
-              detail="Master toggle for the terrain surface and monument pass."
+              label="Ground model"
+              detail="Turns the relief layer and monument markers on or off."
               onChange={onToggleOverlay}
             />
             <SiteTwinDebugToggleRow
               checked={debugState.showSurface}
-              label="Terrain surface"
-              detail="Shows the static PNG ground plane."
+              label="Relief layer"
+              detail="Shows the ground imagery layer."
               onChange={(checked) => onUpdateDebugState({ showSurface: checked })}
             />
             <SiteTwinDebugToggleRow
               checked={debugState.showMonuments}
-              label="Monument extrusions"
+              label="Monument markers"
               detail={mapEngine === "custom"
-                ? "Renders clustered grave/marker candidates in the custom renderer."
-                : "Custom renderer only. Switch renderer in the app menu to inspect extrusions."}
+                ? "Shows possible monument locations with height cues."
+                : "Switch to preview map mode to inspect monument height cues."}
               onChange={(checked) => onUpdateDebugState({ showMonuments: checked })}
             />
             <SiteTwinDebugToggleRow
               checked={debugState.knownHeadstonesOnly}
               label="Known headstones only"
-              detail="Filters out burial-anchor estimates and keeps surveyed headstone anchors."
+              detail="Shows only records anchored to surveyed headstone points."
               onChange={(checked) => onUpdateDebugState({ knownHeadstonesOnly: checked })}
             />
 
             <Divider sx={{ borderColor: "rgba(18, 47, 40, 0.12)" }} />
 
             <SiteTwinDebugSlider
-              label="Terrain opacity"
-              detail="Overrides the overlay alpha without changing the static package."
+              label="Relief opacity"
+              detail="Adjusts how strongly the relief layer appears."
               value={debugState.surfaceOpacity}
               min={0.1}
               max={1}
@@ -734,8 +911,8 @@ export function SiteTwinDebugControl({
               formatValue={(value) => `${Math.round(value * 100)}%`}
             />
             <SiteTwinDebugSlider
-              label="Monument height scale"
-              detail="Exaggerates or flattens the pseudo-3D monument pass."
+              label="Monument height"
+              detail="Adjusts how strongly height cues appear."
               value={debugState.monumentHeightScale}
               min={0.5}
               max={3}
@@ -744,8 +921,8 @@ export function SiteTwinDebugControl({
               formatValue={(value) => `${value.toFixed(2)}x`}
             />
             <SiteTwinDebugSlider
-              label="Minimum confidence"
-              detail="Keeps only candidates above this confidence threshold."
+              label="Match quality"
+              detail="Shows only candidates above this quality level."
               value={debugState.minConfidence}
               min={0}
               max={1}
@@ -755,7 +932,7 @@ export function SiteTwinDebugControl({
             />
             <SiteTwinDebugSlider
               label="Minimum height"
-              detail="Drops low-relief candidates that do not clear the threshold."
+              detail="Hides shorter height cues."
               value={debugState.minHeightMeters}
               min={0}
               max={2}
@@ -779,7 +956,7 @@ export function SiteTwinDebugControl({
                   color: "rgba(24, 45, 40, 0.64)",
                 }}
               >
-                Mean confidence {filteredMeanConfidence.toFixed(2)}
+                Average quality {filteredMeanConfidence.toFixed(2)}
               </Typography>
               <Box
                 component="button"

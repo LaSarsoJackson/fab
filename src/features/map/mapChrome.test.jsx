@@ -3,7 +3,38 @@
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { MapLayerControl, MapZoomControl, RouteStatusOverlay } from "./mapChrome";
+import {
+  LeafletBasemapLayer,
+  LeafletGeoJsonLayer,
+  MapLayerControl,
+  MapZoomControl,
+  RouteStatusOverlay,
+  getLeafletGeoJsonDataKey,
+  isLeafletRasterBasemap,
+} from "./mapChrome";
+
+jest.mock("react-leaflet", () => {
+  const React = require("react");
+
+  return {
+    GeoJSON: ({ data }) => {
+      const mountedDataRef = React.useRef(data);
+
+      return (
+        <div
+          data-testid="geojson-layer"
+          data-feature-count={mountedDataRef.current?.features?.length || 0}
+        />
+      );
+    },
+    TileLayer: ({ url }) => {
+      const mountedUrlRef = React.useRef(url);
+
+      return <div data-testid="tile-layer" data-url={mountedUrlRef.current} />;
+    },
+    useMap: () => ({}),
+  };
+});
 
 describe("mapChrome", () => {
   test("routes layer panel clicks to the matching callbacks", () => {
@@ -70,5 +101,118 @@ describe("mapChrome", () => {
     );
 
     expect(screen.getByText("Route unavailable")).toBeInTheDocument();
+  });
+
+  test("identifies profile raster basemaps", () => {
+    expect(isLeafletRasterBasemap({
+      id: "imagery",
+      type: "raster-xyz",
+      urlTemplate: "https://tiles.example.com/{z}/{x}/{y}.png",
+    })).toBe(true);
+
+    expect(isLeafletRasterBasemap({
+      id: "burials-pmtiles",
+      type: "pmtiles-vector",
+      urlTemplate: "/data/geo_burials.pmtiles",
+    })).toBe(false);
+  });
+
+  test("remounts the tile layer when the selected basemap changes", () => {
+    const { rerender } = render(
+      <LeafletBasemapLayer
+        basemap={{
+          id: "imagery",
+          type: "raster-xyz",
+          urlTemplate: "https://imagery.example.com/{z}/{y}/{x}",
+          minZoom: 0,
+          maxZoom: 19,
+          tileSize: 256,
+        }}
+      />
+    );
+
+    expect(screen.getByTestId("tile-layer")).toHaveAttribute(
+      "data-url",
+      "https://imagery.example.com/{z}/{y}/{x}"
+    );
+
+    rerender(
+      <LeafletBasemapLayer
+        basemap={{
+          id: "streets",
+          type: "raster-xyz",
+          urlTemplate: "https://streets.example.com/{z}/{x}/{y}",
+          minZoom: 0,
+          maxZoom: 19,
+          tileSize: 256,
+        }}
+      />
+    );
+
+    expect(screen.getByTestId("tile-layer")).toHaveAttribute(
+      "data-url",
+      "https://streets.example.com/{z}/{x}/{y}"
+    );
+  });
+
+  test("skips non-raster basemap specs", () => {
+    render(
+      <LeafletBasemapLayer
+        basemap={{
+          id: "burials-pmtiles",
+          type: "pmtiles-vector",
+          urlTemplate: "/data/geo_burials.pmtiles",
+        }}
+      />
+    );
+
+    expect(screen.queryByTestId("tile-layer")).not.toBeInTheDocument();
+  });
+
+  test("returns a stable key for the same feature collection object", () => {
+    const data = {
+      type: "FeatureCollection",
+      features: [],
+    };
+
+    expect(getLeafletGeoJsonDataKey(data)).toBe(getLeafletGeoJsonDataKey(data));
+  });
+
+  test("remounts GeoJSON when async-loaded data replaces the initial empty collection", () => {
+    const emptyData = {
+      type: "FeatureCollection",
+      features: [],
+    };
+    const loadedData = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { id: "boundary" },
+          geometry: {
+            type: "Polygon",
+            coordinates: [[[-73.74, 42.7], [-73.73, 42.7], [-73.73, 42.71], [-73.74, 42.7]]],
+          },
+        },
+      ],
+    };
+
+    const { rerender } = render(
+      <LeafletGeoJsonLayer
+        layerId="boundary"
+        data={emptyData}
+      />
+    );
+
+    expect(screen.getByTestId("geojson-layer")).toHaveAttribute("data-feature-count", "0");
+
+    rerender(
+      <LeafletGeoJsonLayer
+        layerId="boundary"
+        data={loadedData}
+      />
+    );
+
+    expect(screen.getByTestId("geojson-layer")).toHaveAttribute("data-feature-count", "1");
   });
 });

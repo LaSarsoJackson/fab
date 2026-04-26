@@ -1,4 +1,4 @@
-import { getGeoJsonBounds, isLatLngBoundsExpressionValid } from "../../shared/geo";
+import { getGeoJsonBounds, isLatLngBoundsExpressionValid } from "../../shared/geo/geoJsonBounds";
 
 //=============================================================================
 // Module Boundary
@@ -1025,15 +1025,15 @@ export const PMTILES_EXPERIMENT_GLYPH_PALETTE = {
     fill: "rgba(214, 155, 86, 0.28)",
     stroke: "rgba(124, 83, 40, 0.72)",
     guide: "rgba(124, 83, 40, 0.2)",
-    label: "Approximate record point",
-    detail: "Section and lot record without grave or tier placement metadata.",
+    label: "Lot-level record",
+    detail: "Placed from section and lot details; exact grave position may vary.",
   },
   indexed: {
     fill: "rgba(18, 94, 74, 0.28)",
     stroke: "rgba(15, 69, 54, 0.82)",
     guide: "rgba(15, 69, 54, 0.24)",
-    label: "Indexed grave or tier record",
-    detail: "Record includes grave or tier metadata, so it gets a stronger glyph.",
+    label: "Grave-level record",
+    detail: "Includes added grave or tier detail, so it appears more strongly.",
   },
 };
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { clusterScreenPoints } from "../src/features/map/engine";
+import { clusterScreenPoints } from "../src/features/map/engine/clustering";
 
 const cameraContext = {
   width: 1200,

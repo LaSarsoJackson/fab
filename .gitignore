@@ -15,6 +15,17 @@
 /output
 /output-playwright-*.png
 
+# generated/local geospatial artifacts
+__pycache__/
+*.py[cod]
+*.sr.lock
+/src/data/*.gdb/
+/src/data/* 2.json
+/src/data/ARC_Burials.json
+/src/data/ARC_Lots.json
+/src/data/Burials.json
+/src/data/tinyBurial.json
+
 # misc
 .DS_Store
 .env

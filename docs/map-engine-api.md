@@ -2,8 +2,7 @@
 
 This document defines the API surface that FAB owns and consumes.
 
-For the standalone-oriented view of the same engine boundary, see
-[`docs/map-engine-standalone-api.md`](./map-engine-standalone-api.md) and
+For module-level entry points and usage examples, see
 [`src/features/map/engine/README.md`](../src/features/map/engine/README.md).
 
 Clean-room posture:
@@ -31,8 +30,8 @@ For the product-specific "what does FAB need this engine to do?" view, see
 Sources:
 
 - [`src/features/map/engine/contracts.js`](../src/features/map/engine/contracts.js)
-- [`src/features/map/engine/factory.js`](../src/features/map/engine/factory.js)
-- [`src/features/map/engine/standalone.js`](../src/features/map/engine/standalone.js)
+- [`src/features/map/engine/customRuntime.js`](../src/features/map/engine/customRuntime.js)
+- [`src/features/map/engine/leafletRuntime.js`](../src/features/map/engine/leafletRuntime.js)
 
 Current version: `1`
 
@@ -116,8 +115,8 @@ Use [`getMapRuntimeDescriptor`](../src/features/map/engine/contracts.js) when
 you need to inspect that shape without reaching into implementation details.
 
 `getMapRuntimeContract()` also returns the exported basemap types, layer kinds,
-source formats, and optimization-artifact roles so external callers can inspect
-the standalone surface from one place.
+source formats, and optimization-artifact roles so callers can inspect the
+engine-owned contract from one place.
 
 ## Spec Objects
 

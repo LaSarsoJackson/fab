@@ -1,11 +1,9 @@
 # Map Engine API
 
-This directory contains FAB's repo-local map engine, but the contract is
-written so it can also be consumed as a standalone API inside this repo.
-
-Use [`standalone.js`](./standalone.js) as the standalone-oriented entry point.
-It exports the runtime contract, runtime factory, adapters, and low-level
-camera/projection helpers without pulling in FAB's React bridge or app manifest.
+This directory contains FAB's repo-local map engine. Import directly from the
+module that owns the behavior: `contracts.js` for the runtime contract, runtime
+files for implementations, and the camera/projection/clustering modules for
+low-level helpers.
 
 ## Clean-Room Position
 
@@ -18,13 +16,11 @@ That means:
 
 - public method names may intentionally resemble Leaflet where parity helps
 - implementation notes should describe behavior and invariants, not copied internals
-- FAB-specific UI wiring stays outside the standalone surface
+- FAB-specific UI wiring stays outside the engine contract
 
 ## Public Modules
 
-- [`standalone.js`](./standalone.js): standalone entry point
 - [`contracts.js`](./contracts.js): runtime kinds, method lists, events, and spec normalizers
-- [`factory.js`](./factory.js): `createMapRuntime(kind, options)` and runtime registry helpers
 - [`customRuntime.js`](./customRuntime.js): canvas-backed runtime implementation
 - [`leafletRuntime.js`](./leafletRuntime.js): Leaflet compatibility adapter
 - [`backend.js`](./backend.js): build-time artifact and storage-strategy helpers
@@ -59,11 +55,10 @@ Current layer kinds:
 ```js
 import {
   assertMapRuntimeContract,
-  createMapRuntime,
-  CUSTOM_MAP_RUNTIME_KIND,
-} from "./standalone";
+} from "./contracts";
+import { createCustomMapRuntime } from "./customRuntime";
 
-const runtime = createMapRuntime(CUSTOM_MAP_RUNTIME_KIND, {
+const runtime = createCustomMapRuntime({
   center: [42.70418, -73.73198],
   zoom: 14,
   minZoom: 13,
@@ -80,14 +75,9 @@ runtime.setBasemap({
 ```
 
 ```js
-import {
-  createMapRuntime,
-  LEAFLET_ADAPTER_RUNTIME_KIND,
-} from "./standalone";
+import { createLeafletMapRuntime } from "./leafletRuntime";
 
-const runtime = createMapRuntime(LEAFLET_ADAPTER_RUNTIME_KIND, {
-  leafletMap,
-});
+const runtime = createLeafletMapRuntime(leafletMap);
 ```
 
 ## Commenting Guidance

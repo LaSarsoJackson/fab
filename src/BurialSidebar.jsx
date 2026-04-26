@@ -20,21 +20,23 @@ import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { BottomSheet } from "react-spring-bottom-sheet";
 import "react-spring-bottom-sheet/dist/style.css";
 import { APP_PROFILE } from "./features/fab/profile";
+import BrowseWorkspacePanel from "./features/browse/BrowseWorkspacePanel";
 import {
-  BrowseWorkspacePanel,
   buildLifeDatesSummary,
   buildBrowseEmptyActionSpecs,
   buildBrowseScopeChips,
   buildSearchShellNotices,
+  getBrowseEmptyState,
+  getSearchPlaceholder,
+} from "./features/browse/sidebarPresentation";
+import {
   buildLocationParts,
   buildLocationSummary,
   formatBrowseResultName,
-  getBrowseEmptyState,
   getBrowseSourceMode,
-  getSearchPlaceholder,
   MIN_BROWSE_QUERY_LENGTH,
-} from "./features/browse";
-import { buildSharedSelectionPresentation } from "./features/deeplinks";
+} from "./features/browse/browseResults";
+import { buildSharedSelectionPresentation } from "./features/deeplinks/sharePresentation";
 import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordPresentation";
 import { useBurialSidebarBrowseState } from "./hooks/useBurialSidebarBrowseState";
 import {
@@ -44,7 +46,7 @@ import {
 import {
   getRuntimeEnv,
   isFieldPacketsEnabled as resolveFieldPacketsEnabled,
-} from "./shared/runtime";
+} from "./shared/runtime/runtimeEnv";
 
 const rowShellStyles = {
   transition: "background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease",

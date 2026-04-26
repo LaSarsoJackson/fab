@@ -1,17 +1,16 @@
 import { formatBrowseResultName } from "../browse/browseResults";
+import { ROUTING_QUERY_PARAMS } from "../../shared/routing";
 
-export const SHARED_LINK_QUERY_PARAM = "share";
-export const LEGACY_FIELD_PACKET_QUERY_PARAM = "packet";
+export const SHARED_LINK_QUERY_PARAM = ROUTING_QUERY_PARAMS.sharedSelection;
 
 // Packed shared links become the single source of truth in portable URLs, so
 // strip the ad-hoc view/query params that would otherwise compete with them.
 const FIELD_PACKET_STATE_QUERY_KEYS = [
-  "section",
-  "tour",
-  "view",
-  "q",
+  ROUTING_QUERY_PARAMS.section,
+  ROUTING_QUERY_PARAMS.tour,
+  ROUTING_QUERY_PARAMS.view,
+  ROUTING_QUERY_PARAMS.search,
   SHARED_LINK_QUERY_PARAM,
-  LEGACY_FIELD_PACKET_QUERY_PARAM,
 ];
 
 const cleanValue = (value) => {

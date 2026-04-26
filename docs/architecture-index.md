@@ -19,17 +19,15 @@ Use this file to decide which note to read before making a change.
 - Changing map runtime or backend contracts:
   [map-engine-api.md](./map-engine-api.md)
 
-- Planning or documenting the engine as a standalone clean-room API:
-  [map-engine-standalone-api.md](./map-engine-standalone-api.md)
-
-- Working on custom-runtime parity, popup/hover bugs, or engine ownership:
-  [map-engine-runtime-ownership.md](./map-engine-runtime-ownership.md)
-
 - Working on GeoParquet, PMTiles, or static geospatial artifacts:
   [map-engine-geoparquet.md](./map-engine-geoparquet.md)
 
 - Working on the cemetery site twin / digital twin pipeline:
   [geospatial-site-twin.md](./geospatial-site-twin.md)
+
+- Changing client route hashes, shared-link query params, external directions
+  links, or routing provider URL contracts:
+  [routing-architecture.md](./routing-architecture.md)
 
 - Changing where helpers or feature code should live:
   [codebase-structure.md](./codebase-structure.md)

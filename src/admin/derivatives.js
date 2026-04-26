@@ -1,9 +1,8 @@
 import * as turf from "@turf/turf";
 
-import { APP_PROFILE } from "../features/fab/profile";
-import { buildBurialBrowseResult, buildTourBrowseResult } from "../features/browse";
-import { buildTourLookup, findMatchingTourRecord } from "../features/tours";
-import { getTourModuleDefinitions } from "./moduleRegistry";
+import { APP_PROFILE, getTourModuleDefinitions } from "../features/fab/profile";
+import { buildBurialBrowseResult, buildTourBrowseResult } from "../features/browse/browseResults";
+import { buildTourLookup, findMatchingTourRecord } from "../features/tours/tourRecordHarmonization";
 
 const PRIMARY_RECORD_MODULE_ID = APP_PROFILE.moduleIds?.primaryRecord || "burials";
 const BOUNDARY_MODULE_ID = APP_PROFILE.moduleIds?.boundary || "boundary";

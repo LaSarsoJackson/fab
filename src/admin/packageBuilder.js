@@ -1,6 +1,6 @@
 import { buildGeneratedArtifacts } from "./derivatives";
 import { materializeSnapshotForExport, serializeSnapshotToFeatureCollection } from "./geoJsonData";
-import { DATA_MODULES } from "./moduleRegistry";
+import { DATA_MODULES } from "../features/fab/profile";
 
 const affectsDerivedArtifacts = (dirtyModuleIds) => (
   Array.from(dirtyModuleIds).some((moduleId) => (
@@ -41,7 +41,7 @@ export const buildUpdateBundle = async ({ getSnapshot, dirtyModuleIds }) => {
     generatedAt: new Date().toISOString(),
     dirtyModules: Array.from(dirtyModuleIds),
     includedFiles,
-    note: "This package is intended for the static deploy workflow. Replace the listed files in the repo, then rebuild and redeploy.",
+    note: "This package is intended for review and publishing. Apply the listed files, then run the normal build and publish workflow.",
   };
 
   zip.file("admin-update-manifest.json", JSON.stringify(manifest, null, 2));

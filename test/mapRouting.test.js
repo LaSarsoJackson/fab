@@ -81,6 +81,52 @@ describe("map routing helpers", () => {
     });
   });
 
+  test("uses the configured hosted Valhalla API root for route fetches", async () => {
+    const originalApiUrl = process.env.REACT_APP_VALHALLA_API_URL;
+    process.env.REACT_APP_VALHALLA_API_URL = "https://routing.example.test/base";
+    let requestedUrl = "";
+
+    try {
+      await fetchWalkingRoute({
+        from: [42.70418, -73.73198],
+        to: [42.70911, -73.72154],
+        fetchImpl: async (url) => {
+          requestedUrl = String(url);
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              code: "Ok",
+              routes: [
+                {
+                  distance: 25,
+                  duration: 18,
+                  geometry: {
+                    type: "LineString",
+                    coordinates: [
+                      [-73.73198, 42.70418],
+                      [-73.72154, 42.70911],
+                    ],
+                  },
+                },
+              ],
+            }),
+          };
+        },
+      });
+    } finally {
+      if (originalApiUrl === undefined) {
+        delete process.env.REACT_APP_VALHALLA_API_URL;
+      } else {
+        process.env.REACT_APP_VALHALLA_API_URL = originalApiUrl;
+      }
+    }
+
+    const requestUrl = new URL(requestedUrl);
+    expect(requestUrl.origin).toBe("https://routing.example.test");
+    expect(requestUrl.pathname).toBe("/base/route");
+  });
+
   test("builds a relative offline Valhalla request through the dev proxy", () => {
     const requestUrl = new URL(buildOfflineWalkingRouteUrl({
       from: [42.70418, -73.73198],

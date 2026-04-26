@@ -192,7 +192,7 @@ export const buildModuleSnapshot = (moduleDefinition, featureCollection) => {
   const schema = [
     {
       key: ADMIN_ROW_ID_FIELD,
-      label: "Admin row ID",
+      label: "Workspace row ID",
       type: "string",
       group: "system",
       hidden: true,

@@ -12,9 +12,9 @@ import CivilWarTour20 from "../src/data/CivilWarTour20.json";
 import SocietyPillarsTour20 from "../src/data/SocietyPillarsTour20.json";
 import AlbanyMayors from "../src/data/AlbanyMayors_fixed.json";
 import GAR from "../src/data/GAR_fixed.json";
-import { buildTourBrowseResult, formatBrowseResultName } from "../src/features/browse";
-import { TOUR_DEFINITIONS, TOUR_STYLES } from "../src/features/tours";
-import { hasValidGeoJsonCoordinates } from "../src/shared/geo";
+import { buildTourBrowseResult, formatBrowseResultName } from "../src/features/browse/browseResults";
+import { TOUR_DEFINITIONS, TOUR_STYLES } from "../src/features/fab/profile";
+import { hasValidGeoJsonCoordinates } from "../src/shared/geo/geoJsonBounds";
 
 const TOUR_DATASETS_BY_KEY = {
   Lot7: ProjectedSec75Headstones,

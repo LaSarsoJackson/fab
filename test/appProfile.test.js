@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { APP_PROFILE } from "../src/features/fab/profile";
-import { DATA_MODULES } from "../src/admin/moduleRegistry";
+import { APP_PROFILE, DATA_MODULES } from "../src/features/fab/profile";
 
 const TOUR_FEATURE = APP_PROFILE.features?.tours || null;
 const TOUR_DEFINITIONS = TOUR_FEATURE?.definitions || [];
@@ -31,10 +30,9 @@ describe("app profile", () => {
     );
   });
 
-  test("keeps FAB-owned browser storage keys in the profile contract", () => {
-    expect(APP_PROFILE.runtimeStorageKeys).toEqual({
-      pmtilesExperiment: "fab:enablePmtilesExperiment",
-      siteTwinDebug: "fab:siteTwinDebugState",
+  test("keeps FAB-owned development storage keys in the profile contract", () => {
+    expect(APP_PROFILE.devStorageKeys).toEqual({
+      siteTwinDebug: "fab:dev:siteTwinDebugState",
     });
   });
 

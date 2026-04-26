@@ -1,60 +1,90 @@
+import {
+  DEFAULT_ROUTING_PROVIDER,
+  normalizeRoutingProvider,
+  ROUTING_QUERY_PARAMS,
+  VALID_ROUTING_PROVIDERS,
+} from "../routing";
+
 /**
- * Runtime toggles are reserved for experiments or environment-only behavior.
- * Stable FAB product features should live in the app profile instead.
+ * Runtime feature flags are reserved for stable product behavior that may be
+ * enabled or disabled per deployment. Development-only tools live in
+ * DEVELOPMENT_SURFACES so admin, renderer, and artifact experiments are not
+ * mistaken for shipped product features.
  */
 const freezeArray = (values = []) => Object.freeze([...values]);
 
-const createBooleanRuntimeFlag = (definition) => Object.freeze({
+const createBooleanRuntimeToggle = (definition) => Object.freeze({
   ...definition,
   enabledQueryValues: freezeArray(definition.enabledQueryValues || []),
   disabledQueryValues: freezeArray(definition.disabledQueryValues || []),
 });
 
 export const RUNTIME_FEATURE_FLAGS = Object.freeze({
-  fieldPackets: createBooleanRuntimeFlag({
+  fieldPackets: createBooleanRuntimeToggle({
     id: "fieldPackets",
     defaultValue: true,
     envKey: "REACT_APP_ENABLE_FIELD_PACKETS",
   }),
-  customMapEngine: createBooleanRuntimeFlag({
+});
+
+export const DEVELOPMENT_SURFACES = Object.freeze({
+  adminStudio: createBooleanRuntimeToggle({
+    id: "adminStudio",
+    defaultValue: true,
+  }),
+  customMapEngine: createBooleanRuntimeToggle({
     id: "customMapEngine",
     defaultValue: false,
     envKey: "REACT_APP_ENABLE_CUSTOM_MAP_ENGINE",
-    queryParamName: "mapEngine",
+    queryParamName: ROUTING_QUERY_PARAMS.mapEngine,
     enabledQueryValues: ["custom"],
     disabledQueryValues: ["leaflet"],
-    storageKey: "fab:enableCustomMapEngine",
+    storageKey: "fab:dev:customMapEngine",
+  }),
+  pmtilesExperiment: createBooleanRuntimeToggle({
+    id: "pmtilesExperiment",
+    defaultValue: false,
+    storageKey: "fab:dev:pmtilesExperiment",
+  }),
+  siteTwinDebug: createBooleanRuntimeToggle({
+    id: "siteTwinDebug",
+    defaultValue: true,
   }),
 });
 
-export const ROUTING_PROVIDER_RUNTIME = Object.freeze({
+export const DEVELOPMENT_ROUTING_PROVIDER = Object.freeze({
   id: "routingProvider",
-  defaultValue: "api",
+  defaultValue: DEFAULT_ROUTING_PROVIDER,
   envKey: "REACT_APP_DEV_ROUTING_PROVIDER",
-  queryParamName: "routing",
-  storageKey: "fab:routingProvider",
-  validValues: freezeArray(["api", "local", "valhalla"]),
-  legacy: Object.freeze({
-    envKey: "REACT_APP_ENABLE_CLIENT_SIDE_ROUTING",
-    queryParamName: "clientSideRouting",
-    storageKey: "fab:enableClientSideRouting",
-  }),
+  queryParamName: ROUTING_QUERY_PARAMS.routingProvider,
+  storageKey: "fab:dev:routingProvider",
+  validValues: freezeArray(VALID_ROUTING_PROVIDERS),
 });
 
 export const DEFAULT_RUNTIME_FEATURE_FLAGS = Object.freeze({
   fieldPackets: RUNTIME_FEATURE_FLAGS.fieldPackets.defaultValue,
-  customMapEngine: RUNTIME_FEATURE_FLAGS.customMapEngine.defaultValue,
-  routingProvider: ROUTING_PROVIDER_RUNTIME.defaultValue,
 });
 
-export const formatRuntimeFlagQueryOverride = (flagDefinition = {}) => {
-  const queryParamName = flagDefinition.queryParamName || "";
+export const DEFAULT_DEVELOPMENT_SURFACES = Object.freeze({
+  adminStudio: false,
+  customMapEngine: DEVELOPMENT_SURFACES.customMapEngine.defaultValue,
+  pmtilesExperiment: DEVELOPMENT_SURFACES.pmtilesExperiment.defaultValue,
+  siteTwinDebug: false,
+  routingProvider: DEVELOPMENT_ROUTING_PROVIDER.defaultValue,
+});
+
+const DEVELOPMENT_SURFACE_BY_ID = new Map(
+  Object.values(DEVELOPMENT_SURFACES).map((surface) => [surface.id, surface])
+);
+
+export const formatRuntimeToggleQueryOverride = (toggleDefinition = {}) => {
+  const queryParamName = toggleDefinition.queryParamName || "";
   if (!queryParamName) {
     return "";
   }
 
-  const enabledValues = flagDefinition.enabledQueryValues?.join("|") || "";
-  const disabledValues = flagDefinition.disabledQueryValues?.join("|") || "";
+  const enabledValues = toggleDefinition.enabledQueryValues?.join("|") || "";
+  const disabledValues = toggleDefinition.disabledQueryValues?.join("|") || "";
 
   return `${queryParamName}=${[enabledValues, disabledValues].filter(Boolean).join("|")}`;
 };
@@ -65,9 +95,9 @@ const resolveBooleanFlag = (value, fallback = false) => {
   return fallback;
 };
 
-const CUSTOM_MAP_ENGINE_FLAG = RUNTIME_FEATURE_FLAGS.customMapEngine;
 const FIELD_PACKETS_FLAG = RUNTIME_FEATURE_FLAGS.fieldPackets;
-const VALID_ROUTING_PROVIDERS = new Set(ROUTING_PROVIDER_RUNTIME.validValues);
+const CUSTOM_MAP_ENGINE_SURFACE = DEVELOPMENT_SURFACES.customMapEngine;
+const PMTILES_EXPERIMENT_SURFACE = DEVELOPMENT_SURFACES.pmtilesExperiment;
 
 const readStoredRuntimeOverride = (storageKey) => {
   if (typeof window === "undefined") {
@@ -99,7 +129,7 @@ const writeStoredRuntimeOverride = (storageKey, value) => {
   }
 };
 
-const resolveStickyRuntimeFlag = ({
+const resolveStickyRuntimeToggle = ({
   disabledQueryValues,
   enabledQueryValues,
   envValue,
@@ -129,72 +159,48 @@ const resolveStickyRuntimeFlag = ({
   return envValue;
 };
 
-const resolveCustomMapEngineFlag = (env) => resolveStickyRuntimeFlag({
-  disabledQueryValues: CUSTOM_MAP_ENGINE_FLAG.disabledQueryValues,
-  enabledQueryValues: CUSTOM_MAP_ENGINE_FLAG.enabledQueryValues,
+const resolveCustomMapEngineSurface = (env) => resolveStickyRuntimeToggle({
+  disabledQueryValues: CUSTOM_MAP_ENGINE_SURFACE.disabledQueryValues,
+  enabledQueryValues: CUSTOM_MAP_ENGINE_SURFACE.enabledQueryValues,
   envValue: resolveBooleanFlag(
-    env[CUSTOM_MAP_ENGINE_FLAG.envKey],
-    CUSTOM_MAP_ENGINE_FLAG.defaultValue
+    env[CUSTOM_MAP_ENGINE_SURFACE.envKey],
+    CUSTOM_MAP_ENGINE_SURFACE.defaultValue
   ),
-  queryParamName: CUSTOM_MAP_ENGINE_FLAG.queryParamName,
-  storageKey: CUSTOM_MAP_ENGINE_FLAG.storageKey,
+  queryParamName: CUSTOM_MAP_ENGINE_SURFACE.queryParamName,
+  storageKey: CUSTOM_MAP_ENGINE_SURFACE.storageKey,
 });
 
-const normalizeRoutingProvider = (value) => {
-  const normalizedValue = String(value || "").trim().toLowerCase();
-  return VALID_ROUTING_PROVIDERS.has(normalizedValue) ? normalizedValue : "";
-};
+const resolveStoredDevelopmentSurface = (surfaceDefinition) => {
+  const storedOverride = readStoredRuntimeOverride(surfaceDefinition.storageKey);
 
-const resolveLegacyClientSideRoutingOverride = (value) => {
-  if (value === "true" || value === "1" || value === "local") {
-    return "local";
+  if (storedOverride === "true" || storedOverride === "false") {
+    return resolveBooleanFlag(storedOverride, surfaceDefinition.defaultValue);
   }
 
-  if (value === "false" || value === "0" || value === "api") {
-    return "api";
-  }
-
-  return "";
+  return Boolean(surfaceDefinition.defaultValue);
 };
 
-const resolveRoutingProviderFlag = (env, { isDev }) => {
-  const envProvider = normalizeRoutingProvider(env[ROUTING_PROVIDER_RUNTIME.envKey]) || (
-    resolveBooleanFlag(env[ROUTING_PROVIDER_RUNTIME.legacy.envKey], false)
-      ? "local"
-      : ROUTING_PROVIDER_RUNTIME.defaultValue
-  );
+const resolveDevelopmentRoutingProvider = (env, { isDev }) => {
+  const envProvider = normalizeRoutingProvider(env[DEVELOPMENT_ROUTING_PROVIDER.envKey]) ||
+    DEVELOPMENT_ROUTING_PROVIDER.defaultValue;
 
   if (!isDev || typeof window === "undefined") {
-    return isDev ? envProvider : ROUTING_PROVIDER_RUNTIME.defaultValue;
+    return isDev ? envProvider : DEVELOPMENT_ROUTING_PROVIDER.defaultValue;
   }
 
   const searchParams = new URLSearchParams(window.location.search);
   const queryProvider = normalizeRoutingProvider(
-    searchParams.get(ROUTING_PROVIDER_RUNTIME.queryParamName)
+    searchParams.get(DEVELOPMENT_ROUTING_PROVIDER.queryParamName)
   );
   if (queryProvider) {
     return queryProvider;
   }
 
-  const legacyQueryProvider = resolveLegacyClientSideRoutingOverride(
-    searchParams.get(ROUTING_PROVIDER_RUNTIME.legacy.queryParamName)
-  );
-  if (legacyQueryProvider) {
-    return legacyQueryProvider;
-  }
-
   const storedProvider = normalizeRoutingProvider(
-    readStoredRuntimeOverride(ROUTING_PROVIDER_RUNTIME.storageKey)
+    readStoredRuntimeOverride(DEVELOPMENT_ROUTING_PROVIDER.storageKey)
   );
   if (storedProvider) {
     return storedProvider;
-  }
-
-  const legacyStoredProvider = resolveLegacyClientSideRoutingOverride(
-    readStoredRuntimeOverride(ROUTING_PROVIDER_RUNTIME.legacy.storageKey)
-  );
-  if (legacyStoredProvider) {
-    return legacyStoredProvider;
   }
 
   return envProvider;
@@ -205,25 +211,32 @@ export const getRuntimeEnv = (env = process.env) => {
     ? "production"
     : "development";
   const isDev = appEnvironment !== "production";
-  const routingProvider = resolveRoutingProviderFlag(env, { isDev });
   const featureFlags = {
     fieldPackets: resolveBooleanFlag(
       env[FIELD_PACKETS_FLAG.envKey],
       DEFAULT_RUNTIME_FEATURE_FLAGS.fieldPackets
     ),
-    customMapEngine: resolveCustomMapEngineFlag(env),
-    routingProvider,
   };
+  const devSurfaces = isDev
+    ? {
+      adminStudio: DEVELOPMENT_SURFACES.adminStudio.defaultValue,
+      customMapEngine: resolveCustomMapEngineSurface(env),
+      pmtilesExperiment: resolveStoredDevelopmentSurface(PMTILES_EXPERIMENT_SURFACE),
+      siteTwinDebug: DEVELOPMENT_SURFACES.siteTwinDebug.defaultValue,
+      routingProvider: resolveDevelopmentRoutingProvider(env, { isDev }),
+    }
+    : { ...DEFAULT_DEVELOPMENT_SURFACES };
 
   return {
     appEnvironment,
     isDev,
     featureFlags,
+    devSurfaces,
   };
 };
 
 export const isAdminStudioEnabled = (env = process.env) => (
-  getRuntimeEnv(env).isDev
+  Boolean(getRuntimeEnv(env).devSurfaces.adminStudio)
 );
 
 export const isFieldPacketsEnabled = (featureFlags = DEFAULT_RUNTIME_FEATURE_FLAGS) => (
@@ -232,60 +245,180 @@ export const isFieldPacketsEnabled = (featureFlags = DEFAULT_RUNTIME_FEATURE_FLA
     : RUNTIME_FEATURE_FLAGS.fieldPackets.defaultValue
 );
 
-export const isCustomMapEngineEnabled = (featureFlags = DEFAULT_RUNTIME_FEATURE_FLAGS) => (
-  typeof featureFlags?.customMapEngine === "boolean"
-    ? featureFlags.customMapEngine
-    : RUNTIME_FEATURE_FLAGS.customMapEngine.defaultValue
-);
+export const isDevelopmentSurfaceEnabled = (
+  devSurfaces = DEFAULT_DEVELOPMENT_SURFACES,
+  surfaceId = ""
+) => {
+  const surfaceDefinition = DEVELOPMENT_SURFACE_BY_ID.get(surfaceId);
+  if (!surfaceDefinition) {
+    return false;
+  }
 
-export const getRuntimeRoutingProvider = (featureFlags = DEFAULT_RUNTIME_FEATURE_FLAGS) => {
-  const provider = String(featureFlags?.routingProvider || "").trim().toLowerCase();
-  return ROUTING_PROVIDER_RUNTIME.validValues.includes(provider)
-    ? provider
-    : ROUTING_PROVIDER_RUNTIME.defaultValue;
+  return typeof devSurfaces?.[surfaceDefinition.id] === "boolean"
+    ? devSurfaces[surfaceDefinition.id]
+    : surfaceDefinition.defaultValue;
 };
 
-export const getMapEngineKind = (featureFlags = DEFAULT_RUNTIME_FEATURE_FLAGS) => (
-  isCustomMapEngineEnabled(featureFlags) ? "custom" : "leaflet"
+export const getDevelopmentRoutingProvider = (devSurfaces = DEFAULT_DEVELOPMENT_SURFACES) => {
+  const provider = String(devSurfaces?.routingProvider || "").trim().toLowerCase();
+  return DEVELOPMENT_ROUTING_PROVIDER.validValues.includes(provider)
+    ? provider
+    : DEVELOPMENT_ROUTING_PROVIDER.defaultValue;
+};
+
+export const getMapEngineKind = (devSurfaces = DEFAULT_DEVELOPMENT_SURFACES) => (
+  isDevelopmentSurfaceEnabled(devSurfaces, DEVELOPMENT_SURFACES.customMapEngine.id)
+    ? "custom"
+    : "leaflet"
 );
 
-export const setStoredCustomMapEngineOverride = (isEnabled) => (
-  writeStoredRuntimeOverride(
-    CUSTOM_MAP_ENGINE_FLAG.storageKey,
-    isEnabled ? "true" : "false"
-  )
-);
+export const setStoredDevelopmentSurfaceOverride = (surfaceId, isEnabled) => {
+  const surfaceDefinition = DEVELOPMENT_SURFACE_BY_ID.get(surfaceId);
+  if (!surfaceDefinition?.storageKey) {
+    return false;
+  }
 
-export const clearStoredCustomMapEngineOverride = () => (
-  writeStoredRuntimeOverride(CUSTOM_MAP_ENGINE_FLAG.storageKey, null)
-);
+  return writeStoredRuntimeOverride(surfaceDefinition.storageKey, isEnabled ? "true" : "false");
+};
 
-export const setStoredRoutingProviderOverride = (provider) => {
+export const clearStoredDevelopmentSurfaceOverride = (surfaceId) => {
+  const surfaceDefinition = DEVELOPMENT_SURFACE_BY_ID.get(surfaceId);
+  if (!surfaceDefinition?.storageKey) {
+    return false;
+  }
+
+  return writeStoredRuntimeOverride(surfaceDefinition.storageKey, null);
+};
+
+export const setStoredDevelopmentRoutingProvider = (provider) => {
   const normalizedProvider = normalizeRoutingProvider(provider);
   if (!normalizedProvider) {
     return false;
   }
 
-  const wroteProvider = writeStoredRuntimeOverride(
-    ROUTING_PROVIDER_RUNTIME.storageKey,
+  return writeStoredRuntimeOverride(
+    DEVELOPMENT_ROUTING_PROVIDER.storageKey,
     normalizedProvider
   );
-
-  const wroteLegacyValue = writeStoredRuntimeOverride(
-    ROUTING_PROVIDER_RUNTIME.legacy.storageKey,
-    normalizedProvider === "local" ? "true" : "false"
-  );
-
-  return wroteProvider && wroteLegacyValue;
 };
 
-export const clearStoredRoutingProviderOverride = () => (
-  writeStoredRuntimeOverride(ROUTING_PROVIDER_RUNTIME.storageKey, null) &&
-  writeStoredRuntimeOverride(ROUTING_PROVIDER_RUNTIME.legacy.storageKey, null)
+export const clearStoredDevelopmentRoutingProvider = () => (
+  writeStoredRuntimeOverride(DEVELOPMENT_ROUTING_PROVIDER.storageKey, null)
 );
+
+const hasIdleCallback = () => (
+  typeof window !== "undefined" &&
+  typeof window.requestIdleCallback === "function"
+);
+
+export const scheduleIdleTask = (
+  callback,
+  {
+    timeout = 1000,
+    fallbackDelay = 16,
+  } = {}
+) => {
+  if (typeof callback !== "function") {
+    return null;
+  }
+
+  if (hasIdleCallback()) {
+    return {
+      type: "idle",
+      id: window.requestIdleCallback(() => {
+        callback();
+      }, { timeout }),
+    };
+  }
+
+  return {
+    type: "timeout",
+    id: setTimeout(() => {
+      callback();
+    }, fallbackDelay),
+  };
+};
+
+export const cancelIdleTask = (handle) => {
+  if (!handle) {
+    return;
+  }
+
+  if (handle.type === "idle" && hasIdleCallback()) {
+    window.cancelIdleCallback(handle.id);
+    return;
+  }
+
+  clearTimeout(handle.id);
+};
+
+export const buildPublicAssetUrl = (
+  path,
+  publicUrl = process.env.PUBLIC_URL || ""
+) => {
+  const normalizedPath = String(path || "").startsWith("/")
+    ? String(path || "")
+    : `/${String(path || "")}`;
+
+  return `${publicUrl}${normalizedPath}`;
+};
+
+const resolveDocument = (documentOverride) => {
+  if (documentOverride) {
+    return documentOverride;
+  }
+
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return document;
+};
+
+export const setDocumentMetaContent = (selector, content, documentOverride) => {
+  const targetDocument = resolveDocument(documentOverride);
+  if (!targetDocument) {
+    return;
+  }
+
+  const element = targetDocument.querySelector(selector);
+  if (!element) {
+    return;
+  }
+
+  element.setAttribute("content", content);
+};
+
+export const syncDocumentMetadata = ({
+  title,
+  description,
+  url = "",
+} = {}, documentOverride) => {
+  const targetDocument = resolveDocument(documentOverride);
+  if (!targetDocument) {
+    return;
+  }
+
+  if (typeof title === "string") {
+    targetDocument.title = title;
+    setDocumentMetaContent('meta[property="og:title"]', title, targetDocument);
+    setDocumentMetaContent('meta[name="twitter:title"]', title, targetDocument);
+  }
+
+  if (typeof description === "string") {
+    setDocumentMetaContent('meta[name="description"]', description, targetDocument);
+    setDocumentMetaContent('meta[property="og:description"]', description, targetDocument);
+    setDocumentMetaContent('meta[name="twitter:description"]', description, targetDocument);
+  }
+
+  if (typeof url === "string") {
+    setDocumentMetaContent('meta[property="og:url"]', url, targetDocument);
+  }
+};
 
 export const {
   appEnvironment: APP_ENVIRONMENT,
   isDev: IS_DEV,
   featureFlags: FEATURE_FLAGS,
+  devSurfaces: DEV_SURFACES,
 } = getRuntimeEnv();

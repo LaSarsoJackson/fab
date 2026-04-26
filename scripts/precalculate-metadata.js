@@ -4,15 +4,10 @@ import { fileURLToPath } from 'url';
 import * as turf from '@turf/turf';
 
 import { loadBurialFeatureCollection } from "./geospatial/load_burial_source.js";
-import {
-  TOUR_DEFINITIONS,
-  buildTourLookup,
-} from "../src/features/tours/index.js";
-import {
-  buildBurialBrowseResult,
-  buildTourBrowseResult,
-  normalizeName,
-} from "../src/features/browse/index.js";
+import { buildBurialBrowseResult, buildTourBrowseResult } from "../src/features/browse/browseResults.js";
+import { normalizeName } from "../src/features/browse/burialSearch.js";
+import { TOUR_DEFINITIONS } from "../src/features/fab/profile.js";
+import { buildTourLookup } from "../src/features/tours/tourRecordHarmonization.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

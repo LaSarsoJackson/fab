@@ -11,7 +11,7 @@ const stripTrailingSlash = (value = "") => String(value).trim().replace(/\/+$/, 
 
 const FAB_SITE_ROOT_URL = "https://www.albany.edu/arce";
 const FAB_SITE_NAME = "Albany Rural Cemetery";
-const FAB_ADMIN_SITE_NAME = "Albany Rural Cemetery Admin";
+const FAB_ADMIN_SITE_NAME = "Albany Rural Cemetery Records Workspace";
 const FAB_HOME_URL = `${FAB_SITE_ROOT_URL}/`;
 const FAB_IMAGE_DIRECTORY = "images";
 const FAB_NO_IMAGE_FILE_NAME = "no-image.jpg";
@@ -126,7 +126,7 @@ const CORE_DATA_MODULES = [
   buildCoreDataModule({
     id: "burials",
     label: "Burials",
-    description: "Primary asset source data used to generate search and map records.",
+    description: "Burial records used by search and map browsing.",
     fileName: "Geo_Burials.json",
     sourcePath: "src/data/Geo_Burials.json",
     load: () => import("../../data/Geo_Burials.json"),
@@ -134,7 +134,7 @@ const CORE_DATA_MODULES = [
   buildCoreDataModule({
     id: "sections",
     label: "Sections",
-    description: "Section polygons and metadata used for map browsing.",
+    description: "Cemetery section areas used for map browsing.",
     fileName: "ARC_Sections.json",
     sourcePath: "src/data/ARC_Sections.json",
     load: () => import("../../data/ARC_Sections.json"),
@@ -142,7 +142,7 @@ const CORE_DATA_MODULES = [
   buildCoreDataModule({
     id: "roads",
     label: "Roads",
-    description: "Road centerlines and overlay geometry used in the map.",
+    description: "Cemetery road paths used for map orientation and directions.",
     fileName: "ARC_Roads.json",
     sourcePath: "src/data/ARC_Roads.json",
     load: () => import("../../data/ARC_Roads.json"),
@@ -150,7 +150,7 @@ const CORE_DATA_MODULES = [
   buildCoreDataModule({
     id: "boundary",
     label: "Boundary",
-    description: "Asset boundary geometry used for bounds and location checks.",
+    description: "Cemetery boundary used for map limits and location checks.",
     fileName: "ARC_Boundary.json",
     sourcePath: "src/data/ARC_Boundary.json",
     load: () => import("../../data/ARC_Boundary.json"),
@@ -160,7 +160,7 @@ const CORE_DATA_MODULES = [
 const TOUR_MODULES = FAB_TOUR_DEFINITIONS.map((definition) => ({
   id: `tour:${definition.key}`,
   label: definition.name,
-  description: "Tour-stop data used for browsing, popups, and matching.",
+  description: "Tour stops shown in browsing and map details.",
   group: "Tours",
   kind: "tour",
   tourKey: definition.key,
@@ -190,7 +190,7 @@ const MAP_BASEMAPS = [
   },
   {
     id: "burials-pmtiles",
-    label: "Burials PMTiles",
+    label: "Burial Detail",
     type: "pmtiles-vector",
     urlTemplate: "/data/geo_burials.pmtiles",
     rasterFallbackUrlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -227,7 +227,7 @@ const MAP_OVERLAY_SOURCES = [
   },
   {
     id: "burials-pmtiles",
-    label: "Burials PMTiles",
+    label: "Burial Detail Layer",
     type: "pmtiles-vector",
     format: "pmtiles-vector",
     publicPath: "/data/geo_burials.pmtiles",
@@ -283,7 +283,7 @@ const MAP_OPTIMIZATION_ARTIFACTS = [
   },
   {
     id: "burials-pmtiles",
-    label: "Burials PMTiles archive",
+    label: "Burial detail tile archive",
     role: "delivery-overlay",
     format: "pmtiles-vector",
     sourceModuleId: "burials",
@@ -291,11 +291,11 @@ const MAP_OPTIMIZATION_ARTIFACTS = [
     filePath: "public/data/geo_burials.pmtiles",
     buildCommand: "bun run build:pmtiles",
     status: "experimental",
-    notes: "Static delivery artifact for the custom engine and PMTiles experiments.",
+    notes: "Tile package for the burial detail preview layer.",
   },
   {
     id: "site-twin-manifest",
-    label: "Site twin manifest",
+    label: "Ground model manifest",
     role: "delivery-overlay",
     format: "json",
     sourceModuleId: "burials",
@@ -303,11 +303,11 @@ const MAP_OPTIMIZATION_ARTIFACTS = [
     filePath: "public/data/site_twin/manifest.json",
     buildCommand: "bun run build:site-twin:terrain",
     status: "experimental",
-    notes: "Static manifest for the cemetery terrain image and grave candidate overlays.",
+    notes: "Manifest for the cemetery ground model and candidate marker overlays.",
   },
   {
     id: "site-twin-grave-candidates",
-    label: "Site twin grave candidates",
+    label: "Ground model grave candidates",
     role: "delivery-overlay",
     format: "geojson",
     sourceModuleId: "burials",
@@ -315,7 +315,7 @@ const MAP_OPTIMIZATION_ARTIFACTS = [
     filePath: "public/data/site_twin/grave_candidates.geojson",
     buildCommand: "bun run build:site-twin:terrain",
     status: "experimental",
-    notes: "Static monument candidate points sampled from terrain derivatives and burial geometry.",
+    notes: "Candidate marker points sampled from terrain and burial geometry.",
   },
 ].map(createOptimizationArtifactSpec);
 
@@ -328,7 +328,7 @@ export const APP_PROFILE = {
     mapLoadingTitle: FAB_SITE_NAME,
     mapLoadingMessage: "Loading map experience…",
     adminLoadingTitle: FAB_ADMIN_SITE_NAME,
-    adminLoadingMessage: "Loading development admin studio…",
+    adminLoadingMessage: "Loading records workspace…",
   },
   shell: {
     homeUrl: FAB_HOME_URL,
@@ -401,9 +401,8 @@ export const APP_PROFILE = {
     tourMatchesFilePath: "src/data/TourMatches.json",
     generatedConstantsFilePath: "src/features/map/generatedBounds.js",
   },
-  runtimeStorageKeys: {
-    pmtilesExperiment: "fab:enablePmtilesExperiment",
-    siteTwinDebug: "fab:siteTwinDebugState",
+  devStorageKeys: {
+    siteTwinDebug: "fab:dev:siteTwinDebugState",
   },
   map: {
     center: [42.704180, -73.731980],
@@ -463,3 +462,20 @@ export const APP_PROFILE = {
     },
   },
 };
+
+export const DATA_MODULES = APP_PROFILE.dataModules || [];
+export const TOUR_DEFINITIONS = APP_PROFILE.features?.tours?.definitions || [];
+export const TOUR_STYLES = APP_PROFILE.features?.tours?.styles || {};
+
+export const getDataModule = (moduleId) => (
+  DATA_MODULES.find((definition) => definition.id === moduleId) || null
+);
+
+export const loadDataModule = async (moduleDefinition) => {
+  const loaded = await moduleDefinition.load();
+  return loaded.default || loaded;
+};
+
+export const getTourModuleDefinitions = () => (
+  DATA_MODULES.filter((definition) => definition.kind === "tour")
+);

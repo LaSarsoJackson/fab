@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import SearchBurials from "../public/data/Search_Burials.json";
 import AlbanyMayors from "../src/data/AlbanyMayors_fixed.json";
 import GAR from "../src/data/GAR_fixed.json";
-import { buildBurialBrowseResult, buildTourBrowseResult } from "../src/features/browse";
+import { buildBurialBrowseResult, buildTourBrowseResult } from "../src/features/browse/browseResults";
 import { APP_PROFILE } from "../src/features/fab/profile";
 import { FAB_TOUR_DEFINITIONS } from "../src/features/fab/tours";
 import { buildPopupViewModel } from "../src/features/map/mapRecordPresentation";
@@ -11,8 +11,8 @@ import {
   buildBurialLookup,
   harmonizeBurialBrowseResult,
   harmonizeTourBrowseResult,
-  resolvePortraitImageName,
-} from "../src/features/tours";
+} from "../src/features/tours/tourRecordHarmonization";
+import { resolvePortraitImageName } from "../src/features/tours/tourDerivedData";
 import TourMatches from "../src/data/TourMatches.json";
 
 const FAB_NO_IMAGE_URL = APP_PROFILE.features.recordPresentation.noImageUrl;

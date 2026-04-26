@@ -1,4 +1,11 @@
-import { getGeoJsonBounds } from "../../shared/geo";
+import { getGeoJsonBounds } from "../../shared/geo/geoJsonBounds";
+import {
+  buildOfflineValhallaWalkingRouteUrl,
+  buildValhallaWalkingRouteUrl,
+  DEFAULT_ROUTING_PROVIDER,
+  isLatLngTuple,
+  ROUTING_PROVIDERS,
+} from "../../shared/routing";
 
 //=============================================================================
 // Module Boundary
@@ -23,8 +30,6 @@ import { getGeoJsonBounds } from "../../shared/geo";
 
 const EARTH_RADIUS_METERS = 6371008.8;
 const WALKING_SPEED_METERS_PER_SECOND = 1.4;
-const DEFAULT_VALHALLA_API_URL = "https://valhalla1.openstreetmap.de";
-const DEFAULT_LOCAL_VALHALLA_PROXY_PATH = "/__valhalla";
 const DEFAULT_NEARBY_NODE_CONNECTION_TOLERANCE_METERS = 1;
 
 export const DEFAULT_MAX_SNAP_DISTANCE_METERS = 250;
@@ -40,13 +45,6 @@ const createRoutingError = (message, { code = "", provider = "api", status = 0 }
 const toRadians = (value) => (Number(value) * Math.PI) / 180;
 
 const isCoordinatePairValid = (value) => (
-  Array.isArray(value) &&
-  value.length >= 2 &&
-  Number.isFinite(Number(value[0])) &&
-  Number.isFinite(Number(value[1]))
-);
-
-const isLatLngTuple = (value) => (
   Array.isArray(value) &&
   value.length >= 2 &&
   Number.isFinite(Number(value[0])) &&
@@ -587,50 +585,6 @@ const calculateClientSideWalkingRoute = ({
 // External Routing Providers
 //=============================================================================
 
-const getValhallaEndpoint = ({
-  apiUrl,
-  defaultBaseUrl,
-}) => {
-  const normalizedBaseUrl = String(apiUrl || defaultBaseUrl || "")
-    .trim()
-    .replace(/\/+$/, "");
-
-  if (!normalizedBaseUrl) {
-    return "";
-  }
-
-  return normalizedBaseUrl.endsWith("/route")
-    ? normalizedBaseUrl
-    : `${normalizedBaseUrl}/route`;
-};
-
-const buildValhallaPayload = ({ from, to }) => ({
-  locations: [
-    { lat: Number(from[0]), lon: Number(from[1]) },
-    { lat: Number(to[0]), lon: Number(to[1]) },
-  ],
-  costing: "pedestrian",
-  directions_type: "none",
-  format: "osrm",
-  shape_format: "geojson",
-  units: "kilometers",
-});
-
-const appendJsonQuery = (endpoint, payload) => {
-  if (!endpoint) {
-    return "";
-  }
-
-  if (/^https?:\/\//i.test(endpoint)) {
-    const url = new URL(endpoint);
-    url.searchParams.set("json", JSON.stringify(payload));
-    return url.toString();
-  }
-
-  const separator = endpoint.includes("?") ? "&" : "?";
-  return `${endpoint}${separator}json=${encodeURIComponent(JSON.stringify(payload))}`;
-};
-
 const getRouteMessageFromPayload = (payload, fallbackMessage) => {
   if (typeof payload?.message === "string" && payload.message.trim()) {
     return payload.message.trim();
@@ -838,29 +792,15 @@ const fetchValhallaRoute = async ({
 };
 
 export const buildWalkingRouteUrl = ({ from, to, apiUrl } = {}) => {
-  if (!isLatLngTuple(from) || !isLatLngTuple(to)) {
-    return "";
-  }
-
-  const endpoint = getValhallaEndpoint({
-    apiUrl,
-    defaultBaseUrl: DEFAULT_VALHALLA_API_URL,
-  });
-
-  return appendJsonQuery(endpoint, buildValhallaPayload({ from, to }));
+  return buildValhallaWalkingRouteUrl({ apiUrl, from, to });
 };
 
 export const buildOfflineWalkingRouteUrl = ({ from, to, proxyPath } = {}) => {
-  if (!isLatLngTuple(from) || !isLatLngTuple(to)) {
-    return "";
-  }
-
-  const endpoint = getValhallaEndpoint({
-    apiUrl: proxyPath || process.env.REACT_APP_VALHALLA_PROXY_PATH,
-    defaultBaseUrl: DEFAULT_LOCAL_VALHALLA_PROXY_PATH,
+  return buildOfflineValhallaWalkingRouteUrl({
+    from,
+    proxyPath: proxyPath || process.env.REACT_APP_VALHALLA_PROXY_PATH,
+    to,
   });
-
-  return appendJsonQuery(endpoint, buildValhallaPayload({ from, to }));
 };
 
 export const fetchWalkingRoute = async ({
@@ -874,8 +814,12 @@ export const fetchWalkingRoute = async ({
   to,
   signal,
   fetchImpl,
-  provider: "api",
-  requestUrl: buildWalkingRouteUrl({ from, to, apiUrl }),
+  provider: ROUTING_PROVIDERS.api,
+  requestUrl: buildWalkingRouteUrl({
+    from,
+    to,
+    apiUrl: apiUrl || process.env.REACT_APP_VALHALLA_API_URL,
+  }),
 });
 
 const fetchOfflineWalkingRoute = async ({
@@ -889,17 +833,17 @@ const fetchOfflineWalkingRoute = async ({
   to,
   signal,
   fetchImpl,
-  provider: "valhalla",
+  provider: ROUTING_PROVIDERS.valhalla,
   requestUrl: buildOfflineWalkingRouteUrl({ from, to, proxyPath }),
 });
 
 export const calculateWalkingRoute = async ({
-  provider = "api",
+  provider = DEFAULT_ROUTING_PROVIDER,
   roadGraph,
   maxSnapDistanceMeters,
   ...options
 } = {}) => {
-  if (provider === "local") {
+  if (provider === ROUTING_PROVIDERS.local) {
     return calculateClientSideWalkingRoute({
       ...options,
       maxSnapDistanceMeters,
@@ -923,7 +867,7 @@ export const calculateWalkingRoute = async ({
     }
   }
 
-  if (provider === "valhalla") {
+  if (provider === ROUTING_PROVIDERS.valhalla) {
     const routeResult = await fetchOfflineWalkingRoute({
       ...options,
       from: snappedFrom || options.from,

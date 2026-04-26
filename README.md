@@ -73,11 +73,11 @@ Notes:
   `valhalla` uses the local dev proxy for an offline Valhalla instance.
 - `REACT_APP_DEV_ROUTING_PROVIDER` is honored in development only. The default
   provider is `api`.
-- `REACT_APP_ENABLE_CLIENT_SIDE_ROUTING=true` remains supported as a legacy
-  alias for `REACT_APP_DEV_ROUTING_PROVIDER=local`.
 - `REACT_APP_VALHALLA_API_URL` only affects the hosted `api` provider.
 - `REACT_APP_VALHALLA_PROXY_PATH` defaults to `/__valhalla` and is used by the
   development proxy for local/offline Valhalla.
+- Shared route hashes, deep-link query keys, provider ids, Valhalla defaults,
+  and external directions URL builders live in `src/shared/routing`.
 - The route destination is still snapped against the bundled cemetery road
   network before routing so the app continues to respect the project’s local
   road geometry even when the hosted or offline Valhalla provider is active.
@@ -182,10 +182,10 @@ Start with these documents:
 - [AGENTS.md](./AGENTS.md) for repo-specific automation and maintainer notes
 - [docs/architecture-index.md](./docs/architecture-index.md) for a guide to the
   architecture notes
-- [docs/map-engine-standalone-api.md](./docs/map-engine-standalone-api.md) for
-  the clean-room standalone engine surface
 - [docs/codebase-structure.md](./docs/codebase-structure.md) for directory
   ownership and placement rules
+- [docs/routing-architecture.md](./docs/routing-architecture.md) for client
+  route, deep-link, directions-link, and routing-provider URL ownership
 - [docs/geospatial-site-twin.md](./docs/geospatial-site-twin.md) for the
   cemetery digital twin/site twin pipeline
 
@@ -202,6 +202,8 @@ Common entry points:
   generation, and burial-tour reconciliation
 - [`src/features/map/`](./src/features/map): popup models, selection reducer/actions,
   viewport helpers, and runtime-specific map logic
+- [`src/shared/routing/`](./src/shared/routing): route hashes, query keys,
+  routing provider ids, Valhalla URL defaults/builders, and external directions links
 - [`src/admin/`](./src/admin): file-backed admin modules, workbook import and
   export, and update bundles
 

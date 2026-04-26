@@ -19,7 +19,7 @@ const bindMethod = (target, methodName, fallback) => {
 };
 
 /**
- * Wrap a Leaflet map behind the standalone engine contract.
+ * Wrap a Leaflet map behind the engine contract.
  *
  * This adapter is intentionally thin: it preserves the public contract while
  * keeping Leaflet out of upstream app code.

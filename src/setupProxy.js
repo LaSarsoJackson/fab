@@ -1,7 +1,11 @@
 const { createProxyMiddleware } = require("http-proxy-middleware");
+const {
+  defaultLocalValhallaProxyPath,
+  defaultLocalValhallaProxyTarget,
+} = require("./shared/routing/routingDefaults.json");
 
-const DEFAULT_PROXY_PATH = "/__valhalla";
-const DEFAULT_TARGET = "http://127.0.0.1:8002";
+const DEFAULT_PROXY_PATH = defaultLocalValhallaProxyPath;
+const DEFAULT_TARGET = defaultLocalValhallaProxyTarget;
 
 module.exports = function setupProxy(app) {
   const proxyPath = String(

@@ -2,8 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import {
   buildFieldPacketShareUrl,
   encodeFieldPacket,
-  parseDeepLinkState,
-} from "../src/features/deeplinks";
+} from "../src/features/deeplinks/fieldPackets";
+import { parseDeepLinkState } from "../src/features/deeplinks/urlState";
 
 describe('parseDeepLinkState', () => {
   test('parses view, query, and section', () => {
@@ -100,24 +100,6 @@ describe('parseDeepLinkState', () => {
     expect(state.fieldPacket?.selectedBurialIds).toEqual(['burial:1:99:18']);
   });
 
-  test('continues to parse legacy packet links', () => {
-    const encodedPacket = encodeFieldPacket({
-      selectedRecords: [
-        {
-          id: 'burial:1:99:18',
-          source: 'burial',
-          displayName: 'Anna Tracy',
-          Section: '99',
-          Lot: '18',
-        },
-      ],
-    });
-
-    const state = parseDeepLinkState(`?packet=${encodedPacket}`);
-
-    expect(state.fieldPacket?.selectedBurialIds).toEqual(['burial:1:99:18']);
-  });
-
   test('builds public share links with the share query param', () => {
     const shareUrl = buildFieldPacketShareUrl({
       packet: {
@@ -131,12 +113,11 @@ describe('parseDeepLinkState', () => {
           },
         ],
       },
-      currentUrl: 'https://example.com/fab?view=burials&q=anna&packet=legacy',
+      currentUrl: 'https://example.com/fab?view=burials&q=anna',
     });
     const parsedShareUrl = new URL(shareUrl);
 
     expect(parsedShareUrl.searchParams.get('share')).toBeTruthy();
-    expect(parsedShareUrl.searchParams.get('packet')).toBeNull();
     expect(parsedShareUrl.searchParams.get('view')).toBeNull();
     expect(parsedShareUrl.searchParams.get('q')).toBeNull();
   });

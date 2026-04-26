@@ -7,7 +7,7 @@ import {
   getOptimizationArtifactsByRole,
   getPreferredBuildSourceArtifact,
   MAP_BACKEND_API_VERSION,
-} from "../src/features/map/engine";
+} from "../src/features/map/engine/backend";
 
 describe("map backend api", () => {
   test("publishes the storage strategy that keeps GeoParquet invisible to runtime callers", () => {

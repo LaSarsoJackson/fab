@@ -566,7 +566,7 @@ const createPopupHandle = (runtime) => ({
 });
 
 /**
- * Canvas-backed runtime implementation for the standalone engine contract.
+ * Canvas-backed runtime implementation for the engine contract.
  *
  * The public method names intentionally mirror stable Leaflet map concepts
  * where that improves adapter parity, but the internals here are repo-owned.

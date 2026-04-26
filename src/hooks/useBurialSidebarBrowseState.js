@@ -3,8 +3,8 @@ import {
   buildBrowseResults,
   getBrowseSourceMode,
   MIN_BROWSE_QUERY_LENGTH,
-} from "../features/browse";
-import { cancelIdleTask, scheduleIdleTask } from "../shared/runtime";
+} from "../features/browse/browseResults";
+import { cancelIdleTask, scheduleIdleTask } from "../shared/runtime/runtimeEnv";
 
 export const DEFAULT_RESULT_LIMIT = 10;
 const ASYNC_BROWSE_RECORD_THRESHOLD = 5000;

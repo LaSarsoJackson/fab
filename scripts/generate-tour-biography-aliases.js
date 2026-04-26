@@ -2,7 +2,8 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { TOUR_DEFINITIONS, buildTourBiographyAliases } from "../src/features/tours/index.js";
+import { TOUR_DEFINITIONS } from "../src/features/fab/profile.js";
+import { buildTourBiographyAliases } from "../src/features/tours/tourDerivedData.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_PATH = path.join(__dirname, "../src/data/TourBiographyAliases.json");

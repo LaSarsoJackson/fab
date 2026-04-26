@@ -10,27 +10,32 @@ the one app that actually ships.
 
 ## Current Split
 
-- [`src/features/fab/profile.js`](../src/features/fab/profile.js): direct source of truth for FAB-only hosted URL roots, branding, shell copy, record presentation callbacks, app-scoped browser storage keys, bundled data modules, map defaults, basemap/source registries, optimization-artifact metadata, field aliases, and feature registrations.
+- [`src/features/fab/profile.js`](../src/features/fab/profile.js): direct source of truth for FAB-only hosted URL roots, branding, shell copy, record presentation callbacks, app-scoped browser storage keys, bundled data modules and data-module lookup helpers, map defaults, basemap/source registries, optimization-artifact metadata, field aliases, and feature registrations.
 - [`src/features/fab/tours.js`](../src/features/fab/tours.js): FAB tour definitions, styling, and tour-record enrichment.
-- [`src/admin/moduleRegistry.js`](../src/admin/moduleRegistry.js): reads modules from the app profile instead of rebuilding a local hardcoded list.
 - [`src/features/browse/browseResults.js`](../src/features/browse/browseResults.js): reads field aliases from the profile so source-field assumptions are not embedded directly in the browse pipeline.
 
-## Runtime Toggles
+## Runtime Features And Development Surfaces
 
-Only real experiments or environment-dependent behavior belong in
-[`src/shared/runtime/runtimeEnv.js`](../src/shared/runtime/runtimeEnv.js), which owns both flag definitions and resolution:
+Only shipped product toggles belong in `RUNTIME_FEATURE_FLAGS` inside
+[`src/shared/runtime/runtimeEnv.js`](../src/shared/runtime/runtimeEnv.js):
 
 - `fieldPackets`
-- `customMapEngine`
-- development routing-provider overrides
 
 Stable FAB product features such as tours and record presentation should stay in
 [`APP_PROFILE.features`](../src/features/fab/profile.js) instead of pretending to
 be rollout flags.
 
-PMTiles and site-twin development controls are app-owned map tools, not shared
-runtime feature flags. Their browser storage keys live under
-`APP_PROFILE.runtimeStorageKeys`.
+Development-only surfaces are demarcated in `DEVELOPMENT_SURFACES` and related
+development settings in `runtimeEnv.js`:
+
+- admin studio availability
+- custom renderer selection
+- PMTiles experiment state
+- site-twin debug availability
+- development routing-provider overrides
+
+FAB-owned development state that is not a shared runtime toggle, such as
+site-twin debug JSON, keeps its browser storage key under `APP_PROFILE.devStorageKeys`.
 
 ## Editing Guidance
 
@@ -38,7 +43,7 @@ When adding generic asset-management behavior:
 
 1. Extend the shared shell or the profile contract.
 2. Put FAB-only logic under `src/features/fab/`.
-3. Import [`APP_PROFILE`](../src/features/fab/profile.js) directly instead of routing through another alias layer.
+3. Import [`APP_PROFILE`](../src/features/fab/profile.js) or its exported data-module helpers directly instead of routing through another alias layer.
 4. Avoid importing Albany datasets, ARCE URLs, or tour metadata directly from the app shell.
 5. Prefer profile fields or feature callbacks over new hardcoded branches in shared code.
 

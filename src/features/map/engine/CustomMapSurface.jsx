@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { getGeoJsonBounds, isLatLngBoundsExpressionValid } from "../../../shared/geo";
-import { buildPublicAssetUrl } from "../../../shared/runtime";
+import { getGeoJsonBounds, isLatLngBoundsExpressionValid } from "../../../shared/geo/geoJsonBounds";
+import { buildPublicAssetUrl } from "../../../shared/runtime/runtimeEnv";
 import { PopupCardContent } from "../popupCardContent";
 import { getPopupViewportPadding } from "../popupViewport";
 import {

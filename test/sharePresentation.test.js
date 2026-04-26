@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildSharedSelectionPresentation,
   formatSharedSelectionCountLabel,
-} from "../src/features/deeplinks";
+} from "../src/features/deeplinks/sharePresentation";
 
 describe("sharePresentation", () => {
   test("formats selection counts for landing and share copy", () => {

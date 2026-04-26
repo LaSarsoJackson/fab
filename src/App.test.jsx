@@ -5,20 +5,21 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import App from "./App";
 import { APP_PROFILE } from "./features/fab/profile";
-import { isAdminStudioEnabled } from "./shared/runtime";
+import { ADMIN_HASH } from "./shared/routing";
+import { isAdminStudioEnabled, syncDocumentMetadata } from "./shared/runtime/runtimeEnv";
 
 jest.mock("./Map", () => ({
   __esModule: true,
   default: () => <div>Map stub</div>,
 }));
 
-jest.mock("./AdminRoute", () => ({
+jest.mock("./AdminApp", () => ({
   __esModule: true,
-  default: () => <div>Admin route stub</div>,
+  default: () => <div>Admin studio stub</div>,
 }));
 
-jest.mock("./shared/runtime", () => {
-  const actual = jest.requireActual("./shared/runtime");
+jest.mock("./shared/runtime/runtimeEnv", () => {
+  const actual = jest.requireActual("./shared/runtime/runtimeEnv");
   return {
     ...actual,
     isAdminStudioEnabled: jest.fn(),
@@ -30,7 +31,7 @@ const renderApp = () => render(<App />);
 describe("App", () => {
   const originalHash = window.location.hash;
   const originalTitle = document.title;
-  const originalDescription = document.head.querySelector('meta[name="description"]');
+  const originalHead = document.head.innerHTML;
 
   beforeEach(() => {
     isAdminStudioEnabled.mockReturnValue(true);
@@ -49,16 +50,7 @@ describe("App", () => {
     window.location.hash = originalHash;
     document.title = originalTitle;
     isAdminStudioEnabled.mockReset();
-
-    const currentDescription = document.head.querySelector('meta[name="description"]');
-    if (!originalDescription && currentDescription) {
-      currentDescription.remove();
-    } else if (originalDescription && currentDescription) {
-      currentDescription.setAttribute(
-        "content",
-        originalDescription.getAttribute("content") || ""
-      );
-    }
+    document.head.innerHTML = originalHead;
   });
 
   test("syncs the document title and description from the app profile", async () => {
@@ -79,12 +71,79 @@ describe("App", () => {
     expect(await screen.findByText("Map stub")).toBeInTheDocument();
 
     act(() => {
-      window.location.hash = "#/admin";
+      window.location.hash = ADMIN_HASH;
       window.dispatchEvent(new HashChangeEvent("hashchange"));
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Admin route stub")).toBeInTheDocument();
+      expect(screen.getByText("Admin studio stub")).toBeInTheDocument();
     });
+  });
+
+  test("shows the unavailable admin shell when the admin route is disabled", async () => {
+    isAdminStudioEnabled.mockReturnValue(false);
+    window.location.hash = ADMIN_HASH;
+
+    renderApp();
+
+    expect(await screen.findByRole("heading", { name: "Records workspace unavailable" })).toBeInTheDocument();
+    expect(screen.queryByText("Admin studio stub")).not.toBeInTheDocument();
+  });
+
+  test("updates the shared document and social metadata tags together", () => {
+    document.head.innerHTML = `
+      <meta name="description" content="" />
+      <meta property="og:title" content="" />
+      <meta property="og:description" content="" />
+      <meta property="og:url" content="" />
+      <meta name="twitter:title" content="" />
+      <meta name="twitter:description" content="" />
+    `;
+
+    syncDocumentMetadata({
+      title: "Packet Title",
+      description: "Packet description",
+      url: "https://example.com/#/packet",
+    });
+
+    expect(document.title).toBe("Packet Title");
+    expect(document.head.querySelector('meta[name="description"]')).toHaveAttribute(
+      "content",
+      "Packet description"
+    );
+    expect(document.head.querySelector('meta[property="og:title"]')).toHaveAttribute(
+      "content",
+      "Packet Title"
+    );
+    expect(document.head.querySelector('meta[property="og:description"]')).toHaveAttribute(
+      "content",
+      "Packet description"
+    );
+    expect(document.head.querySelector('meta[property="og:url"]')).toHaveAttribute(
+      "content",
+      "https://example.com/#/packet"
+    );
+    expect(document.head.querySelector('meta[name="twitter:title"]')).toHaveAttribute(
+      "content",
+      "Packet Title"
+    );
+    expect(document.head.querySelector('meta[name="twitter:description"]')).toHaveAttribute(
+      "content",
+      "Packet description"
+    );
+  });
+
+  test("leaves missing metadata tags alone instead of throwing", () => {
+    document.head.innerHTML = "";
+
+    expect(() => {
+      syncDocumentMetadata({
+        title: "Fallback Title",
+        description: "Fallback description",
+        url: "https://example.com",
+      });
+    }).not.toThrow();
+
+    expect(document.title).toBe("Fallback Title");
   });
 });

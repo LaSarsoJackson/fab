@@ -24,6 +24,8 @@ Then read only the task-specific note you need:
 - Put pure record transforms in the owning feature folder under [`src/features/`](./src/features).
 - Put domain-neutral helpers in [`src/shared/`](./src/shared).
 - Keep FAB-only branding, hosted URLs, presentation callbacks, and profile wiring in [`src/features/fab/profile.js`](./src/features/fab/profile.js) and tour definitions in [`src/features/fab/tours.js`](./src/features/fab/tours.js).
+- Import from the owning module directly; do not add barrel `index.js` files
+  that only re-export nearby helpers.
 - Do not add new helpers back into the retired flat `src/lib` layout.
 
 ## High-Value Entry Points
@@ -34,7 +36,7 @@ Then read only the task-specific note you need:
 - [`src/features/browse/`](./src/features/browse): search indexing and browse-result shaping
 - [`src/features/tours/`](./src/features/tours): tour definitions, alias generation, burial-tour reconciliation
 - [`src/features/map/`](./src/features/map): popup presentation, viewport helpers, selection reducer/actions
-- [`src/admin/`](./src/admin): file-backed admin module registry, exports, workbook import/export, update bundles
+- [`src/admin/`](./src/admin): static-admin state, exports, workbook import/export, update bundles
 
 ## Source Vs Generated Files
 

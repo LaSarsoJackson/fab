@@ -10,7 +10,7 @@ import {
   getLocationNoticeTone,
   getSearchPlaceholder,
   getSearchShellNoticeStyles,
-} from "../src/features/browse";
+} from "../src/features/browse/sidebarPresentation";
 
 describe("browse sidebar presentation helpers", () => {
   test("builds browse placeholders from the current browse scope", () => {

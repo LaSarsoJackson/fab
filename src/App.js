@@ -1,12 +1,21 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Paper,
+  Stack,
+  Typography,
+} from "@mui/material";
+import MapIcon from "@mui/icons-material/Map";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
-import { isAdminHash } from "./admin/adminHash";
 import { APP_PROFILE } from "./features/fab/profile";
-import { isAdminStudioEnabled, syncDocumentMetadata } from "./shared/runtime";
+import { APP_ROUTE_IDS, isAdminHash, navigateToAppRoute } from "./shared/routing";
+import { isAdminStudioEnabled, syncDocumentMetadata } from "./shared/runtime/runtimeEnv";
 import "./App.css";
 
 const BurialMap = lazy(() => import("./Map"));
-const AdminRoute = lazy(() => import("./AdminRoute"));
+const AdminApp = lazy(() => import("./AdminApp"));
 const PRIMARY_ACCENT = "#2f6b57";
 const PRIMARY_ACCENT_DARK = "#255544";
 const PRIMARY_ACCENT_TINT = "#d9e8e0";
@@ -161,7 +170,67 @@ const syncViewportMetrics = () => {
 };
 
 const getIsAdminMode = () => (
-  isAdminStudioEnabled() && typeof window !== "undefined" && isAdminHash(window.location.hash)
+  typeof window !== "undefined" && isAdminHash(window.location.hash)
+);
+
+const returnToMap = () => {
+  navigateToAppRoute(APP_ROUTE_IDS.map);
+};
+
+const AdminUnavailable = () => (
+  <Box
+    sx={{
+      minHeight: "100vh",
+      background: "linear-gradient(180deg, #f5f1e8 0%, #efe9dc 100%)",
+      color: "#18231d",
+      p: { xs: 2, md: 3 },
+      display: "grid",
+      placeItems: "center",
+    }}
+  >
+    <Paper
+      elevation={0}
+      sx={{
+        width: "min(100%, 640px)",
+        borderRadius: 3,
+        p: { xs: 2.5, md: 3.5 },
+        border: "1px solid rgba(24, 35, 29, 0.08)",
+        background: "rgba(255, 252, 246, 0.98)",
+      }}
+    >
+      <Stack spacing={2.5}>
+        <Stack spacing={1}>
+          <Typography variant="overline" sx={{ letterSpacing: "0.16em", color: "#5a6a5e" }}>
+            Records Workspace
+          </Typography>
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            Records workspace unavailable
+          </Typography>
+          <Typography variant="body1" sx={{ color: "#425348" }}>
+            This editor is not available from this version of the app.
+          </Typography>
+        </Stack>
+
+        <Alert severity="info">
+          Return to the map, or open the records workspace from the project tools.
+        </Alert>
+
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
+          <Button
+            variant="outlined"
+            startIcon={<MapIcon />}
+            onClick={returnToMap}
+          >
+            Return to map
+          </Button>
+        </Stack>
+      </Stack>
+    </Paper>
+  </Box>
+);
+
+const AdminModeSurface = () => (
+  isAdminStudioEnabled() ? <AdminApp /> : <AdminUnavailable />
 );
 
 export default function App() {
@@ -221,7 +290,7 @@ export default function App() {
             </div>
           }
         >
-          {isAdminMode ? <AdminRoute /> : <BurialMap />}
+          {isAdminMode ? <AdminModeSurface /> : <BurialMap />}
         </Suspense>
       </main>
     </ThemeProvider>

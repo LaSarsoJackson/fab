@@ -1,9 +1,8 @@
 /**
  * Map runtime contract v1.
  *
- * This module is intentionally standalone-oriented: the symbols here describe
- * the public engine surface, not FAB-specific React wiring. FAB consumes this
- * contract, but other callers can do the same.
+ * This module describes the public engine surface, not FAB-specific React
+ * wiring. FAB consumes this contract through direct module imports.
  *
  * Clean-room note:
  * - public method names intentionally line up with stable Leaflet concepts
@@ -98,7 +97,7 @@ export const MAP_OPTIMIZATION_ARTIFACT_ROLES = [
 ];
 
 /**
- * Return the versioned standalone contract descriptor.
+ * Return the versioned engine contract descriptor.
  *
  * This is the highest-signal runtime introspection helper for callers that
  * want to inspect the engine surface without importing individual constants.

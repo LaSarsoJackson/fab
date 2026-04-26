@@ -5,9 +5,6 @@ import {
   MAP_BASEMAP_TYPES,
   MAP_LAYER_KINDS,
   MAP_OPTIMIZATION_ARTIFACT_ROLES,
-  createMapRuntime,
-  createCustomMapRuntime,
-  createLeafletMapRuntime,
   CUSTOM_MAP_RUNTIME_KIND,
   MAP_SOURCE_FORMATS,
   createOptimizationArtifactSpec,
@@ -19,7 +16,9 @@ import {
   listMissingMapRuntimeMethods,
   MAP_RUNTIME_API_VERSION,
   MAP_RUNTIME_REQUIRED_METHODS,
-} from "../src/features/map/engine/standalone";
+} from "../src/features/map/engine/contracts";
+import { createCustomMapRuntime } from "../src/features/map/engine/customRuntime";
+import { createLeafletMapRuntime } from "../src/features/map/engine/leafletRuntime";
 
 describe("map runtime contract", () => {
   test("marks custom runtimes as FAB map runtimes", () => {
@@ -120,7 +119,7 @@ describe("map runtime contract", () => {
     });
   });
 
-  test("publishes a standalone-friendly contract descriptor", () => {
+  test("publishes an engine contract descriptor", () => {
     expect(getMapRuntimeContract()).toMatchObject({
       apiVersion: MAP_RUNTIME_API_VERSION,
       runtimeKinds: [CUSTOM_MAP_RUNTIME_KIND, LEAFLET_ADAPTER_RUNTIME_KIND],
@@ -148,27 +147,6 @@ describe("map runtime contract", () => {
     }, { label: "runtime" })).toThrow(
       "Missing: destroy, setCamera, fitBounds, setBasemap, setLayers, setSelection, openPopup, closePopup, on."
     );
-  });
-
-  test("can create runtimes by kind through the standalone factory", () => {
-    const customRuntime = createMapRuntime(CUSTOM_MAP_RUNTIME_KIND, {
-      center: [42.70418, -73.73198],
-      zoom: 14,
-    });
-    expect(getMapRuntimeDescriptor(customRuntime)).toEqual({
-      kind: CUSTOM_MAP_RUNTIME_KIND,
-      apiVersion: MAP_RUNTIME_API_VERSION,
-    });
-
-    const adapterRuntime = createMapRuntime(LEAFLET_ADAPTER_RUNTIME_KIND, {
-      leafletMap: {
-        setView: () => undefined,
-      },
-    });
-    expect(getMapRuntimeDescriptor(adapterRuntime)).toEqual({
-      kind: LEAFLET_ADAPTER_RUNTIME_KIND,
-      apiVersion: MAP_RUNTIME_API_VERSION,
-    });
   });
 
   test("normalizes overlay-source and optimization-artifact specs for engine documentation", () => {

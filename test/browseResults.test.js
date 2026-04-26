@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildSearchIndex } from "../src/features/browse";
+import { buildSearchIndex } from "../src/features/browse/burialSearch";
 import {
   buildBrowseResults,
   buildBurialSectionIndex,
@@ -8,7 +8,7 @@ import {
   filterBurialRecordsBySection,
   formatBrowseResultName,
   getBrowseSourceMode,
-} from "../src/features/browse";
+} from "../src/features/browse/browseResults";
 
 const getTourName = (record) => {
   if (record.title === "Notable") return "Notables Tour 2020";

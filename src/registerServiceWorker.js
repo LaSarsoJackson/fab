@@ -1,4 +1,4 @@
-import { buildPublicAssetUrl } from "./shared/runtime";
+import { buildPublicAssetUrl } from "./shared/runtime/runtimeEnv";
 
 const registerServiceWorker = () => {
   if (process.env.NODE_ENV !== 'production') {

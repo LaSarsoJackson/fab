@@ -144,7 +144,7 @@ async function searchForLamont(page) {
   await searchInput.fill("lamont");
   await expect(searchInput).toHaveValue("lamont");
 
-  const browseResults = page.locator(".left-sidebar__panel--browse li");
+  const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
   await expect(browseResults.first()).toContainText("Thomas E LaMont");
   await expect(page.getByText("Preparing fast search…")).toHaveCount(0);
 
@@ -234,7 +234,7 @@ runtimeVariants.forEach((runtimeVariant) => {
           name: startingLabel.includes("Hide") ? "Show section markers" : "Hide section markers",
       })).toBeVisible();
 
-      const browseResults = page.locator(".left-sidebar__panel--browse li");
+      const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
       await expect(page.locator(".left-sidebar__panel--browse")).toContainText(/Showing \d+ of \d+/);
       await browseResults.first().click();
 
@@ -260,7 +260,7 @@ runtimeVariants.forEach((runtimeVariant) => {
 
       await expect(page.getByText("Loading Notables Tour 2020…")).toHaveCount(0, { timeout: 45_000 });
 
-      const browseResults = page.locator(".left-sidebar__panel--browse li");
+      const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
       await expect(browseResults.first()).toBeVisible();
 
       const selectedHeading = (await browseResults.first().getByRole("heading").textContent()).trim();
@@ -296,40 +296,21 @@ runtimeVariants.forEach((runtimeVariant) => {
       await expect(page.getByText("Using your current location for directions.")).toBeVisible({ timeout: 15_000 });
     });
 
-    test("on-map routing uses the shared route flow in both runtimes", async ({ page, context }) => {
+    test("on-map routing uses the local road graph in both runtimes", async ({ page, context }) => {
       await context.grantPermissions(["geolocation"]);
       await context.setGeolocation({
         latitude: 42.70418,
         longitude: -73.73198,
       });
 
-      let routeRequestCount = 0;
-      await page.route(/valhalla1\.openstreetmap\.de\/route/, async (route) => {
-        routeRequestCount += 1;
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            code: "Ok",
-            routes: [
-              {
-                distance: 412.7,
-                duration: 301,
-                geometry: {
-                  type: "LineString",
-                  coordinates: [
-                    [-73.73198, 42.70418],
-                    [-73.72994, 42.70551],
-                    [-73.72812, 42.70674],
-                  ],
-                },
-              },
-            ],
-          }),
-        });
+      let externalRouteRequestCount = 0;
+      page.on("request", (request) => {
+        if (/valhalla1\.openstreetmap\.de\/route/i.test(request.url())) {
+          externalRouteRequestCount += 1;
+        }
       });
 
-      await waitForAppReady(page, runtimeVariant.path);
+      await waitForAppReady(page, buildRuntimePath(runtimeVariant.path, "routing=local"));
       await ensureBurialDataLoaded(page);
       const browseResults = await searchForLamont(page);
 
@@ -341,7 +322,7 @@ runtimeVariants.forEach((runtimeVariant) => {
 
       await expect(selectedPeoplePanel).toContainText("Route active");
       await expect(page.getByText("Calculating route...")).toHaveCount(0, { timeout: 15_000 });
-      expect(routeRequestCount).toBeLessThanOrEqual(1);
+      expect(externalRouteRequestCount).toBe(0);
 
       await openDirectionsMenu(selectedPeoplePanel, page, { routeActionName: "Stop Route" });
       await page.getByRole("menuitem", { name: "Stop Route" }).click();

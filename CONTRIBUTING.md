@@ -61,7 +61,7 @@ Key folders:
 - [`src/features/map/`](./src/features/map): map-specific runtime helpers, popup models, shared map chrome, and selection logic
 - [`src/features/tours/`](./src/features/tours): tour definitions, matching, and derived metadata
 - [`src/features/deeplinks/`](./src/features/deeplinks): shared-link encoding and field packet state
-- [`src/shared/`](./src/shared): domain-neutral helpers such as runtime flags and GeoJSON utilities
+- [`src/shared/`](./src/shared): domain-neutral helpers such as routing contracts, runtime features, development-surface gates, and GeoJSON utilities
 - [`scripts/`](./scripts): build-time generators, migrations, geospatial loaders, and deployment wrappers
 
 If you are not sure where a change belongs, stop at
@@ -74,9 +74,12 @@ If you are not sure where a change belongs, stop at
 - Keep pure map business rules in [`src/features/map/mapDomain.js`](./src/features/map/mapDomain.js)
   so selection state, section logic, hover rules, geolocation filtering, and map-specific
   styling stay discoverable.
-- Keep route building, bundled-road routing, and provider fallback rules in
+- Keep walking-route calculation, bundled-road routing, and provider fallback rules in
   [`src/features/map/mapRouting.js`](./src/features/map/mapRouting.js) so map
   navigation logic has one home.
+- Keep client route hashes, URL query-key names, routing provider ids, Valhalla
+  endpoint defaults, and external directions links in
+  [`src/shared/routing`](./src/shared/routing).
 - Put pure transforms in the owning feature folder under [`src/features/`](./src/features).
 - Put domain-neutral helpers in [`src/shared/`](./src/shared).
 - Keep FAB-only behavior in [`src/features/fab/profile.js`](./src/features/fab/profile.js) for app/profile/presentation defaults and [`src/features/fab/tours.js`](./src/features/fab/tours.js) for tour definitions.

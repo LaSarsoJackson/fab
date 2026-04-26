@@ -4,8 +4,8 @@ import {
   getFitBoundsCamera,
   normalizeBounds,
   panLatLngIntoView,
-} from "../src/features/map/engine";
-import { getBoundsZoom } from "../src/features/map/engine/camera";
+  getBoundsZoom,
+} from "../src/features/map/engine/camera";
 
 describe("map engine camera helpers", () => {
   test("normalizes south-west and north-east bounds ordering", () => {

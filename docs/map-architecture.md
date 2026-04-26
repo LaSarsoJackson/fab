@@ -22,14 +22,14 @@ as the controller that drives a selected runtime.
 - [`docs/map-engine-api.md`](./map-engine-api.md): runtime and data-backend API contract for the engine
 - [`docs/map-engine-geoparquet.md`](./map-engine-geoparquet.md): static data-format strategy, GeoParquet migration plan, and PMTiles relationship
 - [`docs/codebase-structure.md`](./codebase-structure.md): repo ownership map and directory responsibilities
+- [`docs/routing-architecture.md`](./routing-architecture.md): client route, shared-link, directions-link, and routing-provider URL ownership
 - [`src/features/map/mapChrome.jsx`](../src/features/map/mapChrome.jsx): shared map controls, overlays, and debug chrome used by both runtimes
 - [`src/features/map/mapDomain.js`](../src/features/map/mapDomain.js): the single home for pure map business rules such as selection-state actions/reduction, section grouping, location filtering, hover guards, and PMTiles glyph logic
-- [`src/features/map/mapRouting.js`](../src/features/map/mapRouting.js): the single home for route building, local road-graph routing, external routing requests, and provider fallback behavior
+- [`src/features/map/mapRouting.js`](../src/features/map/mapRouting.js): the single home for walking-route calculation, local road-graph routing, Valhalla response handling, and provider fallback behavior
 - [`src/features/tours/tourDerivedData.js`](../src/features/tours/tourDerivedData.js): canonical biography/portrait inference for uneven tour datasets and the helpers used to generate alias metadata
 - [`src/features/map/mapRecordPresentation.js`](../src/features/map/mapRecordPresentation.js): shared record cleanup, popup view-model generation, ARCE biography/image link normalization, and defensive date formatting
-- [`src/features/tours/tourBurialMatching.js`](../src/features/tours/tourBurialMatching.js): heuristics for matching tour stops to burial records and normalizing tour results into the shared browse-result shape
+- [`src/features/tours/tourRecordHarmonization.js`](../src/features/tours/tourRecordHarmonization.js): burial/tour matching heuristics, search-result enrichment from tour metadata, and tour-stop normalization into the shared browse-result shape
 - [`src/features/browse/browseResults.js`](../src/features/browse/browseResults.js): record shaping used by both the sidebar and map
-- [`src/features/tours/tourMetadata.js`](../src/features/tours/tourMetadata.js): burial-result enrichment from precomputed tour metadata
 - [`src/features/map/popupViewport.js`](../src/features/map/popupViewport.js): geometry helpers that keep popups visible beside the sidebar
 - [`docs/tour-popup-data.md`](./tour-popup-data.md): focused guide to the tour popup data flow, build guards, and change process
 
