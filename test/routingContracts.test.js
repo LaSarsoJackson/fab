@@ -1,45 +1,25 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  ADMIN_HASH,
-  APP_ROUTE_IDS,
   buildDirectionsLink,
   buildOfflineValhallaWalkingRouteUrl,
   buildValhallaWalkingRouteUrl,
   DEFAULT_LOCAL_VALHALLA_PROXY_PATH,
   DEFAULT_ROUTING_PROVIDER,
   normalizeRoutingProvider,
-  navigateToAppRoute,
   ROUTING_QUERY_PARAMS,
   ROUTING_PROVIDERS,
   VALID_ROUTING_PROVIDERS,
-  isAdminHash,
 } from "../src/shared/routing";
 
 describe("routing contracts", () => {
-  test("keeps app route hashes in one registry", () => {
-    expect(ADMIN_HASH).toBe("#/admin");
-    expect(isAdminHash("#/admin")).toBe(true);
-    expect(isAdminHash("#/admin?dataset=burials")).toBe(true);
-    expect(isAdminHash("#/map")).toBe(false);
-  });
-
-  test("navigates through the same app route registry", () => {
-    const location = { hash: "#/admin" };
-
-    expect(navigateToAppRoute(APP_ROUTE_IDS.map, { location })).toBe(true);
-    expect(location.hash).toBe("");
-
-    expect(navigateToAppRoute(APP_ROUTE_IDS.admin, { location })).toBe(true);
-    expect(location.hash).toBe("#/admin");
-  });
-
   test("centralizes route query keys and provider ids", () => {
-    expect(ROUTING_QUERY_PARAMS).toMatchObject({
-      mapEngine: "mapEngine",
-      routingProvider: "routing",
+    expect(ROUTING_QUERY_PARAMS).toEqual({
       search: "q",
+      section: "section",
       sharedSelection: "share",
+      tour: "tour",
+      view: "view",
     });
     expect(DEFAULT_ROUTING_PROVIDER).toBe(ROUTING_PROVIDERS.api);
     expect(VALID_ROUTING_PROVIDERS).toEqual(["api", "local", "valhalla"]);

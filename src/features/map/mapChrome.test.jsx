@@ -111,9 +111,9 @@ describe("mapChrome", () => {
     })).toBe(true);
 
     expect(isLeafletRasterBasemap({
-      id: "burials-pmtiles",
-      type: "pmtiles-vector",
-      urlTemplate: "/data/geo_burials.pmtiles",
+      id: "vector-detail",
+      type: "vector",
+      urlTemplate: "/data/vector-detail.bin",
     })).toBe(false);
   });
 
@@ -159,9 +159,9 @@ describe("mapChrome", () => {
     render(
       <LeafletBasemapLayer
         basemap={{
-          id: "burials-pmtiles",
-          type: "pmtiles-vector",
-          urlTemplate: "/data/geo_burials.pmtiles",
+          id: "vector-detail",
+          type: "vector",
+          urlTemplate: "/data/vector-detail.bin",
         }}
       />
     );

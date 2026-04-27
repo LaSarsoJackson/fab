@@ -4,8 +4,8 @@
 Convert a GeoJSON source file into GeoParquet.
 
 The output is intended to be a build-time artifact that can transparently feed
-search-index generation, PMTiles generation, and other static optimizations
-without changing the user-facing map API.
+search-index generation and other static optimizations without changing the
+user-facing map API.
 """
 
 from __future__ import annotations

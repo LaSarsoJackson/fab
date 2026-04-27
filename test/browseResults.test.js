@@ -6,8 +6,10 @@ import {
   buildBurialBrowseResult,
   buildTourBrowseResult,
   filterBurialRecordsBySection,
+  findSectionBrowseDetailDefinition,
   formatBrowseResultName,
   getBrowseSourceMode,
+  resolveSectionBrowseRecords,
 } from "../src/features/browse/browseResults";
 
 const getTourName = (record) => {
@@ -184,6 +186,66 @@ describe("browse source helpers", () => {
       ).map((item) => item.id)
     ).toEqual([burialRecords[2].id]);
   });
+
+  test("uses section-specific detail records when a section has a richer map dataset", () => {
+    const projectedSectionRecords = [
+      buildTourBrowseResult(
+        {
+          properties: {
+            OBJECTID: 49,
+            Section: 49,
+            Lot: 1,
+            Row: 1,
+            Position: 1,
+          },
+          geometry: {
+            coordinates: [-73.72, 42.72],
+          },
+        },
+        {
+          tourKey: "Sec49",
+          tourName: "Section 49",
+        }
+      ),
+    ];
+
+    expect(resolveSectionBrowseRecords({
+      burialRecords,
+      sectionIndex,
+      sectionFilter: "49",
+      sectionRecordsOverride: projectedSectionRecords,
+    }).map((item) => item.id)).toEqual([projectedSectionRecords[0].id]);
+  });
+
+  test("matches whole-section and lot-scoped detail datasets for section browse", () => {
+    const definitions = [
+      {
+        name: "Section 49",
+        sectionBrowse: { section: "49", mode: "replace" },
+      },
+      {
+        name: "Soldier's Lot",
+        sectionBrowse: { section: "75", lot: "7", mode: "replace" },
+      },
+    ];
+
+    expect(findSectionBrowseDetailDefinition(definitions, {
+      sectionFilter: "49",
+    })?.name).toBe("Section 49");
+    expect(findSectionBrowseDetailDefinition(definitions, {
+      sectionFilter: "75",
+    })).toBeNull();
+    expect(findSectionBrowseDetailDefinition(definitions, {
+      sectionFilter: "75",
+      lotTierFilter: "7",
+      filterType: "lot",
+    })?.name).toBe("Soldier's Lot");
+    expect(findSectionBrowseDetailDefinition(definitions, {
+      sectionFilter: "75",
+      lotTierFilter: "7",
+      filterType: "tier",
+    })).toBeNull();
+  });
 });
 
 describe("buildBrowseResults", () => {
@@ -231,6 +293,38 @@ describe("buildBrowseResults", () => {
 
     expect(activeSource).toBe("section");
     expect(results.map((item) => item.displayName)).toEqual(["Anna Tracy", "Thomas Tracy"]);
+  });
+
+  test("returns section-specific detail records instead of coarse burial records when provided", () => {
+    const projectedSectionRecords = [
+      buildTourBrowseResult(
+        {
+          properties: {
+            OBJECTID: 99,
+            Section: 99,
+            Lot: 18,
+            Row: 2,
+            Position: 7,
+          },
+          geometry: {
+            coordinates: [-73.7337, 42.712],
+          },
+        },
+        {
+          tourKey: "Sec99",
+          tourName: "Section 99",
+        }
+      ),
+    ];
+    const { activeSource, results } = buildBrowseResults({
+      browseSource: "section",
+      burialRecords,
+      sectionFilter: "99",
+      sectionRecordsOverride: projectedSectionRecords,
+    });
+
+    expect(activeSource).toBe("section");
+    expect(results.map((item) => item.id)).toEqual([projectedSectionRecords[0].id]);
   });
 
   test("narrows section results with the shared query logic", () => {

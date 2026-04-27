@@ -1,10 +1,10 @@
 import fs from "fs/promises";
 
 import { APP_PROFILE } from "../../src/features/fab/profile.js";
-import { getPreferredBuildSourceArtifact } from "../../src/features/map/engine/backend.js";
 import {
   getBurialGeoJsonPath,
   getBurialGeoParquetCandidates,
+  getPreferredBuildSourceArtifact,
   loadBurialFeatureCollection,
 } from "./load_burial_source.js";
 

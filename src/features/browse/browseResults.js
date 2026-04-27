@@ -268,6 +268,29 @@ export const getBrowseSourceMode = ({ browseSource = "", sectionFilter = "", sel
   return "all";
 };
 
+export const findSectionBrowseDetailDefinition = (
+  definitions = [],
+  {
+    sectionFilter = "",
+    lotTierFilter = "",
+    filterType = "lot",
+  } = {}
+) => {
+  const section = cleanValue(sectionFilter);
+  if (!section) return null;
+
+  return definitions.find((definition) => {
+    const sectionBrowse = definition?.sectionBrowse || null;
+    if (sectionBrowse?.mode !== "replace") return false;
+    if (cleanValue(sectionBrowse.section) !== section) return false;
+
+    const lot = cleanValue(sectionBrowse.lot);
+    if (!lot) return true;
+
+    return filterType === "lot" && cleanValue(lotTierFilter) === lot;
+  }) || null;
+};
+
 /**
  * Browsing a section can touch hundreds of records repeatedly as the user
  * flips between lot/tier filters, so build a small in-memory index once.
@@ -340,10 +363,36 @@ export const filterBurialRecordsBySection = (
   });
 };
 
+export const resolveSectionBrowseRecords = ({
+  burialRecords = [],
+  sectionRecordsOverride = null,
+  sectionIndex = null,
+  sectionFilter = "",
+  lotTierFilter = "",
+  filterType = "lot",
+} = {}) => {
+  if (Array.isArray(sectionRecordsOverride)) {
+    return filterBurialRecordsBySection(sectionRecordsOverride, {
+      sectionFilter,
+      lotTierFilter,
+      filterType,
+    });
+  }
+
+  return filterBurialRecordsBySection(burialRecords, {
+    sectionFilter,
+    lotTierFilter,
+    filterType,
+  }, {
+    sectionIndex,
+  });
+};
+
 export const buildBrowseResults = ({
   browseSource = "",
   query = "",
   burialRecords = [],
+  sectionRecordsOverride = null,
   sectionIndex = null,
   searchIndex = null,
   getTourName,
@@ -389,12 +438,13 @@ export const buildBrowseResults = ({
       };
     }
 
-    const sectionResults = filterBurialRecordsBySection(burialRecords, {
+    const sectionResults = resolveSectionBrowseRecords({
+      burialRecords,
+      sectionRecordsOverride,
+      sectionIndex,
       sectionFilter,
       lotTierFilter,
       filterType,
-    }, {
-      sectionIndex,
     });
 
     if (!hasQuery) {

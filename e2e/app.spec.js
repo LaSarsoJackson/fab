@@ -11,22 +11,8 @@ const APP_HOSTS = new Set([
 
 const runtimeVariants = [
   { name: "leaflet", path: "/" },
-  { name: "custom-map", path: "/?mapEngine=custom" },
 ];
 const isIgnorableConsoleError = (text = "") => /^Failed to load resource:/i.test(text);
-const isIgnorableLocalRequestFailure = (request) => {
-  const failureText = request.failure()?.errorText || "";
-  if (failureText !== "net::ERR_ABORTED") {
-    return false;
-  }
-
-  try {
-    const url = new URL(request.url());
-    return url.pathname.endsWith("/data/site_twin/grave_candidates.geojson");
-  } catch (error) {
-    return false;
-  }
-};
 const buildRuntimePath = (runtimePath, searchParams = "") => {
   if (!searchParams) {
     return runtimePath;
@@ -60,7 +46,7 @@ test.beforeEach(async ({ page }, testInfo) => {
       hostname = "";
     }
 
-    if (APP_HOSTS.has(hostname) && !isIgnorableLocalRequestFailure(request)) {
+    if (APP_HOSTS.has(hostname)) {
       localRequestFailures.push(`${request.failure()?.errorText || "Request failed"}: ${request.url()}`);
     }
   });

@@ -12,19 +12,15 @@ Treat [`src/Map.jsx`](../src/Map.jsx) as the orchestration layer. It should own:
 - viewport, routing, and selection side effects
 
 It should not be the long-term home for pure formatting or dataset-reconciliation logic.
-It is also not the source of truth for the engine contract. That lives under
-[`src/features/map/engine/`](../src/features/map/engine), with `Map.jsx` acting
-as the controller that drives a selected runtime.
+Development-only map experiments live on `dev-features`; `master` should keep a
+single production map path unless an experiment is being promoted.
 
 ## Supporting Modules
 
-- [`docs/custom-map-engine.md`](./custom-map-engine.md): product-level definition of the custom engine boundary and ownership model
-- [`docs/map-engine-api.md`](./map-engine-api.md): runtime and data-backend API contract for the engine
-- [`docs/map-engine-geoparquet.md`](./map-engine-geoparquet.md): static data-format strategy, GeoParquet migration plan, and PMTiles relationship
 - [`docs/codebase-structure.md`](./codebase-structure.md): repo ownership map and directory responsibilities
 - [`docs/routing-architecture.md`](./routing-architecture.md): client route, shared-link, directions-link, and routing-provider URL ownership
 - [`src/features/map/mapChrome.jsx`](../src/features/map/mapChrome.jsx): shared map controls, overlays, and debug chrome used by both runtimes
-- [`src/features/map/mapDomain.js`](../src/features/map/mapDomain.js): the single home for pure map business rules such as selection-state actions/reduction, section grouping, location filtering, hover guards, and PMTiles glyph logic
+- [`src/features/map/mapDomain.js`](../src/features/map/mapDomain.js): the single home for pure map business rules such as selection-state actions/reduction, section grouping, location filtering, and hover guards
 - [`src/features/map/mapRouting.js`](../src/features/map/mapRouting.js): the single home for walking-route calculation, local road-graph routing, Valhalla response handling, and provider fallback behavior
 - [`src/features/tours/tourDerivedData.js`](../src/features/tours/tourDerivedData.js): canonical biography/portrait inference for uneven tour datasets and the helpers used to generate alias metadata
 - [`src/features/map/mapRecordPresentation.js`](../src/features/map/mapRecordPresentation.js): shared record cleanup, popup view-model generation, ARCE biography/image link normalization, and defensive date formatting

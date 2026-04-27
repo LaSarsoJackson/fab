@@ -1,17 +1,14 @@
-import {
-  createBasemapSpec,
-  createOptimizationArtifactSpec,
-  createOverlaySourceSpec,
-} from "../map/engine/contracts";
 import { BOUNDARY_BBOX, LOCATION_BUFFER_BOUNDARY } from "../map/generatedBounds";
 import { FAB_TOUR_DEFINITIONS, FAB_TOUR_STYLES, enrichFabTourRecord } from "./tours";
 
 const stripLeadingSlash = (value = "") => String(value).trim().replace(/^\/+/, "");
 const stripTrailingSlash = (value = "") => String(value).trim().replace(/\/+$/, "");
+const createBasemapSpec = (definition) => Object.freeze({ ...definition });
+const createOverlaySourceSpec = (definition) => Object.freeze({ ...definition });
+const createOptimizationArtifactSpec = (definition) => Object.freeze({ ...definition });
 
 const FAB_SITE_ROOT_URL = "https://www.albany.edu/arce";
 const FAB_SITE_NAME = "Albany Rural Cemetery";
-const FAB_ADMIN_SITE_NAME = "Albany Rural Cemetery Records Workspace";
 const FAB_HOME_URL = `${FAB_SITE_ROOT_URL}/`;
 const FAB_IMAGE_DIRECTORY = "images";
 const FAB_NO_IMAGE_FILE_NAME = "no-image.jpg";
@@ -188,16 +185,6 @@ const MAP_BASEMAPS = [
     maxZoom: 19,
     tileSize: 256,
   },
-  {
-    id: "burials-pmtiles",
-    label: "Burial Detail",
-    type: "pmtiles-vector",
-    urlTemplate: "/data/geo_burials.pmtiles",
-    rasterFallbackUrlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    minZoom: 10,
-    maxZoom: 22,
-    tileSize: 256,
-  },
 ].map(createBasemapSpec);
 
 const MAP_OVERLAY_SOURCES = [
@@ -224,25 +211,6 @@ const MAP_OVERLAY_SOURCES = [
     format: "geojson",
     sourceModuleId: "sections",
     status: "active",
-  },
-  {
-    id: "burials-pmtiles",
-    label: "Burial Detail Layer",
-    type: "pmtiles-vector",
-    format: "pmtiles-vector",
-    publicPath: "/data/geo_burials.pmtiles",
-    dataLayer: "burials",
-    buildCommand: "bun run build:pmtiles",
-    status: "experimental",
-  },
-  {
-    id: "site-twin-manifest",
-    label: "Site Twin Manifest",
-    type: "json",
-    format: "json",
-    publicPath: "/data/site_twin/manifest.json",
-    buildCommand: "bun run build:site-twin:terrain",
-    status: "experimental",
   },
 ].map(createOverlaySourceSpec);
 
@@ -281,42 +249,6 @@ const MAP_OPTIMIZATION_ARTIFACTS = [
     status: "active",
     notes: "Runtime-minified payload consumed by the search and browse UI.",
   },
-  {
-    id: "burials-pmtiles",
-    label: "Burial detail tile archive",
-    role: "delivery-overlay",
-    format: "pmtiles-vector",
-    sourceModuleId: "burials",
-    publicPath: "/data/geo_burials.pmtiles",
-    filePath: "public/data/geo_burials.pmtiles",
-    buildCommand: "bun run build:pmtiles",
-    status: "experimental",
-    notes: "Tile package for the burial detail preview layer.",
-  },
-  {
-    id: "site-twin-manifest",
-    label: "Ground model manifest",
-    role: "delivery-overlay",
-    format: "json",
-    sourceModuleId: "burials",
-    publicPath: "/data/site_twin/manifest.json",
-    filePath: "public/data/site_twin/manifest.json",
-    buildCommand: "bun run build:site-twin:terrain",
-    status: "experimental",
-    notes: "Manifest for the cemetery ground model and candidate marker overlays.",
-  },
-  {
-    id: "site-twin-grave-candidates",
-    label: "Ground model grave candidates",
-    role: "delivery-overlay",
-    format: "geojson",
-    sourceModuleId: "burials",
-    publicPath: "/data/site_twin/grave_candidates.geojson",
-    filePath: "public/data/site_twin/grave_candidates.geojson",
-    buildCommand: "bun run build:site-twin:terrain",
-    status: "experimental",
-    notes: "Candidate marker points sampled from terrain and burial geometry.",
-  },
 ].map(createOptimizationArtifactSpec);
 
 export const APP_PROFILE = {
@@ -324,11 +256,8 @@ export const APP_PROFILE = {
   productName: "FAB",
   brand: {
     appName: FAB_SITE_NAME,
-    adminName: FAB_ADMIN_SITE_NAME,
     mapLoadingTitle: FAB_SITE_NAME,
     mapLoadingMessage: "Loading map experience…",
-    adminLoadingTitle: FAB_ADMIN_SITE_NAME,
-    adminLoadingMessage: "Loading records workspace…",
   },
   shell: {
     homeUrl: FAB_HOME_URL,
@@ -397,12 +326,8 @@ export const APP_PROFILE = {
   artifacts: {
     searchIndexPublicPath: "/data/Search_Burials.json",
     searchIndexFilePath: "public/data/Search_Burials.json",
-    siteTwinManifestPublicPath: "/data/site_twin/manifest.json",
     tourMatchesFilePath: "src/data/TourMatches.json",
     generatedConstantsFilePath: "src/features/map/generatedBounds.js",
-  },
-  devStorageKeys: {
-    siteTwinDebug: "fab:dev:siteTwinDebugState",
   },
   map: {
     center: [42.704180, -73.731980],
@@ -427,15 +352,10 @@ export const APP_PROFILE = {
     defaultBasemapId: "imagery",
     basemaps: MAP_BASEMAPS,
     overlaySources: MAP_OVERLAY_SOURCES,
-    siteTwin: {
-      manifestPublicPath: "/data/site_twin/manifest.json",
-      graveCandidatesPublicPath: "/data/site_twin/grave_candidates.geojson",
-      defaultVisible: false,
-    },
     storageStrategy: {
       sourceOfTruthFormat: "geojson",
       preferredBuildSourceFormat: "geoparquet",
-      preferredDeliveryFormat: "pmtiles-vector",
+      preferredDeliveryFormat: "json",
       preferredSearchFormat: "json",
       migrationGoal: "Treat GeoParquet as a build-time 1:1 replacement for GeoJSON while preserving the existing runtime API and generated artifacts.",
     },

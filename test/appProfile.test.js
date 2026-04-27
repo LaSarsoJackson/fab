@@ -30,15 +30,11 @@ describe("app profile", () => {
     );
   });
 
-  test("keeps FAB-owned development storage keys in the profile contract", () => {
-    expect(APP_PROFILE.devStorageKeys).toEqual({
-      siteTwinDebug: "fab:dev:siteTwinDebugState",
-    });
-  });
-
   test("documents the map source and optimization formats needed for invisible GeoParquet migration", () => {
     expect(APP_PROFILE.map.storageStrategy.preferredBuildSourceFormat).toBe("geoparquet");
-    expect(APP_PROFILE.map.overlaySources.some((source) => source.type === "pmtiles-vector")).toBe(true);
+    expect(APP_PROFILE.map.storageStrategy.preferredDeliveryFormat).toBe("json");
+    expect(APP_PROFILE.map.overlaySources.some((source) => source.type === "pmtiles-vector")).toBe(false);
+    expect(APP_PROFILE.map.optimizationArtifacts.some((artifact) => artifact.id.startsWith("site-twin"))).toBe(false);
 
     const geoParquetArtifact = APP_PROFILE.map.optimizationArtifacts.find(
       (artifact) => artifact.format === "geoparquet"

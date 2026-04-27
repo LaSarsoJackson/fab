@@ -4,24 +4,28 @@ This is the current staged plan for the next round of `fab` work.
 
 The goals are:
 
-- continue moving toward a FAB-owned custom map variant
-- make web and native alignment cleaner for `FABFG`
+- keep the shipped web surface and `FABFG` hosted URL contract aligned
 - keep the UI clearer, more performant, and closer to Apple HIG expectations
 - reduce contributor friction for new maintainers
+- keep development-only tools isolated on `dev-features`
 
 ## Current State
 
-The repo already has the right major seams:
+The repo has the right major seams:
 
-- a custom map runtime contract under [`src/features/map/engine/`](../src/features/map/engine)
 - profile-based FAB wiring under [`src/features/fab/`](../src/features/fab)
-- static admin workflows under [`src/admin/`](../src/admin)
+- map orchestration in [`src/Map.jsx`](../src/Map.jsx)
+- browse, tour, routing, and deep-link contracts under owning feature folders
+- a documented branch boundary for dev-only surfaces in
+  [`dev-branch-workflow.md`](./dev-branch-workflow.md)
 
 The biggest remaining pressure points are:
 
-- very large orchestration files like [`src/Map.jsx`](../src/Map.jsx) and [`src/BurialSidebar.jsx`](../src/BurialSidebar.jsx)
-- mixed legacy and current React patterns while the app still runs on React 17 and `react-scripts`
-- contributor docs that were behind the architecture changes
+- very large orchestration files like [`src/Map.jsx`](../src/Map.jsx) and
+  [`src/BurialSidebar.jsx`](../src/BurialSidebar.jsx)
+- mixed legacy and current React patterns while the app still runs on React 17
+  and `react-scripts`
+- contributor docs drifting behind architecture changes
 
 ## Stage 1: Contributor DX
 
@@ -51,13 +55,13 @@ Status: active
   clearer hierarchy, bigger touch targets, simpler gestures, visible focus, restrained motion
 - keep safe-area and mobile sheet behavior first-class
 
-## Stage 4: Custom Runtime Default Path
+## Stage 4: Production Map Simplification
 
-Status: next
+Status: active
 
-- continue shrinking the shared app layer's dependence on Leaflet specifics
-- treat the custom runtime as the primary target and Leaflet as the rollback path
-- keep parity checks for search, section, tour, popup, and deep-link flows
+- keep `master` on the shipped Leaflet map path
+- move renderer experiments, operator tooling, and artifact previews to `dev-features`
+- promote only focused, production-ready contracts back to `master`
 
 ## Stage 5: Toolchain Modernization
 
@@ -70,6 +74,6 @@ Status: later
 ## Guardrails
 
 - prefer additive refactors over broad moves
-- do not let renderer-specific behavior leak back into shared product code
+- do not let branch-only dev tools leak back into shared product code
 - if a change can affect hosted URLs or deep links, check both web and `FABFG`
 - if source data changes, regenerate derived artifacts instead of patching outputs manually

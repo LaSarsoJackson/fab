@@ -2,27 +2,7 @@ import routingDefaults from "./routingDefaults.json";
 
 const freezeArray = (values = []) => Object.freeze([...values]);
 
-export const APP_ROUTE_IDS = Object.freeze({
-  map: "map",
-  admin: "admin",
-});
-
-export const APP_ROUTES = Object.freeze({
-  [APP_ROUTE_IDS.map]: Object.freeze({
-    id: APP_ROUTE_IDS.map,
-    hash: "",
-  }),
-  [APP_ROUTE_IDS.admin]: Object.freeze({
-    id: APP_ROUTE_IDS.admin,
-    hash: "#/admin",
-  }),
-});
-
-export const ADMIN_HASH = APP_ROUTES[APP_ROUTE_IDS.admin].hash;
-
 export const ROUTING_QUERY_PARAMS = Object.freeze({
-  mapEngine: "mapEngine",
-  routingProvider: "routing",
   search: "q",
   section: "section",
   sharedSelection: "share",
@@ -64,32 +44,6 @@ export const isLatLngTuple = (value) => (
 export const normalizeRoutingProvider = (value) => {
   const normalizedValue = String(value || "").trim().toLowerCase();
   return VALID_ROUTING_PROVIDER_SET.has(normalizedValue) ? normalizedValue : "";
-};
-
-export const getAppRouteHash = (routeId = APP_ROUTE_IDS.map) => (
-  APP_ROUTES[routeId]?.hash ?? APP_ROUTES[APP_ROUTE_IDS.map].hash
-);
-
-export const isAppRouteHash = (hash = "", routeId = APP_ROUTE_IDS.map) => {
-  const routeHash = getAppRouteHash(routeId);
-
-  if (!routeHash) {
-    return !String(hash || "").trim();
-  }
-
-  return hash === routeHash || String(hash || "").startsWith(`${routeHash}?`);
-};
-
-export const isAdminHash = (hash = "") => isAppRouteHash(hash, APP_ROUTE_IDS.admin);
-
-export const navigateToAppRoute = (routeId = APP_ROUTE_IDS.map, { location } = {}) => {
-  const targetLocation = location || (typeof window === "undefined" ? null : window.location);
-  if (!targetLocation) {
-    return false;
-  }
-
-  targetLocation.hash = getAppRouteHash(routeId);
-  return true;
 };
 
 export const buildValhallaRouteEndpoint = ({

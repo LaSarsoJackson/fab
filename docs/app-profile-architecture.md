@@ -10,11 +10,11 @@ the one app that actually ships.
 
 ## Current Split
 
-- [`src/features/fab/profile.js`](../src/features/fab/profile.js): direct source of truth for FAB-only hosted URL roots, branding, shell copy, record presentation callbacks, app-scoped browser storage keys, bundled data modules and data-module lookup helpers, map defaults, basemap/source registries, optimization-artifact metadata, field aliases, and feature registrations.
+- [`src/features/fab/profile.js`](../src/features/fab/profile.js): direct source of truth for FAB-only hosted URL roots, branding, shell copy, record presentation callbacks, bundled data modules and data-module lookup helpers, map defaults, basemap/source registries, optimization-artifact metadata, field aliases, and feature registrations.
 - [`src/features/fab/tours.js`](../src/features/fab/tours.js): FAB tour definitions, styling, and tour-record enrichment.
 - [`src/features/browse/browseResults.js`](../src/features/browse/browseResults.js): reads field aliases from the profile so source-field assumptions are not embedded directly in the browse pipeline.
 
-## Runtime Features And Development Surfaces
+## Runtime Features
 
 Only shipped product toggles belong in `RUNTIME_FEATURE_FLAGS` inside
 [`src/shared/runtime/runtimeEnv.js`](../src/shared/runtime/runtimeEnv.js):
@@ -25,17 +25,9 @@ Stable FAB product features such as tours and record presentation should stay in
 [`APP_PROFILE.features`](../src/features/fab/profile.js) instead of pretending to
 be rollout flags.
 
-Development-only surfaces are demarcated in `DEVELOPMENT_SURFACES` and related
-development settings in `runtimeEnv.js`:
-
-- admin studio availability
-- custom renderer selection
-- PMTiles experiment state
-- site-twin debug availability
-- development routing-provider overrides
-
-FAB-owned development state that is not a shared runtime toggle, such as
-site-twin debug JSON, keeps its browser storage key under `APP_PROFILE.devStorageKeys`.
+Development-only surfaces are kept off `master`. Static admin, custom renderer,
+PMTiles previews, site-twin tooling, and similar DevEx/DevOps surfaces live on
+`dev-features`; see [`dev-branch-workflow.md`](./dev-branch-workflow.md).
 
 ## Editing Guidance
 
@@ -57,8 +49,5 @@ For map work specifically:
 
 - put basemap declarations, overlay-source declarations, and static optimization
   artifact metadata in `APP_PROFILE.map`
-- keep renderer-neutral engine vocabulary in
-  [`src/features/map/engine/contracts.js`](../src/features/map/engine/contracts.js)
-- document new source or artifact formats in
-  [`docs/map-engine-api.md`](./map-engine-api.md) and
-  [`docs/map-engine-geoparquet.md`](./map-engine-geoparquet.md)
+- document branch-only experiment formats on `dev-features`, and promote only
+  production-ready profile fields back to `master`

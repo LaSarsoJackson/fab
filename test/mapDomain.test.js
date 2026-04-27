@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  areMarkersAtSameLocation,
   areLocationCandidatesEquivalent,
   areRouteLatLngTuplesEquivalent,
   beginLeafletSectionHover,
@@ -12,12 +13,11 @@ import {
   clearLeafletSectionHover,
   createLeafletSectionHoverState,
   formatSectionOverviewMarkerLabel,
+  getClusterIconCount,
+  getDistinctMarkerLocationCount,
   MAP_PRESENTATION_POLICY,
-  getPmtilesExperimentGlyphOffset,
-  getPmtilesExperimentGlyphSize,
   getSectionBurialMarkerStyle,
   getSectionPolygonStyle,
-  hasIndexedBurialPlacement,
   inferPointerType,
   isLeafletSectionLayerHovered,
   isTouchLikePointerType,
@@ -44,6 +44,10 @@ import {
 } from "../src/features/map/mapDomain";
 
 describe("mapDomain", () => {
+  const markerAt = (lat, lng) => ({
+    getLatLng: () => ({ lat, lng }),
+  });
+
   describe("location tracking", () => {
     test("normalizes browser geolocation readings into shared candidates", () => {
       expect(normalizeLocationPosition({
@@ -414,6 +418,32 @@ describe("mapDomain", () => {
       })).toBe(19);
     });
 
+    test("keeps cluster badges tied to underlying burial records", () => {
+      const markers = [
+        markerAt(42.709101, -73.734101),
+        markerAt(42.709101, -73.734101),
+        markerAt(42.709202, -73.734202),
+        markerAt(42.709202, -73.734202),
+        markerAt(42.709303, -73.734303),
+      ];
+
+      expect(getDistinctMarkerLocationCount(markers)).toBe(3);
+      expect(areMarkersAtSameLocation(markers)).toBe(false);
+      expect(getClusterIconCount({ getChildCount: () => markers.length }, markers)).toBe(5);
+    });
+
+    test("keeps same-coordinate marker stacks counted by burial record", () => {
+      const markers = [
+        markerAt(42.709101, -73.734101),
+        markerAt(42.709101, -73.734101),
+        markerAt(42.709101, -73.734101),
+      ];
+
+      expect(getDistinctMarkerLocationCount(markers)).toBe(1);
+      expect(areMarkersAtSameLocation(markers)).toBe(true);
+      expect(getClusterIconCount({ getChildCount: () => markers.length }, markers)).toBe(3);
+    });
+
     test("keeps roads off until explicitly enabled or useful for orientation", () => {
       expect(resolveRoadOverlayVisibility()).toBe(false);
       expect(resolveRoadOverlayVisibility({ roadOverlayVisible: true })).toBe(true);
@@ -654,38 +684,4 @@ describe("mapDomain", () => {
     });
   });
 
-  describe("pmtiles experiment rules", () => {
-    test("detects indexed burial placement from grave or tier metadata", () => {
-      expect(hasIndexedBurialPlacement({ Grave: 2 })).toBe(true);
-      expect(hasIndexedBurialPlacement({ Tier: 3 })).toBe(true);
-      expect(hasIndexedBurialPlacement({ Grave: "0", Tier: "0" })).toBe(false);
-      expect(hasIndexedBurialPlacement({ Grave: "not-a-number" })).toBe(false);
-    });
-
-    test("keeps glyph offsets deterministic for the same burial record and scales by zoom", () => {
-      const burialRecord = {
-        OBJECTID: 42,
-        Section: "107",
-        Lot: "3",
-        Grave: 4,
-        Tier: 2,
-        First_Name: "Anna",
-        Last_Name: "Tracy",
-      };
-
-      expect(getPmtilesExperimentGlyphOffset(20, burialRecord, true)).toEqual(
-        getPmtilesExperimentGlyphOffset(20, burialRecord, true)
-      );
-      expect(getPmtilesExperimentGlyphOffset(18, burialRecord, false)).toEqual(
-        getPmtilesExperimentGlyphOffset(18, burialRecord, false)
-      );
-
-      expect(getPmtilesExperimentGlyphSize(18, false)).toBeLessThan(
-        getPmtilesExperimentGlyphSize(18, true)
-      );
-      expect(getPmtilesExperimentGlyphSize(18, true)).toBeLessThan(
-        getPmtilesExperimentGlyphSize(22, true)
-      );
-    });
-  });
 });
