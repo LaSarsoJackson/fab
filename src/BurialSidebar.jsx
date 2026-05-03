@@ -166,6 +166,11 @@ const hasFieldPacketContent = (fieldPacket) => {
   );
 };
 
+/**
+ * Result list shared by search, section browse, and tour browse. Map.jsx owns
+ * the selected/hovered ids; this panel only renders the current scope and sends
+ * explicit focus/hover intent back up.
+ */
 function BrowseResultsPanel({
   activeBurialId,
   batchSize,
@@ -503,6 +508,10 @@ function BrowseResultsPanel({
   );
 }
 
+/**
+ * Compact selected-record list. Its visual numbering mirrors the numbered map
+ * markers, so ordering and hover state stay driven by Map.jsx props.
+ */
 function SelectedPeopleList({
   activeBurialId,
   activeRouteBurialId,
@@ -691,6 +700,10 @@ function SelectedPeopleList({
   );
 }
 
+/**
+ * Prominent active selection card for the summary panel. It keeps action layout
+ * close to the selected record without owning route or popup state.
+ */
 function SelectionLeadCard({
   burial,
   burialIndex,
@@ -1121,6 +1134,9 @@ function SelectedPlaceCard({
   );
 }
 
+/**
+ * Shared selection summary for desktop sidebar and mobile sheet variants.
+ */
 function SelectedSummaryPanel({
   activeBurialId,
   activeRouteBurialId,
@@ -1284,6 +1300,10 @@ function SelectedSummaryPanel({
   );
 }
 
+/**
+ * Field-packet editor and sharing controls. The packet state itself lives in
+ * Map.jsx so URL restoration and current map bounds can stay in one place.
+ */
 function FieldPacketPanel({
   fieldPacket,
   fieldPacketNotice,
@@ -1474,6 +1494,10 @@ function FieldPacketPanel({
   );
 }
 
+/**
+ * Main sidebar composition. It receives map state as props, delegates browse and
+ * mobile-sheet mechanics to hooks, and emits user intent back to the map shell.
+ */
 function BurialSidebar({
   activeBurialId,
   activeRouteBurialId,

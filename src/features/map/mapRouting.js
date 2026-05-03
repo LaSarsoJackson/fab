@@ -379,6 +379,8 @@ const calculateShortestPath = ({ edges, startKey, endKey }) => {
 };
 
 export const buildRoadRoutingGraph = (roadsFeatureCollection) => {
+  // Build once from bundled GeoJSON. Each route request clones the edge map
+  // before adding virtual snap nodes, so this source graph stays immutable.
   const nodes = new Map();
   const segments = [];
 
@@ -453,6 +455,8 @@ const calculateClientSideWalkingRoute = ({
   to,
   maxSnapDistanceMeters = DEFAULT_MAX_SNAP_DISTANCE_METERS,
 } = {}) => {
+  // Inputs are [lat, lng] because they come from UI/geolocation state. The road
+  // graph stores GeoJSON-style [lng, lat], so conversions stay local to routing.
   if (!Array.isArray(from) || !Array.isArray(to)) {
     throw createRoutingError("Directions unavailable for this burial.", {
       code: "LOCAL_ROUTING_MISSING_COORDINATES",

@@ -171,6 +171,9 @@ export const shouldTreatViewportMoveAsUserIntent = ({
 export const createViewportIntentController = ({
   onUserViewportIntent = noop,
 } = {}) => {
+  // Auto-focus should stop once the user takes control of the viewport, but
+  // programmatic Leaflet moves emit the same move events as real drags/zooms.
+  // Track a small move depth so Map.jsx can distinguish those cases.
   let hasUserViewportIntent = false;
   let programmaticMoveDepth = 0;
   const notifyUserViewportIntent = typeof onUserViewportIntent === "function"

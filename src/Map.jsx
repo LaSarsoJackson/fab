@@ -1,10 +1,14 @@
 /**
- * Albany Rural Cemetery Interactive Map Application
+ * Map shell and Leaflet orchestration.
  *
- * This React application provides an interactive map interface for the Albany Rural Cemetery,
- * featuring search capabilities, tour routes, burial locations, and navigation assistance.
- * The application integrates various mapping technologies and UI components to create
- * a user-friendly cemetery exploration tool.
+ * `BurialMap` is the runtime boundary for React state, Leaflet layer lifecycles,
+ * viewport movement, popups, routing, and sidebar wiring. Pure record shaping,
+ * search rules, tour reconciliation, and routing algorithms should stay in the
+ * feature/shared modules imported below.
+ *
+ * Core flow: load map data, inflate burial/tour data on demand, derive indexes,
+ * push selection changes through the map reducer, mirror active state into
+ * imperative Leaflet refs, then render sidebar, popups, routes, and map layers.
  */
 
 //=============================================================================
@@ -427,7 +431,7 @@ const createRouteGeoJsonRenderKey = (geojson) => {
 };
 
 /**
- * Creates a marker for a tour point
+ * Creates the visual marker for a tour point.
  * @param {string} tourKey - The key identifying the tour
  * @returns {Function} A function that creates a Leaflet marker or circle marker
  */
@@ -463,6 +467,10 @@ const createTourMarker = (tourKey, tourStyles) => {
   };
 };
 
+/**
+ * Binds a React popup to an imperative Leaflet layer. This is used for layers
+ * created outside React, such as markercluster children and cached tour GeoJSON.
+ */
 const bindReactPopup = ({
   layer,
   record,
@@ -873,16 +881,18 @@ export default function BurialMap() {
   const tourDefinitions = TOUR_DEFINITIONS;
   const tourStyles = TOUR_STYLES;
   /**
-   * `BurialMap` keeps the runtime wiring: React state, Leaflet lifecycles, and
-   * user interaction orchestration. Pure record formatting and tour/burial
-   * reconciliation live in dedicated feature modules so maintainers can
-   * change presentation rules without also reading map-effect code.
+   * Editing guide:
+   * - keep state and Leaflet side effects here
+   * - put deterministic transforms in `src/features/*` or `src/shared/*`
+   * - explain lifecycle constraints in comments, especially around refs,
+   *   popup timing, deep-link restoration, and programmatic viewport movement
    */
   //-----------------------------------------------------------------------------
   // State Management
   //-----------------------------------------------------------------------------
 
-  // Map and UI State
+  // Map and UI state. Add new state here only when it represents user/runtime
+  // interaction; data derived from loaded records belongs in the memoized block.
   const [overlayMaps, setOverlayMaps] = useState({});
   const [tourBoundsByName, setTourBoundsByName] = useState({});
   const [tourResultsByName, setTourResultsByName] = useState({});
@@ -939,9 +949,10 @@ export default function BurialMap() {
   const [directionsMenuBurial, setDirectionsMenuBurial] = useState(null);
   const { boundaryData, roadsData, sectionsData } = coreMapData;
 
-  // Component References
-  // Leaflet layers outlive individual renders, so these refs act as the
-  // imperative bridge between React state and map objects.
+  // Component references.
+  // Leaflet layers and event handlers outlive individual renders. These refs are
+  // the imperative bridge that lets hover, active selection, popups, and routing
+  // observe current React state without re-binding thousands of map objects.
   const markerClusterRef = useRef(null);
   const mapRef = useRef(null);
   const sidebarOverlayRef = useRef(null);
@@ -989,6 +1000,8 @@ export default function BurialMap() {
   // Memoized Values
   //-----------------------------------------------------------------------------
 
+  // Derived map data and presentation policy. Keep expensive pure calculations
+  // here; keep Leaflet mutation in effects and callbacks below.
   const sectionBoundsById = useMemo(
     () => buildSectionBoundsById(sectionsData),
     [sectionsData]
@@ -1206,6 +1219,8 @@ export default function BurialMap() {
   const getOverlayElement = useCallback(() => (
     isSearchPanelVisible ? sidebarOverlayRef.current : null
   ), [isSearchPanelVisible]);
+  // All programmatic viewport moves go through the intent controller. It keeps
+  // automatic focus from fighting a user who has just panned, dragged, or zoomed.
   const markExplicitViewportFocus = useCallback(() => {
     viewportIntentControllerRef.current?.markExplicitFocus();
   }, []);
@@ -1503,8 +1518,9 @@ export default function BurialMap() {
   //-----------------------------------------------------------------------------
 
   /**
-   * Handles user location tracking
-   * Checks if user is within 5 miles of the cemetery
+   * Location acceptance pipeline. One-shot requests and watch updates both pass
+   * through the same buffer, accuracy, recency, and smoothing rules before they
+   * can affect map state or active routing.
    */
   const resetLocationCandidateWindow = useCallback(() => {
     locationRecentCandidatesRef.current = [];
@@ -1800,6 +1816,8 @@ export default function BurialMap() {
     resetLocationCandidateWindow,
   ]);
 
+  // A selected record can be backed by one of three Leaflet collections:
+  // section browse markers, loaded tour layers, or selected-result markers.
   const getPopupLayerForBurial = useCallback((burial) => {
     if (!burial) return null;
 
@@ -1875,7 +1893,10 @@ export default function BurialMap() {
   }, [openPopupForBurial, shouldUseMapPopups]);
 
   /**
-   * Focuses a burial consistently regardless of whether it was found by search or map click.
+   * Focuses a burial consistently regardless of whether it came from search,
+   * section browse, a tour stop, a marker click, or a restored deep link.
+   * Reducer state updates first for sidebar/mobile state, then the viewport
+   * moves, then the popup opens after Leaflet finishes any animation.
    */
   const focusBurial = useCallback((
     burial,
@@ -2019,6 +2040,8 @@ export default function BurialMap() {
     setHasRequestedBurialData(true);
   }, []);
 
+  // Field packets snapshot the selected records plus enough map context to
+  // restore a shared link without mixing it with loose query/section params.
   const showFieldPacketNotice = useCallback((message, tone = "neutral") => {
     const nextMessage = String(message || "").trim();
     if (!nextMessage) {
@@ -2219,7 +2242,8 @@ export default function BurialMap() {
   }, []);
 
   /**
-   * Handles clicking on a search result item
+   * Search and browse result clicks are explicit focus requests, so they are
+   * allowed to move the viewport even after manual panning.
    */
   const handleResultClick = useCallback((burial) => {
     focusBurial(burial, { isExplicitFocus: true });
@@ -2230,7 +2254,8 @@ export default function BurialMap() {
   }, [selectBurial]);
 
   /**
-   * Creates a marker cluster group with custom styling
+   * Creates the section-burial cluster group. Cluster clicks either spiderfy
+   * coincident burials or move to the next zoom band that exposes more detail.
    */
   const createClusterGroup = useCallback(() => {
     const clusterGroup = L.markerClusterGroup({
@@ -2330,6 +2355,9 @@ export default function BurialMap() {
     return Number.isFinite(mapZoom) ? mapZoom : currentZoomRef.current;
   }, [getMapInstance]);
 
+  // Section browse markers are manually managed circle markers inside
+  // markercluster, so active/hover styling is synchronized through narrow
+  // helpers instead of relying on React prop reconciliation.
   const syncInteractiveSectionMarkers = useCallback((nextActiveId, nextHoveredId) => {
     const sectionMarkers = sectionMarkersByIdRef.current;
     const markerIdsToSync = new Set([
@@ -2533,6 +2561,8 @@ export default function BurialMap() {
       return undefined;
     }
 
+    // Touch devices can emit synthetic mouse events after touch input. Track the
+    // real hover capability so section polygons do not stay highlighted on tap.
     const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
     const handleHoverCapabilityChange = (event) => {
       canSectionHoverRef.current = event.matches;
@@ -2664,6 +2694,8 @@ export default function BurialMap() {
       return undefined;
     }
 
+    // Route recalculation is state-driven. Origin updates while tracking should
+    // refresh the path, but only destination changes should blank the old line.
     const shouldResetRouteGeometry = shouldResetRouteGeometryForRequest({
       renderedDestination: renderedRouteDestinationRef.current,
       requestedDestination: routingDestination,
@@ -2673,8 +2705,6 @@ export default function BurialMap() {
     if (shouldResetRouteGeometry) {
       setRouteGeoJson(null);
     }
-    // Origin updates while tracking should recalculate the local route without
-    // blanking the visible line unless the destination itself changed.
     setIsRouteLoading(true);
     setRouteError("");
 
@@ -2735,6 +2765,8 @@ export default function BurialMap() {
   // Effects
   //-----------------------------------------------------------------------------
 
+  // Core geography is small enough to load immediately. Burial records remain
+  // lazy so first paint and map controls do not wait on the large search payload.
   useEffect(() => {
     let ignore = false;
 
@@ -2803,7 +2835,8 @@ export default function BurialMap() {
   }, [hasRequestedBurialData, initialDeepLinkNeedsBurialData]);
 
   /**
-   * Load the lightweight burial search index asynchronously.
+   * Load and inflate the minified burial browse payload only after search,
+   * section browse, or deep-link restoration needs record-level data.
    */
   useEffect(() => {
     if (!hasRequestedBurialData) {
@@ -2950,6 +2983,9 @@ export default function BurialMap() {
   useEffect(() => {
     if (!burialRecordsById.size) return;
 
+    // Tour metadata arrives after the base burial payload. Refresh selected
+    // records in place so popup/sidebar data picks up biographies and tour labels
+    // without changing selection order or active focus.
     dispatchSelectionAction(refreshMapSelectionRecords((burial) => {
       if (burial?.source !== "burial") return burial;
 
@@ -2992,7 +3028,7 @@ export default function BurialMap() {
   }, [activeBurialId, selectedBurials]);
 
   /**
-   * Cleanup geolocation watch on unmount
+   * Stop any active geolocation watch when the map shell unmounts.
    */
   useEffect(() => {
     return stopLocationWatch;
@@ -3077,7 +3113,8 @@ export default function BurialMap() {
   ]);
 
   /**
-   * Update section burial marker display
+   * Render section browse burial markers imperatively. Large sections can contain
+   * thousands of points, and markercluster is cheaper when it owns the batch.
    */
   useEffect(() => {
     const map = getMapInstance();
@@ -3200,6 +3237,8 @@ export default function BurialMap() {
       return;
     }
 
+    // Popup opening can race marker creation, tour layer loading, and mobile to
+    // desktop transitions. Keep one pending target and retry after layers render.
     const pendingBurial = pendingPopupBurialRef.current;
     if (!pendingBurial) return;
 
@@ -3233,7 +3272,9 @@ export default function BurialMap() {
   }, [activeBurialId, openPopupForBurial, selectedBurials, shouldUseMapPopups]);
 
   /**
-   * Handle map zoom changes
+   * Keep markercluster child-marker styling in sync after zoom changes.
+   * The delayed resync catches markers that markercluster rehydrates after the
+   * immediate `zoomend` handler has already run.
    */
   const handleZoomEnd = useCallback((e) => {
     const map = e.target;
@@ -3262,6 +3303,8 @@ export default function BurialMap() {
     const map = getMapInstance();
     if (!map) return undefined;
     const container = typeof map.getContainer === 'function' ? map.getContainer() : null;
+    // Section polygon hover is mouse-first. Map movement, pointer leave, window
+    // blur, and touch input all clear hover state so tooltips cannot get stuck.
     const handleInterruptedSectionHover = () => {
       clearHoveredSection();
     };
@@ -3320,6 +3363,9 @@ export default function BurialMap() {
     };
   }, [clearHoveredBurialIfCurrent, getMapInstance]);
 
+  // Browse mode transitions keep section and tour views mutually exclusive.
+  // They also clear active burial focus so the map does not show stale context
+  // from a previous search or tour selection.
   const resetMapToDefaultBounds = useCallback(({ isExplicitFocus = false } = {}) => {
     const map = getMapInstance();
     if (!map) return;
@@ -3508,7 +3554,9 @@ export default function BurialMap() {
   //=============================================================================
 
   /**
-   * Callback for handling section layer interactions
+   * Register section polygon lifecycle and interaction handlers. Each Leaflet
+   * section layer is stored by id so hover/tooltip cleanup can run even when
+   * React re-renders the GeoJSON layer.
    */
   const getSectionStyle = useCallback((feature) => getSectionPolygonStyle({
     sectionId: feature?.properties?.Section,
@@ -3625,6 +3673,9 @@ export default function BurialMap() {
     showSectionTooltip,
   ]);
 
+  // Tour layers are loaded once, sanitized, converted into browse records, then
+  // cached as Leaflet layers. Section-detail browse reuses this same path for
+  // projected headstone datasets that are authored as tour-like GeoJSON.
   const ensureTourLayerLoaded = useCallback(async (tourName) => {
     if (!tourName) return;
 
@@ -3793,6 +3844,9 @@ export default function BurialMap() {
     };
   }, [canIdlePrefetchTours, ensureTourLayerLoaded, tourNames]);
 
+  // Render order matters: sidebar/menu chrome overlays the map, static layers
+  // mount inside MapContainer, then transient location/route/selection layers sit
+  // above them so active context stays visible.
   return (
     <div className="map-container">
       {(isMobile || isSearchPanelVisible) && (

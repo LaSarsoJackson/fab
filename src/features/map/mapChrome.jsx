@@ -21,6 +21,13 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import SearchIcon from "@mui/icons-material/Search";
 import { getPopupViewportPadding } from "./mapDomain";
 
+/**
+ * Leaflet chrome and React-Leaflet adapters.
+ *
+ * Keep visual controls, basemap/GeoJSON adapters, and viewport-padding bridges
+ * here. The top-level map shell owns state and decides when these helpers run.
+ */
+
 const DESKTOP_MAP_CONTROL_RIGHT = "12px";
 const DESKTOP_MAP_CONTROL_TOP = "12px";
 const MOBILE_MAP_CONTROL_RIGHT = "calc(env(safe-area-inset-right, 0px) + 12px)";
@@ -281,6 +288,8 @@ const MapLayerControlOption = ({
   );
 };
 
+// Controls sit above the Leaflet pane, but only the control children should
+// receive pointer events. The wrapper stays transparent to map drag/pinch input.
 export function MapControlStack({ isMobile, children }) {
   const items = React.Children.toArray(children).filter(Boolean);
 
@@ -513,6 +522,8 @@ export function CustomZoomControl({ isMobile }) {
   );
 }
 
+// Applies profile-defined map limits from inside React-Leaflet, where the
+// Leaflet instance is available through `useMap`.
 export function MapBounds({ fitMapBounds, paddedBoundaryBounds, maxZoom, minZoom = 13 }) {
   const map = useMap();
 
@@ -541,6 +552,8 @@ export function ActiveLeafletBasemap({ basemap, keepBuffer = DEFAULT_BASEMAP_KEE
   return <LeafletBasemapLayer basemap={basemap} keepBuffer={keepBuffer} />;
 }
 
+// Bridges Leaflet events back to the map shell without making the shell call
+// `useMap`. This keeps viewport intent and zoom state centralized in Map.jsx.
 export function MapController({ mapRef, onViewportMoveStart, onZoomChange }) {
   const leafletMap = useMap();
 
