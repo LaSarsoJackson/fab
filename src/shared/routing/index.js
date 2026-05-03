@@ -1,7 +1,8 @@
-import routingDefaults from "./routingDefaults.json";
-
-const freezeArray = (values = []) => Object.freeze([...values]);
-
+/**
+ * Public URL contract for FAB links. Keep query-key names and external
+ * directions-link builders here so web links, PWA links, and FABFG hosted URLs
+ * do not drift apart.
+ */
 export const ROUTING_QUERY_PARAMS = Object.freeze({
   search: "q",
   section: "section",
@@ -9,21 +10,6 @@ export const ROUTING_QUERY_PARAMS = Object.freeze({
   tour: "tour",
   view: "view",
 });
-
-export const ROUTING_PROVIDERS = Object.freeze({
-  api: "api",
-  local: "local",
-  valhalla: "valhalla",
-});
-
-export const DEFAULT_ROUTING_PROVIDER = ROUTING_PROVIDERS.api;
-export const VALID_ROUTING_PROVIDERS = freezeArray(Object.values(ROUTING_PROVIDERS));
-
-export const DEFAULT_VALHALLA_API_URL = routingDefaults.defaultValhallaApiUrl;
-export const DEFAULT_LOCAL_VALHALLA_PROXY_PATH = routingDefaults.defaultLocalValhallaProxyPath;
-export const DEFAULT_LOCAL_VALHALLA_PROXY_TARGET = routingDefaults.defaultLocalValhallaProxyTarget;
-
-const VALID_ROUTING_PROVIDER_SET = new Set(VALID_ROUTING_PROVIDERS);
 
 const isValidCoordinate = (value, min, max) => (
   typeof value === "number" &&
@@ -33,96 +19,6 @@ const isValidCoordinate = (value, min, max) => (
 );
 
 const formatLatLng = (latitude, longitude) => `${latitude},${longitude}`;
-
-export const isLatLngTuple = (value) => (
-  Array.isArray(value) &&
-  value.length >= 2 &&
-  Number.isFinite(Number(value[0])) &&
-  Number.isFinite(Number(value[1]))
-);
-
-export const normalizeRoutingProvider = (value) => {
-  const normalizedValue = String(value || "").trim().toLowerCase();
-  return VALID_ROUTING_PROVIDER_SET.has(normalizedValue) ? normalizedValue : "";
-};
-
-export const buildValhallaRouteEndpoint = ({
-  apiUrl,
-  defaultBaseUrl = DEFAULT_VALHALLA_API_URL,
-} = {}) => {
-  const normalizedBaseUrl = String(apiUrl || defaultBaseUrl || "")
-    .trim()
-    .replace(/\/+$/, "");
-
-  if (!normalizedBaseUrl) {
-    return "";
-  }
-
-  return normalizedBaseUrl.endsWith("/route")
-    ? normalizedBaseUrl
-    : `${normalizedBaseUrl}/route`;
-};
-
-export const buildValhallaWalkingPayload = ({ from, to } = {}) => ({
-  locations: [
-    { lat: Number(from[0]), lon: Number(from[1]) },
-    { lat: Number(to[0]), lon: Number(to[1]) },
-  ],
-  costing: "pedestrian",
-  directions_type: "none",
-  format: "osrm",
-  shape_format: "geojson",
-  units: "kilometers",
-});
-
-export const appendJsonQuery = (endpoint, payload) => {
-  if (!endpoint) {
-    return "";
-  }
-
-  if (/^https?:\/\//i.test(endpoint)) {
-    const url = new URL(endpoint);
-    url.searchParams.set("json", JSON.stringify(payload));
-    return url.toString();
-  }
-
-  const separator = endpoint.includes("?") ? "&" : "?";
-  return `${endpoint}${separator}json=${encodeURIComponent(JSON.stringify(payload))}`;
-};
-
-export const buildValhallaWalkingRouteUrl = ({
-  apiUrl,
-  from,
-  to,
-} = {}) => {
-  if (!isLatLngTuple(from) || !isLatLngTuple(to)) {
-    return "";
-  }
-
-  const endpoint = buildValhallaRouteEndpoint({
-    apiUrl,
-    defaultBaseUrl: DEFAULT_VALHALLA_API_URL,
-  });
-
-  return appendJsonQuery(endpoint, buildValhallaWalkingPayload({ from, to }));
-};
-
-export const buildOfflineValhallaWalkingRouteUrl = ({
-  from,
-  proxyPath,
-  to,
-} = {}) => {
-  if (!isLatLngTuple(from) || !isLatLngTuple(to)) {
-    return "";
-  }
-
-  const endpoint = buildValhallaRouteEndpoint({
-    apiUrl: proxyPath,
-    defaultBaseUrl: DEFAULT_LOCAL_VALHALLA_PROXY_PATH,
-  });
-
-  return appendJsonQuery(endpoint, buildValhallaWalkingPayload({ from, to }));
-};
 
 export const buildDirectionsLink = ({
   latitude,
@@ -145,6 +41,8 @@ export const buildDirectionsLink = ({
   const normalizedUserAgent = userAgent.toLowerCase();
   const cleanedLabel = String(label || "").trim();
 
+  // Apple Maps gives the best same-device handoff on iOS/macOS; other clients
+  // use Google Maps URLs so desktop browsers open a normal tab.
   if (
     /iphone|ipad|ipod|macintosh/.test(normalizedUserAgent) ||
     /mac os x/.test(normalizedUserAgent)

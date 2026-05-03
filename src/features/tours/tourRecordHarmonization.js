@@ -4,6 +4,11 @@ import { buildBrowseSecondaryText, formatBrowseResultName } from "../browse/brow
 import { normalizeName } from "../browse/burialSearch";
 import { cleanRecordValue, resolveRecordDates } from "../map/mapRecordPresentation";
 
+/**
+ * Reconciles burial-source records and tour-source records without changing
+ * either source file. The map/sidebar can then work with one browse shape while
+ * still showing richer tour metadata where a confident match exists.
+ */
 const MATCH_ACCEPTANCE_SCORE = 7;
 
 const buildSectionLotKey = (record = {}) => {

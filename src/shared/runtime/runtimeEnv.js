@@ -74,6 +74,8 @@ export const scheduleIdleTask = (
   }
 
   if (hasIdleCallback()) {
+    // Prefer browser idle time for heavyweight derived work, but keep a timeout
+    // so search indexes and tour metadata still progress on a busy main thread.
     return {
       type: "idle",
       id: window.requestIdleCallback(() => {
@@ -82,6 +84,8 @@ export const scheduleIdleTask = (
     };
   }
 
+  // JSDOM and older browsers do not expose requestIdleCallback. A short timeout
+  // preserves the same async contract for tests and fallback runtimes.
   return {
     type: "timeout",
     id: setTimeout(() => {
@@ -107,6 +111,8 @@ export const buildPublicAssetUrl = (
   path,
   publicUrl = process.env.PUBLIC_URL || ""
 ) => {
+  // GitHub Pages deploys this app under /fab, while local dev runs at origin
+  // root. All public fetches and service-worker URLs should pass through here.
   const normalizedPath = String(path || "").startsWith("/")
     ? String(path || "")
     : `/${String(path || "")}`;
@@ -150,6 +156,8 @@ export const syncDocumentMetadata = ({
     return;
   }
 
+  // Metadata is synced at runtime from the FAB profile because the static shell
+  // can be regenerated separately from the React bundle.
   if (typeof title === "string") {
     targetDocument.title = title;
     setDocumentMetaContent('meta[property="og:title"]', title, targetDocument);

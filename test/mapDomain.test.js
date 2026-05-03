@@ -12,9 +12,11 @@ import {
   calculateLocationDistanceMeters,
   clearLeafletSectionHover,
   createLeafletSectionHoverState,
+  createViewportIntentController,
   formatSectionOverviewMarkerLabel,
   getClusterIconCount,
   getDistinctMarkerLocationCount,
+  getPopupViewportPadding,
   MAP_PRESENTATION_POLICY,
   getSectionBurialMarkerStyle,
   getSectionPolygonStyle,
@@ -32,8 +34,12 @@ import {
   resolveSectionAffordanceMarkerVisibility,
   resolveSectionBurialDisableClusteringZoom,
   resolveSectionOverlayVisibility,
+  ROAD_LAYER_STYLES,
   ROAD_LAYER_STYLE,
+  shouldApplyViewportFocus,
+  shouldTreatViewportMoveAsUserIntent,
   selectBestRecentLocationCandidate,
+  selectRouteTrackingLocationCandidate,
   shouldHandleSectionHover,
   shouldIgnoreSectionBackgroundSelection,
   shouldResetRouteGeometryForRequest,
@@ -96,6 +102,28 @@ describe("mapDomain", () => {
         stalePreciseFix,
         fresherModerateFix,
       ])).toEqual(fresherModerateFix);
+    });
+
+    test("prefers meaningful fresh movement while an active route is tracking", () => {
+      const olderPreciseFix = {
+        latitude: 42.70418,
+        longitude: -73.73198,
+        accuracyMeters: 5,
+        recordedAt: 1700000000000,
+      };
+      const fresherMovedFix = {
+        latitude: 42.7047,
+        longitude: -73.7315,
+        accuracyMeters: 25,
+        recordedAt: 1700000004000,
+      };
+
+      expect(selectRouteTrackingLocationCandidate([
+        olderPreciseFix,
+        fresherMovedFix,
+      ], {
+        previousLocation: olderPreciseFix,
+      })).toEqual(fresherMovedFix);
     });
 
     test("compares location fixes by their actual normalized fields", () => {
@@ -449,6 +477,9 @@ describe("mapDomain", () => {
       expect(resolveRoadOverlayVisibility({ roadOverlayVisible: true })).toBe(true);
       expect(resolveRoadOverlayVisibility({ hasActiveRoute: true })).toBe(true);
       expect(resolveRoadOverlayVisibility({ hasTrackedLocation: true })).toBe(true);
+      expect(resolveRoadOverlayVisibility({
+        currentZoom: MAP_PRESENTATION_POLICY.sectionDetailMinZoom,
+      })).toBe(true);
 
       expect(resolveMapPresentationPolicy({
         currentZoom: 14,
@@ -467,6 +498,7 @@ describe("mapDomain", () => {
         currentZoom: 16,
         maxZoom: 19,
       })).toMatchObject({
+        showRoads: true,
         showSectionAffordanceMarkers: false,
         showSectionClusterMarkers: true,
         showSectionOverviewMarkers: false,
@@ -518,6 +550,84 @@ describe("mapDomain", () => {
         renderedDestination: [42.70908, -73.72157],
         requestedDestination: [42.7042, -73.73195],
       })).toBe(true);
+    });
+  });
+
+  describe("viewport intent rules", () => {
+    test("lets explicit focus commands override prior manual map exploration", () => {
+      expect(shouldApplyViewportFocus({ hasUserViewportIntent: false })).toBe(true);
+      expect(shouldApplyViewportFocus({ hasUserViewportIntent: true })).toBe(false);
+      expect(shouldApplyViewportFocus({
+        hasUserViewportIntent: true,
+        isExplicitFocus: true,
+      })).toBe(true);
+    });
+
+    test("does not treat programmatic zooms as user map exploration", () => {
+      expect(shouldTreatViewportMoveAsUserIntent({
+        eventType: "zoomstart",
+        isProgrammaticMove: true,
+      })).toBe(false);
+      expect(shouldTreatViewportMoveAsUserIntent({
+        eventType: "zoomstart",
+        isProgrammaticMove: false,
+      })).toBe(true);
+      expect(shouldTreatViewportMoveAsUserIntent({
+        eventType: "dragstart",
+        isProgrammaticMove: true,
+      })).toBe(true);
+    });
+
+    test("suppresses passive focus after user movement until an explicit focus command", () => {
+      const controller = createViewportIntentController();
+
+      expect(controller.canApplyFocus()).toBe(true);
+
+      controller.handleMoveStart("dragstart");
+
+      expect(controller.hasUserViewportIntent()).toBe(true);
+      expect(controller.canApplyFocus()).toBe(false);
+      expect(controller.canApplyFocus({ isExplicitFocus: true })).toBe(true);
+      expect(controller.hasUserViewportIntent()).toBe(false);
+      expect(controller.canApplyFocus()).toBe(true);
+    });
+
+    test("ignores code-driven zoom starts while preserving real drag intent", () => {
+      const listeners = new Map();
+      const controller = createViewportIntentController();
+      const map = {
+        once: (eventName, handler) => {
+          listeners.set(eventName, handler);
+        },
+        off: (eventName, handler) => {
+          if (listeners.get(eventName) === handler) {
+            listeners.delete(eventName);
+          }
+        },
+      };
+
+      controller.runProgrammaticMove(map, () => {
+        expect(controller.getProgrammaticMoveDepth()).toBe(1);
+        controller.handleMoveStart("zoomstart");
+        controller.handleMoveStart("dragstart");
+      });
+
+      expect(controller.hasUserViewportIntent()).toBe(true);
+      listeners.get("moveend")?.();
+      expect(controller.getProgrammaticMoveDepth()).toBe(0);
+    });
+
+    test("notifies route and GPS follow-up state when the user takes over the viewport", () => {
+      let notificationCount = 0;
+      const controller = createViewportIntentController({
+        onUserViewportIntent: () => {
+          notificationCount += 1;
+        },
+      });
+
+      controller.handleMoveStart("zoomstart");
+
+      expect(notificationCount).toBe(1);
     });
   });
 
@@ -588,8 +698,64 @@ describe("mapDomain", () => {
 
       expect(closeInStyle.fillOpacity).toBeLessThan(defaultStyle.fillOpacity);
       expect(closeInStyle.weight).toBeLessThan(defaultStyle.weight);
-      expect(ROAD_LAYER_STYLE.opacity).toBeLessThan(0.7);
-      expect(ROAD_LAYER_STYLE.weight).toBeLessThan(1.5);
+      expect(ROAD_LAYER_STYLE.opacity).toBeGreaterThanOrEqual(0.7);
+      expect(ROAD_LAYER_STYLE.weight).toBeGreaterThanOrEqual(1.5);
+    });
+
+    test("defines MapKit-style roads as layered non-interactive strokes", () => {
+      expect(ROAD_LAYER_STYLES).toHaveLength(3);
+
+      const [shadow, casing, body] = ROAD_LAYER_STYLES;
+
+      expect(shadow).toMatchObject({
+        interactive: false,
+        lineCap: "round",
+        lineJoin: "round",
+      });
+      expect(casing).toMatchObject({
+        interactive: false,
+        lineCap: "round",
+        lineJoin: "round",
+      });
+      expect(body).toMatchObject({
+        color: "#f8f6ef",
+        interactive: false,
+        lineCap: "round",
+        lineJoin: "round",
+      });
+      expect(shadow.weight).toBeGreaterThan(casing.weight);
+      expect(casing.weight).toBeGreaterThan(body.weight);
+      expect(body.opacity).toBeGreaterThan(shadow.opacity);
+    });
+
+    test("keeps popups clear of a full-height desktop sidebar", () => {
+      expect(getPopupViewportPadding({
+        containerRect: { left: 0, top: 0, right: 1280, bottom: 800 },
+        overlayRect: { left: 0, top: 0, right: 390, bottom: 800 },
+      })).toEqual({
+        topLeft: [406, 16],
+        bottomRight: [16, 16],
+      });
+    });
+
+    test("keeps popups above a mobile bottom sheet", () => {
+      expect(getPopupViewportPadding({
+        containerRect: { left: 0, top: 0, right: 390, bottom: 844 },
+        overlayRect: { left: 0, top: 544, right: 390, bottom: 844 },
+      })).toEqual({
+        topLeft: [16, 16],
+        bottomRight: [16, 316],
+      });
+    });
+
+    test("falls back to the base popup padding when there is no overlay overlap", () => {
+      expect(getPopupViewportPadding({
+        containerRect: { left: 0, top: 0, right: 1280, bottom: 800 },
+        overlayRect: { left: 1320, top: 0, right: 1520, bottom: 800 },
+      })).toEqual({
+        topLeft: [16, 16],
+        bottomRight: [16, 16],
+      });
     });
   });
 

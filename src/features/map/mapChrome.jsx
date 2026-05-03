@@ -13,11 +13,13 @@ import CheckBoxIcon from "@mui/icons-material/CheckBox";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import HomeIcon from "@mui/icons-material/Home";
 import LayersIcon from "@mui/icons-material/Layers";
+import MenuOpenIcon from "@mui/icons-material/MenuOpen";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import RemoveIcon from "@mui/icons-material/Remove";
-import { getPopupViewportPadding } from "./popupViewport";
+import SearchIcon from "@mui/icons-material/Search";
+import { getPopupViewportPadding } from "./mapDomain";
 
 const DESKTOP_MAP_CONTROL_RIGHT = "12px";
 const DESKTOP_MAP_CONTROL_TOP = "12px";
@@ -42,6 +44,8 @@ export const getLeafletViewportPadding = (
     getOverlayElement,
   } = {}
 ) => {
+  // Leaflet wants two padding points, while the shared viewport helper works in
+  // DOM rectangles. This adapter keeps map-shell viewport rules centralized.
   const mapContainer = map?.getContainer?.();
   if (!mapContainer || typeof document === "undefined") {
     return {
@@ -158,6 +162,9 @@ export const getLeafletGeoJsonDataKey = (featureCollection) => {
     return "empty";
   }
 
+  // React-Leaflet does not deeply diff GeoJSON feature collections. A WeakMap
+  // key lets us force remounts when a new data object is loaded without leaking
+  // ids for discarded collections.
   let dataKey = GEOJSON_DATA_KEYS.get(featureCollection);
 
   if (!dataKey) {
@@ -474,6 +481,26 @@ export function MapZoomControl({ isMobile, onZoomIn, onZoomOut }) {
   );
 }
 
+export function SidebarToggleControl({ isSearchPanelVisible = true, onToggle }) {
+  const label = isSearchPanelVisible ? "Hide search panel" : "Show search panel";
+  const ToggleIcon = isSearchPanelVisible ? MenuOpenIcon : SearchIcon;
+
+  return (
+    <Paper elevation={0} sx={mapControlShellSx}>
+      <IconButton
+        onClick={onToggle}
+        size="small"
+        title={label}
+        aria-label={label}
+        aria-pressed={!isSearchPanelVisible}
+        sx={mapControlButtonSx}
+      >
+        <ToggleIcon fontSize="small" />
+      </IconButton>
+    </Paper>
+  );
+}
+
 export function CustomZoomControl({ isMobile }) {
   const map = useMap();
 
@@ -514,7 +541,7 @@ export function ActiveLeafletBasemap({ basemap, keepBuffer = DEFAULT_BASEMAP_KEE
   return <LeafletBasemapLayer basemap={basemap} keepBuffer={keepBuffer} />;
 }
 
-export function MapController({ mapRef, onZoomChange }) {
+export function MapController({ mapRef, onViewportMoveStart, onZoomChange }) {
   const leafletMap = useMap();
 
   useEffect(() => {
@@ -537,6 +564,26 @@ export function MapController({ mapRef, onZoomChange }) {
       leafletMap.off("zoomend", onZoomChange);
     };
   }, [leafletMap, onZoomChange]);
+
+  useEffect(() => {
+    if (typeof onViewportMoveStart !== "function") {
+      return undefined;
+    }
+
+    const handleDragStart = () => onViewportMoveStart("dragstart");
+    const handleZoomStart = () => onViewportMoveStart("zoomstart");
+    const handleBoxZoomStart = () => onViewportMoveStart("boxzoomstart");
+
+    leafletMap.on("dragstart", handleDragStart);
+    leafletMap.on("zoomstart", handleZoomStart);
+    leafletMap.on("boxzoomstart", handleBoxZoomStart);
+
+    return () => {
+      leafletMap.off("dragstart", handleDragStart);
+      leafletMap.off("zoomstart", handleZoomStart);
+      leafletMap.off("boxzoomstart", handleBoxZoomStart);
+    };
+  }, [leafletMap, onViewportMoveStart]);
 
   return null;
 }
@@ -561,7 +608,7 @@ export function DefaultExtentButton({ defaultViewBounds, fitMapBounds }) {
   const map = useMap();
 
   return (
-    <MapHomeButton onClick={() => fitMapBounds(map, defaultViewBounds)} />
+    <MapHomeButton onClick={() => fitMapBounds(map, defaultViewBounds, { isExplicitFocus: true })} />
   );
 }
 

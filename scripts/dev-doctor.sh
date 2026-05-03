@@ -6,6 +6,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 GEOSPATIAL_PYTHON_RESOLVER="./scripts/geospatial/resolve_geospatial_python.sh"
 
+# Doctor reports hard blockers as FAIL and optional local capabilities as WARN
+# so contributors can still run the web app without the GeoParquet toolchain.
 status_ok() {
   printf "OK   %s\n" "$1"
 }

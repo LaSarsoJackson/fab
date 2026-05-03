@@ -8,6 +8,8 @@ cd "$ROOT_DIR"
 DEFAULT_REQUIRED_MODULES=(geopandas pyarrow shapely)
 REQUIRED_MODULES=("$@")
 
+# Allow callers to probe a smaller module set, but default to the full stack
+# needed by the GeoParquet build and validation scripts.
 if [ "${#REQUIRED_MODULES[@]}" -eq 0 ]; then
   REQUIRED_MODULES=("${DEFAULT_REQUIRED_MODULES[@]}")
 fi

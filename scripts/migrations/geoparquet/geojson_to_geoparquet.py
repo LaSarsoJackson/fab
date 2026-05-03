@@ -43,6 +43,8 @@ def main() -> int:
     dataframe = gpd.read_file(input_path)
 
     try:
+        # Newer GeoParquet writers can emit covering bboxes; older local stacks
+        # still produce a valid artifact without that optional metadata.
         dataframe.to_parquet(
             output_path,
             index=False,

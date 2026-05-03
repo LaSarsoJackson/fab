@@ -11,6 +11,8 @@ const OUTPUT_PATH = path.join(__dirname, "../src/data/TourBiographyAliases.json"
 const main = async () => {
   const records = [];
 
+  // Alias generation scans all declared FAB tours so one well-annotated tour
+  // can supply biography slugs to fixed-format tours that only carry portraits.
   for (const definition of TOUR_DEFINITIONS) {
     const module = await definition.load();
     const features = module.default?.features || module.features || [];

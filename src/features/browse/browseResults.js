@@ -1,6 +1,11 @@
 import { normalizeName, smartSearch } from "./burialSearch";
 import { APP_PROFILE } from "../fab/profile";
 
+/**
+ * Converts raw burial GeoJSON, generated search rows, and tour GeoJSON into the
+ * single browse-result shape consumed by the sidebar, map markers, popups, and
+ * share links.
+ */
 export const MIN_BROWSE_QUERY_LENGTH = 2;
 const VALID_BROWSE_SOURCES = new Set(["all", "section", "tour"]);
 const PRIMARY_RECORD_FIELDS = APP_PROFILE.fieldAliases?.primaryRecord || {};
@@ -119,6 +124,8 @@ const buildNameVariantsNormalized = (...values) => (
 
 export const buildBurialBrowseResult = (feature, { getTourName } = {}) => {
   const properties = feature.properties || feature;
+  // Field aliases live on the app profile because the source data mixes raw
+  // GIS names, generated compact names, and tour-specific spellings.
   const firstName = readRecordValue(properties, PRIMARY_RECORD_FIELDS, "firstName");
   const lastName = readRecordValue(properties, PRIMARY_RECORD_FIELDS, "lastName");
   const fullName = readRecordValue(properties, PRIMARY_RECORD_FIELDS, "fullName") || `${firstName} ${lastName}`.trim();
@@ -175,6 +182,8 @@ export const buildBurialBrowseResult = (feature, { getTourName } = {}) => {
 
 export const buildTourBrowseResult = (feature, { tourKey, tourName } = {}) => {
   const properties = feature.properties || {};
+  // Tour stops are not always one-to-one with burial source records, so build a
+  // self-contained browse record first and let harmonization enrich it later.
   const firstName = readRecordValue(properties, TOUR_RECORD_FIELDS, "firstName");
   const lastName = readRecordValue(properties, TOUR_RECORD_FIELDS, "lastName");
   const fullName = readRecordValue(properties, TOUR_RECORD_FIELDS, "fullName") || `${firstName} ${lastName}`.trim();

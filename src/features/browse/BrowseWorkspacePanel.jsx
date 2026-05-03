@@ -19,6 +19,10 @@ import PinDropIcon from "@mui/icons-material/PinDrop";
 
 import { getSearchShellNoticeStyles } from "./sidebarPresentation";
 
+/**
+ * Presentational controls for the sidebar workspace. The parent owns state and
+ * map actions; this module keeps repeated search/filter UI markup together.
+ */
 function SearchNoticeStack({ notices }) {
   return (
     <Box

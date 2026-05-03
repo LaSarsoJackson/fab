@@ -2,18 +2,11 @@ import { describe, expect, test } from "bun:test";
 
 import {
   buildDirectionsLink,
-  buildOfflineValhallaWalkingRouteUrl,
-  buildValhallaWalkingRouteUrl,
-  DEFAULT_LOCAL_VALHALLA_PROXY_PATH,
-  DEFAULT_ROUTING_PROVIDER,
-  normalizeRoutingProvider,
   ROUTING_QUERY_PARAMS,
-  ROUTING_PROVIDERS,
-  VALID_ROUTING_PROVIDERS,
 } from "../src/shared/routing";
 
 describe("routing contracts", () => {
-  test("centralizes route query keys and provider ids", () => {
+  test("centralizes public route query keys", () => {
     expect(ROUTING_QUERY_PARAMS).toEqual({
       search: "q",
       section: "section",
@@ -21,26 +14,6 @@ describe("routing contracts", () => {
       tour: "tour",
       view: "view",
     });
-    expect(DEFAULT_ROUTING_PROVIDER).toBe(ROUTING_PROVIDERS.api);
-    expect(VALID_ROUTING_PROVIDERS).toEqual(["api", "local", "valhalla"]);
-    expect(normalizeRoutingProvider(" VALHALLA ")).toBe("valhalla");
-    expect(normalizeRoutingProvider("bogus")).toBe("");
-  });
-
-  test("builds hosted and offline Valhalla URLs from shared defaults", () => {
-    const hostedUrl = new URL(buildValhallaWalkingRouteUrl({
-      from: [42.70418, -73.73198],
-      to: [42.70911, -73.72154],
-      apiUrl: "https://routing.example.test/api",
-    }));
-    const offlineUrl = new URL(buildOfflineValhallaWalkingRouteUrl({
-      from: [42.70418, -73.73198],
-      to: [42.70911, -73.72154],
-    }), "http://localhost");
-
-    expect(hostedUrl.origin).toBe("https://routing.example.test");
-    expect(hostedUrl.pathname).toBe("/api/route");
-    expect(offlineUrl.pathname).toBe(`${DEFAULT_LOCAL_VALHALLA_PROXY_PATH}/route`);
   });
 
   test("builds an Apple Maps link for Apple platforms", () => {

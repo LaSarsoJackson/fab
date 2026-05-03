@@ -13,8 +13,8 @@ Use this file to decide which note to read before making a change.
 - Touching `src/Map.jsx` or map selection flow:
   [map-architecture.md](./map-architecture.md)
 
-- Changing client route hashes, shared-link query params, external directions
-  links, or routing provider URL contracts:
+- Changing client route hashes, shared-link query params, in-app road routing,
+  or external directions links:
   [routing-architecture.md](./routing-architecture.md)
 
 - Changing where helpers or feature code should live:

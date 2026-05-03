@@ -1,7 +1,15 @@
+/**
+ * Pure sidebar presentation helpers. Keeping copy, tones, and action metadata
+ * out of the React component lets tests cover empty/loading/offline states
+ * without rendering the full map/sidebar shell.
+ */
 export const formatLocationNoticeLabel = ({
   status,
   activeStatus,
   locatingStatus,
+  outOfBoundsStatus,
+  unavailableStatus,
+  unsupportedStatus,
 }) => {
   if (status === activeStatus) {
     return "Using your current location for directions.";
@@ -9,6 +17,18 @@ export const formatLocationNoticeLabel = ({
 
   if (status === locatingStatus) {
     return "Finding your location…";
+  }
+
+  if (status === unavailableStatus) {
+    return "GPS is unavailable. Check signal and permissions, or search by name or section.";
+  }
+
+  if (status === unsupportedStatus) {
+    return "GPS is not supported in this browser. Search by name or section, or use Open in Maps.";
+  }
+
+  if (status === outOfBoundsStatus) {
+    return "Location is outside cemetery range. Search still works; use Open in Maps for off-site directions.";
   }
 
   return status;
@@ -57,6 +77,9 @@ export const buildSearchShellNotices = ({
   defaultLocationStatus = "Location inactive",
   activeLocationStatus = "Location active",
   locatingLocationStatus = "Locating...",
+  outOfBoundsLocationStatus = "Location outside cemetery range",
+  unavailableLocationStatus = "GPS unavailable",
+  unsupportedLocationStatus = "GPS unsupported",
   hasActiveBrowseQuery = false,
   isBurialDataLoading,
   isInstalled,
@@ -81,6 +104,9 @@ export const buildSearchShellNotices = ({
         status: normalizedStatus,
         activeStatus: activeLocationStatus,
         locatingStatus: locatingLocationStatus,
+        outOfBoundsStatus: outOfBoundsLocationStatus,
+        unavailableStatus: unavailableLocationStatus,
+        unsupportedStatus: unsupportedLocationStatus,
       }),
     });
   }
@@ -89,7 +115,7 @@ export const buildSearchShellNotices = ({
     notices.push({
       key: "offline",
       tone: "warning",
-      label: "Offline. Search stays available, but live links may be limited.",
+      label: "Offline. Cached searches and cemetery layers may still work after a prior load; live maps, links, and GPS can be limited.",
     });
   } else if (isBurialDataLoading) {
     notices.push({

@@ -76,11 +76,10 @@ If you are not sure where a change belongs, stop at
 - Keep pure map business rules in [`src/features/map/mapDomain.js`](./src/features/map/mapDomain.js)
   so selection state, section logic, hover rules, geolocation filtering, and map-specific
   styling stay discoverable.
-- Keep walking-route calculation, bundled-road routing, and provider fallback rules in
+- Keep walking-route calculation and bundled-road routing in
   [`src/features/map/mapRouting.js`](./src/features/map/mapRouting.js) so map
   navigation logic has one home.
-- Keep client route hashes, URL query-key names, routing provider ids, Valhalla
-  endpoint defaults, and external directions links in
+- Keep client route hashes, URL query-key names, and external directions links in
   [`src/shared/routing`](./src/shared/routing).
 - Put pure transforms in the owning feature folder under [`src/features/`](./src/features).
 - Put domain-neutral helpers in [`src/shared/`](./src/shared).

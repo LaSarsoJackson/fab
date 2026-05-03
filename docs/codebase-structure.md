@@ -13,13 +13,13 @@ so there is a clearer answer to "where should this change go?"
 
 - [`src/features/browse/`](../src/features/browse): search indexing, browse result shaping, and shared record labels
 - [`src/features/tours/`](../src/features/tours): tour definitions, alias recovery, tour styles, and burial-tour reconciliation
-- [`src/features/map/`](../src/features/map): popup view-models, a single `mapDomain.js` module for pure map rules and selection-state reduction, a single `mapRouting.js` module for walking-route calculation and provider fallback, map chrome, viewport helpers, and generated bounds
-- [`src/features/deeplinks/`](../src/features/deeplinks): shared-link encoding and URL/deep-link state
+- [`src/features/map/`](../src/features/map): popup view-models, a single `mapDomain.js` module for pure map rules, viewport intent, popup geometry, and selection-state reduction, a single `mapRouting.js` module for bundled-road walking-route calculation, map chrome, and generated bounds
+- [`src/features/deeplinks/`](../src/features/deeplinks): field-packet/shared-link encoding, parsing, and presentation state
 
 ## Shared Helpers
 
 - [`src/shared/geo/geoJsonBounds.js`](../src/shared/geo/geoJsonBounds.js): generic GeoJSON bounds and validation helpers
-- [`src/shared/routing/`](../src/shared/routing): routing query keys, provider ids, Valhalla URL defaults/builders, and external directions links
+- [`src/shared/routing/`](../src/shared/routing): routing query keys and external Apple Maps / Google Maps directions links
 - [`src/shared/runtime/runtimeEnv.js`](../src/shared/runtime/runtimeEnv.js): runtime environment helpers, centralized runtime-flag definitions, asset URL helpers, document metadata sync, idle scheduling, and real environment-dependent toggles
 
 ## Profile Layer

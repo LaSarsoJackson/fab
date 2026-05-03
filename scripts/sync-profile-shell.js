@@ -26,6 +26,8 @@ const escapeHtml = (value = "") => (
     .replaceAll("'", "&#39;")
 );
 
+// Public shell files are generated from templates so marketing metadata, PWA
+// names, and noscript copy stay aligned with the FAB app profile.
 const writeIndexHtml = async () => {
   const templatePath = path.join(PUBLIC_DIR, "index.template.html");
   const outputPath = path.join(PUBLIC_DIR, "index.html");
@@ -50,6 +52,8 @@ const writeManifest = async () => {
   const outputPath = path.join(PUBLIC_DIR, "manifest.json");
 
   const manifest = JSON.parse(await fs.readFile(templatePath, "utf8"));
+  // Keep only the profile-owned fields dynamic; icons, display mode, and theme
+  // metadata continue to live in the checked-in manifest template.
   manifest.short_name = manifestShortName;
   manifest.name = manifestName;
 

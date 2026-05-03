@@ -255,6 +255,29 @@ describe("BurialSidebar", () => {
     expect(input).toHaveValue("");
   });
 
+  domTest("lets mobile users collapse and reopen the search panel", () => {
+    renderSidebar({ isMobile: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide search panel" }));
+    expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(1);
+    expect(mockBottomSheetState.snapTo.mock.calls[0][0]({ maxHeight: 1000 })).toBeCloseTo(220);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show search panel" }));
+    expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(2);
+    expect(mockBottomSheetState.snapTo.mock.calls[1][0]({ maxHeight: 1000 })).toBeCloseTo(500);
+  });
+
+  domTest("shows actionable GPS guidance when location is unavailable", () => {
+    renderSidebar({
+      status: APP_PROFILE.map.locationMessages.unavailable,
+    });
+
+    flushBrowseTimers();
+
+    expect(screen.getByText(/GPS is unavailable/i)).toBeInTheDocument();
+    expect(screen.getByText(/search by name or section/i)).toBeInTheDocument();
+  });
+
   domTest("expands the mobile drawer from the collapsed browse shell when a point selection arrives", () => {
     const rerenderProps = createBaseProps();
     const { rerender } = renderSidebar({ isMobile: true });
@@ -866,6 +889,8 @@ describe("BurialSidebar", () => {
     flushBrowseTimers();
 
     expect(screen.getByText("Using your current location for directions.")).toBeInTheDocument();
-    expect(screen.getByText("Offline. Search stays available, but live links may be limited.")).toBeInTheDocument();
+    expect(screen.getByText(
+      "Offline. Cached searches and cemetery layers may still work after a prior load; live maps, links, and GPS can be limited."
+    )).toBeInTheDocument();
   });
 });

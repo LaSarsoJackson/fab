@@ -3,9 +3,18 @@ import { describe, expect, test } from "bun:test";
 import {
   getRuntimeEnv,
   isFieldPacketsEnabled,
+  RUNTIME_FEATURE_FLAGS,
 } from "../src/shared/runtime/runtimeEnv";
 
 describe("getRuntimeEnv", () => {
+  test("keeps runtime flags limited to shipped product features", () => {
+    expect(Object.keys(RUNTIME_FEATURE_FLAGS)).toEqual(["fieldPackets"]);
+    expect(RUNTIME_FEATURE_FLAGS.fieldPackets).toMatchObject({
+      id: "fieldPackets",
+      envKey: "REACT_APP_ENABLE_FIELD_PACKETS",
+    });
+  });
+
   test("defaults to development with shipped feature flags", () => {
     expect(getRuntimeEnv({})).toEqual({
       appEnvironment: "development",

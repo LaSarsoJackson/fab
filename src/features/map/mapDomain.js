@@ -24,7 +24,9 @@ import { getGeoJsonBounds, isLatLngBoundsExpressionValid } from "../../shared/ge
 
 const EARTH_RADIUS_METERS = 6371008.8;
 const DEFAULT_COORDINATE_PRECISION = 8;
+const PROGRAMMATIC_MOVE_GUARD_TIMEOUT_MS = 1400;
 const TOUCH_LIKE_POINTER_TYPES = new Set(["touch", "pen"]);
+const noop = () => {};
 
 export const MAP_PRESENTATION_POLICY = Object.freeze({
   sectionOverviewMarkerMinZoom: 13,
@@ -148,6 +150,202 @@ export const shouldIgnoreSectionBackgroundSelection = ({
   return nextClickedSection === normalizeSectionValue(activeSection);
 };
 
+export const shouldApplyViewportFocus = ({
+  hasUserViewportIntent = false,
+  isExplicitFocus = false,
+} = {}) => Boolean(isExplicitFocus || !hasUserViewportIntent);
+
+export const shouldTreatViewportMoveAsUserIntent = ({
+  eventType = "",
+  isProgrammaticMove = false,
+} = {}) => {
+  const normalizedEventType = String(eventType || "").toLowerCase();
+
+  if (normalizedEventType === "dragstart") {
+    return true;
+  }
+
+  return !isProgrammaticMove;
+};
+
+export const createViewportIntentController = ({
+  onUserViewportIntent = noop,
+} = {}) => {
+  let hasUserViewportIntent = false;
+  let programmaticMoveDepth = 0;
+  const notifyUserViewportIntent = typeof onUserViewportIntent === "function"
+    ? onUserViewportIntent
+    : noop;
+
+  const markExplicitFocus = () => {
+    hasUserViewportIntent = false;
+  };
+
+  const canApplyFocus = ({ isExplicitFocus = false } = {}) => {
+    const shouldFocus = shouldApplyViewportFocus({
+      hasUserViewportIntent,
+      isExplicitFocus,
+    });
+
+    if (shouldFocus && isExplicitFocus) {
+      markExplicitFocus();
+    }
+
+    return shouldFocus;
+  };
+
+  const markUserIntent = () => {
+    hasUserViewportIntent = true;
+    notifyUserViewportIntent();
+  };
+
+  const handleMoveStart = (eventType) => {
+    if (!shouldTreatViewportMoveAsUserIntent({
+      eventType,
+      isProgrammaticMove: programmaticMoveDepth > 0,
+    })) {
+      return;
+    }
+
+    markUserIntent();
+  };
+
+  const runProgrammaticMove = (map, moveCallback) => {
+    if (!map || typeof moveCallback !== "function") {
+      return undefined;
+    }
+
+    programmaticMoveDepth += 1;
+
+    let didFinish = false;
+    let timeoutId = null;
+    const finish = () => {
+      if (didFinish) {
+        return;
+      }
+
+      didFinish = true;
+      map.off?.("moveend", finish);
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+      programmaticMoveDepth = Math.max(0, programmaticMoveDepth - 1);
+    };
+
+    if (typeof map.once === "function") {
+      map.once("moveend", finish);
+      timeoutId = setTimeout(finish, PROGRAMMATIC_MOVE_GUARD_TIMEOUT_MS);
+    }
+
+    try {
+      const result = moveCallback();
+      if (typeof map.once !== "function") {
+        finish();
+      }
+      return result;
+    } catch (error) {
+      finish();
+      throw error;
+    }
+  };
+
+  return {
+    canApplyFocus,
+    getProgrammaticMoveDepth: () => programmaticMoveDepth,
+    hasUserViewportIntent: () => hasUserViewportIntent,
+    handleMoveStart,
+    markExplicitFocus,
+    markUserIntent,
+    runProgrammaticMove,
+  };
+};
+
+const buildBaseViewportPadding = (basePadding) => ({
+  topLeft: [basePadding, basePadding],
+  bottomRight: [basePadding, basePadding],
+});
+
+const getRectSize = (rect = {}) => ({
+  width: Math.max(0, (rect.right || 0) - (rect.left || 0)),
+  height: Math.max(0, (rect.bottom || 0) - (rect.top || 0)),
+});
+
+export const getPopupViewportPadding = ({
+  containerRect,
+  overlayRect,
+  basePadding = 16,
+  edgeThreshold = 12,
+  dominantCoverage = 0.6,
+} = {}) => {
+  const padding = buildBaseViewportPadding(basePadding);
+
+  if (!containerRect || !overlayRect) {
+    return padding;
+  }
+
+  // The sidebar/mobile sheet can cover one side of the map. Translate that
+  // overlap into Leaflet autopan padding so focused markers remain visible.
+  const overlapLeft = Math.max(containerRect.left, overlayRect.left);
+  const overlapTop = Math.max(containerRect.top, overlayRect.top);
+  const overlapRight = Math.min(containerRect.right, overlayRect.right);
+  const overlapBottom = Math.min(containerRect.bottom, overlayRect.bottom);
+
+  if (overlapRight <= overlapLeft || overlapBottom <= overlapTop) {
+    return padding;
+  }
+
+  const overlapWidth = overlapRight - overlapLeft;
+  const overlapHeight = overlapBottom - overlapTop;
+  const { width: containerWidth, height: containerHeight } = getRectSize(containerRect);
+  if (!containerWidth || !containerHeight) {
+    return padding;
+  }
+
+  const touchesLeft = Math.abs(overlapLeft - containerRect.left) <= edgeThreshold;
+  const touchesRight = Math.abs(containerRect.right - overlapRight) <= edgeThreshold;
+  const touchesTop = Math.abs(overlapTop - containerRect.top) <= edgeThreshold;
+  const touchesBottom = Math.abs(containerRect.bottom - overlapBottom) <= edgeThreshold;
+
+  if (overlapWidth >= containerWidth * dominantCoverage) {
+    if (touchesBottom && !touchesTop) {
+      padding.bottomRight[1] = Math.ceil(overlapHeight) + basePadding;
+      return padding;
+    }
+
+    if (touchesTop && !touchesBottom) {
+      padding.topLeft[1] = Math.ceil(overlapHeight) + basePadding;
+      return padding;
+    }
+  }
+
+  if (overlapHeight >= containerHeight * dominantCoverage) {
+    if (touchesLeft && !touchesRight) {
+      padding.topLeft[0] = Math.ceil(overlapWidth) + basePadding;
+      return padding;
+    }
+
+    if (touchesRight && !touchesLeft) {
+      padding.bottomRight[0] = Math.ceil(overlapWidth) + basePadding;
+      return padding;
+    }
+  }
+
+  if (touchesLeft) {
+    padding.topLeft[0] = Math.ceil(overlapWidth) + basePadding;
+  }
+  if (touchesRight) {
+    padding.bottomRight[0] = Math.ceil(overlapWidth) + basePadding;
+  }
+  if (touchesTop) {
+    padding.topLeft[1] = Math.ceil(overlapHeight) + basePadding;
+  }
+  if (touchesBottom) {
+    padding.bottomRight[1] = Math.ceil(overlapHeight) + basePadding;
+  }
+
+  return padding;
+};
+
 //=============================================================================
 // Selection State Rules
 //=============================================================================
@@ -206,6 +404,9 @@ export const createMapSelectionState = ({
   activeBurialId = null,
   hoveredBurialId = null,
 } = {}) => {
+  // Keep selected records as the only durable state. Active and hovered ids are
+  // allowed only when they still point at a selected record, which prevents
+  // stale Leaflet hover/focus state from leaking into the sidebar.
   const nextSelectedBurials = dedupeSelectedBurials(selectedBurials);
   const selectedBurialIds = new Set(nextSelectedBurials.map((burial) => burial.id));
   const nextActiveBurialId = normalizeBurialId(activeBurialId);
@@ -314,6 +515,9 @@ export const MAP_SELECTION_ACTION_TYPES = Object.freeze({
   SET_HOVER: "setHover",
 });
 
+// Map selection updates funnel through action creators so search results,
+// section markers, tour stops, deep links, and popup close events all normalize
+// active/hovered/selected state the same way.
 export const clearMapSelectionFocus = ({ clearHover = false } = {}) => ({
   type: MAP_SELECTION_ACTION_TYPES.CLEAR_FOCUS,
   clearHover,
@@ -414,6 +618,8 @@ const compareSectionValues = (left, right) => {
 const buildSectionFeatureGroups = (sectionsGeoJson = {}) => {
   const groups = new Map();
 
+  // A single visible section can contain multiple polygons in the source data.
+  // Group first, then compute one browse/focus bound per logical section id.
   (sectionsGeoJson.features || []).forEach((feature) => {
     const sectionValue = normalizeSectionValue(feature?.properties?.Section);
     if (!sectionValue) {
@@ -671,11 +877,20 @@ export const getClusterIconCount = (
 };
 
 export const resolveRoadOverlayVisibility = ({
+  currentZoom = 0,
   roadOverlayVisible = false,
   hasActiveRoute = false,
   hasTrackedLocation = false,
+  sectionDetailMinZoom = MAP_PRESENTATION_POLICY.sectionDetailMinZoom,
 } = {}) => (
-  Boolean(roadOverlayVisible || hasActiveRoute || hasTrackedLocation)
+  Boolean(
+    // Roads stay visible automatically when they provide orientation for route
+    // following or location tracking, even if the manual overlay toggle is off.
+    roadOverlayVisible ||
+    hasActiveRoute ||
+    hasTrackedLocation ||
+    currentZoom >= sectionDetailMinZoom
+  )
 );
 
 export const areRouteLatLngTuplesEquivalent = (left, right) => (
@@ -700,6 +915,8 @@ export const resolveMapPresentationPolicy = ({
   hasTrackedLocation = false,
   preferSectionOverviewMarkers = false,
 } = {}) => {
+  // Map chrome asks for one policy object per render so zoom, active route,
+  // location, and section/tour focus cannot drift through separate conditionals.
   const sectionVisibility = resolveSectionOverlayVisibility({
     currentZoom,
     preferOverviewMarkers: preferSectionOverviewMarkers,
@@ -727,6 +944,7 @@ export const resolveMapPresentationPolicy = ({
       selectedTour,
     }),
     showRoads: resolveRoadOverlayVisibility({
+      currentZoom,
       roadOverlayVisible,
       hasActiveRoute,
       hasTrackedLocation,
@@ -782,12 +1000,36 @@ const ACTIVE_SECTION_BURIAL_MARKER_STYLE = {
   hitRadius: 18,
 };
 
-export const ROAD_LAYER_STYLE = {
-  color: "#36424b",
-  weight: 1.35,
-  opacity: 0.58,
-  fillOpacity: 0.08,
+const ROAD_LINE_BASE_STYLE = {
+  fill: false,
+  interactive: false,
+  bubblingMouseEvents: false,
+  lineCap: "round",
+  lineJoin: "round",
 };
+
+export const ROAD_LAYER_STYLES = [
+  {
+    ...ROAD_LINE_BASE_STYLE,
+    color: "#5c6469",
+    weight: 8,
+    opacity: 0.2,
+  },
+  {
+    ...ROAD_LINE_BASE_STYLE,
+    color: "#d8d1c5",
+    weight: 6.25,
+    opacity: 0.64,
+  },
+  {
+    ...ROAD_LINE_BASE_STYLE,
+    color: "#f8f6ef",
+    weight: 4.5,
+    opacity: 0.96,
+  },
+];
+
+export const ROAD_LAYER_STYLE = ROAD_LAYER_STYLES[ROAD_LAYER_STYLES.length - 1];
 
 const normalizeSectionBurialMarkerKey = (record = {}) => {
   if (record.id) {
@@ -1000,6 +1242,38 @@ export const selectBestRecentLocationCandidate = (candidates) => {
       ? candidate
       : bestCandidate;
   }, null);
+};
+
+export const selectRouteTrackingLocationCandidate = (
+  candidates,
+  { previousLocation = null } = {}
+) => {
+  if (!Array.isArray(candidates) || candidates.length === 0) {
+    return null;
+  }
+
+  const bestAccuracyCandidate = selectBestRecentLocationCandidate(candidates);
+  // While navigating, meaningful fresh movement is more useful than the most
+  // accurate stale fix. The deadband below keeps small GPS jitter from moving
+  // the route origin on every watch update.
+  const freshestCandidate = candidates.reduce((freshest, candidate) => {
+    if (!freshest) {
+      return candidate;
+    }
+
+    return Number(candidate?.recordedAt) >= Number(freshest?.recordedAt)
+      ? candidate
+      : freshest;
+  }, null);
+
+  if (!previousLocation || !freshestCandidate || freshestCandidate === bestAccuracyCandidate) {
+    return bestAccuracyCandidate || freshestCandidate;
+  }
+
+  const movementMeters = calculateLocationDistanceMeters(previousLocation, freshestCandidate);
+  return movementMeters > LOCATION_JITTER_DEADBAND_METERS
+    ? freshestCandidate
+    : bestAccuracyCandidate;
 };
 
 export const areLocationCandidatesEquivalent = (left, right) => (

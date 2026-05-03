@@ -1,5 +1,7 @@
-const STATIC_CACHE = 'fab-static-v2';
-const RUNTIME_CACHE = 'fab-runtime-v2';
+const STATIC_CACHE = 'fab-static-v3';
+const RUNTIME_CACHE = 'fab-runtime-v3';
+// Keep the app shell installable, but leave large and frequently regenerated
+// datasets to route-specific caching rules below.
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -11,31 +13,51 @@ const PRECACHE_URLS = [
 const SHELL_ASSET_PATTERN = /\.(?:js|css|svg|ico|woff2?)$/i;
 const IMAGE_ASSET_PATTERN = /\.(?:png|jpg|jpeg|gif|webp|avif)$/i;
 const JSON_ASSET_PATTERN = /\.json$/i;
+const FIELD_SEARCH_PAYLOAD_PATTERN = /\/data\/Search_Burials\.json$/i;
 const LARGE_DATASET_PATTERN = /(Geo_Burials|Burials|ARC_Burials).*\.json$/i;
 const MAX_RUNTIME_CACHE_BYTES = 1_500_000;
+const MAX_FIELD_DATA_CACHE_BYTES = 50_000_000;
 
 const isCacheableResponse = (response) => Boolean(response && response.ok);
 
-const putIfSmallEnough = async (cache, request, response) => {
+const putIfSmallEnough = async (
+  cache,
+  request,
+  response,
+  { maxBytes = MAX_RUNTIME_CACHE_BYTES } = {}
+) => {
   if (!isCacheableResponse(response)) {
     return response;
   }
 
   const contentLength = Number(response.headers.get('content-length') || 0);
-  if (contentLength && contentLength > MAX_RUNTIME_CACHE_BYTES) {
+  if (contentLength && contentLength > maxBytes) {
     return response;
   }
 
-  await cache.put(request, response.clone());
+  try {
+    await cache.put(request, response.clone());
+  } catch (error) {
+    console.warn('Unable to cache runtime response:', error);
+  }
   return response;
 };
 
-const networkFirst = async (request, { cacheName = RUNTIME_CACHE, fallbackUrl } = {}) => {
+const networkFirst = async (
+  request,
+  {
+    cacheName = RUNTIME_CACHE,
+    fallbackUrl,
+    maxBytes = MAX_RUNTIME_CACHE_BYTES,
+  } = {}
+) => {
   const cache = await caches.open(cacheName);
 
   try {
+    // Data and navigations should prefer fresh content, then fall back to the
+    // last cached response when the cemetery visitor is offline.
     const response = await fetch(request);
-    await putIfSmallEnough(cache, request, response);
+    await putIfSmallEnough(cache, request, response, { maxBytes });
     return response;
   } catch (error) {
     const cachedResponse = await cache.match(request);
@@ -51,11 +73,19 @@ const networkFirst = async (request, { cacheName = RUNTIME_CACHE, fallbackUrl } 
   }
 };
 
-const staleWhileRevalidate = async (request, { cacheName = RUNTIME_CACHE } = {}) => {
+const staleWhileRevalidate = async (
+  request,
+  {
+    cacheName = RUNTIME_CACHE,
+    maxBytes = MAX_RUNTIME_CACHE_BYTES,
+  } = {}
+) => {
   const cache = await caches.open(cacheName);
   const cachedResponse = await cache.match(request);
+  // Static shell assets and images can render immediately from cache while the
+  // service worker refreshes them in the background for the next visit.
   const networkPromise = fetch(request)
-    .then((response) => putIfSmallEnough(cache, request, response))
+    .then((response) => putIfSmallEnough(cache, request, response, { maxBytes }))
     .catch(() => cachedResponse);
 
   return cachedResponse || networkPromise;
@@ -110,7 +140,20 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (JSON_ASSET_PATTERN.test(requestUrl.pathname)) {
+    if (FIELD_SEARCH_PAYLOAD_PATTERN.test(requestUrl.pathname)) {
+      event.respondWith(
+        networkFirst(request, {
+          cacheName: RUNTIME_CACHE,
+          maxBytes: MAX_FIELD_DATA_CACHE_BYTES,
+        })
+      );
+      return;
+    }
+
     if (LARGE_DATASET_PATTERN.test(requestUrl.pathname)) {
+      // Full source datasets can be much larger than the PWA cache budget. Try
+      // the network first and use an existing cache entry only as an offline
+      // safety net.
       event.respondWith(
         fetch(request).catch(() => caches.match(request))
       );

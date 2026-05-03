@@ -1,6 +1,11 @@
 import { BOUNDARY_BBOX, LOCATION_BUFFER_BOUNDARY } from "../map/generatedBounds";
 import { FAB_TOUR_DEFINITIONS, FAB_TOUR_STYLES, enrichFabTourRecord } from "./tours";
 
+/**
+ * FAB-specific product profile. Keep Albany Rural Cemetery URLs, branding,
+ * source modules, map defaults, and record presentation callbacks here instead
+ * of scattering hardcoded app assumptions through shared modules.
+ */
 const stripLeadingSlash = (value = "") => String(value).trim().replace(/^\/+/, "");
 const stripTrailingSlash = (value = "") => String(value).trim().replace(/\/+$/, "");
 const createBasemapSpec = (definition) => Object.freeze({ ...definition });
@@ -46,6 +51,9 @@ const normalizeFabPageLink = (value = "") => {
     return normalized;
   }
 
+  // Biography fields are inconsistent: some contain a full URL, some contain a
+  // slug, and some accidentally contain an image filename. Only page-like
+  // values should become external biography links.
   const trimmed = normalized.replace(/^\/+/, "");
   if (/\.(?:jpe?g|png|gif|webp|svg)$/i.test(trimmed)) {
     return "";
@@ -75,6 +83,8 @@ const resolveFabRecordImageUrl = (imageName) => {
     : `${normalizedImageName}.jpg`;
 
   if (process.env.NODE_ENV === "development" && FAB_DEV_IMAGE_SERVER_ORIGIN) {
+    // Local development serves checked-in image assets from a companion Python
+    // server because Create React App does not expose src/data files publicly.
     return `${FAB_DEV_IMAGE_SERVER_ORIGIN}/src/data/images/${imageFileName}`;
   }
 
@@ -120,6 +130,8 @@ const buildCoreDataModule = (definition) => ({
 });
 
 const CORE_DATA_MODULES = [
+  // Data modules are the profile-level source registry used by runtime loading,
+  // artifact generation, and contributor docs.
   buildCoreDataModule({
     id: "burials",
     label: "Burials",
@@ -215,6 +227,8 @@ const MAP_OVERLAY_SOURCES = [
 ].map(createOverlaySourceSpec);
 
 const MAP_OPTIMIZATION_ARTIFACTS = [
+  // These entries document which checked-in/generated map artifacts are active
+  // today and which optional formats are build-time accelerators only.
   {
     id: "burials-source-geojson",
     label: "Burials GeoJSON source",
@@ -345,9 +359,10 @@ export const APP_PROFILE = {
       inactive: "Location inactive",
       active: "Location active",
       locating: "Locating...",
-      unsupported: "Geolocation is not supported by your browser",
-      unavailable: "Unable to retrieve your location",
-      outOfBounds: `You must be within 5 miles of ${FAB_SITE_NAME}`,
+      unsupported: "GPS is not supported in this browser. Search by name or section, or use Open in Maps.",
+      unavailable: "GPS is unavailable. Check signal and permissions, or search by name or section.",
+      outOfBounds: `Location is outside cemetery range. Search still works; use Open in Maps for off-site directions.`,
+      routeLocationRequired: `Route on Map needs your current location near ${FAB_SITE_NAME}. Use Open in Maps for directions from farther away.`,
     },
     defaultBasemapId: "imagery",
     basemaps: MAP_BASEMAPS,
@@ -386,6 +401,10 @@ export const APP_PROFILE = {
 export const DATA_MODULES = APP_PROFILE.dataModules || [];
 export const TOUR_DEFINITIONS = APP_PROFILE.features?.tours?.definitions || [];
 export const TOUR_STYLES = APP_PROFILE.features?.tours?.styles || {};
+export const EMPTY_MAP_FEATURE_COLLECTION = Object.freeze({
+  type: "FeatureCollection",
+  features: Object.freeze([]),
+});
 
 export const getDataModule = (moduleId) => (
   DATA_MODULES.find((definition) => definition.id === moduleId) || null
@@ -394,6 +413,55 @@ export const getDataModule = (moduleId) => (
 export const loadDataModule = async (moduleDefinition) => {
   const loaded = await moduleDefinition.load();
   return loaded.default || loaded;
+};
+
+export const getEmptyCoreMapData = () => ({
+  boundaryData: EMPTY_MAP_FEATURE_COLLECTION,
+  roadsData: EMPTY_MAP_FEATURE_COLLECTION,
+  sectionsData: EMPTY_MAP_FEATURE_COLLECTION,
+});
+
+export const normalizeMapFeatureCollection = (featureCollection = {}) => ({
+  // Leaflet and feature helpers expect an array even when a load fails or a
+  // profile module returns a bare object.
+  type: "FeatureCollection",
+  ...featureCollection,
+  features: Array.isArray(featureCollection?.features) ? featureCollection.features : [],
+});
+
+const getRequiredMapDataModule = (moduleId, resolveModule) => {
+  const moduleDefinition = resolveModule(moduleId);
+
+  if (!moduleDefinition) {
+    throw new Error(`Missing required map data module: ${moduleId}`);
+  }
+
+  return moduleDefinition;
+};
+
+export const loadCoreMapData = async (
+  appProfile,
+  {
+    resolveModule = getDataModule,
+    loadModule = loadDataModule,
+  } = {}
+) => {
+  const moduleIds = appProfile?.moduleIds || {};
+  const boundaryModule = getRequiredMapDataModule(moduleIds.boundary, resolveModule);
+  const roadsModule = getRequiredMapDataModule(moduleIds.roads, resolveModule);
+  const sectionsModule = getRequiredMapDataModule(moduleIds.sections, resolveModule);
+
+  const [boundaryData, roadsData, sectionsData] = await Promise.all([
+    loadModule(boundaryModule),
+    loadModule(roadsModule),
+    loadModule(sectionsModule),
+  ]);
+
+  return {
+    boundaryData: normalizeMapFeatureCollection(boundaryData),
+    roadsData: normalizeMapFeatureCollection(roadsData),
+    sectionsData: normalizeMapFeatureCollection(sectionsData),
+  };
 };
 
 export const getTourModuleDefinitions = () => (

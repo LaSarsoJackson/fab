@@ -6,6 +6,11 @@ import {
 } from "../features/browse/browseResults";
 import { cancelIdleTask, scheduleIdleTask } from "../shared/runtime/runtimeEnv";
 
+/**
+ * Owns the sidebar's derived browse state: current browse source, query,
+ * incremental result limits, idle-result computation, and the small LRU cache
+ * that keeps repeated section/tour searches responsive.
+ */
 export const DEFAULT_RESULT_LIMIT = 10;
 const ASYNC_BROWSE_RECORD_THRESHOLD = 5000;
 const BROWSE_RESULTS_CACHE_LIMIT = 24;
@@ -125,6 +130,9 @@ function useDeferredBrowseResults({
   const [deferredBrowseResults, setDeferredBrowseResults] = useState([]);
   const [isBrowsePending, setIsBrowsePending] = useState(false);
 
+  // Input collections are large and can be replaced wholesale after data
+  // reloads, so cache invalidation follows object identity instead of trying
+  // to diff the underlying record arrays.
   useEffect(() => {
     browseResultsCacheRef.current.clear();
   }, [
@@ -153,6 +161,9 @@ function useDeferredBrowseResults({
     let cancelled = false;
     setIsBrowsePending(true);
 
+    // Full-cemetery searches can touch tens of thousands of records. Running
+    // them during idle time avoids blocking typing, drawer animation, and map
+    // interaction while still returning cached results immediately on repeats.
     const handle = scheduleIdleTask(() => {
       if (cancelled) {
         return;

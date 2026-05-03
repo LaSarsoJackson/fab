@@ -51,22 +51,18 @@ bun install
 
 ### Configure local environment
 
-Create a local `.env` file when you need routing overrides or want to override
-the default image origin:
+Create a local `.env` file when you want to override the default image origin:
 
 ```bash
-REACT_APP_VALHALLA_API_URL=https://valhalla1.openstreetmap.de
 REACT_APP_DEV_IMAGE_SERVER_ORIGIN=http://127.0.0.1:8000
 ```
 
 Notes:
 
-- `REACT_APP_VALHALLA_API_URL` affects the hosted directions provider.
-- Shared deep-link query keys, provider ids, Valhalla defaults, and external
-  directions URL builders live in `src/shared/routing`.
-- The route destination is still snapped against the bundled cemetery road
-  network before routing so the app continues to respect the project’s local
-  road geometry.
+- `Route on Map` uses the bundled cemetery road network in the browser, with no
+  hosted routing API or local routing proxy.
+- `Open in Maps` builds external Apple Maps or Google Maps walking links from
+  `src/shared/routing`.
 - `bun run start` defaults `REACT_APP_DEV_IMAGE_SERVER_ORIGIN` to the local
   companion image server on `http://127.0.0.1:8000`.
 - Development-only surfaces such as the static admin studio, custom renderer,
@@ -163,7 +159,7 @@ Start with these documents:
 - [docs/codebase-structure.md](./docs/codebase-structure.md) for directory
   ownership and placement rules
 - [docs/routing-architecture.md](./docs/routing-architecture.md) for client
-  route, deep-link, directions-link, and routing-provider URL ownership
+  route, deep-link, in-app road routing, and external directions-link ownership
 - [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md) for the branch
   workflow for development-only surfaces
 
@@ -179,8 +175,8 @@ Common entry points:
   generation, and burial-tour reconciliation
 - [`src/features/map/`](./src/features/map): popup models, selection reducer/actions,
   viewport helpers, and map-specific logic
-- [`src/shared/routing/`](./src/shared/routing): query keys,
-  routing provider ids, Valhalla URL defaults/builders, and external directions links
+- [`src/shared/routing/`](./src/shared/routing): query keys and external
+  Apple Maps / Google Maps directions links
 
 ## Deployment notes
 

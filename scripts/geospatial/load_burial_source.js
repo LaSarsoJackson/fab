@@ -6,6 +6,11 @@ import { promisify } from "util";
 
 import { APP_PROFILE } from "../../src/features/fab/profile.js";
 
+/**
+ * Shared source loader for build-time geospatial tasks. It prefers the profile
+ * declared build artifact when available, but preserves GeoJSON as the stable
+ * fallback source of truth for the runtime record model.
+ */
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.join(__dirname, "..", "..");
@@ -74,6 +79,9 @@ export const getPreferredBuildSourceArtifact = (appProfile = {}, options = {}) =
       return isSourceArtifact && matchesSourceModule && artifact.filePath;
     })
     .sort((left, right) => {
+      // Prefer the storage strategy's current format, then active artifacts,
+      // then deterministic id order so tooling chooses the same source locally
+      // and in CI.
       const formatDelta = getFormatRank(left.format) - getFormatRank(right.format);
       if (formatDelta !== 0) return formatDelta;
 
@@ -146,6 +154,8 @@ const resolveWorkingGeospatialPython = async () => {
     "python",
   ].filter(Boolean);
 
+  // The user's machine may have several Python installs. Probe for the actual
+  // GIS stack instead of assuming `python3` is the right interpreter.
   for (const candidate of candidatePythons) {
     try {
       await execFileAsync(candidate, ["-c", GEOSPATIAL_PYTHON_REQUIREMENTS]);

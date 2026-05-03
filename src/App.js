@@ -10,6 +10,8 @@ const PRIMARY_ACCENT_DARK = "#255544";
 const PRIMARY_ACCENT_TINT = "#d9e8e0";
 const PANEL_BORDER = "rgba(20, 33, 43, 0.12)";
 
+// Keep the shared shell theme in one place so map and sidebar components can
+// focus on workflow states instead of repeating brand color decisions.
 const appTheme = createTheme({
   palette: {
     primary: {
@@ -145,6 +147,9 @@ const APP_SHELL = APP_PROFILE.shell || {};
 const APP_DOCUMENT_TITLE = APP_SHELL.documentTitle || appName;
 const APP_DESCRIPTION = APP_SHELL.description || "";
 
+// Mobile browser chrome changes the visual viewport without always changing
+// `window.innerHeight`; CSS variables keep the map shell sized to the visible
+// area instead of the theoretical page viewport.
 const syncViewportMetrics = () => {
   if (typeof document === "undefined" || typeof window === "undefined") return;
 

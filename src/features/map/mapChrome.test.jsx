@@ -7,6 +7,7 @@ import {
   LeafletBasemapLayer,
   LeafletGeoJsonLayer,
   MapLayerControl,
+  SidebarToggleControl,
   MapZoomControl,
   RouteStatusOverlay,
   getLeafletGeoJsonDataKey,
@@ -101,6 +102,23 @@ describe("mapChrome", () => {
     );
 
     expect(screen.getByText("Route unavailable")).toBeInTheDocument();
+  });
+
+  test("toggles the search panel with explicit accessible labels", () => {
+    const onToggle = jest.fn();
+    const { rerender } = render(
+      <SidebarToggleControl isSearchPanelVisible onToggle={onToggle} />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide search panel" }));
+    expect(onToggle).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <SidebarToggleControl isSearchPanelVisible={false} onToggle={onToggle} />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Show search panel" }));
+    expect(onToggle).toHaveBeenCalledTimes(2);
   });
 
   test("identifies profile raster basemaps", () => {

@@ -36,7 +36,7 @@ import {
   getBrowseSourceMode,
   MIN_BROWSE_QUERY_LENGTH,
 } from "./features/browse/browseResults";
-import { buildSharedSelectionPresentation } from "./features/deeplinks/sharePresentation";
+import { buildSharedSelectionPresentation } from "./features/deeplinks/fieldPackets";
 import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordPresentation";
 import { useBurialSidebarBrowseState } from "./hooks/useBurialSidebarBrowseState";
 import {
@@ -48,6 +48,11 @@ import {
   isFieldPacketsEnabled as resolveFieldPacketsEnabled,
 } from "./shared/runtime/runtimeEnv";
 
+/**
+ * Sidebar shell for search, browse, selected records, directions actions, and
+ * mobile drawer behavior. Pure result shaping and mobile-sheet state live in
+ * feature/hooks modules so this file can stay focused on composing the UI.
+ */
 const rowShellStyles = {
   transition: "background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease",
   borderRadius: 3,
@@ -139,6 +144,9 @@ const APP_HOME_URL = APP_SHELL.homeUrl || "#";
 const DEFAULT_LOCATION_STATUS = APP_PROFILE.map.locationMessages?.inactive || "Location inactive";
 const LOCATION_ACTIVE_STATUS = APP_PROFILE.map.locationMessages?.active || "Location active";
 const LOCATION_LOCATING_STATUS = APP_PROFILE.map.locationMessages?.locating || "Locating...";
+const LOCATION_OUT_OF_BOUNDS_STATUS = APP_PROFILE.map.locationMessages?.outOfBounds || "Location outside cemetery range";
+const LOCATION_UNAVAILABLE_STATUS = APP_PROFILE.map.locationMessages?.unavailable || "GPS unavailable";
+const LOCATION_UNSUPPORTED_STATUS = APP_PROFILE.map.locationMessages?.unsupported || "GPS unsupported";
 const EMPTY_PACKET_RECORDS = [];
 const EMPTY_ACTIONS = [];
 const SELECTION_PANEL_TITLE = "Selection";
@@ -194,6 +202,8 @@ function BrowseResultsPanel({
   const [visibleCount, setVisibleCount] = useState(batchSize);
 
   useEffect(() => {
+    // Scope changes should reset incremental pagination so newly selected
+    // sections/tours start from the top of their result list.
     setVisibleCount(batchSize);
   }, [batchSize, browseResults.length, browseSource, query, sectionFilter, selectedTour]);
 
@@ -1587,6 +1597,7 @@ function BurialSidebar({
     isMobile,
     selectedBurialsLength: selectedBurials.length,
   });
+  const [isMobileSearchPanelCollapsedByControl, setIsMobileSearchPanelCollapsedByControl] = useState(false);
   const hasGlobalResetState = Boolean(
     browseQuery.trim() ||
     sectionFilter ||
@@ -1610,6 +1621,8 @@ function BurialSidebar({
   );
 
   const setSidebarRootNode = useCallback((node) => {
+    // `react-spring-bottom-sheet` owns part of the mobile DOM tree, so the map
+    // shell needs a direct root ref for visible-viewport padding calculations.
     if (!rootRef) {
       return;
     }
@@ -1645,6 +1658,17 @@ function BurialSidebar({
   }, [isMobile]);
 
   useEffect(() => {
+    if (!isMobile) {
+      setIsMobileSearchPanelCollapsedByControl(false);
+      return;
+    }
+
+    if (resolvedMobileSheetState !== MOBILE_SHEET_STATES.COLLAPSED) {
+      setIsMobileSearchPanelCollapsedByControl(false);
+    }
+  }, [isMobile, resolvedMobileSheetState]);
+
+  useEffect(() => {
     const currentSelectionSignature = selectedBurials.map((record) => record.id).sort().join("|");
     const previousActiveBurialId = previousActiveBurialIdRef.current;
     const previousSectionFilter = previousSectionFilterRef.current;
@@ -1677,6 +1701,8 @@ function BurialSidebar({
       return;
     }
 
+    // Mobile keeps the map usable by default, then reveals the drawer when a
+    // user action creates a result or selection worth inspecting.
     if (
       shouldRevealSelectedRecord
       && resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED
@@ -1835,6 +1861,26 @@ function BurialSidebar({
     onLocateMarker();
   }, [onLocateMarker]);
 
+  const handleToggleMobileSearchPanel = useCallback(() => {
+    if (!isMobile) {
+      return;
+    }
+
+    if (isMobileSearchPanelCollapsedByControl) {
+      setIsMobileSearchPanelCollapsedByControl(false);
+      expandMobileSheet();
+      return;
+    }
+
+    setIsMobileSearchPanelCollapsedByControl(true);
+    collapseMobileSheet();
+  }, [
+    collapseMobileSheet,
+    expandMobileSheet,
+    isMobile,
+    isMobileSearchPanelCollapsedByControl,
+  ]);
+
   const handleClearAllBrowseState = useCallback(() => {
     setBrowseQuery("");
     setBrowseSource("all");
@@ -1915,6 +1961,9 @@ function BurialSidebar({
       defaultLocationStatus: DEFAULT_LOCATION_STATUS,
       activeLocationStatus: LOCATION_ACTIVE_STATUS,
       locatingLocationStatus: LOCATION_LOCATING_STATUS,
+      outOfBoundsLocationStatus: LOCATION_OUT_OF_BOUNDS_STATUS,
+      unavailableLocationStatus: LOCATION_UNAVAILABLE_STATUS,
+      unsupportedLocationStatus: LOCATION_UNSUPPORTED_STATUS,
       hasActiveBrowseQuery: Boolean(browseQuery.trim()),
       isBurialDataLoading,
       isInstalled,
@@ -2006,6 +2055,38 @@ function BurialSidebar({
     >
       <MoreHorizIcon fontSize="small" />
     </IconButton>
+  ) : null;
+  const mobileSearchPanelToggleLabel = isMobileSearchPanelCollapsedByControl
+    ? "Show search panel"
+    : "Hide search panel";
+  const mobileSearchPanelToggleButton = isMobile ? (
+    <IconButton
+      size="small"
+      color="inherit"
+      onClick={handleToggleMobileSearchPanel}
+      aria-label={mobileSearchPanelToggleLabel}
+      title={mobileSearchPanelToggleLabel}
+      aria-pressed={isMobileSearchPanelCollapsedByControl}
+      sx={{
+        color: "var(--muted-text)",
+        border: "1px solid rgba(20, 33, 43, 0.08)",
+        backgroundColor: "rgba(255, 255, 255, 0.76)",
+      }}
+    >
+      <ArrowDropDownIcon
+        fontSize="small"
+        sx={{
+          transform: isMobileSearchPanelCollapsedByControl ? "rotate(180deg)" : "rotate(0deg)",
+          transition: "transform 0.2s ease",
+        }}
+      />
+    </IconButton>
+  ) : null;
+  const mobileHeaderActions = isMobile ? (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, ml: "auto" }}>
+      {mobileSearchPanelToggleButton}
+      {mobileMoreButton}
+    </Box>
   ) : null;
   const shouldShowBrowseResults = browseResults.length > 0
     || Boolean(browseQuery.trim())
@@ -2153,7 +2234,7 @@ function BurialSidebar({
             )}
           </Box>
         </Box>
-        {mobileMoreButton}
+        {mobileHeaderActions}
       </Box>
 
       {(burialDataError || mapDataError || tourLayerError) && (

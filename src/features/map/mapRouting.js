@@ -1,11 +1,4 @@
 import { getGeoJsonBounds } from "../../shared/geo/geoJsonBounds";
-import {
-  buildOfflineValhallaWalkingRouteUrl,
-  buildValhallaWalkingRouteUrl,
-  DEFAULT_ROUTING_PROVIDER,
-  isLatLngTuple,
-  ROUTING_PROVIDERS,
-} from "../../shared/routing";
 
 //=============================================================================
 // Module Boundary
@@ -18,8 +11,6 @@ import {
  * - the bundled cemetery road graph
  * - point snapping onto that graph
  * - client-side shortest-path routing on local roads
- * - external Valhalla request construction and response normalization
- * - provider fallback rules shared by the map shell
  *
  * It does not own UI state, React effects, or map rendering.
  */
@@ -34,7 +25,7 @@ const DEFAULT_NEARBY_NODE_CONNECTION_TOLERANCE_METERS = 1;
 
 export const DEFAULT_MAX_SNAP_DISTANCE_METERS = 250;
 
-const createRoutingError = (message, { code = "", provider = "api", status = 0 } = {}) => {
+const createRoutingError = (message, { code = "", provider = "local", status = 0 } = {}) => {
   const error = new Error(message);
   error.code = code;
   error.provider = provider;
@@ -49,19 +40,6 @@ const isCoordinatePairValid = (value) => (
   value.length >= 2 &&
   Number.isFinite(Number(value[0])) &&
   Number.isFinite(Number(value[1]))
-);
-
-const normalizeRouteCoordinates = (coordinates) => (
-  Array.isArray(coordinates)
-    ? coordinates
-      .filter((coordinate) => (
-        Array.isArray(coordinate) &&
-        coordinate.length >= 2 &&
-        Number.isFinite(Number(coordinate[0])) &&
-        Number.isFinite(Number(coordinate[1]))
-      ))
-      .map(([lng, lat]) => [Number(lng), Number(lat)])
-    : []
 );
 
 const createRouteFeatureCollection = (coordinates) => ({
@@ -83,11 +61,6 @@ const createRouteFeatureCollection = (coordinates) => ({
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-const areCoordinatesEquivalent = (left, right) => (
-  Number(left?.[0]) === Number(right?.[0]) &&
-  Number(left?.[1]) === Number(right?.[1])
-);
-
 const dedupeAdjacentCoordinates = (coordinates) => coordinates.filter((coordinate, index) => {
   if (index === 0) {
     return true;
@@ -100,18 +73,6 @@ const dedupeAdjacentCoordinates = (coordinates) => coordinates.filter((coordinat
   );
 });
 
-const prependRouteCoordinate = (coordinates, coordinate) => (
-  coordinate && !areCoordinatesEquivalent(coordinate, coordinates[0])
-    ? [coordinate, ...coordinates]
-    : coordinates
-);
-
-const appendRouteCoordinate = (coordinates, coordinate) => (
-  coordinate && !areCoordinatesEquivalent(coordinate, coordinates[coordinates.length - 1])
-    ? [...coordinates, coordinate]
-    : coordinates
-);
-
 const prependCoordinate = (coordinates, coordinate) => dedupeAdjacentCoordinates([
   coordinate,
   ...(Array.isArray(coordinates) ? coordinates : []),
@@ -121,12 +82,6 @@ const appendCoordinate = (coordinates, coordinate) => dedupeAdjacentCoordinates(
   ...(Array.isArray(coordinates) ? coordinates : []),
   coordinate,
 ]);
-
-const latLngTupleToCoordinate = (value) => (
-  isLatLngTuple(value)
-    ? [Number(value[1]), Number(value[0])]
-    : null
-);
 
 //=============================================================================
 // Local Road Graph
@@ -154,6 +109,8 @@ const haversineDistanceMeters = (from, to) => {
 };
 
 const createNodeKey = ([lng, lat]) => (
+  // Six decimal places is roughly decimeter precision here and collapses tiny
+  // floating-point export noise without merging distinct road intersections.
   `${Number(lng).toFixed(6)},${Number(lat).toFixed(6)}`
 );
 
@@ -239,6 +196,9 @@ const findNearestSegmentSnap = (coordinate, roadGraph) => {
   let closestSnap = null;
 
   roadGraph.segments.forEach((segment) => {
+    // Project into a local meter plane for segment snapping. The cemetery is
+    // small enough that using the average latitude keeps this fast and precise
+    // for every road segment in the bundled graph.
     const referenceLat = (
       Number(coordinate[1]) +
       Number(segment.start[1]) +
@@ -284,6 +244,9 @@ const addBidirectionalEdge = (edges, fromKey, toKey, distanceMeters) => {
 };
 
 const addVirtualSnapNode = (nodes, edges, snap, virtualKey) => {
+  // Route endpoints usually land between real road vertices. Add temporary
+  // graph nodes connected to both segment ends instead of mutating the source
+  // road graph that is shared across route requests.
   nodes.set(virtualKey, [
     Number(snap.coordinate[0]),
     Number(snap.coordinate[1]),
@@ -364,6 +327,8 @@ const reconstructShortestPath = ({ previous, startKey, endKey }) => {
 };
 
 const calculateShortestPath = ({ edges, startKey, endKey }) => {
+  // The cemetery graph is small, so a simple Dijkstra scan is clearer than
+  // adding a priority-queue dependency for a route that runs on demand.
   const distances = new Map([[startKey, 0]]);
   const previous = new Map();
   const visited = new Set();
@@ -566,6 +531,9 @@ const calculateClientSideWalkingRoute = ({
 
   const rawFromCoordinate = [Number(from[1]), Number(from[0])];
   const rawToCoordinate = [Number(to[1]), Number(to[0])];
+  // Include the unsnapped start/end coordinates so the drawn line visibly
+  // begins at the user's fix and ends at the selected burial, while the middle
+  // still follows the nearest cemetery roads.
   const routeCoordinates = appendCoordinate(
     prependCoordinate(coordinates, rawFromCoordinate),
     rawToCoordinate
@@ -581,329 +549,21 @@ const calculateClientSideWalkingRoute = ({
   };
 };
 
-//=============================================================================
-// External Routing Providers
-//=============================================================================
-
-const getRouteMessageFromPayload = (payload, fallbackMessage) => {
-  if (typeof payload?.message === "string" && payload.message.trim()) {
-    return payload.message.trim();
-  }
-
-  if (typeof payload?.status_message === "string" && payload.status_message.trim()) {
-    return payload.status_message.trim();
-  }
-
-  if (typeof payload?.error === "string" && payload.error.trim()) {
-    return payload.error.trim();
-  }
-
-  return fallbackMessage;
-};
-
-const getRouteFetchImpl = (fetchImpl, provider) => {
-  const fetchRoute = typeof fetchImpl === "function"
-    ? fetchImpl
-    : (typeof fetch === "function" ? fetch : null);
-
-  if (typeof fetchRoute === "function") {
-    return fetchRoute;
-  }
-
-  throw createRoutingError("Routing is unavailable in this environment.", {
-    code: "ROUTING_FETCH_UNAVAILABLE",
-    provider,
-    status: 500,
-  });
-};
-
-const assertValidRouteRequest = ({ from, to, requestUrl, provider }) => {
-  if (!isLatLngTuple(from) || !isLatLngTuple(to)) {
-    throw createRoutingError("Directions unavailable for this burial.", {
-      code: "ROUTING_INVALID_COORDINATES",
-      provider,
-      status: 400,
-    });
-  }
-
-  if (requestUrl) {
-    return;
-  }
-
-  throw createRoutingError("Directions unavailable for this burial.", {
-    code: "ROUTING_MISSING_ENDPOINT",
-    provider,
-    status: 400,
-  });
-};
-
-const createRouteNetworkError = (provider) => {
-  if (provider === "valhalla") {
-    return createRoutingError("Offline routing service unavailable. Start local Valhalla and try again.", {
-      code: "OFFLINE_ROUTING_UNAVAILABLE",
-      provider,
-      status: 503,
-    });
-  }
-
-  return createRoutingError("Network error: Please check your internet connection.", {
-    code: "ROUTING_NETWORK_ERROR",
-    provider,
-    status: 0,
-  });
-};
-
-const requestRouteResponse = async ({
-  fetchRoute,
-  provider,
-  requestUrl,
-  signal,
-}) => {
-  try {
-    return await fetchRoute(requestUrl, {
-      method: "GET",
-      signal,
-    });
-  } catch (error) {
-    if (error?.name === "AbortError") {
-      throw error;
-    }
-
-    throw createRouteNetworkError(provider);
-  }
-};
-
-const readRoutePayload = async (response) => {
-  try {
-    return await response.json();
-  } catch (_error) {
-    return null;
-  }
-};
-
-const assertRouteResponseOk = ({ payload, provider, response }) => {
-  if (!response.ok) {
-    throw createRoutingError(
-      getRouteMessageFromPayload(payload, `Routing request failed with status ${response.status}.`),
-      {
-        code: "ROUTING_HTTP_ERROR",
-        provider,
-        status: response.status,
-      }
-    );
-  }
-
-  if (payload && Object.prototype.hasOwnProperty.call(payload, "code") && payload.code !== "Ok") {
-    throw createRoutingError(
-      getRouteMessageFromPayload(payload, "Unable to calculate route."),
-      {
-        code: "ROUTING_APPLICATION_ERROR",
-        provider,
-        status: response.status || 400,
-      }
-    );
-  }
-};
-
-const buildRouteResult = ({ payload, provider, status }) => {
-  const route = Array.isArray(payload?.routes) ? payload.routes[0] : null;
-  const coordinates = normalizeRouteCoordinates(route?.geometry?.coordinates);
-
-  if (coordinates.length < 2) {
-    throw createRoutingError("Unable to calculate route. The route geometry was incomplete.", {
-      code: "ROUTING_INCOMPLETE_GEOMETRY",
-      provider,
-      status: status || 400,
-    });
-  }
-
-  const geojson = createRouteFeatureCollection(coordinates);
-  return {
-    provider,
-    distance: Number(route?.distance) || 0,
-    time: (Number(route?.duration) || 0) * 1000,
-    geojson,
-    bounds: getGeoJsonBounds(geojson),
-  };
-};
-
-const addRouteEndpointCoordinates = (routeResult, { from, to } = {}) => {
-  const coordinates = normalizeRouteCoordinates(
-    routeResult?.geojson?.features?.[0]?.geometry?.coordinates
-  );
-
-  if (coordinates.length < 2) {
-    return routeResult;
-  }
-
-  const nextCoordinates = appendRouteCoordinate(
-    prependRouteCoordinate(coordinates, latLngTupleToCoordinate(from)),
-    latLngTupleToCoordinate(to)
-  );
-  const geojson = createRouteFeatureCollection(nextCoordinates);
-
-  return {
-    ...routeResult,
-    geojson,
-    bounds: getGeoJsonBounds(geojson),
-  };
-};
-
-const buildSnappedLatLngTuple = (latLng, roadGraph, maxSnapDistanceMeters) => {
-  const resolvedMaxSnapDistanceMeters = Number.isFinite(maxSnapDistanceMeters)
-    ? Number(maxSnapDistanceMeters)
-    : DEFAULT_MAX_SNAP_DISTANCE_METERS;
-  const snap = isLatLngTuple(latLng)
-    ? snapPointToRoadNetwork(latLng[0], latLng[1], roadGraph, {
-      maxSnapDistanceMeters: resolvedMaxSnapDistanceMeters,
-    })
-    : null;
-
-  return snap
-    ? [snap.lat, snap.lng]
-    : null;
-};
-
-const fetchValhallaRoute = async ({
-  from,
-  to,
-  signal,
-  fetchImpl,
-  provider = "api",
-  requestUrl,
-} = {}) => {
-  assertValidRouteRequest({ from, to, requestUrl, provider });
-
-  const response = await requestRouteResponse({
-    fetchRoute: getRouteFetchImpl(fetchImpl, provider),
-    provider,
-    requestUrl,
-    signal,
-  });
-  const payload = await readRoutePayload(response);
-
-  assertRouteResponseOk({ payload, provider, response });
-
-  return buildRouteResult({
-    payload,
-    provider,
-    status: response.status,
-  });
-};
-
-export const buildWalkingRouteUrl = ({ from, to, apiUrl } = {}) => {
-  return buildValhallaWalkingRouteUrl({ apiUrl, from, to });
-};
-
-export const buildOfflineWalkingRouteUrl = ({ from, to, proxyPath } = {}) => {
-  return buildOfflineValhallaWalkingRouteUrl({
-    from,
-    proxyPath: proxyPath || process.env.REACT_APP_VALHALLA_PROXY_PATH,
-    to,
-  });
-};
-
-export const fetchWalkingRoute = async ({
-  apiUrl,
-  fetchImpl,
-  from,
-  signal,
-  to,
-} = {}) => fetchValhallaRoute({
-  from,
-  to,
-  signal,
-  fetchImpl,
-  provider: ROUTING_PROVIDERS.api,
-  requestUrl: buildWalkingRouteUrl({
-    from,
-    to,
-    apiUrl: apiUrl || process.env.REACT_APP_VALHALLA_API_URL,
-  }),
-});
-
-const fetchOfflineWalkingRoute = async ({
-  fetchImpl,
-  from,
-  proxyPath,
-  signal,
-  to,
-} = {}) => fetchValhallaRoute({
-  from,
-  to,
-  signal,
-  fetchImpl,
-  provider: ROUTING_PROVIDERS.valhalla,
-  requestUrl: buildOfflineWalkingRouteUrl({ from, to, proxyPath }),
-});
-
 export const calculateWalkingRoute = async ({
-  provider = DEFAULT_ROUTING_PROVIDER,
-  roadGraph,
+  from,
   maxSnapDistanceMeters,
-  ...options
-} = {}) => {
-  if (provider === ROUTING_PROVIDERS.local) {
-    return calculateClientSideWalkingRoute({
-      ...options,
-      maxSnapDistanceMeters,
-      roadGraph,
-    });
-  }
-
-  const snappedFrom = buildSnappedLatLngTuple(options.from, roadGraph, maxSnapDistanceMeters);
-  const snappedTo = buildSnappedLatLngTuple(options.to, roadGraph, maxSnapDistanceMeters);
-  const canRouteLocally = Boolean(snappedFrom && snappedTo);
-
-  if (canRouteLocally) {
-    try {
-      return calculateClientSideWalkingRoute({
-        ...options,
-        maxSnapDistanceMeters,
-        roadGraph,
-      });
-    } catch (_error) {
-      // Fall back to the selected external provider when the bundled road graph cannot connect the path.
-    }
-  }
-
-  if (provider === ROUTING_PROVIDERS.valhalla) {
-    const routeResult = await fetchOfflineWalkingRoute({
-      ...options,
-      from: snappedFrom || options.from,
-      to: snappedTo || options.to,
-    });
-
-    return addRouteEndpointCoordinates(routeResult, options);
-  }
-
-  const routeResult = await fetchWalkingRoute({
-    ...options,
-    from: snappedFrom || options.from,
-    to: snappedTo || options.to,
-  });
-
-  return addRouteEndpointCoordinates(routeResult, options);
-};
+  roadGraph,
+  to,
+} = {}) => calculateClientSideWalkingRoute({
+  from,
+  maxSnapDistanceMeters,
+  roadGraph,
+  to,
+});
 
 export const getRoutingErrorMessage = (error) => {
-  if (error?.name === "AbortError") {
-    return "";
-  }
-
-  if (
-    error?.provider === "valhalla" &&
-    [0, 502, 503, 504].includes(Number(error?.status))
-  ) {
-    return "Offline routing service unavailable. Start local Valhalla and try again.";
-  }
-
-  if (error?.status === 0) {
-    return "Network error: Please check your internet connection.";
-  }
-
-  if (error?.status === 429) {
-    return "Too many requests: Rate limit exceeded.";
+  if (error?.code === "LOCAL_ROUTING_OUT_OF_RANGE") {
+    return "Local road routing only works near the cemetery road network.";
   }
 
   if (typeof error?.message === "string" && error.message.trim()) {

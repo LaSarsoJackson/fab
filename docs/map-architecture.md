@@ -18,15 +18,14 @@ single production map path unless an experiment is being promoted.
 ## Supporting Modules
 
 - [`docs/codebase-structure.md`](./codebase-structure.md): repo ownership map and directory responsibilities
-- [`docs/routing-architecture.md`](./routing-architecture.md): client route, shared-link, directions-link, and routing-provider URL ownership
-- [`src/features/map/mapChrome.jsx`](../src/features/map/mapChrome.jsx): shared map controls, overlays, and debug chrome used by both runtimes
-- [`src/features/map/mapDomain.js`](../src/features/map/mapDomain.js): the single home for pure map business rules such as selection-state actions/reduction, section grouping, location filtering, and hover guards
-- [`src/features/map/mapRouting.js`](../src/features/map/mapRouting.js): the single home for walking-route calculation, local road-graph routing, Valhalla response handling, and provider fallback behavior
+- [`docs/routing-architecture.md`](./routing-architecture.md): client route, shared-link, in-app road routing, and directions-link ownership
+- [`src/features/map/mapChrome.jsx`](../src/features/map/mapChrome.jsx): production Leaflet map controls, overlays, and route-status chrome
+- [`src/features/map/mapDomain.js`](../src/features/map/mapDomain.js): the single home for pure map business rules such as selection-state actions/reduction, section grouping, location filtering, hover guards, viewport-intent control, and popup viewport geometry
+- [`src/features/map/mapRouting.js`](../src/features/map/mapRouting.js): the single home for walking-route calculation and local road-graph routing
 - [`src/features/tours/tourDerivedData.js`](../src/features/tours/tourDerivedData.js): canonical biography/portrait inference for uneven tour datasets and the helpers used to generate alias metadata
 - [`src/features/map/mapRecordPresentation.js`](../src/features/map/mapRecordPresentation.js): shared record cleanup, popup view-model generation, ARCE biography/image link normalization, and defensive date formatting
 - [`src/features/tours/tourRecordHarmonization.js`](../src/features/tours/tourRecordHarmonization.js): burial/tour matching heuristics, search-result enrichment from tour metadata, and tour-stop normalization into the shared browse-result shape
 - [`src/features/browse/browseResults.js`](../src/features/browse/browseResults.js): record shaping used by both the sidebar and map
-- [`src/features/map/popupViewport.js`](../src/features/map/popupViewport.js): geometry helpers that keep popups visible beside the sidebar
 - [`docs/tour-popup-data.md`](./tour-popup-data.md): focused guide to the tour popup data flow, build guards, and change process
 
 ## Editing Guidelines
