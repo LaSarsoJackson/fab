@@ -77,7 +77,10 @@ import {
   MAP_PRESENTATION_POLICY,
   getSectionBurialMarkerStyle,
   getSectionPolygonStyle,
+  isApproximateLocationAccuracy,
+  LOCATION_APPROXIMATE_MAX_ACCURACY_METERS,
   LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS,
+  LOCATION_MAX_ACCEPTABLE_ACCURACY_METERS,
   LOCATION_RECENT_FIX_WINDOW_MS,
   normalizeLocationPosition,
   inferPointerType,
@@ -206,6 +209,16 @@ const GEOLOCATION_REQUEST_OPTIONS = {
   maximumAge: 0,
   timeout: 20000,
 };
+// When the high-accuracy attempt errors or times out (common under tree canopy
+// in the cemetery), fall back to a network-derived fix. A modest maximumAge
+// lets the platform return a recent cell/Wi-Fi cached fix immediately, which
+// is far more useful than declaring the locator unavailable.
+const GEOLOCATION_FALLBACK_REQUEST_OPTIONS = {
+  enableHighAccuracy: false,
+  maximumAge: 60000,
+  timeout: 10000,
+};
+const GEOLOCATION_PERMISSION_DENIED = 1;
 const ROUTING_LOCATION_REQUIRED_MESSAGE = LOCATION_MESSAGES.routeLocationRequired ||
   "Route on Map needs your current location near the cemetery. Use Open in Maps for directions from farther away.";
 const SECTION_MARKER_BATCH_SIZE = 300;
@@ -986,6 +999,10 @@ export default function BurialMap() {
   const locationRecentCandidatesRef = useRef([]);
   const selectedLocationFixRef = useRef(null);
   const focusLocationOnNextAcceptedFixRef = useRef(false);
+  // Reentrancy guard for the "Find Me" button. Without this, repeated taps in
+  // weak signal would fan out into multiple in-flight high-accuracy requests
+  // and flap the chrome status between locating/unavailable.
+  const isLocateRequestInFlightRef = useRef(false);
   const renderedRouteDestinationRef = useRef(null);
   const viewportIntentControllerRef = useRef(null);
   if (viewportIntentControllerRef.current === null) {
@@ -1541,20 +1558,57 @@ export default function BurialMap() {
       return null;
     }
 
-    acceptedLocationRef.current = location;
-    setStatus(LOCATION_MESSAGES.active);
-    setLat(location.latitude);
-    setLng(location.longitude);
-    setLocationAccuracyMeters(location.accuracyMeters);
+    // Tag accepted fixes with `isApproximate` so subsequent updates can decide
+    // whether to upgrade (approximate -> accurate) and so the chrome can show
+    // an informational tone instead of pretending we have a precise pin.
+    const isApproximate = isApproximateLocationAccuracy(location.accuracyMeters);
+    const annotatedLocation = location.isApproximate === isApproximate
+      ? location
+      : { ...location, isApproximate };
+
+    acceptedLocationRef.current = annotatedLocation;
+    setStatus(
+      isApproximate
+        ? (LOCATION_MESSAGES.approximate || LOCATION_MESSAGES.active)
+        : LOCATION_MESSAGES.active
+    );
+    setLat(annotatedLocation.latitude);
+    setLng(annotatedLocation.longitude);
+    setLocationAccuracyMeters(annotatedLocation.accuracyMeters);
 
     if (activeRouteBurialIdRef.current) {
-      setRoutingOrigin([location.latitude, location.longitude]);
+      setRoutingOrigin([annotatedLocation.latitude, annotatedLocation.longitude]);
     }
 
-    return location;
+    return annotatedLocation;
   }, []);
 
-  const updateLocationFromPosition = useCallback((position) => {
+  // The shell may opt in to accepting a coarse network/Wi-Fi fix as
+  // "approximate" (e.g. after the high-accuracy attempt timed out under
+  // canopy). Watch updates always run with the strict thresholds so we don't
+  // accidentally downgrade an accurate pin.
+  const resolveAcceptedAccuracyThreshold = useCallback((options) => {
+    const { allowApproximateAcceptance = false } = options || {};
+    const previousLocation = acceptedLocationRef.current;
+
+    if (!previousLocation) {
+      return allowApproximateAcceptance
+        ? LOCATION_APPROXIMATE_MAX_ACCURACY_METERS
+        : LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS;
+    }
+
+    // While the accepted fix is still approximate, keep the door open for any
+    // candidate that is not worse than the looser approximate threshold so a
+    // 200m fix can replace a 600m one. selectBestRecentLocationCandidate then
+    // picks the most accurate of the recent candidates.
+    if (previousLocation.isApproximate) {
+      return LOCATION_APPROXIMATE_MAX_ACCURACY_METERS;
+    }
+
+    return LOCATION_MAX_ACCEPTABLE_ACCURACY_METERS;
+  }, []);
+
+  const updateLocationFromPosition = useCallback((position, options = {}) => {
     const candidate = normalizeLocationPosition(position);
     if (!candidate) {
       return acceptedLocationRef.current;
@@ -1562,16 +1616,32 @@ export default function BurialMap() {
 
     if (!isLocationCandidateWithinBuffer(candidate)) {
       if (acceptedLocationRef.current) {
+        // A noisy coarse fix near the boundary should not invalidate an
+        // already-trusted on-site pin. Keep what we have and let the watch
+        // refine it.
         return acceptedLocationRef.current;
+      }
+
+      // Without a prior fix, only treat a *confidently* off-site reading as
+      // out-of-bounds. A coarse cell-tower fix that lands a few hundred meters
+      // outside the buffer is more likely a low-accuracy estimate of someone
+      // standing inside the cemetery than a real off-site visitor.
+      if (isApproximateLocationAccuracy(candidate.accuracyMeters)) {
+        // Keep the chrome aligned with reality: we ignored this reading and
+        // the watch is still trying for a better one. Without this nudge the
+        // status would stay frozen on "Locating..." (or whatever was set
+        // upstream) and look like the request hung.
+        if (watchIdRef.current !== null && LOCATION_MESSAGES.weakSignal) {
+          setStatus(LOCATION_MESSAGES.weakSignal);
+        }
+        return null;
       }
 
       clearAcceptedLocation(LOCATION_MESSAGES.outOfBounds);
       return null;
     }
 
-    const maxAcceptedAccuracyMeters = acceptedLocationRef.current
-      ? undefined
-      : LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS;
+    const maxAcceptedAccuracyMeters = resolveAcceptedAccuracyThreshold(options);
 
     // The first accepted fix must be reasonably accurate; once we have a good
     // on-site fix, later watch updates can be smoothed against it.
@@ -1600,16 +1670,36 @@ export default function BurialMap() {
 
     selectedLocationFixRef.current = nextBestCandidate;
 
+    // Smoothing is only useful between fixes of comparable quality. When we're
+    // upgrading from an approximate (coarse) fix to a precise one, blending
+    // would drag the new pin back toward the unreliable position; snap to the
+    // accurate candidate instead.
+    const previousLocation = acceptedLocationRef.current;
+    const shouldSnapInsteadOfSmooth = previousLocation?.isApproximate
+      && !isApproximateLocationAccuracy(nextBestCandidate.accuracyMeters);
+
     return commitAcceptedLocation(
-      smoothLocationCandidate(acceptedLocationRef.current, nextBestCandidate)
+      shouldSnapInsteadOfSmooth
+        ? nextBestCandidate
+        : smoothLocationCandidate(previousLocation, nextBestCandidate)
     );
-  }, [clearAcceptedLocation, commitAcceptedLocation]);
+  }, [clearAcceptedLocation, commitAcceptedLocation, resolveAcceptedAccuracyThreshold]);
 
   const handleLocationError = useCallback((error) => {
     const fallbackLocation = acceptedLocationRef.current;
     if (!fallbackLocation) {
-      setStatus(LOCATION_MESSAGES.unavailable);
-      console.error('Geolocation error:', error);
+      // Permission denial is a distinct user-facing condition: the user can
+      // remediate it in browser/OS settings. Generic "unavailable" hides that.
+      const isPermissionDenied = error?.code === GEOLOCATION_PERMISSION_DENIED;
+      const message = isPermissionDenied
+        ? (LOCATION_MESSAGES.permissionDenied || LOCATION_MESSAGES.unavailable)
+        : LOCATION_MESSAGES.unavailable;
+      setStatus(message);
+      if (isPermissionDenied) {
+        console.warn('Geolocation permission denied:', error);
+      } else {
+        console.error('Geolocation error:', error);
+      }
       return null;
     }
 
@@ -1651,6 +1741,7 @@ export default function BurialMap() {
     setStatus(LOCATION_MESSAGES.locating);
     let didResolve = false;
     let timeoutId = null;
+
     const resolveLocationRequest = (
       nextLocation,
       { markUnavailableWhenEmpty = false } = {}
@@ -1663,56 +1754,142 @@ export default function BurialMap() {
       if (timeoutId !== null) {
         clearTimeout(timeoutId);
       }
-      if (!nextLocation && markUnavailableWhenEmpty && !acceptedLocationRef.current) {
+      // Avoid showing "GPS unavailable" while the watch pipeline is still
+      // actively trying. The watch's own error handler will surface the
+      // unavailable state if it eventually fails.
+      if (
+        !nextLocation
+        && markUnavailableWhenEmpty
+        && !acceptedLocationRef.current
+        && watchIdRef.current === null
+      ) {
         setStatus(LOCATION_MESSAGES.unavailable);
       }
       resolve(nextLocation);
     };
 
+    // The success and error paths from each geolocation stage have to share
+    // identical wait-for-watch and resolve semantics, so we wrap them as
+    // small helpers instead of duplicating the logic in every callback.
+    const handleAcceptedPosition = (position, { allowApproximate = false } = {}) => {
+      const requestedCandidate = normalizeLocationPosition(position);
+      const isOutsideLocationBuffer = requestedCandidate
+        && !isLocationCandidateWithinBuffer(requestedCandidate);
+      const nextLocation = updateLocationFromPosition(position, {
+        allowApproximateAcceptance: allowApproximate,
+      });
+
+      if (nextLocation || watchIdRef.current === null || isOutsideLocationBuffer) {
+        resolveLocationRequest(nextLocation, {
+          markUnavailableWhenEmpty: !isOutsideLocationBuffer,
+        });
+        return;
+      }
+
+      // The one-shot returned a fix but the pipeline rejected it as too
+      // noisy. The watch may still accept a better candidate shortly.
+      // Mirror the stage-2 retry path and tell the user we're still trying;
+      // otherwise the chrome would sit silently on "Locating..." while we
+      // wait, which feels indistinguishable from a stuck request.
+      if (LOCATION_MESSAGES.weakSignal) {
+        setStatus(LOCATION_MESSAGES.weakSignal);
+      }
+      void waitForAcceptedLocation().then((nextAcceptedLocation) => {
+        resolveLocationRequest(nextAcceptedLocation, {
+          markUnavailableWhenEmpty: true,
+        });
+      });
+    };
+
+    const finalizeAfterUnrecoverableError = (error) => {
+      const fallbackLocation = handleLocationError(error);
+      if (fallbackLocation || watchIdRef.current === null) {
+        resolveLocationRequest(fallbackLocation, {
+          markUnavailableWhenEmpty: true,
+        });
+        return;
+      }
+
+      void waitForAcceptedLocation().then((nextLocation) => {
+        resolveLocationRequest(nextLocation || fallbackLocation, {
+          markUnavailableWhenEmpty: true,
+        });
+      });
+    };
+
+    const handlePermissionDenied = (error) => {
+      // Permission denied is fatal for this session - retrying would either
+      // re-prompt or silently fail the same way. Surface a distinct message
+      // so the user knows what to fix.
+      const permissionDeniedMessage = LOCATION_MESSAGES.permissionDenied
+        || LOCATION_MESSAGES.unavailable;
+      setStatus(permissionDeniedMessage);
+      console.warn('Geolocation permission denied:', error);
+      resolveLocationRequest(acceptedLocationRef.current, {
+        markUnavailableWhenEmpty: false,
+      });
+    };
+
+    // Stage 2: low-accuracy / cached fallback. This is what saves us under
+    // canopy: a recent cell-tower or Wi-Fi fix returns near-instantly and
+    // (because we pass allowApproximate) is acceptable up to ~1km, marked as
+    // an "approximate" pin that the watch can later upgrade.
+    const startFallbackStage = (primaryError) => {
+      // Tell the user we have not given up. This message is intentionally
+      // surfaced before issuing the fallback request so the chrome doesn't
+      // sit silent during the typical 2-10s low-accuracy round-trip.
+      if (LOCATION_MESSAGES.weakSignal) {
+        setStatus(LOCATION_MESSAGES.weakSignal);
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          if (didResolve) return;
+          handleAcceptedPosition(position, { allowApproximate: true });
+        },
+        (fallbackError) => {
+          if (didResolve) return;
+          if (fallbackError?.code === GEOLOCATION_PERMISSION_DENIED) {
+            handlePermissionDenied(fallbackError);
+            return;
+          }
+          finalizeAfterUnrecoverableError(fallbackError || primaryError);
+        },
+        GEOLOCATION_FALLBACK_REQUEST_OPTIONS,
+      );
+    };
+
+    // Outer deadline is a safety net in case both stages of the geolocation
+    // API hang. The internal `timeout` options on each stage normally fire
+    // first and route through the error handler.
+    const outerDeadlineMs = GEOLOCATION_REQUEST_OPTIONS.timeout
+      + GEOLOCATION_FALLBACK_REQUEST_OPTIONS.timeout
+      + 2000;
     timeoutId = setTimeout(() => {
       resolveLocationRequest(acceptedLocationRef.current, {
         markUnavailableWhenEmpty: true,
       });
-    }, GEOLOCATION_REQUEST_OPTIONS.timeout);
+    }, outerDeadlineMs);
 
+    // Stage 1: high-accuracy GPS. Most successful first-time fixes happen
+    // here within 5-15s of clear sky.
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const requestedCandidate = normalizeLocationPosition(position);
-        const isOutsideLocationBuffer = requestedCandidate &&
-          !isLocationCandidateWithinBuffer(requestedCandidate);
-        const nextLocation = updateLocationFromPosition(position);
-        if (nextLocation || watchIdRef.current === null || isOutsideLocationBuffer) {
-          resolveLocationRequest(nextLocation, {
-            markUnavailableWhenEmpty: !isOutsideLocationBuffer,
-          });
+        if (didResolve) return;
+        handleAcceptedPosition(position, { allowApproximate: false });
+      },
+      (primaryError) => {
+        if (didResolve) return;
+        if (primaryError?.code === GEOLOCATION_PERMISSION_DENIED) {
+          handlePermissionDenied(primaryError);
           return;
         }
-
-        // If a watch is already running, a one-shot getCurrentPosition may
-        // return an inferior fix first. Wait briefly for the watch pipeline to
-        // accept a better candidate before giving up.
-        void waitForAcceptedLocation().then((nextAcceptedLocation) => {
-          resolveLocationRequest(nextAcceptedLocation, {
-            markUnavailableWhenEmpty: true,
-          });
-        });
+        // TIMEOUT (code 3) and POSITION_UNAVAILABLE (code 2) both indicate
+        // weak signal - both deserve the fallback retry instead of an
+        // immediate "unavailable".
+        startFallbackStage(primaryError);
       },
-      (error) => {
-        const fallbackLocation = handleLocationError(error);
-        if (fallbackLocation || watchIdRef.current === null) {
-          resolveLocationRequest(fallbackLocation, {
-            markUnavailableWhenEmpty: true,
-          });
-          return;
-        }
-
-        void waitForAcceptedLocation().then((nextLocation) => {
-          resolveLocationRequest(nextLocation || fallbackLocation, {
-            markUnavailableWhenEmpty: true,
-          });
-        });
-      },
-      GEOLOCATION_REQUEST_OPTIONS
+      GEOLOCATION_REQUEST_OPTIONS,
     );
   }), [handleLocationError, updateLocationFromPosition, waitForAcceptedLocation]);
 
@@ -1798,15 +1975,32 @@ export default function BurialMap() {
   }, []);
 
   const onLocateMarker = useCallback(async () => {
-    markExplicitViewportFocus();
-    focusLocationOnNextAcceptedFixRef.current = true;
-    resetLocationCandidateWindow();
-    ensureLocationWatchActive();
+    // Guard against rapid double-tap: weak-signal users frequently mash the
+    // Find Me button while waiting, which used to fan out into multiple
+    // in-flight requests and flicker the chrome. While a request is pending,
+    // additional taps just refocus the camera onto whatever fix we already
+    // have so the action still feels responsive.
+    if (isLocateRequestInFlightRef.current) {
+      if (acceptedLocationRef.current) {
+        focusUserLocationOnMap(acceptedLocationRef.current, { isExplicitFocus: true });
+      }
+      return;
+    }
 
-    const location = await requestCurrentLocation();
-    if (location) {
-      focusLocationOnNextAcceptedFixRef.current = false;
-      focusUserLocationOnMap(location);
+    isLocateRequestInFlightRef.current = true;
+    try {
+      markExplicitViewportFocus();
+      focusLocationOnNextAcceptedFixRef.current = true;
+      resetLocationCandidateWindow();
+      ensureLocationWatchActive();
+
+      const location = await requestCurrentLocation();
+      if (location) {
+        focusLocationOnNextAcceptedFixRef.current = false;
+        focusUserLocationOnMap(location);
+      }
+    } finally {
+      isLocateRequestInFlightRef.current = false;
     }
   }, [
     ensureLocationWatchActive,

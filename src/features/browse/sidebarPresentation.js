@@ -10,6 +10,8 @@ export const formatLocationNoticeLabel = ({
   outOfBoundsStatus,
   unavailableStatus,
   unsupportedStatus,
+  approximateStatus,
+  weakSignalStatus,
 }) => {
   if (status === activeStatus) {
     return "Using your current location for directions.";
@@ -17,6 +19,18 @@ export const formatLocationNoticeLabel = ({
 
   if (status === locatingStatus) {
     return "Finding your location…";
+  }
+
+  // Approximate/weak-signal use the raw profile copy: it already explains
+  // the state ("Approximate location (improving signal...)" / "GPS signal is
+  // weak, still trying..."). Pulling them through this helper keeps the
+  // presentation layer responsible for tone selection only.
+  if (approximateStatus && status === approximateStatus) {
+    return status;
+  }
+
+  if (weakSignalStatus && status === weakSignalStatus) {
+    return status;
   }
 
   if (status === unavailableStatus) {
@@ -38,9 +52,16 @@ export const getLocationNoticeTone = ({
   status,
   activeStatus,
   locatingStatus,
+  approximateStatus,
+  weakSignalStatus,
 }) => {
   if (status === activeStatus) return "success";
   if (status === locatingStatus) return "neutral";
+  // Approximate fixes are partial successes: the user has a usable on-map
+  // pin, just not a precise one. Show it as informational, not a failure.
+  if (approximateStatus && status === approximateStatus) return "neutral";
+  // "Still trying" is in-progress, not a failure either.
+  if (weakSignalStatus && status === weakSignalStatus) return "neutral";
   return "warning";
 };
 
@@ -80,6 +101,8 @@ export const buildSearchShellNotices = ({
   outOfBoundsLocationStatus = "Location outside cemetery range",
   unavailableLocationStatus = "GPS unavailable",
   unsupportedLocationStatus = "GPS unsupported",
+  approximateLocationStatus,
+  weakSignalLocationStatus,
   hasActiveBrowseQuery = false,
   isBurialDataLoading,
   isInstalled,
@@ -99,6 +122,8 @@ export const buildSearchShellNotices = ({
         status: normalizedStatus,
         activeStatus: activeLocationStatus,
         locatingStatus: locatingLocationStatus,
+        approximateStatus: approximateLocationStatus,
+        weakSignalStatus: weakSignalLocationStatus,
       }),
       label: formatLocationNoticeLabel({
         status: normalizedStatus,
@@ -107,6 +132,8 @@ export const buildSearchShellNotices = ({
         outOfBoundsStatus: outOfBoundsLocationStatus,
         unavailableStatus: unavailableLocationStatus,
         unsupportedStatus: unsupportedLocationStatus,
+        approximateStatus: approximateLocationStatus,
+        weakSignalStatus: weakSignalLocationStatus,
       }),
     });
   }
