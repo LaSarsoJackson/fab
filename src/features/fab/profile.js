@@ -359,8 +359,17 @@ export const APP_PROFILE = {
       inactive: "Location inactive",
       active: "Location active",
       locating: "Locating...",
+      // Surfaced while the high-accuracy attempt has timed out or returned an
+      // "unavailable" error and the shell is retrying with a coarse network
+      // fallback. Users in weak-signal areas (canopy, large trees) need to
+      // know we have not given up yet.
+      weakSignal: "GPS signal is weak, still trying...",
+      // Surfaced when only a coarse (network/Wi-Fi or low-accuracy GPS) fix
+      // has been accepted. The shell continues watching for a better fix.
+      approximate: "Approximate location (improving signal...)",
       unsupported: "GPS is not supported in this browser. Search by name or section, or use Open in Maps.",
       unavailable: "GPS is unavailable. Check signal and permissions, or search by name or section.",
+      permissionDenied: "Location permission denied. Enable it in your browser/OS settings, or search by name or section.",
       outOfBounds: `Location is outside cemetery range. Search still works; use Open in Maps for off-site directions.`,
       routeLocationRequired: `Route on Map needs your current location near ${FAB_SITE_NAME}. Use Open in Maps for directions from farther away.`,
     },

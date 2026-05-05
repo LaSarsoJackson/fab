@@ -21,8 +21,10 @@ import {
   getSectionBurialMarkerStyle,
   getSectionPolygonStyle,
   inferPointerType,
+  isApproximateLocationAccuracy,
   isLeafletSectionLayerHovered,
   isTouchLikePointerType,
+  LOCATION_APPROXIMATE_MAX_ACCURACY_METERS,
   LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS,
   LOCATION_MAX_ACCEPTABLE_ACCURACY_METERS,
   normalizeLocationPosition,
@@ -164,6 +166,37 @@ describe("mapDomain", () => {
       expect(shouldRejectLocationCandidate(noisyInitialFix)).toBe(true);
       expect(shouldRejectLocationCandidate(noisyInitialFix, {
         maxAcceptedAccuracyMeters: LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS,
+      })).toBe(false);
+    });
+
+    test("flags accuracies looser than the initial threshold as approximate", () => {
+      // A 60m fix is precise enough to pass the strict steady-state filter;
+      // we only mark "approximate" when accuracy is worse than the initial
+      // threshold, so the chrome doesn't downgrade good pins.
+      expect(isApproximateLocationAccuracy(60)).toBe(false);
+      expect(isApproximateLocationAccuracy(LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS)).toBe(false);
+      expect(isApproximateLocationAccuracy(LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS + 1)).toBe(true);
+      expect(isApproximateLocationAccuracy(800)).toBe(true);
+      expect(isApproximateLocationAccuracy(Number.POSITIVE_INFINITY)).toBe(true);
+      expect(isApproximateLocationAccuracy(NaN)).toBe(false);
+    });
+
+    test("accepts coarse network fallbacks under the approximate threshold", () => {
+      const coarseFallback = {
+        latitude: 42.70418,
+        longitude: -73.73198,
+        accuracyMeters: 600,
+        recordedAt: 1700000000000,
+      };
+
+      // Strict thresholds reject this fix - that's the whole reason we have
+      // an opt-in approximate threshold for the network-fallback stage.
+      expect(shouldRejectLocationCandidate(coarseFallback)).toBe(true);
+      expect(shouldRejectLocationCandidate(coarseFallback, {
+        maxAcceptedAccuracyMeters: LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS,
+      })).toBe(true);
+      expect(shouldRejectLocationCandidate(coarseFallback, {
+        maxAcceptedAccuracyMeters: LOCATION_APPROXIMATE_MAX_ACCURACY_METERS,
       })).toBe(false);
     });
 

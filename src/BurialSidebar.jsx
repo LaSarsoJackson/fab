@@ -147,6 +147,8 @@ const LOCATION_LOCATING_STATUS = APP_PROFILE.map.locationMessages?.locating || "
 const LOCATION_OUT_OF_BOUNDS_STATUS = APP_PROFILE.map.locationMessages?.outOfBounds || "Location outside cemetery range";
 const LOCATION_UNAVAILABLE_STATUS = APP_PROFILE.map.locationMessages?.unavailable || "GPS unavailable";
 const LOCATION_UNSUPPORTED_STATUS = APP_PROFILE.map.locationMessages?.unsupported || "GPS unsupported";
+const LOCATION_APPROXIMATE_STATUS = APP_PROFILE.map.locationMessages?.approximate || "";
+const LOCATION_WEAK_SIGNAL_STATUS = APP_PROFILE.map.locationMessages?.weakSignal || "";
 const EMPTY_PACKET_RECORDS = [];
 const EMPTY_ACTIONS = [];
 const SELECTION_PANEL_TITLE = "Selection";
@@ -1988,6 +1990,8 @@ function BurialSidebar({
       outOfBoundsLocationStatus: LOCATION_OUT_OF_BOUNDS_STATUS,
       unavailableLocationStatus: LOCATION_UNAVAILABLE_STATUS,
       unsupportedLocationStatus: LOCATION_UNSUPPORTED_STATUS,
+      approximateLocationStatus: LOCATION_APPROXIMATE_STATUS,
+      weakSignalLocationStatus: LOCATION_WEAK_SIGNAL_STATUS,
       hasActiveBrowseQuery: Boolean(browseQuery.trim()),
       isBurialDataLoading,
       isInstalled,

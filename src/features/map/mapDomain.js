@@ -1155,7 +1155,18 @@ export const getSectionPolygonStyle = (options = {}) => {
 export const LOCATION_RECENT_FIX_WINDOW_MS = 15000;
 export const LOCATION_MAX_ACCEPTABLE_ACCURACY_METERS = 75;
 export const LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS = 150;
+// In weak-signal cemetery conditions a coarse network/Wi-Fi fix is still more
+// useful than nothing. The map shell may opt in to accepting such fixes as
+// "approximate" via this looser threshold. The accepted candidate is then
+// flagged so the shell can show an informational tone and continue trying to
+// upgrade it via watchPosition.
+export const LOCATION_APPROXIMATE_MAX_ACCURACY_METERS = 1000;
 export const LOCATION_JITTER_DEADBAND_METERS = 2.5;
+
+export const isApproximateLocationAccuracy = (accuracyMeters) => (
+  Number.isFinite(accuracyMeters)
+  && accuracyMeters > LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS
+);
 
 export const normalizeLocationPosition = (position) => {
   const latitude = Number(position?.coords?.latitude);
