@@ -1,10 +1,14 @@
 /**
- * Albany Rural Cemetery Interactive Map Application
+ * Map shell and Leaflet orchestration.
  *
- * This React application provides an interactive map interface for the Albany Rural Cemetery,
- * featuring search capabilities, tour routes, burial locations, and navigation assistance.
- * The application integrates various mapping technologies and UI components to create
- * a user-friendly cemetery exploration tool.
+ * `BurialMap` is the runtime boundary for React state, Leaflet layer lifecycles,
+ * viewport movement, popups, routing, and sidebar wiring. Pure record shaping,
+ * search rules, tour reconciliation, and routing algorithms should stay in the
+ * feature/shared modules imported below.
+ *
+ * Core flow: load map data, inflate burial/tour data on demand, derive indexes,
+ * push selection changes through the map reducer, mirror active state into
+ * imperative Leaflet refs, then render sidebar, popups, routes, and map layers.
  */
 
 //=============================================================================
@@ -16,7 +20,7 @@ import React, { memo, useState, useEffect, useMemo, useRef, useCallback } from "
 import ReactDOM from "react-dom";
 
 // Leaflet and Map-related Dependencies
-import { MapContainer, Popup, Marker, GeoJSON, CircleMarker, Tooltip, ImageOverlay, useMap } from "react-leaflet";
+import { MapContainer, Popup, Marker, GeoJSON, CircleMarker, Tooltip, useMap } from "react-leaflet";
 import L from 'leaflet';  // Core Leaflet library for map functionality
 import "./index.css";
 import 'leaflet.markercluster/dist/leaflet.markercluster';  // Clustering support for markers
@@ -35,14 +39,21 @@ import DirectionsIcon from '@mui/icons-material/Directions';
 import LaunchIcon from '@mui/icons-material/Launch';
 
 // Local Data and Styles
-import { APP_PROFILE } from "./features/fab/profile";
+import {
+  APP_PROFILE,
+  getEmptyCoreMapData,
+  loadCoreMapData,
+  TOUR_DEFINITIONS,
+  TOUR_STYLES,
+} from "./features/fab/profile";
 import BurialSidebar from "./BurialSidebar";
 import {
   buildBurialSectionIndex,
   buildBurialBrowseResult,
   buildTourBrowseResult,
-  filterBurialRecordsBySection,
+  findSectionBrowseDetailDefinition,
   formatBrowseResultName,
+  resolveSectionBrowseRecords,
 } from "./features/browse/browseResults";
 import {
   buildSearchIndex,
@@ -50,10 +61,12 @@ import {
   sortSectionValues,
 } from "./features/browse/burialSearch";
 import {
+  areMarkersAtSameLocation,
   areLocationCandidatesEquivalent,
   buildLocationAccuracyGeoJson,
   clearMapSelectionFocus,
   clearMapSelectionFocusForRecord,
+  createViewportIntentController,
   createMapSelectionState,
   buildSectionAffordanceMarkers,
   buildSectionBoundsById,
@@ -64,22 +77,25 @@ import {
   MAP_PRESENTATION_POLICY,
   getSectionBurialMarkerStyle,
   getSectionPolygonStyle,
-  hasIndexedBurialPlacement,
+  isApproximateLocationAccuracy,
+  LOCATION_APPROXIMATE_MAX_ACCURACY_METERS,
   LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS,
+  LOCATION_MAX_ACCEPTABLE_ACCURACY_METERS,
   LOCATION_RECENT_FIX_WINDOW_MS,
   normalizeLocationPosition,
   inferPointerType,
   isLeafletSectionLayerHovered,
   isTouchLikePointerType,
-  PMTILES_EXPERIMENT_GLYPH_PALETTE,
-  ROAD_LAYER_STYLE,
+  ROAD_LAYER_STYLES,
   reduceMapSelectionState,
   refreshMapSelectionRecords,
   removeMapSelectionRecord,
   replaceMapSelectionRecords,
   resolveClusterExpansionZoom,
+  getClusterIconCount,
   resolveMapPresentationPolicy,
   selectBestRecentLocationCandidate,
+  selectRouteTrackingLocationCandidate,
   shouldResetRouteGeometryForRequest,
   shouldShowPersistentSectionTooltips,
   shouldRejectLocationCandidate,
@@ -88,9 +104,7 @@ import {
   shouldIgnoreSectionBackgroundSelection,
   resetMapSelection,
   setMapSelectionHover,
-  ExperimentalBurialGlyphSymbolizer,
 } from "./features/map/mapDomain";
-import { getEmptyCoreMapData, loadCoreMapData } from "./features/map/coreMapData";
 import {
   ActiveLeafletBasemap,
   CustomZoomControl,
@@ -100,59 +114,37 @@ import {
   MapBounds,
   MapControlStack,
   MapController,
-  MapHomeButton,
   MapLayerControl,
-  MapZoomControl,
   MobileLocateButton,
-  PmtilesExperimentLegend,
   RouteStatusOverlay,
+  SidebarToggleControl,
   panIntoVisibleViewport,
   schedulePopupInView,
-  SiteTwinDebugControl,
 } from "./features/map/mapChrome";
 import { cleanRecordValue } from "./features/map/mapRecordPresentation";
 import { PopupCardContent, createMapRecordKey } from "./features/map/popupCardContent";
 import { calculateWalkingRoute, getRoutingErrorMessage, buildRoadRoutingGraph } from "./features/map/mapRouting";
-import { CustomMapSurface } from "./features/map/engine/CustomMapSurface";
 import {
   buildFieldPacketShareUrl,
   buildFieldPacketState,
-} from "./features/deeplinks/fieldPackets";
-import { buildSharedSelectionPresentation } from "./features/deeplinks/sharePresentation";
-import {
+  buildSharedSelectionPresentation,
   parseDeepLinkState,
-} from "./features/deeplinks/urlState";
+} from "./features/deeplinks/fieldPackets";
 import {
   buildBurialLookup,
   harmonizeBurialBrowseResult,
   harmonizeTourBrowseResult,
 } from "./features/tours/tourRecordHarmonization";
-import { TOUR_DEFINITIONS, TOUR_STYLES } from "./features/fab/profile";
 import { getGeoJsonBounds, hasValidGeoJsonCoordinates, isLatLngBoundsExpressionValid } from "./shared/geo/geoJsonBounds";
 import { buildDirectionsLink } from "./shared/routing";
 import {
   cancelIdleTask,
   buildPublicAssetUrl,
-  DEVELOPMENT_SURFACES,
-  getDevelopmentRoutingProvider,
-  getMapEngineKind,
   getRuntimeEnv,
   isFieldPacketsEnabled as resolveFieldPacketsEnabled,
   scheduleIdleTask,
-  setStoredDevelopmentSurfaceOverride,
   syncDocumentMetadata,
 } from "./shared/runtime/runtimeEnv";
-import {
-  DEFAULT_SITE_TWIN_DEBUG_STATE,
-  EMPTY_SITE_TWIN_MANIFEST,
-  filterSiteTwinFeatureCollection,
-  isSiteTwinReady,
-  normalizeSiteTwinDebugState,
-  normalizeSiteTwinFeatureCollection,
-  normalizeSiteTwinManifest,
-  shouldLoadSiteTwinCandidates,
-  summarizeSiteTwinFeatureCollection,
-} from "./features/map/siteTwin";
 
 //=============================================================================
 // Constants and Configuration
@@ -217,36 +209,50 @@ const GEOLOCATION_REQUEST_OPTIONS = {
   maximumAge: 0,
   timeout: 20000,
 };
-const PMTILES_EXPERIMENT_SURFACE = DEVELOPMENT_SURFACES.pmtilesExperiment;
+// When the high-accuracy attempt errors or times out (common under tree canopy
+// in the cemetery), fall back to a network-derived fix. A modest maximumAge
+// lets the platform return a recent cell/Wi-Fi cached fix immediately, which
+// is far more useful than declaring the locator unavailable.
+const GEOLOCATION_FALLBACK_REQUEST_OPTIONS = {
+  enableHighAccuracy: false,
+  maximumAge: 60000,
+  timeout: 10000,
+};
+const GEOLOCATION_PERMISSION_DENIED = 1;
+const ROUTING_LOCATION_REQUIRED_MESSAGE = LOCATION_MESSAGES.routeLocationRequired ||
+  "Route on Map needs your current location near the cemetery. Use Open in Maps for directions from farther away.";
 const SECTION_MARKER_BATCH_SIZE = 300;
 const SEARCH_INDEX_PUBLIC_PATH = APP_PROFILE.artifacts.searchIndexPublicPath;
 const EMPTY_TOUR_RESULTS = [];
 const MAP_BASEMAPS = APP_PROFILE.map.basemaps || [];
-const MAP_CONTROLLED_BASEMAPS = MAP_BASEMAPS.filter((basemap) => basemap.type !== "pmtiles-vector");
+const MAP_CONTROLLED_BASEMAPS = MAP_BASEMAPS;
 const DEFAULT_BASEMAP_ID = APP_PROFILE.map.defaultBasemapId || MAP_BASEMAPS[0]?.id || "";
 const DEFAULT_MAX_MAP_ZOOM = MAP_BASEMAPS.reduce((highestZoom, basemap) => (
   Number.isFinite(basemap?.maxZoom)
     ? Math.max(highestZoom, basemap.maxZoom)
     : highestZoom
 ), MAP_PRESENTATION_POLICY.sectionBurialIndividualMinZoom);
-const SITE_TWIN_CONFIG = APP_PROFILE.map.siteTwin || null;
-const SITE_TWIN_DEBUG_STORAGE_KEY = APP_PROFILE.devStorageKeys.siteTwinDebug;
 const MAP_OVERLAY_OPTIONS = [
   { id: "roads", label: "Roads", defaultVisible: false },
   { id: "boundary", label: "Boundary", defaultVisible: true },
   { id: "sections", label: "Sections", defaultVisible: true },
-  ...(SITE_TWIN_CONFIG ? [{
-    id: "siteTwin",
-    label: "Twin",
-    defaultVisible: Boolean(SITE_TWIN_CONFIG.defaultVisible),
-  }] : []),
 ];
 const DEFAULT_MAP_OVERLAY_VISIBILITY = MAP_OVERLAY_OPTIONS.reduce((visibility, option) => ({
   ...visibility,
   [option.id]: option.defaultVisible,
 }), {});
 
-const getDefaultSiteTwinDebugState = () => normalizeSiteTwinDebugState(DEFAULT_SITE_TWIN_DEBUG_STATE);
+const isLocationCandidateWithinBuffer = (candidate) => {
+  if (!candidate) {
+    return false;
+  }
+
+  return booleanPointInPolygon(
+    point([candidate.longitude, candidate.latitude]),
+    LOCATION_BUFFER_BOUNDARY
+  );
+};
+
 const CEMETERY_CLUSTER_GLYPH = `
   <svg class="cemetery-cluster__glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
     <path
@@ -372,91 +378,6 @@ const getSectionBurialMarkerId = (burial) => {
 // React Components
 //=============================================================================
 
-/**
- * Optional PMTiles experiment for validating vector rendering in development.
- * This stays off the main path so Leaflet clustering remains the default UX,
- * but uses differentiated translucent glyphs so overlapping burials can still
- * be read individually.
- */
-function ExperimentalVectorBurialLayer({ burialRecordsByObjectId, onSelectBurial }) {
-  const map = useMap();
-  const layerRef = useRef(null);
-
-  useEffect(() => {
-    if (!map) return undefined;
-
-    let ignore = false;
-
-    const loadExperimentalLayer = async () => {
-      try {
-        const protomaps = await import("protomaps-leaflet");
-        if (ignore) return;
-
-        const layer = protomaps.leafletLayer({
-          url: buildPublicAssetUrl("/data/geo_burials.pmtiles"),
-          pane: "overlayPane",
-          paintRules: [
-            {
-              dataLayer: "burials",
-              symbolizer: new ExperimentalBurialGlyphSymbolizer("approximate"),
-              filter: (_zoom, feature) => !hasIndexedBurialPlacement(feature?.props),
-            },
-            {
-              dataLayer: "burials",
-              symbolizer: new ExperimentalBurialGlyphSymbolizer("indexed"),
-              filter: (_zoom, feature) => hasIndexedBurialPlacement(feature?.props),
-            },
-          ],
-        });
-
-        layer.addTo(map);
-        layerRef.current = layer;
-      } catch (error) {
-        console.error("Failed to load PMTiles experiment:", error);
-      }
-    };
-
-    const handleMapClick = (event) => {
-      const layer = layerRef.current;
-      if (!layer?.queryTileFeaturesDebug) return;
-
-      const pickedFeatures = layer.queryTileFeaturesDebug(
-        event.latlng.lng,
-        event.latlng.lat,
-        12
-      ).get("") || [];
-
-      const pickedBurial = pickedFeatures.find((entry) => entry.layerName === "burials");
-      const objectId = String(
-        pickedBurial?.feature?.props?.OBJECTID ??
-        pickedBurial?.feature?.props?.objectid ??
-        ""
-      );
-
-      if (!objectId) return;
-
-      const burialRecord = burialRecordsByObjectId.get(objectId);
-      if (burialRecord) {
-        onSelectBurial(burialRecord);
-      }
-    };
-
-    void loadExperimentalLayer();
-    map.on("click", handleMapClick);
-
-    return () => {
-      ignore = true;
-      map.off("click", handleMapClick);
-      if (layerRef.current) {
-        layerRef.current.remove();
-        layerRef.current = null;
-      }
-    };
-  }, [burialRecordsByObjectId, map, onSelectBurial]);
-
-  return null;
-}
-
 //=============================================================================
 // Helper Functions
 //=============================================================================
@@ -509,8 +430,21 @@ const createUniqueKey = (burial, index) => {
   return createMapRecordKey(burial, index);
 };
 
+const createRouteGeoJsonRenderKey = (geojson) => {
+  const coordinates = geojson?.features?.[0]?.geometry?.coordinates;
+  if (!Array.isArray(coordinates) || coordinates.length === 0) {
+    return "active-route";
+  }
+
+  return coordinates
+    .map((coordinate) => (
+      `${Number(coordinate?.[0]).toFixed(7)},${Number(coordinate?.[1]).toFixed(7)}`
+    ))
+    .join("|");
+};
+
 /**
- * Creates a marker for a tour point
+ * Creates the visual marker for a tour point.
  * @param {string} tourKey - The key identifying the tour
  * @returns {Function} A function that creates a Leaflet marker or circle marker
  */
@@ -546,6 +480,10 @@ const createTourMarker = (tourKey, tourStyles) => {
   };
 };
 
+/**
+ * Binds a React popup to an imperative Leaflet layer. This is used for layers
+ * created outside React, such as markercluster children and cached tour GeoJSON.
+ */
 const bindReactPopup = ({
   layer,
   record,
@@ -745,6 +683,21 @@ const MapSectionAffordanceMarkers = memo(function MapSectionAffordanceMarkers({
   );
 });
 
+const MapRoadLayers = memo(function MapRoadLayers({ roadsData }) {
+  return (
+    <>
+      {ROAD_LAYER_STYLES.map((style, index) => (
+        <LeafletGeoJsonLayer
+          key={`roads:${index}`}
+          layerId={`roads:${index}`}
+          data={roadsData}
+          style={style}
+        />
+      ))}
+    </>
+  );
+});
+
 /**
  * Keep the basemap and static overlays off the render path for selection/menu state.
  */
@@ -752,35 +705,25 @@ const MapStaticLayers = memo(function MapStaticLayers({
   activeBasemap,
   activeBasemapMaxZoom,
   boundaryData,
-  burialRecordsByObjectId,
   fitMapBoundsInViewport,
   getSectionStyle,
-  isDev,
   isLayerControlOpen,
   isMobile,
-  isPmtilesEnabled,
+  isSearchPanelVisible,
   mapRef,
-  mapEngine,
   onBasemapChange,
   onEachSectionFeature,
   onLayerControlOpenChange,
   onLocateMarker,
+  onToggleSearchPanel,
+  onViewportMoveStart,
   onZoomChange,
-  onResetSiteTwinDebugState,
   onSelectSection,
   onToggleOverlay,
-  onSelectBurial,
-  onUpdateSiteTwinDebugState,
   overlayVisibility,
   overlayMaps,
   roadsData,
   sectionsData,
-  siteTwinDebugState,
-  siteTwinFilteredSummary,
-  siteTwinLoadedSummary,
-  siteTwinManifest,
-  showSiteTwinSurface,
-  siteTwinSurfaceOpacity,
   sectionAffordanceMarkers,
   sectionOverviewMarkers,
   selectedTour,
@@ -808,58 +751,27 @@ const MapStaticLayers = memo(function MapStaticLayers({
           defaultViewBounds={DEFAULT_VIEW_BOUNDS}
           fitMapBounds={fitMapBoundsInViewport}
         />
-        <CustomZoomControl isMobile={isMobile} />
-        <MobileLocateButton isMobile={isMobile} onLocate={onLocateMarker} />
-        {isDev && isPmtilesEnabled && (
-          <PmtilesExperimentLegend glyphPalette={PMTILES_EXPERIMENT_GLYPH_PALETTE} />
-        )}
-        {isDev && SITE_TWIN_CONFIG && (
-          <SiteTwinDebugControl
-            isOverlayEnabled={overlayVisibility.siteTwin !== false}
-            mapEngine={mapEngine}
-            manifest={siteTwinManifest}
-            loadedSummary={siteTwinLoadedSummary}
-            filteredSummary={siteTwinFilteredSummary}
-            debugState={siteTwinDebugState}
-            onToggleOverlay={(checked) => {
-              if (checked !== (overlayVisibility.siteTwin !== false)) {
-                onToggleOverlay("siteTwin");
-              }
-            }}
-            onUpdateDebugState={onUpdateSiteTwinDebugState}
-            onResetDebugState={onResetSiteTwinDebugState}
+        {!isMobile && (
+          <SidebarToggleControl
+            isSearchPanelVisible={isSearchPanelVisible}
+            onToggle={onToggleSearchPanel}
           />
         )}
+        <CustomZoomControl isMobile={isMobile} />
+        <MobileLocateButton isMobile={isMobile} onLocate={onLocateMarker} />
       </MapControlStack>
       <ActiveLeafletBasemap basemap={activeBasemap} />
-      {isDev && isPmtilesEnabled && (
-        <ExperimentalVectorBurialLayer
-          burialRecordsByObjectId={burialRecordsByObjectId}
-          onSelectBurial={onSelectBurial}
-        />
-      )}
       <MapBounds
         fitMapBounds={fitMapBoundsInViewport}
         paddedBoundaryBounds={PADDED_BOUNDARY_BOUNDS}
         maxZoom={activeBasemapMaxZoom}
       />
-      <MapController mapRef={mapRef} onZoomChange={onZoomChange} />
+      <MapController
+        mapRef={mapRef}
+        onViewportMoveStart={onViewportMoveStart}
+        onZoomChange={onZoomChange}
+      />
       <MapTourController selectedTour={selectedTour} overlayMaps={overlayMaps} tourNames={tourNames} />
-      {overlayVisibility.siteTwin && showSiteTwinSurface && isSiteTwinReady(siteTwinManifest) && (
-        <ImageOverlay
-          url={buildPublicAssetUrl(siteTwinManifest.terrainImage.url)}
-          bounds={siteTwinManifest.terrainImage.bounds}
-          opacity={siteTwinSurfaceOpacity}
-          interactive={false}
-        />
-      )}
-      {showRoads && (
-        <LeafletGeoJsonLayer
-          layerId="roads"
-          data={roadsData}
-          style={ROAD_LAYER_STYLE}
-        />
-      )}
       {overlayVisibility.boundary && (
         <LeafletGeoJsonLayer
           layerId="boundary"
@@ -874,6 +786,9 @@ const MapStaticLayers = memo(function MapStaticLayers({
           style={getSectionStyle}
           onEachFeature={onEachSectionFeature}
         />
+      )}
+      {showRoads && (
+        <MapRoadLayers roadsData={roadsData} />
       )}
       {showSectionAffordanceMarkers && (
         <MapSectionAffordanceMarkers
@@ -973,33 +888,31 @@ const createOnEachTourFeature = (
 export default function BurialMap() {
   const runtimeEnv = useMemo(() => getRuntimeEnv(), []);
   const {
-    isDev,
-    devSurfaces,
     featureFlags,
   } = runtimeEnv;
-  const routingProvider = getDevelopmentRoutingProvider(devSurfaces);
   const isFieldPacketsEnabled = resolveFieldPacketsEnabled(featureFlags);
   const tourDefinitions = TOUR_DEFINITIONS;
   const tourStyles = TOUR_STYLES;
   /**
-   * `BurialMap` keeps the runtime wiring: React state, Leaflet lifecycles, and
-   * user interaction orchestration. Pure record formatting and tour/burial
-   * reconciliation live in dedicated feature modules so maintainers can
-   * change presentation rules without also reading map-effect code.
+   * Editing guide:
+   * - keep state and Leaflet side effects here
+   * - put deterministic transforms in `src/features/*` or `src/shared/*`
+   * - explain lifecycle constraints in comments, especially around refs,
+   *   popup timing, deep-link restoration, and programmatic viewport movement
    */
   //-----------------------------------------------------------------------------
   // State Management
   //-----------------------------------------------------------------------------
 
-  // Map and UI State
+  // Map and UI state. Add new state here only when it represents user/runtime
+  // interaction; data derived from loaded records belongs in the memoized block.
   const [overlayMaps, setOverlayMaps] = useState({});
-  const [tourGeoJsonByName, setTourGeoJsonByName] = useState({});
   const [tourBoundsByName, setTourBoundsByName] = useState({});
   const [tourResultsByName, setTourResultsByName] = useState({});
   const [currentZoom, setCurrentZoom] = useState(MAP_ZOOM);
   const [isLayerControlOpen, setIsLayerControlOpen] = useState(false);
+  const [isSearchPanelVisible, setIsSearchPanelVisible] = useState(true);
   const [selectionState, setSelectionState] = useState(() => createMapSelectionState());
-  const [mapEngine, setMapEngine] = useState(() => getMapEngineKind(devSurfaces));
   const [selectedTour, setSelectedTour] = useState(null);
   const [activeBasemapId, setActiveBasemapId] = useState(() => (
     MAP_CONTROLLED_BASEMAPS.some((basemap) => basemap.id === DEFAULT_BASEMAP_ID)
@@ -1007,9 +920,6 @@ export default function BurialMap() {
       : (MAP_CONTROLLED_BASEMAPS[0]?.id || MAP_BASEMAPS[0]?.id || "")
   ));
   const [overlayVisibility, setOverlayVisibility] = useState(DEFAULT_MAP_OVERLAY_VISIBILITY);
-  const [siteTwinManifest, setSiteTwinManifest] = useState(EMPTY_SITE_TWIN_MANIFEST);
-  const [siteTwinCandidates, setSiteTwinCandidates] = useState(() => normalizeSiteTwinFeatureCollection());
-  const [siteTwinDebugState, setSiteTwinDebugState] = useState(() => getDefaultSiteTwinDebugState());
   const [coreMapData, setCoreMapData] = useState(getEmptyCoreMapData);
 
   // Search and Filter State
@@ -1030,7 +940,6 @@ export default function BurialMap() {
   const [installPromptEvent, setInstallPromptEvent] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
-  const [isPmtilesEnabled, setIsPmtilesEnabled] = useState(() => Boolean(devSurfaces.pmtilesExperiment));
   const [hasRequestedBurialData, setHasRequestedBurialData] = useState(false);
   const [fieldPacket, setFieldPacket] = useState(null);
   const [fieldPacketNotice, setFieldPacketNotice] = useState(null);
@@ -1053,9 +962,10 @@ export default function BurialMap() {
   const [directionsMenuBurial, setDirectionsMenuBurial] = useState(null);
   const { boundaryData, roadsData, sectionsData } = coreMapData;
 
-  // Component References
-  // Leaflet layers outlive individual renders, so these refs act as the
-  // imperative bridge between React state and map objects.
+  // Component references.
+  // Leaflet layers and event handlers outlive individual renders. These refs are
+  // the imperative bridge that lets hover, active selection, popups, and routing
+  // observe current React state without re-binding thousands of map objects.
   const markerClusterRef = useRef(null);
   const mapRef = useRef(null);
   const sidebarOverlayRef = useRef(null);
@@ -1089,12 +999,26 @@ export default function BurialMap() {
   const locationRecentCandidatesRef = useRef([]);
   const selectedLocationFixRef = useRef(null);
   const focusLocationOnNextAcceptedFixRef = useRef(false);
+  // Reentrancy guard for the "Find Me" button. Without this, repeated taps in
+  // weak signal would fan out into multiple in-flight high-accuracy requests
+  // and flap the chrome status between locating/unavailable.
+  const isLocateRequestInFlightRef = useRef(false);
   const renderedRouteDestinationRef = useRef(null);
+  const viewportIntentControllerRef = useRef(null);
+  if (viewportIntentControllerRef.current === null) {
+    viewportIntentControllerRef.current = createViewportIntentController({
+      onUserViewportIntent: () => {
+        focusLocationOnNextAcceptedFixRef.current = false;
+      },
+    });
+  }
 
   //-----------------------------------------------------------------------------
   // Memoized Values
   //-----------------------------------------------------------------------------
 
+  // Derived map data and presentation policy. Keep expensive pure calculations
+  // here; keep Leaflet mutation in effects and callbacks below.
   const sectionBoundsById = useMemo(
     () => buildSectionBoundsById(sectionsData),
     [sectionsData]
@@ -1103,7 +1027,6 @@ export default function BurialMap() {
     () => buildRoadRoutingGraph(roadsData),
     [roadsData]
   );
-  const isCustomMapRuntimeActive = mapEngine === "custom";
   const selectedMarkerOrderById = useMemo(
     () => new Map(selectedBurials.map((burial, index) => [burial.id, index + 1])),
     [selectedBurials]
@@ -1164,6 +1087,10 @@ export default function BurialMap() {
     [activeBasemap]
   );
   const hasActiveRoute = Boolean(routeGeoJson?.features?.length);
+  const routeGeoJsonRenderKey = useMemo(
+    () => createRouteGeoJsonRenderKey(routeGeoJson),
+    [routeGeoJson]
+  );
   const mapPresentationPolicy = useMemo(() => resolveMapPresentationPolicy({
     currentZoom,
     hasActiveRoute,
@@ -1200,30 +1127,9 @@ export default function BurialMap() {
     : currentZoom >= sectionBurialIndividualMarkerMinZoom - 1
       ? "preview"
       : "cluster";
-  const normalizedSiteTwinDebugState = useMemo(
-    () => normalizeSiteTwinDebugState(siteTwinDebugState),
-    [siteTwinDebugState]
-  );
-  const filteredSiteTwinCandidates = useMemo(
-    () => filterSiteTwinFeatureCollection(siteTwinCandidates, normalizedSiteTwinDebugState),
-    [siteTwinCandidates, normalizedSiteTwinDebugState]
-  );
-  const siteTwinLoadedSummary = useMemo(
-    () => summarizeSiteTwinFeatureCollection(siteTwinCandidates),
-    [siteTwinCandidates]
-  );
-  const siteTwinFilteredSummary = useMemo(
-    () => summarizeSiteTwinFeatureCollection(filteredSiteTwinCandidates),
-    [filteredSiteTwinCandidates]
-  );
-  const siteTwinSurfaceOpacity = normalizedSiteTwinDebugState.surfaceOpacity;
   const selectedTourLayer = useMemo(
     () => (selectedTour ? overlayMaps[selectedTour] || null : null),
     [overlayMaps, selectedTour]
-  );
-  const selectedTourGeoJson = useMemo(
-    () => (selectedTour ? tourGeoJsonByName[selectedTour] || null : null),
-    [selectedTour, tourGeoJsonByName]
   );
   const selectedTourBounds = useMemo(
     () => (selectedTour ? tourBoundsByName[selectedTour] || null : null),
@@ -1231,6 +1137,8 @@ export default function BurialMap() {
   );
   const initialDeepLinkRef = useRef(null);
   if (initialDeepLinkRef.current === null && typeof window !== "undefined") {
+    // Parse the initial URL once. Later URL changes should not unexpectedly
+    // re-drive selection state after the user starts interacting with the map.
     initialDeepLinkRef.current = parseDeepLinkState(window.location.search, tourNames);
   }
   const initialFieldPacket = initialDeepLinkRef.current?.fieldPacket || null;
@@ -1293,36 +1201,6 @@ export default function BurialMap() {
       [overlayId]: !(current[overlayId] !== false),
     }));
   }, []);
-  const handleUpdateSiteTwinDebugState = useCallback((partialState) => {
-    setSiteTwinDebugState((currentState) => normalizeSiteTwinDebugState({
-      ...currentState,
-      ...partialState,
-    }));
-  }, []);
-  const handleResetSiteTwinDebugState = useCallback(() => {
-    setSiteTwinDebugState(getDefaultSiteTwinDebugState());
-  }, []);
-  const handleMapEngineChange = useCallback((nextEngine) => {
-    if (!isDev) {
-      return;
-    }
-
-    if (nextEngine !== "leaflet" && nextEngine !== "custom") {
-      return;
-    }
-
-    setMapEngine((currentEngine) => {
-      if (currentEngine === nextEngine) {
-        return currentEngine;
-      }
-
-      setStoredDevelopmentSurfaceOverride(
-        DEVELOPMENT_SURFACES.customMapEngine.id,
-        nextEngine === "custom"
-      );
-      return nextEngine;
-    });
-  }, [isDev]);
   const getMapInstance = useCallback(() => mapRef.current, []);
   const dispatchSelectionAction = useCallback((action) => {
     setSelectionState((currentSelectionState) => {
@@ -1355,89 +1233,67 @@ export default function BurialMap() {
     }
   }, [activeBasemapId, basemapById, defaultBasemap]);
 
-  useEffect(() => {
-    if (!SITE_TWIN_CONFIG?.manifestPublicPath || typeof window === "undefined") {
-      return undefined;
-    }
-
-    const controller = new AbortController();
-    const manifestUrl = buildPublicAssetUrl(SITE_TWIN_CONFIG.manifestPublicPath);
-
-    fetch(manifestUrl, { signal: controller.signal })
-      .then((response) => (
-        response.ok
-          ? response.json()
-          : EMPTY_SITE_TWIN_MANIFEST
-      ))
-      .then((manifest) => {
-        setSiteTwinManifest(normalizeSiteTwinManifest(manifest));
-      })
-      .catch((error) => {
-        if (error?.name === "AbortError") {
-          return;
-        }
-
-        setSiteTwinManifest(EMPTY_SITE_TWIN_MANIFEST);
-      });
-
-    return () => {
-      controller.abort();
-    };
+  const getOverlayElement = useCallback(() => (
+    isSearchPanelVisible ? sidebarOverlayRef.current : null
+  ), [isSearchPanelVisible]);
+  // All programmatic viewport moves go through the intent controller. It keeps
+  // automatic focus from fighting a user who has just panned, dragged, or zoomed.
+  const markExplicitViewportFocus = useCallback(() => {
+    viewportIntentControllerRef.current?.markExplicitFocus();
   }, []);
-
-  useEffect(() => {
-    if (!shouldLoadSiteTwinCandidates({
-      isDev,
-      isOverlayVisible: overlayVisibility.siteTwin !== false,
-      manifest: siteTwinManifest,
-    }) || typeof window === "undefined") {
-      return undefined;
+  const runProgrammaticViewportMove = useCallback((map, moveCallback) => {
+    return viewportIntentControllerRef.current?.runProgrammaticMove(map, moveCallback);
+  }, []);
+  const canApplyViewportFocus = useCallback(({ isExplicitFocus = false } = {}) => {
+    return viewportIntentControllerRef.current?.canApplyFocus({ isExplicitFocus }) ?? true;
+  }, []);
+  const handleViewportMoveStart = useCallback((eventType) => {
+    viewportIntentControllerRef.current?.handleMoveStart(eventType);
+  }, []);
+  const fitMapBoundsInViewport = useCallback((
+    map,
+    bounds,
+    {
+      ignoreViewportIntent = false,
+      isExplicitFocus = false,
+      ...options
+    } = {}
+  ) => {
+    if (!ignoreViewportIntent && !canApplyViewportFocus({ isExplicitFocus })) {
+      return false;
     }
 
-    const controller = new AbortController();
-    const candidatesUrl = buildPublicAssetUrl(siteTwinManifest.graveCandidates.url);
-
-    fetch(candidatesUrl, { signal: controller.signal })
-      .then((response) => (
-        response.ok
-          ? response.json()
-          : normalizeSiteTwinFeatureCollection()
-      ))
-      .then((featureCollection) => {
-        setSiteTwinCandidates(normalizeSiteTwinFeatureCollection(featureCollection));
-      })
-      .catch((error) => {
-        if (error?.name === "AbortError") {
-          return;
-        }
-
-        setSiteTwinCandidates(normalizeSiteTwinFeatureCollection());
+    runProgrammaticViewportMove(map, () => {
+      fitBoundsInVisibleViewport(map, bounds, {
+        ...options,
+        getOverlayElement,
       });
-
-    return () => {
-      controller.abort();
-    };
-  }, [isDev, overlayVisibility.siteTwin, siteTwinManifest]);
-
-  const getOverlayElement = useCallback(() => sidebarOverlayRef.current, []);
-  const fitMapBoundsInViewport = useCallback((map, bounds, options = {}) => {
-    fitBoundsInVisibleViewport(map, bounds, {
-      ...options,
-      getOverlayElement,
     });
-  }, [getOverlayElement]);
-  const panMapIntoViewport = useCallback((map, latLng, options = {}) => {
-    panIntoVisibleViewport(map, latLng, {
-      ...options,
-      getOverlayElement,
+    return true;
+  }, [canApplyViewportFocus, getOverlayElement, runProgrammaticViewportMove]);
+  const panMapIntoViewport = useCallback((
+    map,
+    latLng,
+    {
+      ignoreViewportIntent = false,
+      isExplicitFocus = false,
+      ...options
+    } = {}
+  ) => {
+    if (!ignoreViewportIntent && !canApplyViewportFocus({ isExplicitFocus })) {
+      return false;
+    }
+
+    runProgrammaticViewportMove(map, () => {
+      panIntoVisibleViewport(map, latLng, {
+        ...options,
+        getOverlayElement,
+      });
     });
-  }, [getOverlayElement]);
+    return true;
+  }, [canApplyViewportFocus, getOverlayElement, runProgrammaticViewportMove]);
   const schedulePopupLayout = useCallback((popup) => {
     if (!popup) {
-      return;
-    }
-
-    if (popup.__customRuntimePopup) {
       return;
     }
 
@@ -1463,6 +1319,30 @@ export default function BurialMap() {
 
     return true;
   }, [isMobile]);
+  const handleToggleSearchPanel = useCallback(() => {
+    setIsSearchPanelVisible((current) => !current);
+  }, []);
+
+  useEffect(() => {
+    if (isMobile) {
+      setIsSearchPanelVisible(true);
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    const map = getMapInstance();
+    if (!map || typeof map.invalidateSize !== "function") {
+      return undefined;
+    }
+
+    const timeoutId = setTimeout(() => {
+      map.invalidateSize();
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [getMapInstance, isMobile, isSearchPanelVisible]);
 
   useEffect(() => {
     shouldUseMapPopupsRef.current = shouldUseMapPopups;
@@ -1473,52 +1353,6 @@ export default function BurialMap() {
 
     closeMapPopup();
   }, [closeMapPopup, shouldUseMapPopups]);
-
-  useEffect(() => {
-    if (!isDev) {
-      setIsPmtilesEnabled(false);
-      return;
-    }
-
-    setStoredDevelopmentSurfaceOverride(
-      PMTILES_EXPERIMENT_SURFACE.id,
-      isPmtilesEnabled
-    );
-  }, [isDev, isPmtilesEnabled]);
-
-  useEffect(() => {
-    if (!isDev || typeof window === "undefined") {
-      setSiteTwinDebugState(getDefaultSiteTwinDebugState());
-      return;
-    }
-
-    try {
-      const storedValue = window.localStorage.getItem(SITE_TWIN_DEBUG_STORAGE_KEY);
-      if (!storedValue) {
-        setSiteTwinDebugState(getDefaultSiteTwinDebugState());
-        return;
-      }
-
-      setSiteTwinDebugState(normalizeSiteTwinDebugState(JSON.parse(storedValue)));
-    } catch (_error) {
-      setSiteTwinDebugState(getDefaultSiteTwinDebugState());
-    }
-  }, [isDev]);
-
-  useEffect(() => {
-    if (!isDev || typeof window === "undefined") {
-      return;
-    }
-
-    try {
-      window.localStorage.setItem(
-        SITE_TWIN_DEBUG_STORAGE_KEY,
-        JSON.stringify(normalizeSiteTwinDebugState(siteTwinDebugState))
-      );
-    } catch (_error) {
-      // Ignore storage failures in private browsing and constrained environments.
-    }
-  }, [isDev, siteTwinDebugState]);
 
   useEffect(() => {
     if (isFieldPacketsEnabled) return;
@@ -1575,12 +1409,6 @@ export default function BurialMap() {
     () => new Map(burialRecords.map((record) => [record.id, record])),
     [burialRecords]
   );
-  const burialRecordsByObjectId = useMemo(
-    () => new Map(
-      burialRecords.map((record) => [String(record.OBJECTID), record])
-    ),
-    [burialRecords]
-  );
   const burialSectionIndex = useMemo(
     () => buildBurialSectionIndex(burialRecords),
     [burialRecords]
@@ -1613,15 +1441,41 @@ export default function BurialMap() {
     [burialLookup]
   );
 
-  const sectionBurials = useMemo(() => (
-    filterBurialRecordsBySection(burialRecords, {
+  const sectionDetailTourDefinition = useMemo(() => findSectionBrowseDetailDefinition(
+    tourDefinitions,
+    {
       sectionFilter,
       lotTierFilter,
       filterType,
-    }, {
+    }
+  ), [filterType, lotTierFilter, sectionFilter, tourDefinitions]);
+  const sectionDetailTourName = sectionDetailTourDefinition?.name || "";
+
+  const sectionRecordsOverride = useMemo(() => {
+    if (!sectionDetailTourName) return null;
+
+    return Object.prototype.hasOwnProperty.call(tourResultsByName, sectionDetailTourName)
+      ? (tourResultsByName[sectionDetailTourName] || EMPTY_TOUR_RESULTS)
+      : null;
+  }, [sectionDetailTourName, tourResultsByName]);
+
+  const sectionBurials = useMemo(() => (
+    resolveSectionBrowseRecords({
+      burialRecords,
+      sectionRecordsOverride,
       sectionIndex: burialSectionIndex,
+      sectionFilter,
+      lotTierFilter,
+      filterType,
     })
-  ), [burialRecords, burialSectionIndex, filterType, lotTierFilter, sectionFilter]);
+  ), [
+    burialRecords,
+    burialSectionIndex,
+    filterType,
+    lotTierFilter,
+    sectionFilter,
+    sectionRecordsOverride,
+  ]);
 
   /**
    * Build search indexes off the main interaction path.
@@ -1681,8 +1535,9 @@ export default function BurialMap() {
   //-----------------------------------------------------------------------------
 
   /**
-   * Handles user location tracking
-   * Checks if user is within 5 miles of the cemetery
+   * Location acceptance pipeline. One-shot requests and watch updates both pass
+   * through the same buffer, accuracy, recency, and smoothing rules before they
+   * can affect map state or active routing.
    */
   const resetLocationCandidateWindow = useCallback(() => {
     locationRecentCandidatesRef.current = [];
@@ -1703,41 +1558,93 @@ export default function BurialMap() {
       return null;
     }
 
-    acceptedLocationRef.current = location;
-    setStatus(LOCATION_MESSAGES.active);
-    setLat(location.latitude);
-    setLng(location.longitude);
-    setLocationAccuracyMeters(location.accuracyMeters);
+    // Tag accepted fixes with `isApproximate` so subsequent updates can decide
+    // whether to upgrade (approximate -> accurate) and so the chrome can show
+    // an informational tone instead of pretending we have a precise pin.
+    const isApproximate = isApproximateLocationAccuracy(location.accuracyMeters);
+    const annotatedLocation = location.isApproximate === isApproximate
+      ? location
+      : { ...location, isApproximate };
+
+    acceptedLocationRef.current = annotatedLocation;
+    setStatus(
+      isApproximate
+        ? (LOCATION_MESSAGES.approximate || LOCATION_MESSAGES.active)
+        : LOCATION_MESSAGES.active
+    );
+    setLat(annotatedLocation.latitude);
+    setLng(annotatedLocation.longitude);
+    setLocationAccuracyMeters(annotatedLocation.accuracyMeters);
 
     if (activeRouteBurialIdRef.current) {
-      setRoutingOrigin([location.latitude, location.longitude]);
+      setRoutingOrigin([annotatedLocation.latitude, annotatedLocation.longitude]);
     }
 
-    return location;
+    return annotatedLocation;
   }, []);
 
-  const updateLocationFromPosition = useCallback((position) => {
+  // The shell may opt in to accepting a coarse network/Wi-Fi fix as
+  // "approximate" (e.g. after the high-accuracy attempt timed out under
+  // canopy). Watch updates always run with the strict thresholds so we don't
+  // accidentally downgrade an accurate pin.
+  const resolveAcceptedAccuracyThreshold = useCallback((options) => {
+    const { allowApproximateAcceptance = false } = options || {};
+    const previousLocation = acceptedLocationRef.current;
+
+    if (!previousLocation) {
+      return allowApproximateAcceptance
+        ? LOCATION_APPROXIMATE_MAX_ACCURACY_METERS
+        : LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS;
+    }
+
+    // While the accepted fix is still approximate, keep the door open for any
+    // candidate that is not worse than the looser approximate threshold so a
+    // 200m fix can replace a 600m one. selectBestRecentLocationCandidate then
+    // picks the most accurate of the recent candidates.
+    if (previousLocation.isApproximate) {
+      return LOCATION_APPROXIMATE_MAX_ACCURACY_METERS;
+    }
+
+    return LOCATION_MAX_ACCEPTABLE_ACCURACY_METERS;
+  }, []);
+
+  const updateLocationFromPosition = useCallback((position, options = {}) => {
     const candidate = normalizeLocationPosition(position);
     if (!candidate) {
       return acceptedLocationRef.current;
     }
 
-    const currentPoint = point([candidate.longitude, candidate.latitude]);
-    const isWithinBuffer = booleanPointInPolygon(currentPoint, LOCATION_BUFFER_BOUNDARY);
-
-    if (!isWithinBuffer) {
+    if (!isLocationCandidateWithinBuffer(candidate)) {
       if (acceptedLocationRef.current) {
+        // A noisy coarse fix near the boundary should not invalidate an
+        // already-trusted on-site pin. Keep what we have and let the watch
+        // refine it.
         return acceptedLocationRef.current;
+      }
+
+      // Without a prior fix, only treat a *confidently* off-site reading as
+      // out-of-bounds. A coarse cell-tower fix that lands a few hundred meters
+      // outside the buffer is more likely a low-accuracy estimate of someone
+      // standing inside the cemetery than a real off-site visitor.
+      if (isApproximateLocationAccuracy(candidate.accuracyMeters)) {
+        // Keep the chrome aligned with reality: we ignored this reading and
+        // the watch is still trying for a better one. Without this nudge the
+        // status would stay frozen on "Locating..." (or whatever was set
+        // upstream) and look like the request hung.
+        if (watchIdRef.current !== null && LOCATION_MESSAGES.weakSignal) {
+          setStatus(LOCATION_MESSAGES.weakSignal);
+        }
+        return null;
       }
 
       clearAcceptedLocation(LOCATION_MESSAGES.outOfBounds);
       return null;
     }
 
-    const maxAcceptedAccuracyMeters = acceptedLocationRef.current
-      ? undefined
-      : LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS;
+    const maxAcceptedAccuracyMeters = resolveAcceptedAccuracyThreshold(options);
 
+    // The first accepted fix must be reasonably accurate; once we have a good
+    // on-site fix, later watch updates can be smoothed against it.
     if (shouldRejectLocationCandidate(candidate, { maxAcceptedAccuracyMeters })) {
       return acceptedLocationRef.current;
     }
@@ -1748,7 +1655,11 @@ export default function BurialMap() {
     nextCandidates.push(candidate);
     locationRecentCandidatesRef.current = nextCandidates;
 
-    const nextBestCandidate = selectBestRecentLocationCandidate(nextCandidates);
+    const nextBestCandidate = activeRouteBurialIdRef.current
+      ? selectRouteTrackingLocationCandidate(nextCandidates, {
+        previousLocation: acceptedLocationRef.current,
+      })
+      : selectBestRecentLocationCandidate(nextCandidates);
     if (!nextBestCandidate) {
       return acceptedLocationRef.current;
     }
@@ -1759,17 +1670,40 @@ export default function BurialMap() {
 
     selectedLocationFixRef.current = nextBestCandidate;
 
+    // Smoothing is only useful between fixes of comparable quality. When we're
+    // upgrading from an approximate (coarse) fix to a precise one, blending
+    // would drag the new pin back toward the unreliable position; snap to the
+    // accurate candidate instead.
+    const previousLocation = acceptedLocationRef.current;
+    const shouldSnapInsteadOfSmooth = previousLocation?.isApproximate
+      && !isApproximateLocationAccuracy(nextBestCandidate.accuracyMeters);
+
     return commitAcceptedLocation(
-      smoothLocationCandidate(acceptedLocationRef.current, nextBestCandidate)
+      shouldSnapInsteadOfSmooth
+        ? nextBestCandidate
+        : smoothLocationCandidate(previousLocation, nextBestCandidate)
     );
-  }, [clearAcceptedLocation, commitAcceptedLocation]);
+  }, [clearAcceptedLocation, commitAcceptedLocation, resolveAcceptedAccuracyThreshold]);
 
   const handleLocationError = useCallback((error) => {
-    if (!acceptedLocationRef.current) {
-      setStatus(LOCATION_MESSAGES.unavailable);
+    const fallbackLocation = acceptedLocationRef.current;
+    if (!fallbackLocation) {
+      // Permission denial is a distinct user-facing condition: the user can
+      // remediate it in browser/OS settings. Generic "unavailable" hides that.
+      const isPermissionDenied = error?.code === GEOLOCATION_PERMISSION_DENIED;
+      const message = isPermissionDenied
+        ? (LOCATION_MESSAGES.permissionDenied || LOCATION_MESSAGES.unavailable)
+        : LOCATION_MESSAGES.unavailable;
+      setStatus(message);
+      if (isPermissionDenied) {
+        console.warn('Geolocation permission denied:', error);
+      } else {
+        console.error('Geolocation error:', error);
+      }
+      return null;
     }
-    console.error('Geolocation error:', error);
-    return acceptedLocationRef.current;
+
+    return fallbackLocation;
   }, []);
 
   const waitForAcceptedLocation = useCallback((timeoutMs = GEOLOCATION_REQUEST_OPTIONS.timeout) => new Promise((resolve) => {
@@ -1805,35 +1739,174 @@ export default function BurialMap() {
     }
 
     setStatus(LOCATION_MESSAGES.locating);
+    let didResolve = false;
+    let timeoutId = null;
+
+    const resolveLocationRequest = (
+      nextLocation,
+      { markUnavailableWhenEmpty = false } = {}
+    ) => {
+      if (didResolve) {
+        return;
+      }
+
+      didResolve = true;
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+      // Avoid showing "GPS unavailable" while the watch pipeline is still
+      // actively trying. The watch's own error handler will surface the
+      // unavailable state if it eventually fails.
+      if (
+        !nextLocation
+        && markUnavailableWhenEmpty
+        && !acceptedLocationRef.current
+        && watchIdRef.current === null
+      ) {
+        setStatus(LOCATION_MESSAGES.unavailable);
+      }
+      resolve(nextLocation);
+    };
+
+    // The success and error paths from each geolocation stage have to share
+    // identical wait-for-watch and resolve semantics, so we wrap them as
+    // small helpers instead of duplicating the logic in every callback.
+    const handleAcceptedPosition = (position, { allowApproximate = false } = {}) => {
+      const requestedCandidate = normalizeLocationPosition(position);
+      const isOutsideLocationBuffer = requestedCandidate
+        && !isLocationCandidateWithinBuffer(requestedCandidate);
+      const nextLocation = updateLocationFromPosition(position, {
+        allowApproximateAcceptance: allowApproximate,
+      });
+
+      if (nextLocation || watchIdRef.current === null || isOutsideLocationBuffer) {
+        resolveLocationRequest(nextLocation, {
+          markUnavailableWhenEmpty: !isOutsideLocationBuffer,
+        });
+        return;
+      }
+
+      // The one-shot returned a fix but the pipeline rejected it as too
+      // noisy. The watch may still accept a better candidate shortly.
+      // Mirror the stage-2 retry path and tell the user we're still trying;
+      // otherwise the chrome would sit silently on "Locating..." while we
+      // wait, which feels indistinguishable from a stuck request.
+      if (LOCATION_MESSAGES.weakSignal) {
+        setStatus(LOCATION_MESSAGES.weakSignal);
+      }
+      void waitForAcceptedLocation().then((nextAcceptedLocation) => {
+        resolveLocationRequest(nextAcceptedLocation, {
+          markUnavailableWhenEmpty: true,
+        });
+      });
+    };
+
+    const finalizeAfterUnrecoverableError = (error) => {
+      const fallbackLocation = handleLocationError(error);
+      if (fallbackLocation || watchIdRef.current === null) {
+        resolveLocationRequest(fallbackLocation, {
+          markUnavailableWhenEmpty: true,
+        });
+        return;
+      }
+
+      void waitForAcceptedLocation().then((nextLocation) => {
+        resolveLocationRequest(nextLocation || fallbackLocation, {
+          markUnavailableWhenEmpty: true,
+        });
+      });
+    };
+
+    const handlePermissionDenied = (error) => {
+      // Permission denied is fatal for this session - retrying would either
+      // re-prompt or silently fail the same way. Surface a distinct message
+      // so the user knows what to fix.
+      const permissionDeniedMessage = LOCATION_MESSAGES.permissionDenied
+        || LOCATION_MESSAGES.unavailable;
+      setStatus(permissionDeniedMessage);
+      console.warn('Geolocation permission denied:', error);
+      resolveLocationRequest(acceptedLocationRef.current, {
+        markUnavailableWhenEmpty: false,
+      });
+    };
+
+    // Stage 2: low-accuracy / cached fallback. This is what saves us under
+    // canopy: a recent cell-tower or Wi-Fi fix returns near-instantly and
+    // (because we pass allowApproximate) is acceptable up to ~1km, marked as
+    // an "approximate" pin that the watch can later upgrade.
+    const startFallbackStage = (primaryError) => {
+      // Tell the user we have not given up. This message is intentionally
+      // surfaced before issuing the fallback request so the chrome doesn't
+      // sit silent during the typical 2-10s low-accuracy round-trip.
+      if (LOCATION_MESSAGES.weakSignal) {
+        setStatus(LOCATION_MESSAGES.weakSignal);
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          if (didResolve) return;
+          handleAcceptedPosition(position, { allowApproximate: true });
+        },
+        (fallbackError) => {
+          if (didResolve) return;
+          if (fallbackError?.code === GEOLOCATION_PERMISSION_DENIED) {
+            handlePermissionDenied(fallbackError);
+            return;
+          }
+          finalizeAfterUnrecoverableError(fallbackError || primaryError);
+        },
+        GEOLOCATION_FALLBACK_REQUEST_OPTIONS,
+      );
+    };
+
+    // Outer deadline is a safety net in case both stages of the geolocation
+    // API hang. The internal `timeout` options on each stage normally fire
+    // first and route through the error handler.
+    const outerDeadlineMs = GEOLOCATION_REQUEST_OPTIONS.timeout
+      + GEOLOCATION_FALLBACK_REQUEST_OPTIONS.timeout
+      + 2000;
+    timeoutId = setTimeout(() => {
+      resolveLocationRequest(acceptedLocationRef.current, {
+        markUnavailableWhenEmpty: true,
+      });
+    }, outerDeadlineMs);
+
+    // Stage 1: high-accuracy GPS. Most successful first-time fixes happen
+    // here within 5-15s of clear sky.
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const nextLocation = updateLocationFromPosition(position);
-        if (nextLocation || watchIdRef.current === null) {
-          resolve(nextLocation);
+        if (didResolve) return;
+        handleAcceptedPosition(position, { allowApproximate: false });
+      },
+      (primaryError) => {
+        if (didResolve) return;
+        if (primaryError?.code === GEOLOCATION_PERMISSION_DENIED) {
+          handlePermissionDenied(primaryError);
           return;
         }
-
-        void waitForAcceptedLocation().then(resolve);
+        // TIMEOUT (code 3) and POSITION_UNAVAILABLE (code 2) both indicate
+        // weak signal - both deserve the fallback retry instead of an
+        // immediate "unavailable".
+        startFallbackStage(primaryError);
       },
-      (error) => {
-        const fallbackLocation = handleLocationError(error);
-        if (fallbackLocation || watchIdRef.current === null) {
-          resolve(fallbackLocation);
-          return;
-        }
-
-        void waitForAcceptedLocation().then((nextLocation) => {
-          resolve(nextLocation || fallbackLocation);
-        });
-      },
-      GEOLOCATION_REQUEST_OPTIONS
+      GEOLOCATION_REQUEST_OPTIONS,
     );
   }), [handleLocationError, updateLocationFromPosition, waitForAcceptedLocation]);
 
-  const focusUserLocationOnMap = useCallback((location, { animate = !shouldReduceMapMotion } = {}) => {
+  const focusUserLocationOnMap = useCallback((
+    location,
+    {
+      animate = !shouldReduceMapMotion,
+      isExplicitFocus = false,
+    } = {}
+  ) => {
     const map = getMapInstance();
     if (!map || !location) {
-      return;
+      return false;
+    }
+
+    if (!canApplyViewportFocus({ isExplicitFocus })) {
+      return false;
     }
 
     const targetLatLng = {
@@ -1845,9 +1918,22 @@ export default function BurialMap() {
       sectionDetailMinZoom
     );
 
-    map.setView(targetLatLng, targetZoom, { animate });
-    panMapIntoViewport(map, targetLatLng, { animate: false });
-  }, [getMapInstance, panMapIntoViewport, sectionDetailMinZoom, shouldReduceMapMotion]);
+    runProgrammaticViewportMove(map, () => {
+      map.setView(targetLatLng, targetZoom, { animate });
+    });
+    panMapIntoViewport(map, targetLatLng, {
+      animate: false,
+      ignoreViewportIntent: true,
+    });
+    return true;
+  }, [
+    canApplyViewportFocus,
+    getMapInstance,
+    panMapIntoViewport,
+    runProgrammaticViewportMove,
+    sectionDetailMinZoom,
+    shouldReduceMapMotion,
+  ]);
 
   const ensureLocationWatchActive = useCallback(() => {
     if (!navigator.geolocation) {
@@ -1889,24 +1975,50 @@ export default function BurialMap() {
   }, []);
 
   const onLocateMarker = useCallback(async () => {
-    focusLocationOnNextAcceptedFixRef.current = true;
-    resetLocationCandidateWindow();
-    ensureLocationWatchActive();
+    // Guard against rapid double-tap: weak-signal users frequently mash the
+    // Find Me button while waiting, which used to fan out into multiple
+    // in-flight requests and flicker the chrome. While a request is pending,
+    // additional taps just refocus the camera onto whatever fix we already
+    // have so the action still feels responsive.
+    if (isLocateRequestInFlightRef.current) {
+      if (acceptedLocationRef.current) {
+        focusUserLocationOnMap(acceptedLocationRef.current, { isExplicitFocus: true });
+      }
+      return;
+    }
 
-    const location = await requestCurrentLocation();
-    if (location) {
-      focusLocationOnNextAcceptedFixRef.current = false;
-      focusUserLocationOnMap(location);
+    isLocateRequestInFlightRef.current = true;
+    try {
+      markExplicitViewportFocus();
+      focusLocationOnNextAcceptedFixRef.current = true;
+      resetLocationCandidateWindow();
+      ensureLocationWatchActive();
+
+      const location = await requestCurrentLocation();
+      if (location) {
+        focusLocationOnNextAcceptedFixRef.current = false;
+        focusUserLocationOnMap(location);
+      }
+    } finally {
+      isLocateRequestInFlightRef.current = false;
     }
   }, [
     ensureLocationWatchActive,
     focusUserLocationOnMap,
+    markExplicitViewportFocus,
     requestCurrentLocation,
     resetLocationCandidateWindow,
   ]);
 
+  // A selected record can be backed by one of three Leaflet collections:
+  // section browse markers, loaded tour layers, or selected-result markers.
   const getPopupLayerForBurial = useCallback((burial) => {
     if (!burial) return null;
+
+    const sectionMarker = sectionMarkersByIdRef.current.get(getSectionBurialMarkerId(burial));
+    if (sectionMarker) {
+      return sectionMarker;
+    }
 
     if (burial.source === "tour") {
       return tourFeatureLayersRef.current.get(burial.id) || null;
@@ -1975,12 +2087,16 @@ export default function BurialMap() {
   }, [openPopupForBurial, shouldUseMapPopups]);
 
   /**
-   * Focuses a burial consistently regardless of whether it was found by search or map click.
+   * Focuses a burial consistently regardless of whether it came from search,
+   * section browse, a tour stop, a marker click, or a restored deep link.
+   * Reducer state updates first for sidebar/mobile state, then the viewport
+   * moves, then the popup opens after Leaflet finishes any animation.
    */
   const focusBurial = useCallback((
     burial,
     {
       animate = true,
+      isExplicitFocus = false,
       openTourPopup = true,
       preserveViewport = false,
     } = {}
@@ -2003,6 +2119,10 @@ export default function BurialMap() {
         return;
       }
 
+      if (!canApplyViewportFocus({ isExplicitFocus })) {
+        return;
+      }
+
       const targetZoom = Math.min(
         getMapMaxZoom(activeBasemap),
         Math.max(map.getZoom(), FOCUS_ZOOM_LEVEL)
@@ -2011,14 +2131,19 @@ export default function BurialMap() {
       const distance = map.distance(currentCenter, targetLatLng);
       const shouldAnimate = animate && distance > 24;
       const finalizeViewport = () => {
-        panMapIntoViewport(map, targetLatLng, { animate: false });
+        panMapIntoViewport(map, targetLatLng, {
+          animate: false,
+          ignoreViewportIntent: true,
+        });
         if (openTourPopup) {
           focusBurialPopup(burial);
         }
       };
 
       if (!shouldAnimate) {
-        map.setView(targetLatLng, targetZoom, { animate: false });
+        runProgrammaticViewportMove(map, () => {
+          map.setView(targetLatLng, targetZoom, { animate: false });
+        });
         finalizeViewport();
         return;
       }
@@ -2026,21 +2151,31 @@ export default function BurialMap() {
       map.stop();
       map.once("moveend", finalizeViewport);
 
-      map.flyTo(
-        targetLatLng,
-        targetZoom,
-        {
-          duration: 0.5,
-          easeLinearity: 0.2,
-        }
-      );
+      runProgrammaticViewportMove(map, () => {
+        map.flyTo(
+          targetLatLng,
+          targetZoom,
+          {
+            duration: 0.5,
+            easeLinearity: 0.2,
+          }
+        );
+      });
       return;
     }
 
     if (openTourPopup) {
       focusBurialPopup(burial);
     }
-  }, [activeBasemap, dispatchSelectionAction, focusBurialPopup, getMapInstance, panMapIntoViewport]);
+  }, [
+    activeBasemap,
+    canApplyViewportFocus,
+    dispatchSelectionAction,
+    focusBurialPopup,
+    getMapInstance,
+    panMapIntoViewport,
+    runProgrammaticViewportMove,
+  ]);
 
   const selectBurial = useCallback((burial, options = {}) => {
     focusBurial(burial, options);
@@ -2095,14 +2230,12 @@ export default function BurialMap() {
     setAppMenuAnchorEl(null);
   }, []);
 
-  const handleTogglePmtilesExperiment = useCallback(() => {
-    setIsPmtilesEnabled((current) => !current);
-  }, []);
-
   const requestBurialDataLoad = useCallback(() => {
     setHasRequestedBurialData(true);
   }, []);
 
+  // Field packets snapshot the selected records plus enough map context to
+  // restore a shared link without mixing it with loose query/section params.
   const showFieldPacketNotice = useCallback((message, tone = "neutral") => {
     const nextMessage = String(message || "").trim();
     if (!nextMessage) {
@@ -2303,14 +2436,20 @@ export default function BurialMap() {
   }, []);
 
   /**
-   * Handles clicking on a search result item
+   * Search and browse result clicks are explicit focus requests, so they are
+   * allowed to move the viewport even after manual panning.
    */
   const handleResultClick = useCallback((burial) => {
-    focusBurial(burial);
+    focusBurial(burial, { isExplicitFocus: true });
   }, [focusBurial]);
 
+  const handleBrowseResultSelect = useCallback((burial) => {
+    selectBurial(burial, { isExplicitFocus: true });
+  }, [selectBurial]);
+
   /**
-   * Creates a marker cluster group with custom styling
+   * Creates the section-burial cluster group. Cluster clicks either spiderfy
+   * coincident burials or move to the next zoom band that exposes more detail.
    */
   const createClusterGroup = useCallback(() => {
     const clusterGroup = L.markerClusterGroup({
@@ -2324,12 +2463,13 @@ export default function BurialMap() {
       chunkInterval: 200,
       chunkDelay: 50,
       iconCreateFunction: (cluster) => {
-        const count = cluster.getChildCount();
+        const childMarkers = cluster.getAllChildMarkers?.() || [];
+        const count = getClusterIconCount(cluster, childMarkers);
         return L.divIcon({
           html: `
             <div class="cemetery-cluster">
               ${CEMETERY_CLUSTER_GLYPH}
-              <span class="cemetery-cluster__count">${count > 99 ? '99+' : count}</span>
+              <span class="cemetery-cluster__count">${count}</span>
             </div>
           `,
           className: 'custom-cluster-icon',
@@ -2342,13 +2482,24 @@ export default function BurialMap() {
     clusterGroup.on("clusterclick", (event) => {
       const map = clusterGroup._map || event?.target?._map;
       const cluster = event?.layer;
+      const childMarkers = cluster?.getAllChildMarkers?.() || [];
       const clusterBounds = cluster?.getBounds?.();
 
-      if (!map || !clusterBounds) {
+      if (!map || !cluster) {
         return;
       }
 
       event?.originalEvent?.preventDefault?.();
+
+      if (childMarkers.length > 0 && areMarkersAtSameLocation(childMarkers)) {
+        cluster.spiderfy?.();
+        return;
+      }
+
+      if (!clusterBounds) {
+        return;
+      }
+
       const targetZoom = resolveClusterExpansionZoom({
         currentZoom: map.getZoom?.(),
         disableClusteringAtZoom: sectionBurialDisableClusteringZoom,
@@ -2368,12 +2519,16 @@ export default function BurialMap() {
       });
 
       if (targetLatLng && targetZoom > map.getZoom()) {
-        map.setView(targetLatLng, targetZoom, { animate: !shouldReduceMapMotion });
+        markExplicitViewportFocus();
+        runProgrammaticViewportMove(map, () => {
+          map.setView(targetLatLng, targetZoom, { animate: !shouldReduceMapMotion });
+        });
         return;
       }
 
       fitMapBoundsInViewport(map, clusterBounds, {
         animate: !shouldReduceMapMotion,
+        isExplicitFocus: true,
         maxZoom: targetZoom,
       });
     });
@@ -2381,9 +2536,11 @@ export default function BurialMap() {
     return clusterGroup;
   }, [
     fitMapBoundsInViewport,
+    markExplicitViewportFocus,
     sectionBurialClusterRadius,
     sectionBurialDisableClusteringZoom,
     shouldReduceMapMotion,
+    runProgrammaticViewportMove,
   ]);
 
   const getSectionBurialPresentationZoom = useCallback(() => {
@@ -2392,6 +2549,9 @@ export default function BurialMap() {
     return Number.isFinite(mapZoom) ? mapZoom : currentZoomRef.current;
   }, [getMapInstance]);
 
+  // Section browse markers are manually managed circle markers inside
+  // markercluster, so active/hover styling is synchronized through narrow
+  // helpers instead of relying on React prop reconciliation.
   const syncInteractiveSectionMarkers = useCallback((nextActiveId, nextHoveredId) => {
     const sectionMarkers = sectionMarkersByIdRef.current;
     const markerIdsToSync = new Set([
@@ -2563,7 +2723,7 @@ export default function BurialMap() {
   }, [clearHoveredSection, selectBurial]);
 
   const syncLeafletSelectedMarkerIcon = useCallback((burialId, layerOverride = null) => {
-    if (isCustomMapRuntimeActive || !burialId) {
+    if (!burialId) {
       return;
     }
 
@@ -2582,23 +2742,21 @@ export default function BurialMap() {
     if (typeof layer.setZIndexOffset === "function") {
       layer.setZIndexOffset(isHighlighted ? 1200 : 1000);
     }
-  }, [isCustomMapRuntimeActive, selectedMarkerOrderById]);
+  }, [selectedMarkerOrderById]);
 
   const syncLeafletSelectedMarkerIcons = useCallback(() => {
-    if (isCustomMapRuntimeActive) {
-      return;
-    }
-
     selectedMarkerOrderById.forEach((_, burialId) => {
       syncLeafletSelectedMarkerIcon(burialId);
     });
-  }, [isCustomMapRuntimeActive, selectedMarkerOrderById, syncLeafletSelectedMarkerIcon]);
+  }, [selectedMarkerOrderById, syncLeafletSelectedMarkerIcon]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
       return undefined;
     }
 
+    // Touch devices can emit synthetic mouse events after touch input. Track the
+    // real hover capability so section polygons do not stay highlighted on tap.
     const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
     const handleHoverCapabilityChange = (event) => {
       canSectionHoverRef.current = event.matches;
@@ -2641,8 +2799,8 @@ export default function BurialMap() {
   //=============================================================================
 
   /**
-   * Starts turn-by-turn navigation to a burial location
-   * @param {Object} burial - The burial record to navigate to
+   * Starts the in-map cemetery-road route to a burial location.
+   * External Apple/Google Maps directions are handled by openExternalDirections.
    */
   const startRouting = useCallback(async (burial) => {
     if (!Array.isArray(burial?.coordinates)) {
@@ -2650,17 +2808,20 @@ export default function BurialMap() {
       return;
     }
 
+    markExplicitViewportFocus();
     resetLocationCandidateWindow();
     ensureLocationWatchActive();
 
     const location = acceptedLocationRef.current || await requestCurrentLocation();
 
     if (!location) {
+      setRouteError(ROUTING_LOCATION_REQUIRED_MESSAGE);
       return;
     }
 
     selectBurial(burial, {
       animate: false,
+      isExplicitFocus: true,
       openTourPopup: true,
     });
 
@@ -2671,6 +2832,7 @@ export default function BurialMap() {
     setActiveRouteBurialId(burial.id);
   }, [
     ensureLocationWatchActive,
+    markExplicitViewportFocus,
     requestCurrentLocation,
     resetLocationCandidateWindow,
     selectBurial,
@@ -2726,13 +2888,12 @@ export default function BurialMap() {
       return undefined;
     }
 
+    // Route recalculation is state-driven. Origin updates while tracking should
+    // refresh the path, but only destination changes should blank the old line.
     const shouldResetRouteGeometry = shouldResetRouteGeometryForRequest({
       renderedDestination: renderedRouteDestinationRef.current,
       requestedDestination: routingDestination,
     });
-    const abortController = typeof AbortController === "function"
-      ? new AbortController()
-      : null;
     let ignore = false;
 
     if (shouldResetRouteGeometry) {
@@ -2743,10 +2904,8 @@ export default function BurialMap() {
 
     void calculateWalkingRoute({
       from: routingOrigin,
-      provider: routingProvider,
       roadGraph: roadRoutingGraph,
       to: routingDestination,
-      signal: abortController?.signal,
     }).then((routeResult) => {
       if (ignore) {
         return;
@@ -2765,7 +2924,7 @@ export default function BurialMap() {
         }
       }
     }).catch((error) => {
-      if (ignore || error?.name === "AbortError") {
+      if (ignore) {
         return;
       }
 
@@ -2786,13 +2945,11 @@ export default function BurialMap() {
 
     return () => {
       ignore = true;
-      abortController?.abort?.();
     };
   }, [
     fitMapBoundsInViewport,
     getMapInstance,
     roadRoutingGraph,
-    routingProvider,
     routingDestination,
     routingOrigin,
     sectionBurialIndividualMarkerMinZoom,
@@ -2802,6 +2959,8 @@ export default function BurialMap() {
   // Effects
   //-----------------------------------------------------------------------------
 
+  // Core geography is small enough to load immediately. Burial records remain
+  // lazy so first paint and map controls do not wait on the large search payload.
   useEffect(() => {
     let ignore = false;
 
@@ -2870,7 +3029,8 @@ export default function BurialMap() {
   }, [hasRequestedBurialData, initialDeepLinkNeedsBurialData]);
 
   /**
-   * Load the lightweight burial search index asynchronously.
+   * Load and inflate the minified burial browse payload only after search,
+   * section browse, or deep-link restoration needs record-level data.
    */
   useEffect(() => {
     if (!hasRequestedBurialData) {
@@ -3017,6 +3177,9 @@ export default function BurialMap() {
   useEffect(() => {
     if (!burialRecordsById.size) return;
 
+    // Tour metadata arrives after the base burial payload. Refresh selected
+    // records in place so popup/sidebar data picks up biographies and tour labels
+    // without changing selection order or active focus.
     dispatchSelectionAction(refreshMapSelectionRecords((burial) => {
       if (burial?.source !== "burial") return burial;
 
@@ -3059,7 +3222,7 @@ export default function BurialMap() {
   }, [activeBurialId, selectedBurials]);
 
   /**
-   * Cleanup geolocation watch on unmount
+   * Stop any active geolocation watch when the map shell unmounts.
    */
   useEffect(() => {
     return stopLocationWatch;
@@ -3144,16 +3307,10 @@ export default function BurialMap() {
   ]);
 
   /**
-   * Update section burial marker display
+   * Render section browse burial markers imperatively. Large sections can contain
+   * thousands of points, and markercluster is cheaper when it owns the batch.
    */
   useEffect(() => {
-    if (isCustomMapRuntimeActive) {
-      sectionMarkersByIdRef.current = new Map();
-      activeSectionMarkerIdRef.current = null;
-      hoveredSectionMarkerIdRef.current = null;
-      return undefined;
-    }
-
     const map = getMapInstance();
     if (!map || !showAllBurials || !sectionFilter) return;
 
@@ -3200,6 +3357,9 @@ export default function BurialMap() {
       }
 
       if (nextIndex < sectionBurials.length) {
+        // Large sections can contain thousands of burial markers. Batch marker
+        // creation through idle callbacks so opening a section does not freeze
+        // pan/zoom or the mobile drawer.
         handle = scheduleIdleTask(addNextMarkerBatch, {
           timeout: 250,
           fallbackDelay: 16,
@@ -3237,18 +3397,16 @@ export default function BurialMap() {
     showAllBurials,
     syncInteractiveSectionMarkers,
     getMapInstance,
-    isCustomMapRuntimeActive,
   ]);
 
   useEffect(() => {
-    if (isCustomMapRuntimeActive || !showAllBurials || !sectionFilter) {
+    if (!showAllBurials || !sectionFilter) {
       return;
     }
 
     syncAllSectionMarkerPresentation();
   }, [
     currentZoom,
-    isCustomMapRuntimeActive,
     sectionFilter,
     showAllBurials,
     syncAllSectionMarkerPresentation,
@@ -3263,7 +3421,6 @@ export default function BurialMap() {
   }, [
     activeBurialId,
     hoveredBurialId,
-    isCustomMapRuntimeActive,
     selectedMarkerOrderById,
     syncLeafletSelectedMarkerIcons,
   ]);
@@ -3274,13 +3431,15 @@ export default function BurialMap() {
       return;
     }
 
+    // Popup opening can race marker creation, tour layer loading, and mobile to
+    // desktop transitions. Keep one pending target and retry after layers render.
     const pendingBurial = pendingPopupBurialRef.current;
     if (!pendingBurial) return;
 
     if (openPopupForBurial(pendingBurial)) {
       pendingPopupBurialRef.current = null;
     }
-  }, [activeBurialId, isCustomMapRuntimeActive, openPopupForBurial, selectedBurials, selectedTour, shouldUseMapPopups]);
+  }, [activeBurialId, openPopupForBurial, selectedBurials, selectedTour, shouldUseMapPopups]);
 
   useEffect(() => {
     if (!shouldUseMapPopups || activeBurialId === null || typeof window === "undefined") {
@@ -3304,10 +3463,12 @@ export default function BurialMap() {
         window.cancelAnimationFrame(animationFrame);
       }
     };
-  }, [activeBurialId, isCustomMapRuntimeActive, openPopupForBurial, selectedBurials, shouldUseMapPopups]);
+  }, [activeBurialId, openPopupForBurial, selectedBurials, shouldUseMapPopups]);
 
   /**
-   * Handle map zoom changes
+   * Keep markercluster child-marker styling in sync after zoom changes.
+   * The delayed resync catches markers that markercluster rehydrates after the
+   * immediate `zoomend` handler has already run.
    */
   const handleZoomEnd = useCallback((e) => {
     const map = e.target;
@@ -3322,10 +3483,6 @@ export default function BurialMap() {
   }, [syncAllSectionMarkerPresentation]);
 
   useEffect(() => {
-    if (isCustomMapRuntimeActive) {
-      return undefined;
-    }
-
     scheduleSectionTooltipSync();
 
     return () => {
@@ -3334,16 +3491,14 @@ export default function BurialMap() {
         sectionTooltipSyncFrameRef.current = null;
       }
     };
-  }, [currentZoom, isCustomMapRuntimeActive, scheduleSectionTooltipSync, sectionFilter, showAllBurials]);
+  }, [currentZoom, scheduleSectionTooltipSync, sectionFilter, showAllBurials]);
 
   useEffect(() => {
-    if (isCustomMapRuntimeActive) {
-      return undefined;
-    }
-
     const map = getMapInstance();
     if (!map) return undefined;
     const container = typeof map.getContainer === 'function' ? map.getContainer() : null;
+    // Section polygon hover is mouse-first. Map movement, pointer leave, window
+    // blur, and touch input all clear hover state so tooltips cannot get stuck.
     const handleInterruptedSectionHover = () => {
       clearHoveredSection();
     };
@@ -3377,13 +3532,9 @@ export default function BurialMap() {
       window.removeEventListener('touchstart', handleSectionInputStart, true);
       window.removeEventListener('blur', handleInterruptedSectionHover);
     };
-  }, [clearHoveredSection, getMapInstance, isCustomMapRuntimeActive, markSectionInputMode]);
+  }, [clearHoveredSection, getMapInstance, markSectionInputMode]);
 
   useEffect(() => {
-    if (isCustomMapRuntimeActive) {
-      return undefined;
-    }
-
     const map = getMapInstance();
     if (!map) return undefined;
     const clearInterruptedBurialHover = () => {
@@ -3404,16 +3555,23 @@ export default function BurialMap() {
       map.off("zoomstart", clearInterruptedBurialHover);
       window.removeEventListener("blur", clearInterruptedBurialHover);
     };
-  }, [clearHoveredBurialIfCurrent, getMapInstance, isCustomMapRuntimeActive]);
+  }, [clearHoveredBurialIfCurrent, getMapInstance]);
 
-  const resetMapToDefaultBounds = useCallback(() => {
+  // Browse mode transitions keep section and tour views mutually exclusive.
+  // They also clear active burial focus so the map does not show stale context
+  // from a previous search or tour selection.
+  const resetMapToDefaultBounds = useCallback(({ isExplicitFocus = false } = {}) => {
     const map = getMapInstance();
     if (!map) return;
 
-    fitMapBoundsInViewport(map, DEFAULT_VIEW_BOUNDS);
+    fitMapBoundsInViewport(map, DEFAULT_VIEW_BOUNDS, { isExplicitFocus });
   }, [fitMapBoundsInViewport, getMapInstance]);
 
-  const focusSectionOnMap = useCallback((sectionValue, bounds) => {
+  const focusSectionOnMap = useCallback((
+    sectionValue,
+    bounds,
+    { isExplicitFocus = false } = {}
+  ) => {
     const map = getMapInstance();
     if (!map || !sectionValue) return;
 
@@ -3423,11 +3581,16 @@ export default function BurialMap() {
     }
 
     fitMapBoundsInViewport(map, sectionBounds, {
+      isExplicitFocus,
       maxZoom: sectionBrowseFocusMaxZoom,
     });
   }, [fitMapBoundsInViewport, getMapInstance, sectionBoundsById, sectionBrowseFocusMaxZoom]);
 
-  const activateSectionBrowse = useCallback((sectionValue, bounds) => {
+  const activateSectionBrowse = useCallback((
+    sectionValue,
+    bounds,
+    { isExplicitFocus = true } = {}
+  ) => {
     const nextSection = sectionValue || "";
     requestBurialDataLoad();
     clearHoveredSection();
@@ -3439,7 +3602,7 @@ export default function BurialMap() {
     if (nextSection) {
       setSelectedTour(null);
       setShowAllBurials(true);
-      focusSectionOnMap(nextSection, bounds);
+      focusSectionOnMap(nextSection, bounds, { isExplicitFocus });
       return;
     }
 
@@ -3452,17 +3615,20 @@ export default function BurialMap() {
     setFilterType("lot");
     setSectionFilter("");
     setShowAllBurials(false);
-    resetMapToDefaultBounds();
+    resetMapToDefaultBounds({ isExplicitFocus: true });
   }, [clearActiveBurialFocus, resetMapToDefaultBounds]);
 
-  const handleTourSelect = useCallback((tourName) => {
+  const handleTourSelect = useCallback((tourName, { isExplicitFocus = true } = {}) => {
+    if (tourName && isExplicitFocus) {
+      markExplicitViewportFocus();
+    }
     clearActiveBurialFocus({ clearHover: true });
     setSelectedTour(tourName);
     setSectionFilter("");
     setLotTierFilter("");
     setFilterType("lot");
     setShowAllBurials(false);
-  }, [clearActiveBurialFocus]);
+  }, [clearActiveBurialFocus, markExplicitViewportFocus]);
 
   const focusTourOnMap = useCallback((tourName) => {
     const map = getMapInstance();
@@ -3487,6 +3653,9 @@ export default function BurialMap() {
     const deepLink = initialDeepLinkRef.current || parseDeepLinkState(window.location.search, tourNames);
 
     if (isFieldPacketsEnabled && deepLink.fieldPacket) {
+      // Packed share links carry the most complete restored state. Apply them
+      // before loose query params so the client does not merge two competing
+      // selection sources.
       const nextFieldPacket = deepLink.fieldPacket;
       const packetSelections = (nextFieldPacket.selectedRecords || []).map((record) => (
         record?.source === "burial"
@@ -3498,9 +3667,9 @@ export default function BurialMap() {
         : null;
 
       if (nextFieldPacket.selectedTour) {
-        handleTourSelect(nextFieldPacket.selectedTour);
+        handleTourSelect(nextFieldPacket.selectedTour, { isExplicitFocus: false });
       } else if (nextFieldPacket.sectionFilter) {
-        activateSectionBrowse(nextFieldPacket.sectionFilter);
+        activateSectionBrowse(nextFieldPacket.sectionFilter, undefined, { isExplicitFocus: false });
       }
 
       setFieldPacket(nextFieldPacket);
@@ -3537,9 +3706,9 @@ export default function BurialMap() {
     setSharedLinkLandingState(null);
 
     if (deepLink.selectedTourName) {
-      handleTourSelect(deepLink.selectedTourName);
+      handleTourSelect(deepLink.selectedTourName, { isExplicitFocus: false });
     } else if (deepLink.section) {
-      activateSectionBrowse(deepLink.section);
+      activateSectionBrowse(deepLink.section, undefined, { isExplicitFocus: false });
     } else if (deepLink.showBurialsView) {
       setShowAllBurials(true);
     }
@@ -3579,7 +3748,9 @@ export default function BurialMap() {
   //=============================================================================
 
   /**
-   * Callback for handling section layer interactions
+   * Register section polygon lifecycle and interaction handlers. Each Leaflet
+   * section layer is stored by id so hover/tooltip cleanup can run even when
+   * React re-renders the GeoJSON layer.
    */
   const getSectionStyle = useCallback((feature) => getSectionPolygonStyle({
     sectionId: feature?.properties?.Section,
@@ -3696,6 +3867,9 @@ export default function BurialMap() {
     showSectionTooltip,
   ]);
 
+  // Tour layers are loaded once, sanitized, converted into browse records, then
+  // cached as Leaflet layers. Section-detail browse reuses this same path for
+  // projected headstone datasets that are authored as tour-like GeoJSON.
   const ensureTourLayerLoaded = useCallback(async (tourName) => {
     if (!tourName) return;
 
@@ -3709,7 +3883,18 @@ export default function BurialMap() {
 
     try {
       const module = await definition.load();
-      const sourceFeatures = module.default.features || [];
+      const recordDefaults = definition.sectionBrowse?.recordDefaults || null;
+      const sourceFeatures = (module.default.features || []).map((feature) => (
+        recordDefaults
+          ? {
+            ...feature,
+            properties: {
+              ...recordDefaults,
+              ...(feature.properties || {}),
+            },
+          }
+          : feature
+      ));
       const validFeatures = sourceFeatures.filter((feature) => hasValidGeoJsonCoordinates(feature));
       const sanitizedGeoJson = {
         ...module.default,
@@ -3729,50 +3914,40 @@ export default function BurialMap() {
         )
       ));
       const tourBounds = getGeoJsonBounds(sanitizedGeoJson);
-      let layer = null;
-
-      if (!isCustomMapRuntimeActive) {
-        layer = L.geoJSON(sanitizedGeoJson, {
-          pointToLayer: createTourMarker(definition.key, tourStyles),
-          onEachFeature: createOnEachTourFeature(
-            definition.key,
-            tourName,
-            selectBurial,
-            handleHoverBurialChange,
-            clearHoveredBurialIfCurrent,
-            handleOpenDirectionsMenu,
-            handlePopupBurialClose,
-            handlePopupBurialOpen,
-            removeFromResults,
-            (browseResult, featureLayer) => {
-              tourFeatureLayersRef.current.set(browseResult.id, featureLayer);
-            },
-            resolveTourBrowseResult,
-            schedulePopupLayout,
-            () => shouldUseMapPopupsRef.current
-          )
-        });
-      }
+      const layer = L.geoJSON(sanitizedGeoJson, {
+        pointToLayer: createTourMarker(definition.key, tourStyles),
+        onEachFeature: createOnEachTourFeature(
+          definition.key,
+          tourName,
+          selectBurial,
+          handleHoverBurialChange,
+          clearHoveredBurialIfCurrent,
+          handleOpenDirectionsMenu,
+          handlePopupBurialClose,
+          handlePopupBurialOpen,
+          removeFromResults,
+          (browseResult, featureLayer) => {
+            tourFeatureLayersRef.current.set(browseResult.id, featureLayer);
+          },
+          resolveTourBrowseResult,
+          schedulePopupLayout,
+          () => shouldUseMapPopupsRef.current
+        )
+      });
 
       loadedTourNamesRef.current.add(tourName);
       setTourResultsByName((current) => ({
         ...current,
         [tourName]: normalizedTourResults,
       }));
-      setTourGeoJsonByName((current) => ({
-        ...current,
-        [tourName]: sanitizedGeoJson,
-      }));
       setTourBoundsByName((current) => ({
         ...current,
         [tourName]: tourBounds,
       }));
-      if (layer) {
-        setOverlayMaps((current) => ({
-          ...current,
-          [tourName]: layer
-        }));
-      }
+      setOverlayMaps((current) => ({
+        ...current,
+        [tourName]: layer
+      }));
     } catch (error) {
       console.error('Error loading tour layer:', error);
       setTourLayerError(`Unable to load "${tourName}". Please try again.`);
@@ -3790,10 +3965,19 @@ export default function BurialMap() {
     resolveTourBrowseResult,
     schedulePopupLayout,
     selectBurial,
-    isCustomMapRuntimeActive,
     tourDefinitionsByName,
     tourStyles,
   ]);
+
+  /**
+   * Some precise section marker positions live in projected headstone datasets
+   * that also back tour views. Load the matching detail layer when section
+   * browse is active so default section markers use the richer source.
+   */
+  useEffect(() => {
+    if (!sectionDetailTourName) return;
+    void ensureTourLayerLoaded(sectionDetailTourName);
+  }, [ensureTourLayerLoaded, sectionDetailTourName]);
 
   /**
    * Load the selected tour layer on demand.
@@ -3805,15 +3989,12 @@ export default function BurialMap() {
 
   useEffect(() => {
     if (!selectedTour || !selectedTourBounds) return;
-    if (!isCustomMapRuntimeActive && !selectedTourLayer) return;
-    if (isCustomMapRuntimeActive && !selectedTourGeoJson) return;
+    if (!selectedTourLayer) return;
     focusTourOnMap(selectedTour);
   }, [
     focusTourOnMap,
-    isCustomMapRuntimeActive,
     selectedTour,
     selectedTourBounds,
-    selectedTourGeoJson,
     selectedTourLayer,
   ]);
 
@@ -3857,111 +4038,86 @@ export default function BurialMap() {
     };
   }, [canIdlePrefetchTours, ensureTourLayerLoaded, tourNames]);
 
+  // Render order matters: sidebar/menu chrome overlays the map, static layers
+  // mount inside MapContainer, then transient location/route/selection layers sit
+  // above them so active context stays visible.
   return (
     <div className="map-container">
-      <BurialSidebar
-        activeBurialId={activeBurialId}
-        activeRouteBurialId={activeRouteBurialId}
-        burialDataError={burialDataError}
-        burialRecords={burialRecords}
-        fieldPacket={fieldPacket}
-        fieldPacketNotice={fieldPacketNotice}
-        filterType={filterType}
-        getTourName={getTourName}
-        hoveredBurialId={hoveredBurialId}
-        initialQuery={initialBrowseQuery}
-        installPromptEvent={installPromptEvent}
-        isFieldPacketsEnabled={isFieldPacketsEnabled}
-        isBurialDataLoading={isBurialDataLoading}
-        isInstalled={isInstalled}
-        isMobile={isMobile}
-        isOnline={isOnline}
-        isSearchIndexReady={isSearchIndexReady}
-        loadingTourName={loadingTourName}
-        lotTierFilter={lotTierFilter}
-        mapDataError={mapDataError}
-        markerColors={MARKER_COLORS}
-        rootRef={sidebarOverlayRef}
-        onBrowseResultSelect={selectBurial}
-        onClearSectionFilters={clearSectionFilters}
-        onClearSelectedBurials={clearSelectedBurials}
-        onFilterTypeChange={setFilterType}
-        onFocusSelectedBurial={handleResultClick}
-        onHoverBurialChange={handleHoverBurialChange}
-        onOpenExternalDirections={openExternalDirections}
-        onLocateMarker={onLocateMarker}
-        onLotTierFilterChange={setLotTierFilter}
-        onClearFieldPacket={clearFieldPacket}
-        onCopyFieldPacketLink={copyFieldPacketLink}
-        onInstallApp={handleInstallApp}
-        onOpenAppMenu={handleOpenAppMenu}
-        onOpenDirectionsMenu={handleOpenDirectionsMenu}
-        onRemoveSelectedBurial={removeFromResults}
-        onRequestBurialDataLoad={requestBurialDataLoad}
-        onSectionChange={activateSectionBrowse}
-        onShareFieldPacket={shareFieldPacket}
-        onStartRouting={startRouting}
-        onStopRouting={stopRouting}
-        onToggleSectionMarkers={() => {
-          requestBurialDataLoad();
-          setShowAllBurials((current) => !current);
-        }}
-        onTourChange={handleTourSelect}
-        onUpdateFieldPacket={updateFieldPacket}
-        searchIndex={searchIndex}
-        sectionIndex={burialSectionIndex}
-        sectionFilter={sectionFilter}
-        selectedBurialRefs={selectedBurialRefs}
-        selectedBurials={selectedBurials}
-        selectedTour={selectedTour}
-        showAllBurials={showAllBurials}
-        showIosInstallHint={showIosInstallHint}
-        sharedLinkLandingState={sharedLinkLandingState}
-        status={status}
-        tourDefinitions={tourDefinitions}
-        tourLayerError={tourLayerError}
-        tourResults={selectedTour ? (tourResultsByName[selectedTour] || EMPTY_TOUR_RESULTS) : EMPTY_TOUR_RESULTS}
-        tourStyles={tourStyles}
-        uniqueSections={uniqueSections}
-        iosAppStoreUrl={isAppleMobile ? IOS_APP_STORE_URL : ""}
-      />
+      {(isMobile || isSearchPanelVisible) && (
+        <BurialSidebar
+          activeBurialId={activeBurialId}
+          activeRouteBurialId={activeRouteBurialId}
+          burialDataError={burialDataError}
+          burialRecords={burialRecords}
+          fieldPacket={fieldPacket}
+          fieldPacketNotice={fieldPacketNotice}
+          filterType={filterType}
+          getTourName={getTourName}
+          hoveredBurialId={hoveredBurialId}
+          initialQuery={initialBrowseQuery}
+          installPromptEvent={installPromptEvent}
+          isFieldPacketsEnabled={isFieldPacketsEnabled}
+          isBurialDataLoading={isBurialDataLoading}
+          isInstalled={isInstalled}
+          isMobile={isMobile}
+          isOnline={isOnline}
+          isSearchIndexReady={isSearchIndexReady}
+          loadingTourName={loadingTourName}
+          lotTierFilter={lotTierFilter}
+          mapDataError={mapDataError}
+          markerColors={MARKER_COLORS}
+          rootRef={sidebarOverlayRef}
+          onBrowseResultSelect={handleBrowseResultSelect}
+          onClearSectionFilters={clearSectionFilters}
+          onClearSelectedBurials={clearSelectedBurials}
+          onFilterTypeChange={setFilterType}
+          onFocusSelectedBurial={handleResultClick}
+          onHoverBurialChange={handleHoverBurialChange}
+          onOpenExternalDirections={openExternalDirections}
+          onLocateMarker={onLocateMarker}
+          onLotTierFilterChange={setLotTierFilter}
+          onClearFieldPacket={clearFieldPacket}
+          onCopyFieldPacketLink={copyFieldPacketLink}
+          onInstallApp={handleInstallApp}
+          onOpenAppMenu={handleOpenAppMenu}
+          onOpenDirectionsMenu={handleOpenDirectionsMenu}
+          onRemoveSelectedBurial={removeFromResults}
+          onRequestBurialDataLoad={requestBurialDataLoad}
+          onSectionChange={activateSectionBrowse}
+          onShareFieldPacket={shareFieldPacket}
+          onStartRouting={startRouting}
+          onStopRouting={stopRouting}
+          onToggleSectionMarkers={() => {
+            requestBurialDataLoad();
+            setShowAllBurials((current) => !current);
+          }}
+          onTourChange={handleTourSelect}
+          onUpdateFieldPacket={updateFieldPacket}
+          searchIndex={searchIndex}
+          sectionRecordsOverride={sectionRecordsOverride}
+          sectionIndex={burialSectionIndex}
+          sectionFilter={sectionFilter}
+          selectedBurialRefs={selectedBurialRefs}
+          selectedBurials={selectedBurials}
+          selectedTour={selectedTour}
+          showAllBurials={showAllBurials}
+          showIosInstallHint={showIosInstallHint}
+          sharedLinkLandingState={sharedLinkLandingState}
+          status={status}
+          tourDefinitions={tourDefinitions}
+          tourLayerError={tourLayerError}
+          tourResults={selectedTour ? (tourResultsByName[selectedTour] || EMPTY_TOUR_RESULTS) : EMPTY_TOUR_RESULTS}
+          tourStyles={tourStyles}
+          uniqueSections={uniqueSections}
+          iosAppStoreUrl={isAppleMobile ? IOS_APP_STORE_URL : ""}
+        />
+      )}
 
       <Menu
         anchorEl={appMenuAnchorEl}
         open={appMenuOpen}
         onClose={handleCloseAppMenu}
       >
-        {isDev && <MenuItem disabled>{`Map mode: ${mapEngine === "custom" ? "Preview" : "Standard"}`}</MenuItem>}
-        {isDev && mapEngine !== "leaflet" && (
-          <MenuItem
-            onClick={() => {
-              handleCloseAppMenu();
-              handleMapEngineChange("leaflet");
-            }}
-          >
-            Use standard map
-          </MenuItem>
-        )}
-        {isDev && mapEngine !== "custom" && (
-          <MenuItem
-            onClick={() => {
-              handleCloseAppMenu();
-              handleMapEngineChange("custom");
-            }}
-          >
-            Try preview map
-          </MenuItem>
-        )}
-        {isDev && (
-          <MenuItem
-            onClick={() => {
-              handleCloseAppMenu();
-              handleTogglePmtilesExperiment();
-            }}
-          >
-            {isPmtilesEnabled ? 'Hide detailed grave layer' : 'Show detailed grave layer'}
-          </MenuItem>
-        )}
         {isFieldPacketsEnabled && (
           <MenuItem
             disabled={!fieldPacket?.selectedRecords?.length && selectedBurials.length === 0}
@@ -4052,100 +4208,7 @@ export default function BurialMap() {
         routingError={routeError}
       />
 
-      {isCustomMapRuntimeActive ? (
-        <>
-        <MapControlStack isMobile={isMobile}>
-          <MapLayerControl
-            basemapOptions={MAP_CONTROLLED_BASEMAPS}
-            activeBasemapId={activeBasemap?.id || ""}
-            isOpen={isLayerControlOpen}
-            onBasemapChange={handleBasemapChange}
-            onOpenChange={setIsLayerControlOpen}
-            overlayOptions={MAP_OVERLAY_OPTIONS}
-            overlayVisibility={overlayVisibility}
-            onToggleOverlay={handleToggleOverlay}
-          />
-          <MapHomeButton onClick={resetMapToDefaultBounds} />
-          <MapZoomControl
-            isMobile={isMobile}
-            onZoomIn={() => mapRef.current?.zoomIn?.()}
-            onZoomOut={() => mapRef.current?.zoomOut?.()}
-          />
-          <MobileLocateButton isMobile={isMobile} onLocate={onLocateMarker} />
-          {isDev && SITE_TWIN_CONFIG && (
-            <SiteTwinDebugControl
-              isOverlayEnabled={overlayVisibility.siteTwin !== false}
-              mapEngine={mapEngine}
-              manifest={siteTwinManifest}
-              loadedSummary={siteTwinLoadedSummary}
-              filteredSummary={siteTwinFilteredSummary}
-              debugState={normalizedSiteTwinDebugState}
-              onToggleOverlay={(checked) => {
-                if (checked !== (overlayVisibility.siteTwin !== false)) {
-                  handleToggleOverlay("siteTwin");
-                }
-              }}
-              onUpdateDebugState={handleUpdateSiteTwinDebugState}
-              onResetDebugState={handleResetSiteTwinDebugState}
-            />
-          )}
-        </MapControlStack>
-
-          <CustomMapSurface
-            activeBurialId={activeBurialId}
-            basemap={activeBasemap}
-            boundaryData={boundaryData}
-            defaultCenter={MAP_CENTER}
-            defaultZoom={MAP_ZOOM}
-            getOverlayElement={getOverlayElement}
-            hoveredBurialId={hoveredBurialId}
-            locationAccuracyGeoJson={locationAccuracyGeoJson}
-            mapRef={mapRef}
-            markerColors={MARKER_COLORS}
-            maxBounds={PADDED_BOUNDARY_BOUNDS}
-            maxZoom={activeBasemapMaxZoom}
-            minZoom={13}
-            onActivateSectionBrowse={activateSectionBrowse}
-            onHoverBurialChange={handleHoverBurialChange}
-            onOpenDirectionsMenu={handleOpenDirectionsMenu}
-            onPopupClose={handlePopupBurialClose}
-            onPopupOpen={handlePopupBurialOpen}
-            onRemoveSelectedBurial={removeFromResults}
-            onSelectBurial={selectMapBurial}
-            onZoomChange={handleZoomEnd}
-            roadsData={roadsData}
-            routeGeoJson={routeGeoJson}
-            schedulePopupLayout={schedulePopupLayout}
-            sectionAffordanceMarkers={sectionAffordanceMarkers}
-            sectionBurials={sectionBurials}
-            sectionFilter={sectionFilter}
-            sectionOverviewMarkers={sectionOverviewMarkers}
-            sectionsData={sectionsData}
-            selectedBurials={selectedBurials}
-            selectedMarkerLayersRef={selectedMarkerLayersRef}
-            selectedTourResults={selectedTour ? (tourResultsByName[selectedTour] || EMPTY_TOUR_RESULTS) : EMPTY_TOUR_RESULTS}
-            showSiteTwin={overlayVisibility.siteTwin !== false}
-            showSiteTwinMonuments={normalizedSiteTwinDebugState.showMonuments}
-            showSiteTwinSurface={normalizedSiteTwinDebugState.showSurface}
-            shouldUseMapPopups={shouldUseMapPopups}
-            showBoundary={overlayVisibility.boundary !== false}
-            showAllBurials={showAllBurials}
-            showRoads={showRoads}
-            showSectionAffordanceMarkers={overlayVisibility.sections !== false && showSectionAffordanceMarkers}
-            showSectionClusterMarkers={overlayVisibility.sections !== false && showSectionClusterMarkers}
-            showSections={overlayVisibility.sections !== false && showSections}
-            showSectionOverviewMarkers={overlayVisibility.sections !== false && showSectionOverviewMarkers}
-            siteTwinCandidates={filteredSiteTwinCandidates}
-            siteTwinMonumentHeightScale={normalizedSiteTwinDebugState.monumentHeightScale}
-            siteTwinManifest={siteTwinManifest}
-            siteTwinSurfaceOpacity={siteTwinSurfaceOpacity}
-            trackedLocation={trackedLocation}
-            tourFeatureLayersRef={tourFeatureLayersRef}
-            tourStyles={tourStyles}
-          />
-        </>
-      ) : (
-        <MapContainer
+      <MapContainer
           center={MAP_CENTER}
           zoom={MAP_ZOOM}
           className="map"
@@ -4160,35 +4223,25 @@ export default function BurialMap() {
             activeBasemap={activeBasemap}
             activeBasemapMaxZoom={activeBasemapMaxZoom}
             boundaryData={boundaryData}
-            burialRecordsByObjectId={burialRecordsByObjectId}
             fitMapBoundsInViewport={fitMapBoundsInViewport}
             getSectionStyle={getSectionStyle}
-            isDev={isDev}
             isLayerControlOpen={isLayerControlOpen}
             isMobile={isMobile}
-            isPmtilesEnabled={isPmtilesEnabled}
-            mapEngine={mapEngine}
+            isSearchPanelVisible={isSearchPanelVisible}
             mapRef={mapRef}
             onBasemapChange={handleBasemapChange}
             onEachSectionFeature={onEachSectionFeature}
             onLayerControlOpenChange={setIsLayerControlOpen}
             onLocateMarker={onLocateMarker}
-            onResetSiteTwinDebugState={handleResetSiteTwinDebugState}
             onSelectSection={activateSectionBrowse}
+            onToggleSearchPanel={handleToggleSearchPanel}
+            onViewportMoveStart={handleViewportMoveStart}
             onToggleOverlay={handleToggleOverlay}
-            onSelectBurial={selectMapBurial}
-            onUpdateSiteTwinDebugState={handleUpdateSiteTwinDebugState}
             overlayVisibility={overlayVisibility}
             overlayMaps={overlayMaps}
             roadsData={roadsData}
             onZoomChange={handleZoomEnd}
             sectionsData={sectionsData}
-            siteTwinDebugState={normalizedSiteTwinDebugState}
-            siteTwinFilteredSummary={siteTwinFilteredSummary}
-            siteTwinLoadedSummary={siteTwinLoadedSummary}
-            siteTwinManifest={siteTwinManifest}
-            showSiteTwinSurface={normalizedSiteTwinDebugState.showSurface}
-            siteTwinSurfaceOpacity={siteTwinSurfaceOpacity}
             sectionAffordanceMarkers={sectionAffordanceMarkers}
             sectionOverviewMarkers={sectionOverviewMarkers}
             selectedTour={selectedTour}
@@ -4209,6 +4262,7 @@ export default function BurialMap() {
 
           {routeGeoJson && (
             <GeoJSON
+              key={routeGeoJsonRenderKey}
               data={routeGeoJson}
               style={ROUTE_LINE_STYLE}
             />
@@ -4277,7 +4331,6 @@ export default function BurialMap() {
             </Marker>
           ))}
         </MapContainer>
-      )}
     </div>
   );
 }

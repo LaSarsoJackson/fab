@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  areMarkersAtSameLocation,
   areLocationCandidatesEquivalent,
   areRouteLatLngTuplesEquivalent,
   beginLeafletSectionHover,
@@ -11,16 +12,19 @@ import {
   calculateLocationDistanceMeters,
   clearLeafletSectionHover,
   createLeafletSectionHoverState,
+  createViewportIntentController,
   formatSectionOverviewMarkerLabel,
+  getClusterIconCount,
+  getDistinctMarkerLocationCount,
+  getPopupViewportPadding,
   MAP_PRESENTATION_POLICY,
-  getPmtilesExperimentGlyphOffset,
-  getPmtilesExperimentGlyphSize,
   getSectionBurialMarkerStyle,
   getSectionPolygonStyle,
-  hasIndexedBurialPlacement,
   inferPointerType,
+  isApproximateLocationAccuracy,
   isLeafletSectionLayerHovered,
   isTouchLikePointerType,
+  LOCATION_APPROXIMATE_MAX_ACCURACY_METERS,
   LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS,
   LOCATION_MAX_ACCEPTABLE_ACCURACY_METERS,
   normalizeLocationPosition,
@@ -32,8 +36,12 @@ import {
   resolveSectionAffordanceMarkerVisibility,
   resolveSectionBurialDisableClusteringZoom,
   resolveSectionOverlayVisibility,
+  ROAD_LAYER_STYLES,
   ROAD_LAYER_STYLE,
+  shouldApplyViewportFocus,
+  shouldTreatViewportMoveAsUserIntent,
   selectBestRecentLocationCandidate,
+  selectRouteTrackingLocationCandidate,
   shouldHandleSectionHover,
   shouldIgnoreSectionBackgroundSelection,
   shouldResetRouteGeometryForRequest,
@@ -44,6 +52,10 @@ import {
 } from "../src/features/map/mapDomain";
 
 describe("mapDomain", () => {
+  const markerAt = (lat, lng) => ({
+    getLatLng: () => ({ lat, lng }),
+  });
+
   describe("location tracking", () => {
     test("normalizes browser geolocation readings into shared candidates", () => {
       expect(normalizeLocationPosition({
@@ -94,6 +106,28 @@ describe("mapDomain", () => {
       ])).toEqual(fresherModerateFix);
     });
 
+    test("prefers meaningful fresh movement while an active route is tracking", () => {
+      const olderPreciseFix = {
+        latitude: 42.70418,
+        longitude: -73.73198,
+        accuracyMeters: 5,
+        recordedAt: 1700000000000,
+      };
+      const fresherMovedFix = {
+        latitude: 42.7047,
+        longitude: -73.7315,
+        accuracyMeters: 25,
+        recordedAt: 1700000004000,
+      };
+
+      expect(selectRouteTrackingLocationCandidate([
+        olderPreciseFix,
+        fresherMovedFix,
+      ], {
+        previousLocation: olderPreciseFix,
+      })).toEqual(fresherMovedFix);
+    });
+
     test("compares location fixes by their actual normalized fields", () => {
       const fix = {
         latitude: 42.70418,
@@ -132,6 +166,37 @@ describe("mapDomain", () => {
       expect(shouldRejectLocationCandidate(noisyInitialFix)).toBe(true);
       expect(shouldRejectLocationCandidate(noisyInitialFix, {
         maxAcceptedAccuracyMeters: LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS,
+      })).toBe(false);
+    });
+
+    test("flags accuracies looser than the initial threshold as approximate", () => {
+      // A 60m fix is precise enough to pass the strict steady-state filter;
+      // we only mark "approximate" when accuracy is worse than the initial
+      // threshold, so the chrome doesn't downgrade good pins.
+      expect(isApproximateLocationAccuracy(60)).toBe(false);
+      expect(isApproximateLocationAccuracy(LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS)).toBe(false);
+      expect(isApproximateLocationAccuracy(LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS + 1)).toBe(true);
+      expect(isApproximateLocationAccuracy(800)).toBe(true);
+      expect(isApproximateLocationAccuracy(Number.POSITIVE_INFINITY)).toBe(true);
+      expect(isApproximateLocationAccuracy(NaN)).toBe(false);
+    });
+
+    test("accepts coarse network fallbacks under the approximate threshold", () => {
+      const coarseFallback = {
+        latitude: 42.70418,
+        longitude: -73.73198,
+        accuracyMeters: 600,
+        recordedAt: 1700000000000,
+      };
+
+      // Strict thresholds reject this fix - that's the whole reason we have
+      // an opt-in approximate threshold for the network-fallback stage.
+      expect(shouldRejectLocationCandidate(coarseFallback)).toBe(true);
+      expect(shouldRejectLocationCandidate(coarseFallback, {
+        maxAcceptedAccuracyMeters: LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS,
+      })).toBe(true);
+      expect(shouldRejectLocationCandidate(coarseFallback, {
+        maxAcceptedAccuracyMeters: LOCATION_APPROXIMATE_MAX_ACCURACY_METERS,
       })).toBe(false);
     });
 
@@ -414,11 +479,40 @@ describe("mapDomain", () => {
       })).toBe(19);
     });
 
+    test("keeps cluster badges tied to underlying burial records", () => {
+      const markers = [
+        markerAt(42.709101, -73.734101),
+        markerAt(42.709101, -73.734101),
+        markerAt(42.709202, -73.734202),
+        markerAt(42.709202, -73.734202),
+        markerAt(42.709303, -73.734303),
+      ];
+
+      expect(getDistinctMarkerLocationCount(markers)).toBe(3);
+      expect(areMarkersAtSameLocation(markers)).toBe(false);
+      expect(getClusterIconCount({ getChildCount: () => markers.length }, markers)).toBe(5);
+    });
+
+    test("keeps same-coordinate marker stacks counted by burial record", () => {
+      const markers = [
+        markerAt(42.709101, -73.734101),
+        markerAt(42.709101, -73.734101),
+        markerAt(42.709101, -73.734101),
+      ];
+
+      expect(getDistinctMarkerLocationCount(markers)).toBe(1);
+      expect(areMarkersAtSameLocation(markers)).toBe(true);
+      expect(getClusterIconCount({ getChildCount: () => markers.length }, markers)).toBe(3);
+    });
+
     test("keeps roads off until explicitly enabled or useful for orientation", () => {
       expect(resolveRoadOverlayVisibility()).toBe(false);
       expect(resolveRoadOverlayVisibility({ roadOverlayVisible: true })).toBe(true);
       expect(resolveRoadOverlayVisibility({ hasActiveRoute: true })).toBe(true);
       expect(resolveRoadOverlayVisibility({ hasTrackedLocation: true })).toBe(true);
+      expect(resolveRoadOverlayVisibility({
+        currentZoom: MAP_PRESENTATION_POLICY.sectionDetailMinZoom,
+      })).toBe(true);
 
       expect(resolveMapPresentationPolicy({
         currentZoom: 14,
@@ -437,6 +531,7 @@ describe("mapDomain", () => {
         currentZoom: 16,
         maxZoom: 19,
       })).toMatchObject({
+        showRoads: true,
         showSectionAffordanceMarkers: false,
         showSectionClusterMarkers: true,
         showSectionOverviewMarkers: false,
@@ -488,6 +583,84 @@ describe("mapDomain", () => {
         renderedDestination: [42.70908, -73.72157],
         requestedDestination: [42.7042, -73.73195],
       })).toBe(true);
+    });
+  });
+
+  describe("viewport intent rules", () => {
+    test("lets explicit focus commands override prior manual map exploration", () => {
+      expect(shouldApplyViewportFocus({ hasUserViewportIntent: false })).toBe(true);
+      expect(shouldApplyViewportFocus({ hasUserViewportIntent: true })).toBe(false);
+      expect(shouldApplyViewportFocus({
+        hasUserViewportIntent: true,
+        isExplicitFocus: true,
+      })).toBe(true);
+    });
+
+    test("does not treat programmatic zooms as user map exploration", () => {
+      expect(shouldTreatViewportMoveAsUserIntent({
+        eventType: "zoomstart",
+        isProgrammaticMove: true,
+      })).toBe(false);
+      expect(shouldTreatViewportMoveAsUserIntent({
+        eventType: "zoomstart",
+        isProgrammaticMove: false,
+      })).toBe(true);
+      expect(shouldTreatViewportMoveAsUserIntent({
+        eventType: "dragstart",
+        isProgrammaticMove: true,
+      })).toBe(true);
+    });
+
+    test("suppresses passive focus after user movement until an explicit focus command", () => {
+      const controller = createViewportIntentController();
+
+      expect(controller.canApplyFocus()).toBe(true);
+
+      controller.handleMoveStart("dragstart");
+
+      expect(controller.hasUserViewportIntent()).toBe(true);
+      expect(controller.canApplyFocus()).toBe(false);
+      expect(controller.canApplyFocus({ isExplicitFocus: true })).toBe(true);
+      expect(controller.hasUserViewportIntent()).toBe(false);
+      expect(controller.canApplyFocus()).toBe(true);
+    });
+
+    test("ignores code-driven zoom starts while preserving real drag intent", () => {
+      const listeners = new Map();
+      const controller = createViewportIntentController();
+      const map = {
+        once: (eventName, handler) => {
+          listeners.set(eventName, handler);
+        },
+        off: (eventName, handler) => {
+          if (listeners.get(eventName) === handler) {
+            listeners.delete(eventName);
+          }
+        },
+      };
+
+      controller.runProgrammaticMove(map, () => {
+        expect(controller.getProgrammaticMoveDepth()).toBe(1);
+        controller.handleMoveStart("zoomstart");
+        controller.handleMoveStart("dragstart");
+      });
+
+      expect(controller.hasUserViewportIntent()).toBe(true);
+      listeners.get("moveend")?.();
+      expect(controller.getProgrammaticMoveDepth()).toBe(0);
+    });
+
+    test("notifies route and GPS follow-up state when the user takes over the viewport", () => {
+      let notificationCount = 0;
+      const controller = createViewportIntentController({
+        onUserViewportIntent: () => {
+          notificationCount += 1;
+        },
+      });
+
+      controller.handleMoveStart("zoomstart");
+
+      expect(notificationCount).toBe(1);
     });
   });
 
@@ -558,8 +731,64 @@ describe("mapDomain", () => {
 
       expect(closeInStyle.fillOpacity).toBeLessThan(defaultStyle.fillOpacity);
       expect(closeInStyle.weight).toBeLessThan(defaultStyle.weight);
-      expect(ROAD_LAYER_STYLE.opacity).toBeLessThan(0.7);
-      expect(ROAD_LAYER_STYLE.weight).toBeLessThan(1.5);
+      expect(ROAD_LAYER_STYLE.opacity).toBeGreaterThanOrEqual(0.7);
+      expect(ROAD_LAYER_STYLE.weight).toBeGreaterThanOrEqual(1.5);
+    });
+
+    test("defines MapKit-style roads as layered non-interactive strokes", () => {
+      expect(ROAD_LAYER_STYLES).toHaveLength(3);
+
+      const [shadow, casing, body] = ROAD_LAYER_STYLES;
+
+      expect(shadow).toMatchObject({
+        interactive: false,
+        lineCap: "round",
+        lineJoin: "round",
+      });
+      expect(casing).toMatchObject({
+        interactive: false,
+        lineCap: "round",
+        lineJoin: "round",
+      });
+      expect(body).toMatchObject({
+        color: "#f8f6ef",
+        interactive: false,
+        lineCap: "round",
+        lineJoin: "round",
+      });
+      expect(shadow.weight).toBeGreaterThan(casing.weight);
+      expect(casing.weight).toBeGreaterThan(body.weight);
+      expect(body.opacity).toBeGreaterThan(shadow.opacity);
+    });
+
+    test("keeps popups clear of a full-height desktop sidebar", () => {
+      expect(getPopupViewportPadding({
+        containerRect: { left: 0, top: 0, right: 1280, bottom: 800 },
+        overlayRect: { left: 0, top: 0, right: 390, bottom: 800 },
+      })).toEqual({
+        topLeft: [406, 16],
+        bottomRight: [16, 16],
+      });
+    });
+
+    test("keeps popups above a mobile bottom sheet", () => {
+      expect(getPopupViewportPadding({
+        containerRect: { left: 0, top: 0, right: 390, bottom: 844 },
+        overlayRect: { left: 0, top: 544, right: 390, bottom: 844 },
+      })).toEqual({
+        topLeft: [16, 16],
+        bottomRight: [16, 316],
+      });
+    });
+
+    test("falls back to the base popup padding when there is no overlay overlap", () => {
+      expect(getPopupViewportPadding({
+        containerRect: { left: 0, top: 0, right: 1280, bottom: 800 },
+        overlayRect: { left: 1320, top: 0, right: 1520, bottom: 800 },
+      })).toEqual({
+        topLeft: [16, 16],
+        bottomRight: [16, 16],
+      });
     });
   });
 
@@ -654,38 +883,4 @@ describe("mapDomain", () => {
     });
   });
 
-  describe("pmtiles experiment rules", () => {
-    test("detects indexed burial placement from grave or tier metadata", () => {
-      expect(hasIndexedBurialPlacement({ Grave: 2 })).toBe(true);
-      expect(hasIndexedBurialPlacement({ Tier: 3 })).toBe(true);
-      expect(hasIndexedBurialPlacement({ Grave: "0", Tier: "0" })).toBe(false);
-      expect(hasIndexedBurialPlacement({ Grave: "not-a-number" })).toBe(false);
-    });
-
-    test("keeps glyph offsets deterministic for the same burial record and scales by zoom", () => {
-      const burialRecord = {
-        OBJECTID: 42,
-        Section: "107",
-        Lot: "3",
-        Grave: 4,
-        Tier: 2,
-        First_Name: "Anna",
-        Last_Name: "Tracy",
-      };
-
-      expect(getPmtilesExperimentGlyphOffset(20, burialRecord, true)).toEqual(
-        getPmtilesExperimentGlyphOffset(20, burialRecord, true)
-      );
-      expect(getPmtilesExperimentGlyphOffset(18, burialRecord, false)).toEqual(
-        getPmtilesExperimentGlyphOffset(18, burialRecord, false)
-      );
-
-      expect(getPmtilesExperimentGlyphSize(18, false)).toBeLessThan(
-        getPmtilesExperimentGlyphSize(18, true)
-      );
-      expect(getPmtilesExperimentGlyphSize(18, true)).toBeLessThan(
-        getPmtilesExperimentGlyphSize(22, true)
-      );
-    });
-  });
 });

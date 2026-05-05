@@ -20,6 +20,8 @@ export function PopupCardContent({
   const [mediaUrl, setMediaUrl] = useState(() => popupView.imageUrl || "");
 
   const handlePopupInteraction = useCallback((event) => {
+    // Popup controls sit inside the Leaflet map container. Stop propagation so
+    // buttons and links do not also trigger marker/map gestures behind them.
     stopMapInteractionPropagation(event);
   }, []);
 
@@ -53,6 +55,8 @@ export function PopupCardContent({
       return undefined;
     }
 
+    // Webfont swaps can change popup dimensions after the first paint. Re-run
+    // Leaflet autopan once fonts settle so the popup stays in the visible area.
     let isCancelled = false;
     document.fonts.ready.then(() => {
       if (!isCancelled) {

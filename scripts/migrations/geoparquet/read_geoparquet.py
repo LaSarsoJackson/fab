@@ -35,6 +35,8 @@ def main() -> int:
         return 2
 
     dataframe = gpd.read_parquet(input_path)
+    # Preserve feature ids when geopandas can supply them so parity checks see
+    # the same public record identity as the GeoJSON source.
     sys.stdout.write(dataframe.to_json(drop_id=False))
     return 0
 

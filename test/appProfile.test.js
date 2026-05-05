@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
-import { APP_PROFILE, DATA_MODULES } from "../src/features/fab/profile";
+import {
+  APP_PROFILE,
+  DATA_MODULES,
+  EMPTY_MAP_FEATURE_COLLECTION,
+  getEmptyCoreMapData,
+  loadCoreMapData,
+  normalizeMapFeatureCollection,
+} from "../src/features/fab/profile";
 
 const TOUR_FEATURE = APP_PROFILE.features?.tours || null;
 const TOUR_DEFINITIONS = TOUR_FEATURE?.definitions || [];
@@ -30,15 +37,11 @@ describe("app profile", () => {
     );
   });
 
-  test("keeps FAB-owned development storage keys in the profile contract", () => {
-    expect(APP_PROFILE.devStorageKeys).toEqual({
-      siteTwinDebug: "fab:dev:siteTwinDebugState",
-    });
-  });
-
   test("documents the map source and optimization formats needed for invisible GeoParquet migration", () => {
     expect(APP_PROFILE.map.storageStrategy.preferredBuildSourceFormat).toBe("geoparquet");
-    expect(APP_PROFILE.map.overlaySources.some((source) => source.type === "pmtiles-vector")).toBe(true);
+    expect(APP_PROFILE.map.storageStrategy.preferredDeliveryFormat).toBe("json");
+    expect(APP_PROFILE.map.overlaySources.some((source) => source.type === "pmtiles-vector")).toBe(false);
+    expect(APP_PROFILE.map.optimizationArtifacts.some((artifact) => artifact.id.startsWith("site-twin"))).toBe(false);
 
     const geoParquetArtifact = APP_PROFILE.map.optimizationArtifacts.find(
       (artifact) => artifact.format === "geoparquet"
@@ -59,5 +62,80 @@ describe("app profile", () => {
         .filter((definition) => ["boundary", "roads", "sections"].includes(definition.id))
         .every((definition) => typeof definition.load === "function")
     ).toBe(true);
+  });
+
+  test("returns stable empty feature-collection defaults for map overlays", () => {
+    expect(getEmptyCoreMapData()).toEqual({
+      boundaryData: EMPTY_MAP_FEATURE_COLLECTION,
+      roadsData: EMPTY_MAP_FEATURE_COLLECTION,
+      sectionsData: EMPTY_MAP_FEATURE_COLLECTION,
+    });
+  });
+
+  test("normalizes missing map features into an empty feature collection", () => {
+    expect(normalizeMapFeatureCollection({ name: "roads" })).toEqual({
+      type: "FeatureCollection",
+      name: "roads",
+      features: [],
+    });
+  });
+
+  test("loads boundary, roads, and sections through the profile data-module contract", async () => {
+    const resolvedModuleIds = [];
+    const loadedModuleIds = [];
+    const profile = {
+      moduleIds: {
+        boundary: "boundary",
+        roads: "roads",
+        sections: "sections",
+      },
+    };
+    const resolveModule = (moduleId) => {
+      resolvedModuleIds.push(moduleId);
+      return { id: moduleId };
+    };
+    const loadModule = async (moduleDefinition) => {
+      loadedModuleIds.push(moduleDefinition.id);
+      return {
+        type: "FeatureCollection",
+        name: moduleDefinition.id,
+        features: [{ type: "Feature", properties: { id: moduleDefinition.id } }],
+      };
+    };
+
+    expect(await loadCoreMapData(profile, { resolveModule, loadModule })).toEqual({
+      boundaryData: {
+        type: "FeatureCollection",
+        name: "boundary",
+        features: [{ type: "Feature", properties: { id: "boundary" } }],
+      },
+      roadsData: {
+        type: "FeatureCollection",
+        name: "roads",
+        features: [{ type: "Feature", properties: { id: "roads" } }],
+      },
+      sectionsData: {
+        type: "FeatureCollection",
+        name: "sections",
+        features: [{ type: "Feature", properties: { id: "sections" } }],
+      },
+    });
+    expect(resolvedModuleIds).toEqual(["boundary", "roads", "sections"]);
+    expect(loadedModuleIds).toEqual(["boundary", "roads", "sections"]);
+  });
+
+  test("throws when the active profile is missing a required map data module", async () => {
+    const profile = {
+      moduleIds: {
+        boundary: "boundary",
+        roads: "roads",
+        sections: "sections",
+      },
+    };
+
+    await expect(loadCoreMapData(profile, {
+      resolveModule: (moduleId) => (moduleId === "roads" ? null : { id: moduleId }),
+      loadModule: async (moduleDefinition) => moduleDefinition,
+    })).rejects.toThrow("Missing required map data module: roads");
   });
 });

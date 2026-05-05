@@ -10,6 +10,15 @@ export const FAB_TOUR_DEFINITIONS = [
     name: "Soldier's Lot (Section 75, Lot 7)",
     fileName: "Projected_Sec75_Headstones.json",
     sourcePath: "src/data/Projected_Sec75_Headstones.json",
+    sectionBrowse: {
+      section: "75",
+      lot: "7",
+      mode: "replace",
+      recordDefaults: {
+        Section: "75",
+        Lot: "7",
+      },
+    },
     load: () => import("../../data/Projected_Sec75_Headstones.json"),
   },
   {
@@ -17,6 +26,10 @@ export const FAB_TOUR_DEFINITIONS = [
     name: "Section 49",
     fileName: "Projected_Sec49_Headstones.json",
     sourcePath: "src/data/Projected_Sec49_Headstones.json",
+    sectionBrowse: {
+      section: "49",
+      mode: "replace",
+    },
     load: () => import("../../data/Projected_Sec49_Headstones.json"),
   },
   {

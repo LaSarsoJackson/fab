@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { GeoJSON, TileLayer, useMap } from "react-leaflet";
 import {
   Box,
@@ -6,8 +6,6 @@ import {
   Divider,
   IconButton,
   Paper,
-  Slider,
-  Switch,
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -15,13 +13,20 @@ import CheckBoxIcon from "@mui/icons-material/CheckBox";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import HomeIcon from "@mui/icons-material/Home";
 import LayersIcon from "@mui/icons-material/Layers";
+import MenuOpenIcon from "@mui/icons-material/MenuOpen";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import RemoveIcon from "@mui/icons-material/Remove";
-import TuneIcon from "@mui/icons-material/Tune";
-import { createLeafletMapRuntime } from "./engine/leafletRuntime";
-import { getPopupViewportPadding } from "./popupViewport";
+import SearchIcon from "@mui/icons-material/Search";
+import { getPopupViewportPadding } from "./mapDomain";
+
+/**
+ * Leaflet chrome and React-Leaflet adapters.
+ *
+ * Keep visual controls, basemap/GeoJSON adapters, and viewport-padding bridges
+ * here. The top-level map shell owns state and decides when these helpers run.
+ */
 
 const DESKTOP_MAP_CONTROL_RIGHT = "12px";
 const DESKTOP_MAP_CONTROL_TOP = "12px";
@@ -46,6 +51,8 @@ export const getLeafletViewportPadding = (
     getOverlayElement,
   } = {}
 ) => {
+  // Leaflet wants two padding points, while the shared viewport helper works in
+  // DOM rectangles. This adapter keeps map-shell viewport rules centralized.
   const mapContainer = map?.getContainer?.();
   if (!mapContainer || typeof document === "undefined") {
     return {
@@ -162,6 +169,9 @@ export const getLeafletGeoJsonDataKey = (featureCollection) => {
     return "empty";
   }
 
+  // React-Leaflet does not deeply diff GeoJSON feature collections. A WeakMap
+  // key lets us force remounts when a new data object is loaded without leaking
+  // ids for discarded collections.
   let dataKey = GEOJSON_DATA_KEYS.get(featureCollection);
 
   if (!dataKey) {
@@ -278,107 +288,8 @@ const MapLayerControlOption = ({
   );
 };
 
-const SiteTwinDebugToggleRow = ({ checked, disabled = false, label, onChange, detail }) => (
-  <Box
-    sx={{
-      display: "grid",
-      gridTemplateColumns: "minmax(0, 1fr) auto",
-      gap: "10px",
-      alignItems: "center",
-    }}
-  >
-    <Box sx={{ minWidth: 0 }}>
-      <Typography
-        sx={{
-          fontSize: "0.78rem",
-          fontWeight: 600,
-          lineHeight: 1.25,
-          color: "var(--text-main)",
-        }}
-      >
-        {label}
-      </Typography>
-      {detail ? (
-        <Typography
-          sx={{
-            marginTop: "2px",
-            fontSize: "0.68rem",
-            lineHeight: 1.35,
-            color: "rgba(24, 45, 40, 0.64)",
-          }}
-        >
-          {detail}
-        </Typography>
-      ) : null}
-    </Box>
-    <Switch checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} size="small" />
-  </Box>
-);
-
-const SiteTwinDebugSlider = ({ label, detail, value, min, max, step, onChange, formatValue }) => (
-  <Box sx={{ display: "grid", gap: "6px" }}>
-    <Box
-      sx={{
-        display: "grid",
-        gridTemplateColumns: "minmax(0, 1fr) auto",
-        gap: "10px",
-        alignItems: "start",
-      }}
-    >
-      <Box sx={{ minWidth: 0 }}>
-        <Typography
-          sx={{
-            fontSize: "0.78rem",
-            fontWeight: 600,
-            lineHeight: 1.25,
-            color: "var(--text-main)",
-          }}
-        >
-          {label}
-        </Typography>
-        {detail ? (
-          <Typography
-            sx={{
-              marginTop: "2px",
-              fontSize: "0.68rem",
-              lineHeight: 1.35,
-              color: "rgba(24, 45, 40, 0.64)",
-            }}
-          >
-            {detail}
-          </Typography>
-        ) : null}
-      </Box>
-      <Typography
-        sx={{
-          fontSize: "0.72rem",
-          fontWeight: 700,
-          lineHeight: 1.4,
-          color: "rgba(24, 45, 40, 0.72)",
-        }}
-      >
-        {formatValue(value)}
-      </Typography>
-    </Box>
-    <Slider
-      size="small"
-      min={min}
-      max={max}
-      step={step}
-      value={value}
-      onChange={(_event, nextValue) => onChange(Array.isArray(nextValue) ? nextValue[0] : nextValue)}
-      sx={{
-        color: "var(--text-main)",
-        py: 0,
-        "& .MuiSlider-thumb": {
-          width: 12,
-          height: 12,
-        },
-      }}
-    />
-  </Box>
-);
-
+// Controls sit above the Leaflet pane, but only the control children should
+// receive pointer events. The wrapper stays transparent to map drag/pinch input.
 export function MapControlStack({ isMobile, children }) {
   const items = React.Children.toArray(children).filter(Boolean);
 
@@ -579,6 +490,26 @@ export function MapZoomControl({ isMobile, onZoomIn, onZoomOut }) {
   );
 }
 
+export function SidebarToggleControl({ isSearchPanelVisible = true, onToggle }) {
+  const label = isSearchPanelVisible ? "Hide search panel" : "Show search panel";
+  const ToggleIcon = isSearchPanelVisible ? MenuOpenIcon : SearchIcon;
+
+  return (
+    <Paper elevation={0} sx={mapControlShellSx}>
+      <IconButton
+        onClick={onToggle}
+        size="small"
+        title={label}
+        aria-label={label}
+        aria-pressed={!isSearchPanelVisible}
+        sx={mapControlButtonSx}
+      >
+        <ToggleIcon fontSize="small" />
+      </IconButton>
+    </Paper>
+  );
+}
+
 export function CustomZoomControl({ isMobile }) {
   const map = useMap();
 
@@ -591,6 +522,8 @@ export function CustomZoomControl({ isMobile }) {
   );
 }
 
+// Applies profile-defined map limits from inside React-Leaflet, where the
+// Leaflet instance is available through `useMap`.
 export function MapBounds({ fitMapBounds, paddedBoundaryBounds, maxZoom, minZoom = 13 }) {
   const map = useMap();
 
@@ -619,15 +552,16 @@ export function ActiveLeafletBasemap({ basemap, keepBuffer = DEFAULT_BASEMAP_KEE
   return <LeafletBasemapLayer basemap={basemap} keepBuffer={keepBuffer} />;
 }
 
-export function MapController({ mapRef, onZoomChange }) {
+// Bridges Leaflet events back to the map shell without making the shell call
+// `useMap`. This keeps viewport intent and zoom state centralized in Map.jsx.
+export function MapController({ mapRef, onViewportMoveStart, onZoomChange }) {
   const leafletMap = useMap();
 
   useEffect(() => {
-    const runtime = createLeafletMapRuntime(leafletMap);
-    mapRef.current = runtime;
+    mapRef.current = leafletMap;
 
     return () => {
-      if (mapRef.current === runtime) {
+      if (mapRef.current === leafletMap) {
         mapRef.current = null;
       }
     };
@@ -644,354 +578,27 @@ export function MapController({ mapRef, onZoomChange }) {
     };
   }, [leafletMap, onZoomChange]);
 
+  useEffect(() => {
+    if (typeof onViewportMoveStart !== "function") {
+      return undefined;
+    }
+
+    const handleDragStart = () => onViewportMoveStart("dragstart");
+    const handleZoomStart = () => onViewportMoveStart("zoomstart");
+    const handleBoxZoomStart = () => onViewportMoveStart("boxzoomstart");
+
+    leafletMap.on("dragstart", handleDragStart);
+    leafletMap.on("zoomstart", handleZoomStart);
+    leafletMap.on("boxzoomstart", handleBoxZoomStart);
+
+    return () => {
+      leafletMap.off("dragstart", handleDragStart);
+      leafletMap.off("zoomstart", handleZoomStart);
+      leafletMap.off("boxzoomstart", handleBoxZoomStart);
+    };
+  }, [leafletMap, onViewportMoveStart]);
+
   return null;
-}
-
-export function PmtilesExperimentLegend({ glyphPalette = {} }) {
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        ...mapControlShellSx,
-        width: 228,
-        maxWidth: "calc(100vw - 24px)",
-        padding: "12px 14px",
-        pointerEvents: "none",
-        borderRadius: "18px",
-      }}
-    >
-      <Typography
-        sx={{
-          fontSize: "0.72rem",
-          fontWeight: 700,
-          letterSpacing: "0.04em",
-          textTransform: "uppercase",
-          color: "rgba(24, 45, 40, 0.72)",
-        }}
-      >
-        Grave Detail Preview
-      </Typography>
-      <Typography
-        sx={{
-          marginTop: "4px",
-          fontSize: "0.88rem",
-          fontWeight: 600,
-          color: "var(--text-main)",
-        }}
-      >
-        Placement Detail
-      </Typography>
-      <Box sx={{ display: "grid", gap: "10px", marginTop: "10px" }}>
-        {Object.entries(glyphPalette).map(([variant, definition]) => (
-          <Box
-            key={variant}
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "18px minmax(0, 1fr)",
-              columnGap: "10px",
-              alignItems: "start",
-            }}
-          >
-            <Box sx={{ position: "relative", width: 18, height: 18, marginTop: "2px" }}>
-              <Box
-                sx={{
-                  position: "absolute",
-                  left: 1,
-                  top: 8,
-                  width: 8,
-                  height: 1,
-                  backgroundColor: definition.guide,
-                }}
-              />
-              <Box
-                sx={{
-                  position: "absolute",
-                  right: 1,
-                  top: 3,
-                  width: 12,
-                  height: 12,
-                  borderRadius: variant === "approximate" ? "999px" : "2px",
-                  border: `1.2px solid ${definition.stroke}`,
-                  backgroundColor: definition.fill,
-                  transform: variant === "indexed" ? "rotate(45deg)" : "none",
-                }}
-              />
-            </Box>
-            <Box>
-              <Typography
-                sx={{
-                  fontSize: "0.78rem",
-                  fontWeight: 600,
-                  lineHeight: 1.25,
-                  color: "var(--text-main)",
-                }}
-              >
-                {definition.label}
-              </Typography>
-              <Typography
-                sx={{
-                  marginTop: "2px",
-                  fontSize: "0.7rem",
-                  lineHeight: 1.35,
-                  color: "rgba(24, 45, 40, 0.72)",
-                }}
-              >
-                {definition.detail}
-              </Typography>
-            </Box>
-          </Box>
-        ))}
-      </Box>
-      <Typography
-        sx={{
-          marginTop: "10px",
-          fontSize: "0.68rem",
-          lineHeight: 1.4,
-          color: "rgba(24, 45, 40, 0.64)",
-        }}
-      >
-        Small offsets separate stacked records without claiming an exact grave footprint.
-      </Typography>
-    </Paper>
-  );
-}
-
-export function SiteTwinDebugControl({
-  isOverlayEnabled,
-  mapEngine,
-  manifest,
-  loadedSummary = {},
-  filteredSummary = {},
-  debugState = {},
-  onToggleOverlay,
-  onUpdateDebugState,
-  onResetDebugState,
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const totalCount = loadedSummary?.count || manifest?.graveCandidates?.count || 0;
-  const knownHeadstoneCount = loadedSummary?.knownHeadstoneCount || manifest?.graveCandidates?.knownHeadstoneCount || 0;
-  const filteredCount = Number(filteredSummary?.count) || 0;
-  const filteredHeightP95Meters = Number(filteredSummary?.heightP95Meters) || 0;
-  const filteredMeanConfidence = Number(filteredSummary?.meanConfidence) || 0;
-  const renderMode = manifest?.mode || manifest?.status || "unbuilt";
-
-  return (
-    <ClickAwayListener onClickAway={() => setIsOpen(false)}>
-      <Paper
-        elevation={0}
-        sx={{
-          ...mapControlShellSx,
-          width: isOpen ? "min(300px, calc(100vw - 24px))" : MAP_CONTROL_BUTTON_SIZE,
-          maxWidth: "calc(100vw - 24px)",
-          overflow: "hidden",
-        }}
-      >
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: isOpen
-              ? `${MAP_CONTROL_BUTTON_SIZE}px minmax(0, 1fr)`
-              : `${MAP_CONTROL_BUTTON_SIZE}px`,
-            alignItems: "center",
-          }}
-        >
-          <IconButton
-            onClick={() => setIsOpen((current) => !current)}
-            size="small"
-            title={isOpen ? "Close ground model controls" : "Open ground model controls"}
-            aria-label={isOpen ? "Close ground model controls" : "Open ground model controls"}
-            aria-expanded={isOpen}
-            sx={mapControlButtonSx}
-          >
-            <TuneIcon fontSize="small" />
-          </IconButton>
-          {isOpen && (
-            <Typography
-              sx={{
-                paddingRight: "14px",
-                fontSize: "0.8rem",
-                fontWeight: 700,
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-                color: "rgba(24, 45, 40, 0.72)",
-              }}
-            >
-              Ground Model
-            </Typography>
-          )}
-        </Box>
-
-        {isOpen && (
-          <Box
-            sx={{
-              display: "grid",
-              gap: "12px",
-              padding: "10px 12px 12px",
-              borderTop: "1px solid rgba(18, 47, 40, 0.12)",
-            }}
-          >
-            <Box sx={{ display: "grid", gap: "2px" }}>
-              <Typography
-                sx={{
-                  fontSize: "0.88rem",
-                  fontWeight: 600,
-                  color: "var(--text-main)",
-                }}
-              >
-                {renderMode === "terrain-only" ? "Relief preview" : "Ground preview"}
-              </Typography>
-              <Typography
-                sx={{
-                  fontSize: "0.68rem",
-                  lineHeight: 1.45,
-                  color: "rgba(24, 45, 40, 0.64)",
-                }}
-              >
-                {manifest?.sourceVintageNote || "Ground model is not ready yet."}
-              </Typography>
-            </Box>
-
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                gap: "8px",
-              }}
-            >
-              <Box sx={{ padding: "8px 10px", borderRadius: "14px", backgroundColor: "rgba(24, 45, 40, 0.06)" }}>
-                <Typography sx={{ fontSize: "0.64rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "rgba(24, 45, 40, 0.64)" }}>
-                  Candidates
-                </Typography>
-                <Typography sx={{ marginTop: "2px", fontSize: "0.92rem", fontWeight: 700, color: "var(--text-main)" }}>
-                  {filteredCount.toLocaleString()}
-                </Typography>
-                <Typography sx={{ fontSize: "0.68rem", color: "rgba(24, 45, 40, 0.64)" }}>
-                  of {totalCount.toLocaleString()} loaded
-                </Typography>
-              </Box>
-              <Box sx={{ padding: "8px 10px", borderRadius: "14px", backgroundColor: "rgba(24, 45, 40, 0.06)" }}>
-                <Typography sx={{ fontSize: "0.64rem", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "rgba(24, 45, 40, 0.64)" }}>
-                  Headstones
-                </Typography>
-                <Typography sx={{ marginTop: "2px", fontSize: "0.92rem", fontWeight: 700, color: "var(--text-main)" }}>
-                  {knownHeadstoneCount.toLocaleString()}
-                </Typography>
-                <Typography sx={{ fontSize: "0.68rem", color: "rgba(24, 45, 40, 0.64)" }}>
-                  height guide {filteredHeightP95Meters.toFixed(2)} m
-                </Typography>
-              </Box>
-            </Box>
-
-            <SiteTwinDebugToggleRow
-              checked={isOverlayEnabled}
-              label="Ground model"
-              detail="Turns the relief layer and monument markers on or off."
-              onChange={onToggleOverlay}
-            />
-            <SiteTwinDebugToggleRow
-              checked={debugState.showSurface}
-              label="Relief layer"
-              detail="Shows the ground imagery layer."
-              onChange={(checked) => onUpdateDebugState({ showSurface: checked })}
-            />
-            <SiteTwinDebugToggleRow
-              checked={debugState.showMonuments}
-              label="Monument markers"
-              detail={mapEngine === "custom"
-                ? "Shows possible monument locations with height cues."
-                : "Switch to preview map mode to inspect monument height cues."}
-              onChange={(checked) => onUpdateDebugState({ showMonuments: checked })}
-            />
-            <SiteTwinDebugToggleRow
-              checked={debugState.knownHeadstonesOnly}
-              label="Known headstones only"
-              detail="Shows only records anchored to surveyed headstone points."
-              onChange={(checked) => onUpdateDebugState({ knownHeadstonesOnly: checked })}
-            />
-
-            <Divider sx={{ borderColor: "rgba(18, 47, 40, 0.12)" }} />
-
-            <SiteTwinDebugSlider
-              label="Relief opacity"
-              detail="Adjusts how strongly the relief layer appears."
-              value={debugState.surfaceOpacity}
-              min={0.1}
-              max={1}
-              step={0.01}
-              onChange={(value) => onUpdateDebugState({ surfaceOpacity: value })}
-              formatValue={(value) => `${Math.round(value * 100)}%`}
-            />
-            <SiteTwinDebugSlider
-              label="Monument height"
-              detail="Adjusts how strongly height cues appear."
-              value={debugState.monumentHeightScale}
-              min={0.5}
-              max={3}
-              step={0.05}
-              onChange={(value) => onUpdateDebugState({ monumentHeightScale: value })}
-              formatValue={(value) => `${value.toFixed(2)}x`}
-            />
-            <SiteTwinDebugSlider
-              label="Match quality"
-              detail="Shows only candidates above this quality level."
-              value={debugState.minConfidence}
-              min={0}
-              max={1}
-              step={0.01}
-              onChange={(value) => onUpdateDebugState({ minConfidence: value })}
-              formatValue={(value) => `${Math.round(value * 100)}%`}
-            />
-            <SiteTwinDebugSlider
-              label="Minimum height"
-              detail="Hides shorter height cues."
-              value={debugState.minHeightMeters}
-              min={0}
-              max={2}
-              step={0.02}
-              onChange={(value) => onUpdateDebugState({ minHeightMeters: value })}
-              formatValue={(value) => `${value.toFixed(2)} m`}
-            />
-
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0, 1fr) auto",
-                gap: "10px",
-                alignItems: "center",
-              }}
-            >
-              <Typography
-                sx={{
-                  fontSize: "0.68rem",
-                  lineHeight: 1.45,
-                  color: "rgba(24, 45, 40, 0.64)",
-                }}
-              >
-                Average quality {filteredMeanConfidence.toFixed(2)}
-              </Typography>
-              <Box
-                component="button"
-                type="button"
-                onClick={onResetDebugState}
-                sx={{
-                  border: "1px solid rgba(18, 47, 40, 0.12)",
-                  backgroundColor: "rgba(255, 255, 255, 0.9)",
-                  color: "var(--text-main)",
-                  borderRadius: "999px",
-                  padding: "4px 10px",
-                  fontSize: "0.72rem",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Reset
-              </Box>
-            </Box>
-          </Box>
-        )}
-      </Paper>
-    </ClickAwayListener>
-  );
 }
 
 export function MapHomeButton({ onClick }) {
@@ -1014,7 +621,7 @@ export function DefaultExtentButton({ defaultViewBounds, fitMapBounds }) {
   const map = useMap();
 
   return (
-    <MapHomeButton onClick={() => fitMapBounds(map, defaultViewBounds)} />
+    <MapHomeButton onClick={() => fitMapBounds(map, defaultViewBounds, { isExplicitFocus: true })} />
   );
 }
 

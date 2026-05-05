@@ -29,6 +29,8 @@ const parseRecordDateParts = (value) => {
     return null;
   }
 
+  // Source exports mix ISO dates, US dates, and occasionally parser-friendly
+  // strings. Parse only enough to compare and render stable m/d/yyyy output.
   const isoMatch = normalized.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
   if (isoMatch) {
     return {
@@ -108,6 +110,8 @@ const resolveRecordImageUrl = (imageName) => {
 
 const buildPopupRows = (record = {}) => {
   if (typeof RECORD_PRESENTATION?.buildPopupRows === "function") {
+    // FAB owns the cemetery-specific popup rows; this module supplies the safe
+    // generic helpers so profile callbacks do not duplicate defensive parsing.
     return RECORD_PRESENTATION.buildPopupRows(record, {
       buildLocationSummary,
       cleanRecordValue,

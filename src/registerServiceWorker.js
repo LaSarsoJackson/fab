@@ -1,6 +1,8 @@
 import { buildPublicAssetUrl } from "./shared/runtime/runtimeEnv";
 
 const registerServiceWorker = () => {
+  // Local development should always fetch fresh bundles and data. The service
+  // worker is only useful for production PWA installs and GitHub Pages builds.
   if (process.env.NODE_ENV !== 'production') {
     return;
   }
@@ -11,6 +13,8 @@ const registerServiceWorker = () => {
 
   window.addEventListener('load', () => {
     navigator.serviceWorker
+      // GitHub Pages serves FAB under /fab, so the registered path must pass
+      // through the shared PUBLIC_URL helper instead of assuming root hosting.
       .register(buildPublicAssetUrl("/service-worker.js"))
       .catch((error) => {
         console.error('Service worker registration failed:', error);

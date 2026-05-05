@@ -1,6 +1,11 @@
 import { normalizeName, smartSearch } from "./burialSearch";
 import { APP_PROFILE } from "../fab/profile";
 
+/**
+ * Converts raw burial GeoJSON, generated search rows, and tour GeoJSON into the
+ * single browse-result shape consumed by the sidebar, map markers, popups, and
+ * share links.
+ */
 export const MIN_BROWSE_QUERY_LENGTH = 2;
 const VALID_BROWSE_SOURCES = new Set(["all", "section", "tour"]);
 const PRIMARY_RECORD_FIELDS = APP_PROFILE.fieldAliases?.primaryRecord || {};
@@ -119,6 +124,8 @@ const buildNameVariantsNormalized = (...values) => (
 
 export const buildBurialBrowseResult = (feature, { getTourName } = {}) => {
   const properties = feature.properties || feature;
+  // Field aliases live on the app profile because the source data mixes raw
+  // GIS names, generated compact names, and tour-specific spellings.
   const firstName = readRecordValue(properties, PRIMARY_RECORD_FIELDS, "firstName");
   const lastName = readRecordValue(properties, PRIMARY_RECORD_FIELDS, "lastName");
   const fullName = readRecordValue(properties, PRIMARY_RECORD_FIELDS, "fullName") || `${firstName} ${lastName}`.trim();
@@ -175,6 +182,8 @@ export const buildBurialBrowseResult = (feature, { getTourName } = {}) => {
 
 export const buildTourBrowseResult = (feature, { tourKey, tourName } = {}) => {
   const properties = feature.properties || {};
+  // Tour stops are not always one-to-one with burial source records, so build a
+  // self-contained browse record first and let harmonization enrich it later.
   const firstName = readRecordValue(properties, TOUR_RECORD_FIELDS, "firstName");
   const lastName = readRecordValue(properties, TOUR_RECORD_FIELDS, "lastName");
   const fullName = readRecordValue(properties, TOUR_RECORD_FIELDS, "fullName") || `${firstName} ${lastName}`.trim();
@@ -268,6 +277,29 @@ export const getBrowseSourceMode = ({ browseSource = "", sectionFilter = "", sel
   return "all";
 };
 
+export const findSectionBrowseDetailDefinition = (
+  definitions = [],
+  {
+    sectionFilter = "",
+    lotTierFilter = "",
+    filterType = "lot",
+  } = {}
+) => {
+  const section = cleanValue(sectionFilter);
+  if (!section) return null;
+
+  return definitions.find((definition) => {
+    const sectionBrowse = definition?.sectionBrowse || null;
+    if (sectionBrowse?.mode !== "replace") return false;
+    if (cleanValue(sectionBrowse.section) !== section) return false;
+
+    const lot = cleanValue(sectionBrowse.lot);
+    if (!lot) return true;
+
+    return filterType === "lot" && cleanValue(lotTierFilter) === lot;
+  }) || null;
+};
+
 /**
  * Browsing a section can touch hundreds of records repeatedly as the user
  * flips between lot/tier filters, so build a small in-memory index once.
@@ -340,10 +372,36 @@ export const filterBurialRecordsBySection = (
   });
 };
 
+export const resolveSectionBrowseRecords = ({
+  burialRecords = [],
+  sectionRecordsOverride = null,
+  sectionIndex = null,
+  sectionFilter = "",
+  lotTierFilter = "",
+  filterType = "lot",
+} = {}) => {
+  if (Array.isArray(sectionRecordsOverride)) {
+    return filterBurialRecordsBySection(sectionRecordsOverride, {
+      sectionFilter,
+      lotTierFilter,
+      filterType,
+    });
+  }
+
+  return filterBurialRecordsBySection(burialRecords, {
+    sectionFilter,
+    lotTierFilter,
+    filterType,
+  }, {
+    sectionIndex,
+  });
+};
+
 export const buildBrowseResults = ({
   browseSource = "",
   query = "",
   burialRecords = [],
+  sectionRecordsOverride = null,
   sectionIndex = null,
   searchIndex = null,
   getTourName,
@@ -389,12 +447,13 @@ export const buildBrowseResults = ({
       };
     }
 
-    const sectionResults = filterBurialRecordsBySection(burialRecords, {
+    const sectionResults = resolveSectionBrowseRecords({
+      burialRecords,
+      sectionRecordsOverride,
+      sectionIndex,
       sectionFilter,
       lotTierFilter,
       filterType,
-    }, {
-      sectionIndex,
     });
 
     if (!hasQuery) {

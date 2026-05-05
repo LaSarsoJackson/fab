@@ -1,17 +1,19 @@
-import {
-  createBasemapSpec,
-  createOptimizationArtifactSpec,
-  createOverlaySourceSpec,
-} from "../map/engine/contracts";
 import { BOUNDARY_BBOX, LOCATION_BUFFER_BOUNDARY } from "../map/generatedBounds";
 import { FAB_TOUR_DEFINITIONS, FAB_TOUR_STYLES, enrichFabTourRecord } from "./tours";
 
+/**
+ * FAB-specific product profile. Keep Albany Rural Cemetery URLs, branding,
+ * source modules, map defaults, and record presentation callbacks here instead
+ * of scattering hardcoded app assumptions through shared modules.
+ */
 const stripLeadingSlash = (value = "") => String(value).trim().replace(/^\/+/, "");
 const stripTrailingSlash = (value = "") => String(value).trim().replace(/\/+$/, "");
+const createBasemapSpec = (definition) => Object.freeze({ ...definition });
+const createOverlaySourceSpec = (definition) => Object.freeze({ ...definition });
+const createOptimizationArtifactSpec = (definition) => Object.freeze({ ...definition });
 
 const FAB_SITE_ROOT_URL = "https://www.albany.edu/arce";
 const FAB_SITE_NAME = "Albany Rural Cemetery";
-const FAB_ADMIN_SITE_NAME = "Albany Rural Cemetery Records Workspace";
 const FAB_HOME_URL = `${FAB_SITE_ROOT_URL}/`;
 const FAB_IMAGE_DIRECTORY = "images";
 const FAB_NO_IMAGE_FILE_NAME = "no-image.jpg";
@@ -49,6 +51,9 @@ const normalizeFabPageLink = (value = "") => {
     return normalized;
   }
 
+  // Biography fields are inconsistent: some contain a full URL, some contain a
+  // slug, and some accidentally contain an image filename. Only page-like
+  // values should become external biography links.
   const trimmed = normalized.replace(/^\/+/, "");
   if (/\.(?:jpe?g|png|gif|webp|svg)$/i.test(trimmed)) {
     return "";
@@ -78,6 +83,8 @@ const resolveFabRecordImageUrl = (imageName) => {
     : `${normalizedImageName}.jpg`;
 
   if (process.env.NODE_ENV === "development" && FAB_DEV_IMAGE_SERVER_ORIGIN) {
+    // Local development serves checked-in image assets from a companion Python
+    // server because Create React App does not expose src/data files publicly.
     return `${FAB_DEV_IMAGE_SERVER_ORIGIN}/src/data/images/${imageFileName}`;
   }
 
@@ -123,6 +130,8 @@ const buildCoreDataModule = (definition) => ({
 });
 
 const CORE_DATA_MODULES = [
+  // Data modules are the profile-level source registry used by runtime loading,
+  // artifact generation, and contributor docs.
   buildCoreDataModule({
     id: "burials",
     label: "Burials",
@@ -188,16 +197,6 @@ const MAP_BASEMAPS = [
     maxZoom: 19,
     tileSize: 256,
   },
-  {
-    id: "burials-pmtiles",
-    label: "Burial Detail",
-    type: "pmtiles-vector",
-    urlTemplate: "/data/geo_burials.pmtiles",
-    rasterFallbackUrlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    minZoom: 10,
-    maxZoom: 22,
-    tileSize: 256,
-  },
 ].map(createBasemapSpec);
 
 const MAP_OVERLAY_SOURCES = [
@@ -225,28 +224,11 @@ const MAP_OVERLAY_SOURCES = [
     sourceModuleId: "sections",
     status: "active",
   },
-  {
-    id: "burials-pmtiles",
-    label: "Burial Detail Layer",
-    type: "pmtiles-vector",
-    format: "pmtiles-vector",
-    publicPath: "/data/geo_burials.pmtiles",
-    dataLayer: "burials",
-    buildCommand: "bun run build:pmtiles",
-    status: "experimental",
-  },
-  {
-    id: "site-twin-manifest",
-    label: "Site Twin Manifest",
-    type: "json",
-    format: "json",
-    publicPath: "/data/site_twin/manifest.json",
-    buildCommand: "bun run build:site-twin:terrain",
-    status: "experimental",
-  },
 ].map(createOverlaySourceSpec);
 
 const MAP_OPTIMIZATION_ARTIFACTS = [
+  // These entries document which checked-in/generated map artifacts are active
+  // today and which optional formats are build-time accelerators only.
   {
     id: "burials-source-geojson",
     label: "Burials GeoJSON source",
@@ -281,42 +263,6 @@ const MAP_OPTIMIZATION_ARTIFACTS = [
     status: "active",
     notes: "Runtime-minified payload consumed by the search and browse UI.",
   },
-  {
-    id: "burials-pmtiles",
-    label: "Burial detail tile archive",
-    role: "delivery-overlay",
-    format: "pmtiles-vector",
-    sourceModuleId: "burials",
-    publicPath: "/data/geo_burials.pmtiles",
-    filePath: "public/data/geo_burials.pmtiles",
-    buildCommand: "bun run build:pmtiles",
-    status: "experimental",
-    notes: "Tile package for the burial detail preview layer.",
-  },
-  {
-    id: "site-twin-manifest",
-    label: "Ground model manifest",
-    role: "delivery-overlay",
-    format: "json",
-    sourceModuleId: "burials",
-    publicPath: "/data/site_twin/manifest.json",
-    filePath: "public/data/site_twin/manifest.json",
-    buildCommand: "bun run build:site-twin:terrain",
-    status: "experimental",
-    notes: "Manifest for the cemetery ground model and candidate marker overlays.",
-  },
-  {
-    id: "site-twin-grave-candidates",
-    label: "Ground model grave candidates",
-    role: "delivery-overlay",
-    format: "geojson",
-    sourceModuleId: "burials",
-    publicPath: "/data/site_twin/grave_candidates.geojson",
-    filePath: "public/data/site_twin/grave_candidates.geojson",
-    buildCommand: "bun run build:site-twin:terrain",
-    status: "experimental",
-    notes: "Candidate marker points sampled from terrain and burial geometry.",
-  },
 ].map(createOptimizationArtifactSpec);
 
 export const APP_PROFILE = {
@@ -324,11 +270,8 @@ export const APP_PROFILE = {
   productName: "FAB",
   brand: {
     appName: FAB_SITE_NAME,
-    adminName: FAB_ADMIN_SITE_NAME,
     mapLoadingTitle: FAB_SITE_NAME,
     mapLoadingMessage: "Loading map experience…",
-    adminLoadingTitle: FAB_ADMIN_SITE_NAME,
-    adminLoadingMessage: "Loading records workspace…",
   },
   shell: {
     homeUrl: FAB_HOME_URL,
@@ -397,12 +340,8 @@ export const APP_PROFILE = {
   artifacts: {
     searchIndexPublicPath: "/data/Search_Burials.json",
     searchIndexFilePath: "public/data/Search_Burials.json",
-    siteTwinManifestPublicPath: "/data/site_twin/manifest.json",
     tourMatchesFilePath: "src/data/TourMatches.json",
     generatedConstantsFilePath: "src/features/map/generatedBounds.js",
-  },
-  devStorageKeys: {
-    siteTwinDebug: "fab:dev:siteTwinDebugState",
   },
   map: {
     center: [42.704180, -73.731980],
@@ -420,22 +359,27 @@ export const APP_PROFILE = {
       inactive: "Location inactive",
       active: "Location active",
       locating: "Locating...",
-      unsupported: "Geolocation is not supported by your browser",
-      unavailable: "Unable to retrieve your location",
-      outOfBounds: `You must be within 5 miles of ${FAB_SITE_NAME}`,
+      // Surfaced while the high-accuracy attempt has timed out or returned an
+      // "unavailable" error and the shell is retrying with a coarse network
+      // fallback. Users in weak-signal areas (canopy, large trees) need to
+      // know we have not given up yet.
+      weakSignal: "GPS signal is weak, still trying...",
+      // Surfaced when only a coarse (network/Wi-Fi or low-accuracy GPS) fix
+      // has been accepted. The shell continues watching for a better fix.
+      approximate: "Approximate location (improving signal...)",
+      unsupported: "GPS is not supported in this browser. Search by name or section, or use Open in Maps.",
+      unavailable: "GPS is unavailable. Check signal and permissions, or search by name or section.",
+      permissionDenied: "Location permission denied. Enable it in your browser/OS settings, or search by name or section.",
+      outOfBounds: `Location is outside cemetery range. Search still works; use Open in Maps for off-site directions.`,
+      routeLocationRequired: `Route on Map needs your current location near ${FAB_SITE_NAME}. Use Open in Maps for directions from farther away.`,
     },
     defaultBasemapId: "imagery",
     basemaps: MAP_BASEMAPS,
     overlaySources: MAP_OVERLAY_SOURCES,
-    siteTwin: {
-      manifestPublicPath: "/data/site_twin/manifest.json",
-      graveCandidatesPublicPath: "/data/site_twin/grave_candidates.geojson",
-      defaultVisible: false,
-    },
     storageStrategy: {
       sourceOfTruthFormat: "geojson",
       preferredBuildSourceFormat: "geoparquet",
-      preferredDeliveryFormat: "pmtiles-vector",
+      preferredDeliveryFormat: "json",
       preferredSearchFormat: "json",
       migrationGoal: "Treat GeoParquet as a build-time 1:1 replacement for GeoJSON while preserving the existing runtime API and generated artifacts.",
     },
@@ -466,6 +410,10 @@ export const APP_PROFILE = {
 export const DATA_MODULES = APP_PROFILE.dataModules || [];
 export const TOUR_DEFINITIONS = APP_PROFILE.features?.tours?.definitions || [];
 export const TOUR_STYLES = APP_PROFILE.features?.tours?.styles || {};
+export const EMPTY_MAP_FEATURE_COLLECTION = Object.freeze({
+  type: "FeatureCollection",
+  features: Object.freeze([]),
+});
 
 export const getDataModule = (moduleId) => (
   DATA_MODULES.find((definition) => definition.id === moduleId) || null
@@ -474,6 +422,55 @@ export const getDataModule = (moduleId) => (
 export const loadDataModule = async (moduleDefinition) => {
   const loaded = await moduleDefinition.load();
   return loaded.default || loaded;
+};
+
+export const getEmptyCoreMapData = () => ({
+  boundaryData: EMPTY_MAP_FEATURE_COLLECTION,
+  roadsData: EMPTY_MAP_FEATURE_COLLECTION,
+  sectionsData: EMPTY_MAP_FEATURE_COLLECTION,
+});
+
+export const normalizeMapFeatureCollection = (featureCollection = {}) => ({
+  // Leaflet and feature helpers expect an array even when a load fails or a
+  // profile module returns a bare object.
+  type: "FeatureCollection",
+  ...featureCollection,
+  features: Array.isArray(featureCollection?.features) ? featureCollection.features : [],
+});
+
+const getRequiredMapDataModule = (moduleId, resolveModule) => {
+  const moduleDefinition = resolveModule(moduleId);
+
+  if (!moduleDefinition) {
+    throw new Error(`Missing required map data module: ${moduleId}`);
+  }
+
+  return moduleDefinition;
+};
+
+export const loadCoreMapData = async (
+  appProfile,
+  {
+    resolveModule = getDataModule,
+    loadModule = loadDataModule,
+  } = {}
+) => {
+  const moduleIds = appProfile?.moduleIds || {};
+  const boundaryModule = getRequiredMapDataModule(moduleIds.boundary, resolveModule);
+  const roadsModule = getRequiredMapDataModule(moduleIds.roads, resolveModule);
+  const sectionsModule = getRequiredMapDataModule(moduleIds.sections, resolveModule);
+
+  const [boundaryData, roadsData, sectionsData] = await Promise.all([
+    loadModule(boundaryModule),
+    loadModule(roadsModule),
+    loadModule(sectionsModule),
+  ]);
+
+  return {
+    boundaryData: normalizeMapFeatureCollection(boundaryData),
+    roadsData: normalizeMapFeatureCollection(roadsData),
+    sectionsData: normalizeMapFeatureCollection(sectionsData),
+  };
 };
 
 export const getTourModuleDefinitions = () => (

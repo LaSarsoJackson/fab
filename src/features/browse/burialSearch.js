@@ -4,6 +4,11 @@ const LOT_PATTERN = /^lot\s*(\d+)$/i;
 const TOUR_PATTERN = /^(.*?)\s*tour$/i;
 const NUMBER_PATTERN = /^\d+$/;
 
+/**
+ * Search is intentionally rule-first before it falls back to token matching.
+ * Cemetery users often type years, section numbers, lot numbers, or tour names
+ * as direct commands, and those should not be diluted by generic name matches.
+ */
 const normalize = (value = '') => String(value).toLowerCase().trim();
 
 export const normalizeName = (value = '') => {
@@ -202,6 +207,9 @@ export const smartSearch = (
   if (inputTokens.length > 0) {
     const indexedCandidates = [];
 
+    // Prefer exact normalized-name hits, then widen to name/search/tour tokens.
+    // The final scoring pass still runs on this narrower pool so relevance is
+    // stable without scanning every burial record for each keystroke.
     if (normalizedNameQuery && index?.byFullName?.has(normalizedNameQuery)) {
       indexedCandidates.push(...index.byFullName.get(normalizedNameQuery));
     }

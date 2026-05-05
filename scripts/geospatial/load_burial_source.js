@@ -5,11 +5,12 @@ import { fileURLToPath } from "url";
 import { promisify } from "util";
 
 import { APP_PROFILE } from "../../src/features/fab/profile.js";
-import {
-  getOptimizationArtifactsByRole,
-  getPreferredBuildSourceArtifact,
-} from "../../src/features/map/engine/backend.js";
 
+/**
+ * Shared source loader for build-time geospatial tasks. It prefers the profile
+ * declared build artifact when available, but preserves GeoJSON as the stable
+ * fallback source of truth for the runtime record model.
+ */
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.join(__dirname, "..", "..");
@@ -33,6 +34,62 @@ const resolveBooleanFlag = (value, fallback = true) => {
   if (value === true || value === "true" || value === "1") return true;
   if (value === false || value === "false" || value === "0") return false;
   return fallback;
+};
+
+const toArray = (value) => (Array.isArray(value) ? value : []);
+
+const getMapStorageStrategy = (appProfile = {}) => ({
+  sourceOfTruthFormat: "geojson",
+  preferredBuildSourceFormat: "geojson",
+  preferredDeliveryFormat: "json",
+  preferredSearchFormat: "json",
+  migrationGoal: "",
+  ...(appProfile.map?.storageStrategy || {}),
+});
+
+const getMapOptimizationArtifactSpecs = (appProfile = {}) => (
+  toArray(appProfile.map?.optimizationArtifacts)
+);
+
+const getOptimizationArtifactsByRole = (appProfile = {}, role = "") => (
+  getMapOptimizationArtifactSpecs(appProfile).filter((artifact) => artifact.role === role)
+);
+
+export const getPreferredBuildSourceArtifact = (appProfile = {}, options = {}) => {
+  const storageStrategy = getMapStorageStrategy(appProfile);
+  const sourceModuleId = options.sourceModuleId || "";
+  const preferredFormats = [
+    storageStrategy.preferredBuildSourceFormat,
+    storageStrategy.sourceOfTruthFormat,
+  ].filter(Boolean);
+  const statusRank = {
+    active: 0,
+    optional: 1,
+    experimental: 2,
+  };
+  const getFormatRank = (format = "") => {
+    const index = preferredFormats.indexOf(format);
+    return index === -1 ? preferredFormats.length : index;
+  };
+
+  return getMapOptimizationArtifactSpecs(appProfile)
+    .filter((artifact) => {
+      const isSourceArtifact = artifact.role === "columnar-canonical" || artifact.role === "source-of-truth";
+      const matchesSourceModule = !sourceModuleId || artifact.sourceModuleId === sourceModuleId;
+      return isSourceArtifact && matchesSourceModule && artifact.filePath;
+    })
+    .sort((left, right) => {
+      // Prefer the storage strategy's current format, then active artifacts,
+      // then deterministic id order so tooling chooses the same source locally
+      // and in CI.
+      const formatDelta = getFormatRank(left.format) - getFormatRank(right.format);
+      if (formatDelta !== 0) return formatDelta;
+
+      const statusDelta = (statusRank[left.status] ?? 99) - (statusRank[right.status] ?? 99);
+      if (statusDelta !== 0) return statusDelta;
+
+      return left.id.localeCompare(right.id);
+    })[0] || null;
 };
 
 const fileExists = async (filePath) => {
@@ -97,6 +154,8 @@ const resolveWorkingGeospatialPython = async () => {
     "python",
   ].filter(Boolean);
 
+  // The user's machine may have several Python installs. Probe for the actual
+  // GIS stack instead of assuming `python3` is the right interpreter.
   for (const candidate of candidatePythons) {
     try {
       await execFileAsync(candidate, ["-c", GEOSPATIAL_PYTHON_REQUIREMENTS]);

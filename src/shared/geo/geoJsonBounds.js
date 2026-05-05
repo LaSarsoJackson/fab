@@ -22,6 +22,8 @@ const isCoordinatePairValid = ([lngValue, latValue]) => {
 const walkCoordinates = (coordinates, onCoordinatePair) => {
   if (!Array.isArray(coordinates)) return;
 
+  // GeoJSON geometries nest coordinate pairs at different depths. Walk the
+  // array recursively and treat the first scalar pair as a longitude/latitude.
   if (
     coordinates.length >= 2 &&
     !Array.isArray(coordinates[0]) &&
@@ -56,6 +58,8 @@ const walkGeoJson = (value, onCoordinatePair) => {
 };
 
 export const getGeoJsonBounds = (geoJson) => {
+  // Return Leaflet-style [[south, west], [north, east]] bounds so map modules
+  // do not need to translate generic GeoJSON extent objects.
   let bounds = {
     south: Number.POSITIVE_INFINITY,
     west: Number.POSITIVE_INFINITY,

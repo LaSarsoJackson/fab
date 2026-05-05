@@ -9,31 +9,15 @@ const APP_HOSTS = new Set([
   `localhost:${TEST_IMAGE_PORT}`,
 ]);
 
-const runtimeVariants = [
-  { name: "leaflet", path: "/" },
-  { name: "custom-map", path: "/?mapEngine=custom" },
-];
+const TEST_APP_PATH = "/";
 const isIgnorableConsoleError = (text = "") => /^Failed to load resource:/i.test(text);
-const isIgnorableLocalRequestFailure = (request) => {
-  const failureText = request.failure()?.errorText || "";
-  if (failureText !== "net::ERR_ABORTED") {
-    return false;
-  }
-
-  try {
-    const url = new URL(request.url());
-    return url.pathname.endsWith("/data/site_twin/grave_candidates.geojson");
-  } catch (error) {
-    return false;
-  }
-};
-const buildRuntimePath = (runtimePath, searchParams = "") => {
+const buildAppPath = (searchParams = "") => {
   if (!searchParams) {
-    return runtimePath;
+    return TEST_APP_PATH;
   }
 
-  const separator = runtimePath.includes("?") ? "&" : "?";
-  return `${runtimePath}${separator}${searchParams}`;
+  const separator = TEST_APP_PATH.includes("?") ? "&" : "?";
+  return `${TEST_APP_PATH}${separator}${searchParams}`;
 };
 
 test.beforeEach(async ({ page }, testInfo) => {
@@ -60,7 +44,7 @@ test.beforeEach(async ({ page }, testInfo) => {
       hostname = "";
     }
 
-    if (APP_HOSTS.has(hostname) && !isIgnorableLocalRequestFailure(request)) {
+    if (APP_HOSTS.has(hostname)) {
       localRequestFailures.push(`${request.failure()?.errorText || "Request failed"}: ${request.url()}`);
     }
   });
@@ -114,7 +98,7 @@ async function getVisibleSearchInput(page, { requireEditable = true } = {}) {
   return browseSearchInput;
 }
 
-async function waitForAppReady(page, path = "/") {
+async function waitForAppReady(page, path = TEST_APP_PATH) {
   await page.goto(path);
 
   const searchInput = await getVisibleSearchInput(page, { requireEditable: false });
@@ -190,169 +174,299 @@ async function expectExternalMapsNavigation(page, triggerNavigation) {
   await expect(page).toHaveURL(externalMapsPattern, { timeout: 20_000 });
 }
 
-runtimeVariants.forEach((runtimeVariant) => {
-  test.describe(`desktop (${runtimeVariant.name})`, () => {
-    test("searching for a burial opens the map popup and external maps popup", async ({ page }) => {
-      await waitForAppReady(page, runtimeVariant.path);
-      await ensureBurialDataLoaded(page);
-      const browseResults = await searchForLamont(page);
+async function getSelectedMarkerCenter(page) {
+  const marker = page.locator(".custom-div-icon").first();
+  await expect(marker).toBeVisible();
 
-      await browseResults.first().click();
+  const markerBox = await marker.boundingBox();
+  if (!markerBox) {
+    throw new Error("Expected selected marker to have a screen position.");
+  }
 
-      const popupCard = page.locator(".popup-card");
-      await expect(popupCard).toBeVisible();
-      await expect(popupCard.locator(".popup-card__title")).toHaveText("Thomas E LaMont");
-      await expect(popupCard.locator(".popup-card__details")).toContainText("Section 215, Lot 30, Tier 0, Grave 0");
+  return {
+    x: markerBox.x + (markerBox.width / 2),
+    y: markerBox.y + (markerBox.height / 2),
+  };
+}
 
-      await openDirectionsMenu(popupCard, page);
-      await expectExternalMapsNavigation(page, () => page.getByRole("menuitem", { name: "Open in Maps" }).click());
+async function dragMapBy(page, { deltaX, deltaY }) {
+  const mapBox = await page.locator(".leaflet-container").boundingBox();
+  if (!mapBox) {
+    throw new Error("Expected map container to be visible for dragging.");
+  }
+
+  const startX = mapBox.x + (mapBox.width * 0.62);
+  const startY = mapBox.y + (mapBox.height * 0.58);
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + deltaX, startY + deltaY, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(250);
+}
+
+test.describe("desktop", () => {
+  test("searching for a burial opens the map popup and external maps popup", async ({ page }) => {
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
+    const browseResults = await searchForLamont(page);
+
+    await browseResults.first().click();
+
+    const popupCard = page.locator(".popup-card");
+    await expect(popupCard).toBeVisible();
+    await expect(popupCard.locator(".popup-card__title")).toHaveText("Thomas E LaMont");
+    await expect(popupCard.locator(".popup-card__details")).toContainText("Section 215, Lot 30, Tier 0, Grave 0");
+
+    await openDirectionsMenu(popupCard, page);
+    await expectExternalMapsNavigation(page, () => page.getByRole("menuitem", { name: "Open in Maps" }).click());
+  });
+
+  test("desktop search panel can be hidden and restored", async ({ page }) => {
+    await waitForAppReady(page);
+
+    await expect(page.locator(".left-sidebar--desktop")).toBeVisible();
+    await page.getByRole("button", { name: "Hide search panel" }).click();
+
+    await expect(page.locator(".left-sidebar--desktop")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Show search panel" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Show search panel" }).click();
+    await expect(page.locator(".left-sidebar--desktop")).toBeVisible();
+    await expect(await getVisibleSearchInput(page, { requireEditable: false })).toBeVisible();
+  });
+
+  test("section browsing shows section-scoped results and can be cleared", async ({ page }) => {
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
+
+    await page.getByRole("group", { name: "Browse the map" }).getByRole("button", { name: "Sections", exact: true }).click();
+    const sectionBrowseDetail = page.locator(".left-sidebar__browse-detail--section");
+    const browseSearchInput = page.locator(".left-sidebar__browse-composer input").first();
+
+    await expect(sectionBrowseDetail).toContainText(/one section, then refine inside it\./i);
+
+    const sectionInput = page.getByRole("combobox", { name: "Section" });
+    await sectionInput.click();
+    await sectionInput.fill("215");
+    await page.getByRole("option", { name: "Section 215" }).click();
+    await expect(sectionInput).toHaveValue("Section 215");
+    await expect(browseSearchInput).toHaveAttribute("placeholder", "Search this section");
+    await expect(sectionBrowseDetail).toContainText("Refine Section 215");
+
+    const markerToggle = sectionBrowseDetail.getByRole("button", { name: /section markers/i });
+    await expect(markerToggle).toBeVisible();
+    const startingLabel = (await markerToggle.textContent()) || "";
+    await markerToggle.click();
+    await expect(sectionBrowseDetail.getByRole("button", {
+        name: startingLabel.includes("Hide") ? "Show section markers" : "Hide section markers",
+    })).toBeVisible();
+
+    const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
+    await expect(page.locator(".left-sidebar__panel--browse")).toContainText(/Showing \d+ of \d+/);
+    await browseResults.first().click();
+
+    await expect(page.locator(".popup-card")).toBeVisible();
+
+    await sectionBrowseDetail.getByRole("button", { name: "Clear" }).click();
+    await expect(sectionInput).toHaveValue("");
+    await expect(browseSearchInput).toHaveAttribute("placeholder", "Select a section to browse");
+    await expect(sectionBrowseDetail).not.toContainText("Refine Section 215");
+    await expect(page.getByRole("button", { name: "Show section markers" })).toHaveCount(0);
+  });
+
+  test("tour browsing loads stops and lets a user inspect a tour stop popup", async ({ page }) => {
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
+
+    await page.getByRole("group", { name: "Browse the map" }).getByRole("button", { name: "Tours", exact: true }).click();
+
+    const tourInput = page.getByRole("combobox", { name: "Tour" });
+    await tourInput.click();
+    await tourInput.fill("Notables");
+    await page.getByRole("option", { name: "Notables Tour 2020" }).click();
+
+    await expect(page.getByText("Loading Notables Tour 2020…")).toHaveCount(0, { timeout: 45_000 });
+
+    const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
+    await expect(browseResults.first()).toBeVisible();
+
+    const selectedHeading = (await browseResults.first().getByRole("heading").textContent()).trim();
+    await browseResults.first().click();
+
+    const popupCard = page.locator(".popup-card");
+    await expect(popupCard).toBeVisible();
+    await expect(popupCard.locator(".popup-card__eyebrow")).toContainText("Notables Tour 2020");
+    await expect(popupCard.locator(".popup-card__title")).toHaveText(selectedHeading);
+  });
+
+  test("deep links restore the selected burial and popup state", async ({ page }) => {
+    await waitForAppReady(page, buildAppPath("view=burials&q=lamont"));
+
+    const popupCard = page.locator(".popup-card");
+    await expect(popupCard).toBeVisible({ timeout: 60_000 });
+    await expect(popupCard.locator(".popup-card__title")).toHaveText("Thomas E LaMont");
+    await expect(page.locator(".left-sidebar__panel--selected-summary")).toContainText("Thomas E LaMont");
+  });
+
+  test("locate uses browser geolocation in the production map", async ({ page, context }) => {
+    await context.grantPermissions(["geolocation"]);
+    await context.setGeolocation({
+      latitude: 42.70418,
+      longitude: -73.73198,
     });
 
-    test("section browsing shows section-scoped results and can be cleared", async ({ page }) => {
-      await waitForAppReady(page, runtimeVariant.path);
-      await ensureBurialDataLoaded(page);
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
 
-      await page.getByRole("group", { name: "Browse the map" }).getByRole("button", { name: "Sections", exact: true }).click();
-      const sectionBrowseDetail = page.locator(".left-sidebar__browse-detail--section");
-      const browseSearchInput = page.locator(".left-sidebar__browse-composer input").first();
+    await page.getByRole("button", { name: "My location" }).click();
 
-      await expect(sectionBrowseDetail).toContainText(/one section, then refine inside it\./i);
+    await expect(page.getByText("Using your current location for directions.")).toBeVisible({ timeout: 15_000 });
+  });
 
-      const sectionInput = page.getByRole("combobox", { name: "Section" });
-      await sectionInput.click();
-      await sectionInput.fill("215");
-      await page.getByRole("option", { name: "Section 215" }).click();
-      await expect(sectionInput).toHaveValue("Section 215");
-      await expect(browseSearchInput).toHaveAttribute("placeholder", "Search this section");
-      await expect(sectionBrowseDetail).toContainText("Refine Section 215");
-
-      const markerToggle = sectionBrowseDetail.getByRole("button", { name: /section markers/i });
-      await expect(markerToggle).toBeVisible();
-      const startingLabel = (await markerToggle.textContent()) || "";
-      await markerToggle.click();
-      await expect(sectionBrowseDetail.getByRole("button", {
-          name: startingLabel.includes("Hide") ? "Show section markers" : "Hide section markers",
-      })).toBeVisible();
-
-      const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
-      await expect(page.locator(".left-sidebar__panel--browse")).toContainText(/Showing \d+ of \d+/);
-      await browseResults.first().click();
-
-      await expect(page.locator(".popup-card")).toBeVisible();
-
-      await sectionBrowseDetail.getByRole("button", { name: "Clear" }).click();
-      await expect(sectionInput).toHaveValue("");
-      await expect(browseSearchInput).toHaveAttribute("placeholder", "Select a section to browse");
-      await expect(sectionBrowseDetail).not.toContainText("Refine Section 215");
-      await expect(page.getByRole("button", { name: "Show section markers" })).toHaveCount(0);
+  test("locate does not stay pending when browser accuracy never becomes usable", async ({ page, context }) => {
+    await context.grantPermissions(["geolocation"]);
+    await context.setGeolocation({
+      latitude: 42.70418,
+      longitude: -73.73198,
+      accuracy: 250,
     });
 
-    test("tour browsing loads stops and lets a user inspect a tour stop popup", async ({ page }) => {
-      await waitForAppReady(page, runtimeVariant.path);
-      await ensureBurialDataLoaded(page);
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
 
-      await page.getByRole("group", { name: "Browse the map" }).getByRole("button", { name: "Tours", exact: true }).click();
+    await page.getByRole("button", { name: "My location" }).click();
 
-      const tourInput = page.getByRole("combobox", { name: "Tour" });
-      await tourInput.click();
-      await tourInput.fill("Notables");
-      await page.getByRole("option", { name: "Notables Tour 2020" }).click();
+    await expect(page.getByText("GPS is unavailable. Check signal and permissions, or search by name or section.")).toBeVisible({ timeout: 25_000 });
+    await expect(page.getByText("Finding your location…")).toHaveCount(0);
+  });
 
-      await expect(page.getByText("Loading Notables Tour 2020…")).toHaveCount(0, { timeout: 45_000 });
-
-      const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
-      await expect(browseResults.first()).toBeVisible();
-
-      const selectedHeading = (await browseResults.first().getByRole("heading").textContent()).trim();
-      await browseResults.first().click();
-
-      const popupCard = page.locator(".popup-card");
-      await expect(popupCard).toBeVisible();
-      await expect(popupCard.locator(".popup-card__eyebrow")).toContainText("Notables Tour 2020");
-      await expect(popupCard.locator(".popup-card__title")).toHaveText(selectedHeading);
+  test("on-map routing uses the local road graph", async ({ page, context }) => {
+    await context.grantPermissions(["geolocation"]);
+    await context.setGeolocation({
+      latitude: 42.70418,
+      longitude: -73.73198,
     });
 
-    test("deep links restore the selected burial and popup state", async ({ page }) => {
-      await waitForAppReady(page, buildRuntimePath(runtimeVariant.path, "view=burials&q=lamont"));
-
-      const popupCard = page.locator(".popup-card");
-      await expect(popupCard).toBeVisible({ timeout: 60_000 });
-      await expect(popupCard.locator(".popup-card__title")).toHaveText("Thomas E LaMont");
-      await expect(page.locator(".left-sidebar__panel--selected-summary")).toContainText("Thomas E LaMont");
+    let externalRouteRequestCount = 0;
+    page.on("request", (request) => {
+      if (/valhalla|openrouteservice|graphhopper|mapbox.*directions/i.test(request.url())) {
+        externalRouteRequestCount += 1;
+      }
     });
 
-    test("locate uses browser geolocation in both runtimes", async ({ page, context }) => {
-      await context.grantPermissions(["geolocation"]);
-      await context.setGeolocation({
-        latitude: 42.70418,
-        longitude: -73.73198,
-      });
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
+    const browseResults = await searchForLamont(page);
 
-      await waitForAppReady(page, runtimeVariant.path);
-      await ensureBurialDataLoaded(page);
+    await browseResults.first().click();
 
-      await page.getByRole("button", { name: "My location" }).click();
+    const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
+    await openDirectionsMenu(selectedPeoplePanel, page);
+    await page.getByRole("menuitem", { name: "Route on Map" }).click();
 
-      await expect(page.getByText("Using your current location for directions.")).toBeVisible({ timeout: 15_000 });
+    await expect(selectedPeoplePanel).toContainText("Route active");
+    await expect(page.getByText("Calculating route...")).toHaveCount(0, { timeout: 15_000 });
+    const routeLine = page.locator("path[stroke='#0f67c6']").first();
+    await expect(routeLine).toBeVisible();
+    await expect(page.locator("path[stroke='#26333b']").first()).toBeVisible();
+    const initialRoutePath = await routeLine.getAttribute("d");
+    expect(externalRouteRequestCount).toBe(0);
+
+    await context.setGeolocation({
+      latitude: 42.7051,
+      longitude: -73.7304,
+    });
+    await expect(routeLine).not.toHaveAttribute("d", initialRoutePath || "", { timeout: 15_000 });
+
+    await openDirectionsMenu(selectedPeoplePanel, page, { routeActionName: "Stop Route" });
+    await page.getByRole("menuitem", { name: "Stop Route" }).click();
+    await expect(selectedPeoplePanel).not.toContainText("Route active");
+  });
+
+  test("active routing keeps updating after manual map drag without recentering", async ({ page, context }) => {
+    await context.grantPermissions(["geolocation"]);
+    await context.setGeolocation({
+      latitude: 42.70418,
+      longitude: -73.73198,
     });
 
-    test("on-map routing uses the local road graph in both runtimes", async ({ page, context }) => {
-      await context.grantPermissions(["geolocation"]);
-      await context.setGeolocation({
-        latitude: 42.70418,
-        longitude: -73.73198,
-      });
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
+    const browseResults = await searchForLamont(page);
 
-      let externalRouteRequestCount = 0;
-      page.on("request", (request) => {
-        if (/valhalla1\.openstreetmap\.de\/route/i.test(request.url())) {
-          externalRouteRequestCount += 1;
-        }
-      });
+    await browseResults.first().click();
 
-      await waitForAppReady(page, buildRuntimePath(runtimeVariant.path, "routing=local"));
-      await ensureBurialDataLoaded(page);
-      const browseResults = await searchForLamont(page);
+    const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
+    await openDirectionsMenu(selectedPeoplePanel, page);
+    await page.getByRole("menuitem", { name: "Route on Map" }).click();
 
-      await browseResults.first().click();
+    await expect(selectedPeoplePanel).toContainText("Route active");
+    await expect(page.getByText("Calculating route...")).toHaveCount(0, { timeout: 15_000 });
+    const routeLine = page.locator("path[stroke='#0f67c6']").first();
+    await expect(routeLine).toBeVisible();
 
-      const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
-      await openDirectionsMenu(selectedPeoplePanel, page);
-      await page.getByRole("menuitem", { name: "Route on Map" }).click();
+    const centeredMarker = await getSelectedMarkerCenter(page);
+    await dragMapBy(page, { deltaX: 180, deltaY: -70 });
+    const pannedMarker = await getSelectedMarkerCenter(page);
+    expect(Math.abs(pannedMarker.x - centeredMarker.x)).toBeGreaterThan(20);
 
-      await expect(selectedPeoplePanel).toContainText("Route active");
-      await expect(page.getByText("Calculating route...")).toHaveCount(0, { timeout: 15_000 });
-      expect(externalRouteRequestCount).toBe(0);
-
-      await openDirectionsMenu(selectedPeoplePanel, page, { routeActionName: "Stop Route" });
-      await page.getByRole("menuitem", { name: "Stop Route" }).click();
-      await expect(selectedPeoplePanel).not.toContainText("Route active");
+    const routePathAfterPan = await routeLine.getAttribute("d");
+    await context.setGeolocation({
+      latitude: 42.7051,
+      longitude: -73.7304,
     });
+
+    await expect(routeLine).not.toHaveAttribute("d", routePathAfterPan || "", { timeout: 15_000 });
+    await expect(page.getByText("Calculating route...")).toHaveCount(0, { timeout: 15_000 });
+    const refreshedMarker = await getSelectedMarkerCenter(page);
+
+    expect(Math.abs(refreshedMarker.x - pannedMarker.x)).toBeLessThanOrEqual(3);
+    expect(Math.abs(refreshedMarker.y - pannedMarker.y)).toBeLessThanOrEqual(3);
+  });
+
+  test("on-map routing explains when current location is off-site", async ({ page, context }) => {
+    await context.grantPermissions(["geolocation"]);
+    await context.setGeolocation({
+      latitude: 40.7128,
+      longitude: -74.006,
+    });
+
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
+    const browseResults = await searchForLamont(page);
+
+    await browseResults.first().click();
+
+    const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
+    await openDirectionsMenu(selectedPeoplePanel, page);
+    await page.getByRole("menuitem", { name: "Route on Map" }).click();
+
+    await expect(page.getByText(/Route on Map needs your current location near Albany Rural Cemetery/i)).toBeVisible({ timeout: 15_000 });
+    await expect(selectedPeoplePanel).not.toContainText("Route active");
   });
 });
 
-runtimeVariants.forEach((runtimeVariant) => {
-  test.describe(`mobile (${runtimeVariant.name})`, () => {
-    test.use({ viewport: { width: 390, height: 844 } });
+test.describe("mobile", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
 
-    test("selected-person actions stay usable in the mobile bottom sheet", async ({ page }) => {
-      await waitForAppReady(page, runtimeVariant.path);
-      await ensureBurialDataLoaded(page);
-      const browseResults = await searchForLamont(page);
+  test("selected-person actions stay usable in the mobile bottom sheet", async ({ page }) => {
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
+    const browseResults = await searchForLamont(page);
 
-      await browseResults.first().click();
+    await browseResults.first().click();
 
-      const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
-      await expect(selectedPeoplePanel).toContainText("Selection");
-      await expect(selectedPeoplePanel).toContainText("Pinned for focus & directions");
-      await expect(selectedPeoplePanel).toContainText("Thomas E LaMont");
-      await expect(selectedPeoplePanel.getByRole("button", { name: "Route on map" })).toBeVisible();
-      await expect(selectedPeoplePanel.getByRole("button", { name: "Open in Maps" })).toBeVisible();
-      await expect(selectedPeoplePanel.getByRole("button", { name: "Route on map" })).toBeInViewport();
-      await expect(selectedPeoplePanel.getByRole("button", { name: "Open in Maps" })).toBeInViewport();
+    const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
+    await expect(selectedPeoplePanel).toContainText("Selection");
+    await expect(selectedPeoplePanel).toContainText("Pinned for focus & directions");
+    await expect(selectedPeoplePanel).toContainText("Thomas E LaMont");
+    await expect(selectedPeoplePanel.getByRole("button", { name: "Route on map" })).toBeVisible();
+    await expect(selectedPeoplePanel.getByRole("button", { name: "Open in Maps" })).toBeVisible();
+    await expect(selectedPeoplePanel.getByRole("button", { name: "Route on map" })).toBeInViewport();
+    await expect(selectedPeoplePanel.getByRole("button", { name: "Open in Maps" })).toBeInViewport();
 
-      await selectedPeoplePanel.getByRole("button", { name: "Clear" }).click();
-      await expect(selectedPeoplePanel).toHaveCount(0);
-    });
+    await selectedPeoplePanel.getByRole("button", { name: "Clear" }).click();
+    await expect(selectedPeoplePanel).toHaveCount(0);
   });
 });

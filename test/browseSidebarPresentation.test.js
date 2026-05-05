@@ -116,7 +116,7 @@ describe("browse sidebar presentation helpers", () => {
       {
         key: "offline",
         tone: "warning",
-        label: "Offline. Search stays available, but live links may be limited.",
+        label: "Offline. Cached searches and cemetery layers may still work after a prior load; live maps, links, and GPS can be limited.",
       },
     ]);
   });

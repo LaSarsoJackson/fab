@@ -16,8 +16,8 @@ describe("buildPublicAssetUrl", () => {
   });
 
   test("falls back to root-relative asset urls when public url is empty", () => {
-    expect(buildPublicAssetUrl("/data/site_twin/manifest.json", "")).toBe(
-      "/data/site_twin/manifest.json"
+    expect(buildPublicAssetUrl("/data/Search_Burials.json", "")).toBe(
+      "/data/Search_Burials.json"
     );
   });
 });

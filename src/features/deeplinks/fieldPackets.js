@@ -56,6 +56,8 @@ const normalizeMapBounds = (value) => {
 };
 
 const encodeBase64Url = (value) => {
+  // Tests and build scripts run under Node where Buffer exists, while the
+  // deployed app may only have browser base64 APIs.
   if (typeof Buffer !== "undefined") {
     return Buffer.from(value, "utf8")
       .toString("base64")
@@ -242,6 +244,36 @@ export const parseFieldPacketValue = (value = "") => {
   }
 };
 
+/**
+ * Decode both lightweight query-string deep links and the packed shared-link
+ * payload so callers do not have to duplicate URL parsing rules.
+ */
+export const parseDeepLinkState = (search = "", tourNames = []) => {
+  const query = search.startsWith("?") ? search : `?${search}`;
+  const params = new URLSearchParams(query);
+
+  const section = cleanValue(params.get(ROUTING_QUERY_PARAMS.section));
+  const view = cleanValue(params.get(ROUTING_QUERY_PARAMS.view)).toLowerCase();
+  const textQuery = cleanValue(params.get(ROUTING_QUERY_PARAMS.search));
+  const rawTour = cleanValue(params.get(ROUTING_QUERY_PARAMS.tour)).toLowerCase();
+  const fieldPacket = parseFieldPacketValue(params.get(SHARED_LINK_QUERY_PARAM));
+
+  const selectedTourName = rawTour
+    ? tourNames.find((tourName) => tourName.toLowerCase().includes(rawTour)) || null
+    : null;
+
+  return {
+    section,
+    query: textQuery,
+    view,
+    rawTour,
+    selectedTourName,
+    fieldPacket,
+    showBurialsView: view === "burials",
+    showToursView: view === "tours",
+  };
+};
+
 export const buildFieldPacketShareUrl = ({
   packet,
   currentUrl = "",
@@ -260,4 +292,60 @@ export const buildFieldPacketShareUrl = ({
   url.searchParams.set(SHARED_LINK_QUERY_PARAM, encodeFieldPacket(packetState));
 
   return url.toString();
+};
+
+const clampText = (value, maxLength = 160) => {
+  const text = cleanValue(value);
+  if (!text || text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+};
+
+export const formatSharedSelectionCountLabel = (count = 0) => {
+  const normalizedCount = Number.isFinite(Number(count)) ? Number(count) : 0;
+  return `${normalizedCount} selected record${normalizedCount === 1 ? "" : "s"}`;
+};
+
+export const buildSharedSelectionPresentation = (packet = {}) => {
+  const selectedRecords = Array.isArray(packet.selectedRecords) ? packet.selectedRecords : [];
+  const recordCount = selectedRecords.length;
+  const sectionFilter = cleanValue(packet.sectionFilter);
+  const selectedTour = cleanValue(packet.selectedTour);
+  const note = cleanValue(packet.note);
+  const explicitName = cleanValue(packet.name);
+  const leadRecord = selectedRecords[0] || null;
+  const leadName = leadRecord ? cleanValue(formatBrowseResultName(leadRecord)) : "";
+  const sectionLabel = sectionFilter ? `Section ${sectionFilter}` : "";
+  const countLabel = formatSharedSelectionCountLabel(recordCount);
+
+  const title = explicitName ||
+    selectedTour ||
+    sectionLabel ||
+    leadName ||
+    "Shared selection";
+
+  let description = note;
+
+  if (!description && selectedTour && recordCount > 0) {
+    description = `${countLabel} on the ${selectedTour}.`;
+  } else if (!description && sectionLabel && recordCount > 0) {
+    description = `${countLabel} in ${sectionLabel}.`;
+  } else if (!description && leadName) {
+    description = `Shared map view for ${leadName}${sectionLabel ? ` in ${sectionLabel}` : ""}.`;
+  } else if (!description && recordCount > 0) {
+    description = `Shared map view for ${countLabel}${sectionLabel ? ` in ${sectionLabel}` : ""}.`;
+  } else if (!description) {
+    description = "Shared map view for Albany Rural Cemetery.";
+  }
+
+  return {
+    title,
+    description: clampText(description),
+    countLabel,
+    sectionLabel,
+    selectedTour,
+    recordCount,
+  };
 };

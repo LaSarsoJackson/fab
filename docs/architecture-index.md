@@ -13,35 +13,24 @@ Use this file to decide which note to read before making a change.
 - Touching `src/Map.jsx` or map selection flow:
   [map-architecture.md](./map-architecture.md)
 
-- Planning or defending the FAB custom map story:
-  [custom-map-engine.md](./custom-map-engine.md)
-
-- Changing map runtime or backend contracts:
-  [map-engine-api.md](./map-engine-api.md)
-
-- Working on GeoParquet, PMTiles, or static geospatial artifacts:
-  [map-engine-geoparquet.md](./map-engine-geoparquet.md)
-
-- Working on the cemetery site twin / digital twin pipeline:
-  [geospatial-site-twin.md](./geospatial-site-twin.md)
-
-- Changing client route hashes, shared-link query params, external directions
-  links, or routing provider URL contracts:
+- Changing client route hashes, shared-link query params, in-app road routing,
+  or external directions links:
   [routing-architecture.md](./routing-architecture.md)
 
 - Changing where helpers or feature code should live:
   [codebase-structure.md](./codebase-structure.md)
 
-- Changing admin editing, workbook flows, or update bundles:
-  [static-admin-studio.md](./static-admin-studio.md)
-
 - Adding FAB-only branding, data modules, tours, or presentation rules:
   [app-profile-architecture.md](./app-profile-architecture.md)
+
+- Changing development-only surfaces such as static admin, custom renderer,
+  PMTiles previews, or site-twin tooling:
+  [dev-branch-workflow.md](./dev-branch-workflow.md)
 
 - Changing shared UI patterns, spacing, interaction, or motion:
   [ui-principles.md](./ui-principles.md)
 
-- Planning web/native alignment, custom-map rollout, or repo modernization:
+- Planning web/native alignment or repo modernization:
   [unified-stack-roadmap.md](./unified-stack-roadmap.md)
 
 - Working on tour popup normalization or tour-derived presentation:
@@ -52,5 +41,4 @@ Use this file to decide which note to read before making a change.
 - deep links and selected-record restoration
 - section browse and section marker parity
 - tour stop matching and tour popup data
-- custom runtime versus Leaflet parity
 - contributor-facing docs drifting away from current architecture

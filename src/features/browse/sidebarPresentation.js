@@ -1,7 +1,17 @@
+/**
+ * Pure sidebar presentation helpers. Keeping copy, tones, and action metadata
+ * out of the React component lets tests cover empty/loading/offline states
+ * without rendering the full map/sidebar shell.
+ */
 export const formatLocationNoticeLabel = ({
   status,
   activeStatus,
   locatingStatus,
+  outOfBoundsStatus,
+  unavailableStatus,
+  unsupportedStatus,
+  approximateStatus,
+  weakSignalStatus,
 }) => {
   if (status === activeStatus) {
     return "Using your current location for directions.";
@@ -11,6 +21,30 @@ export const formatLocationNoticeLabel = ({
     return "Finding your location…";
   }
 
+  // Approximate/weak-signal use the raw profile copy: it already explains
+  // the state ("Approximate location (improving signal...)" / "GPS signal is
+  // weak, still trying..."). Pulling them through this helper keeps the
+  // presentation layer responsible for tone selection only.
+  if (approximateStatus && status === approximateStatus) {
+    return status;
+  }
+
+  if (weakSignalStatus && status === weakSignalStatus) {
+    return status;
+  }
+
+  if (status === unavailableStatus) {
+    return "GPS is unavailable. Check signal and permissions, or search by name or section.";
+  }
+
+  if (status === unsupportedStatus) {
+    return "GPS is not supported in this browser. Search by name or section, or use Open in Maps.";
+  }
+
+  if (status === outOfBoundsStatus) {
+    return "Location is outside cemetery range. Search still works; use Open in Maps for off-site directions.";
+  }
+
   return status;
 };
 
@@ -18,9 +52,16 @@ export const getLocationNoticeTone = ({
   status,
   activeStatus,
   locatingStatus,
+  approximateStatus,
+  weakSignalStatus,
 }) => {
   if (status === activeStatus) return "success";
   if (status === locatingStatus) return "neutral";
+  // Approximate fixes are partial successes: the user has a usable on-map
+  // pin, just not a precise one. Show it as informational, not a failure.
+  if (approximateStatus && status === approximateStatus) return "neutral";
+  // "Still trying" is in-progress, not a failure either.
+  if (weakSignalStatus && status === weakSignalStatus) return "neutral";
   return "warning";
 };
 
@@ -57,6 +98,11 @@ export const buildSearchShellNotices = ({
   defaultLocationStatus = "Location inactive",
   activeLocationStatus = "Location active",
   locatingLocationStatus = "Locating...",
+  outOfBoundsLocationStatus = "Location outside cemetery range",
+  unavailableLocationStatus = "GPS unavailable",
+  unsupportedLocationStatus = "GPS unsupported",
+  approximateLocationStatus,
+  weakSignalLocationStatus,
   hasActiveBrowseQuery = false,
   isBurialDataLoading,
   isInstalled,
@@ -76,11 +122,18 @@ export const buildSearchShellNotices = ({
         status: normalizedStatus,
         activeStatus: activeLocationStatus,
         locatingStatus: locatingLocationStatus,
+        approximateStatus: approximateLocationStatus,
+        weakSignalStatus: weakSignalLocationStatus,
       }),
       label: formatLocationNoticeLabel({
         status: normalizedStatus,
         activeStatus: activeLocationStatus,
         locatingStatus: locatingLocationStatus,
+        outOfBoundsStatus: outOfBoundsLocationStatus,
+        unavailableStatus: unavailableLocationStatus,
+        unsupportedStatus: unsupportedLocationStatus,
+        approximateStatus: approximateLocationStatus,
+        weakSignalStatus: weakSignalLocationStatus,
       }),
     });
   }
@@ -89,7 +142,7 @@ export const buildSearchShellNotices = ({
     notices.push({
       key: "offline",
       tone: "warning",
-      label: "Offline. Search stays available, but live links may be limited.",
+      label: "Offline. Cached searches and cemetery layers may still work after a prior load; live maps, links, and GPS can be limited.",
     });
   } else if (isBurialDataLoading) {
     notices.push({

@@ -1,26 +1,17 @@
-import React, { Suspense, lazy, useEffect, useState } from "react";
-import {
-  Alert,
-  Box,
-  Button,
-  Paper,
-  Stack,
-  Typography,
-} from "@mui/material";
-import MapIcon from "@mui/icons-material/Map";
+import React, { Suspense, lazy, useEffect } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { APP_PROFILE } from "./features/fab/profile";
-import { APP_ROUTE_IDS, isAdminHash, navigateToAppRoute } from "./shared/routing";
-import { isAdminStudioEnabled, syncDocumentMetadata } from "./shared/runtime/runtimeEnv";
+import { syncDocumentMetadata } from "./shared/runtime/runtimeEnv";
 import "./App.css";
 
 const BurialMap = lazy(() => import("./Map"));
-const AdminApp = lazy(() => import("./AdminApp"));
 const PRIMARY_ACCENT = "#2f6b57";
 const PRIMARY_ACCENT_DARK = "#255544";
 const PRIMARY_ACCENT_TINT = "#d9e8e0";
 const PANEL_BORDER = "rgba(20, 33, 43, 0.12)";
 
+// Keep the shared shell theme in one place so map and sidebar components can
+// focus on workflow states instead of repeating brand color decisions.
 const appTheme = createTheme({
   palette: {
     primary: {
@@ -148,8 +139,6 @@ const appTheme = createTheme({
   },
 });
 const {
-  adminLoadingMessage,
-  adminLoadingTitle,
   appName,
   mapLoadingMessage,
   mapLoadingTitle,
@@ -158,6 +147,9 @@ const APP_SHELL = APP_PROFILE.shell || {};
 const APP_DOCUMENT_TITLE = APP_SHELL.documentTitle || appName;
 const APP_DESCRIPTION = APP_SHELL.description || "";
 
+// Mobile browser chrome changes the visual viewport without always changing
+// `window.innerHeight`; CSS variables keep the map shell sized to the visible
+// area instead of the theoretical page viewport.
 const syncViewportMetrics = () => {
   if (typeof document === "undefined" || typeof window === "undefined") return;
 
@@ -169,73 +161,7 @@ const syncViewportMetrics = () => {
   root.style.setProperty("--app-offset-top", `${Math.round(viewport?.offsetTop || 0)}px`);
 };
 
-const getIsAdminMode = () => (
-  typeof window !== "undefined" && isAdminHash(window.location.hash)
-);
-
-const returnToMap = () => {
-  navigateToAppRoute(APP_ROUTE_IDS.map);
-};
-
-const AdminUnavailable = () => (
-  <Box
-    sx={{
-      minHeight: "100vh",
-      background: "linear-gradient(180deg, #f5f1e8 0%, #efe9dc 100%)",
-      color: "#18231d",
-      p: { xs: 2, md: 3 },
-      display: "grid",
-      placeItems: "center",
-    }}
-  >
-    <Paper
-      elevation={0}
-      sx={{
-        width: "min(100%, 640px)",
-        borderRadius: 3,
-        p: { xs: 2.5, md: 3.5 },
-        border: "1px solid rgba(24, 35, 29, 0.08)",
-        background: "rgba(255, 252, 246, 0.98)",
-      }}
-    >
-      <Stack spacing={2.5}>
-        <Stack spacing={1}>
-          <Typography variant="overline" sx={{ letterSpacing: "0.16em", color: "#5a6a5e" }}>
-            Records Workspace
-          </Typography>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            Records workspace unavailable
-          </Typography>
-          <Typography variant="body1" sx={{ color: "#425348" }}>
-            This editor is not available from this version of the app.
-          </Typography>
-        </Stack>
-
-        <Alert severity="info">
-          Return to the map, or open the records workspace from the project tools.
-        </Alert>
-
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
-          <Button
-            variant="outlined"
-            startIcon={<MapIcon />}
-            onClick={returnToMap}
-          >
-            Return to map
-          </Button>
-        </Stack>
-      </Stack>
-    </Paper>
-  </Box>
-);
-
-const AdminModeSurface = () => (
-  isAdminStudioEnabled() ? <AdminApp /> : <AdminUnavailable />
-);
-
 export default function App() {
-  const [isAdminMode, setIsAdminMode] = useState(getIsAdminMode);
-
   useEffect(() => {
     syncDocumentMetadata({
       title: APP_DOCUMENT_TITLE,
@@ -261,21 +187,6 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-
-    const syncHashMode = () => {
-      setIsAdminMode(getIsAdminMode());
-    };
-
-    syncHashMode();
-    window.addEventListener("hashchange", syncHashMode);
-
-    return () => {
-      window.removeEventListener("hashchange", syncHashMode);
-    };
-  }, []);
-
   return (
     <ThemeProvider theme={appTheme}>
       <a className="app-skip-link" href="#app-main">
@@ -285,12 +196,12 @@ export default function App() {
         <Suspense
           fallback={
             <div className="app-shell-loading" role="status" aria-live="polite">
-              <h1>{isAdminMode ? adminLoadingTitle : mapLoadingTitle || appName}</h1>
-              <p>{isAdminMode ? adminLoadingMessage : mapLoadingMessage}</p>
+              <h1>{mapLoadingTitle || appName}</h1>
+              <p>{mapLoadingMessage}</p>
             </div>
           }
         >
-          {isAdminMode ? <AdminModeSurface /> : <BurialMap />}
+          <BurialMap />
         </Suspense>
       </main>
     </ThemeProvider>

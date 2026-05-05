@@ -43,8 +43,11 @@ Common commands:
 - `bun run check`: run `doctor`, `lint`, and the default test suite
 - `bun run build:data`: regenerate search data, tour matches, and generated
   bounds
-- `bun run build:pmtiles`: regenerate PMTiles experiment artifacts
 - `bun run deploy`: build and publish the GitHub Pages deployment
+
+Development-only surfaces such as static admin, custom renderer experiments,
+PMTiles previews, and site-twin tooling live on `dev-features`; see
+[docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md).
 
 ## Project structure
 
@@ -53,7 +56,6 @@ Primary entry points:
 - [`src/App.js`](./src/App.js): top-level theme, runtime metadata, and route shell
 - [`src/Map.jsx`](./src/Map.jsx): map orchestration, selection state, and runtime wiring
 - [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx): search, browse, and selected-record UI
-- [`src/AdminApp.jsx`](./src/AdminApp.jsx): static admin workspace
 
 Key folders:
 
@@ -61,8 +63,8 @@ Key folders:
 - [`src/features/map/`](./src/features/map): map-specific runtime helpers, popup models, shared map chrome, and selection logic
 - [`src/features/tours/`](./src/features/tours): tour definitions, matching, and derived metadata
 - [`src/features/deeplinks/`](./src/features/deeplinks): shared-link encoding and field packet state
-- [`src/shared/`](./src/shared): domain-neutral helpers such as routing contracts, runtime features, development-surface gates, and GeoJSON utilities
-- [`scripts/`](./scripts): build-time generators, migrations, geospatial loaders, and deployment wrappers
+- [`src/shared/`](./src/shared): domain-neutral helpers such as routing contracts, runtime features, and GeoJSON utilities
+- [`scripts/`](./scripts): build-time generators, migrations, and deployment wrappers
 
 If you are not sure where a change belongs, stop at
 [`docs/codebase-structure.md`](./docs/codebase-structure.md) before adding a new helper.
@@ -74,11 +76,10 @@ If you are not sure where a change belongs, stop at
 - Keep pure map business rules in [`src/features/map/mapDomain.js`](./src/features/map/mapDomain.js)
   so selection state, section logic, hover rules, geolocation filtering, and map-specific
   styling stay discoverable.
-- Keep walking-route calculation, bundled-road routing, and provider fallback rules in
+- Keep walking-route calculation and bundled-road routing in
   [`src/features/map/mapRouting.js`](./src/features/map/mapRouting.js) so map
   navigation logic has one home.
-- Keep client route hashes, URL query-key names, routing provider ids, Valhalla
-  endpoint defaults, and external directions links in
+- Keep client route hashes, URL query-key names, and external directions links in
   [`src/shared/routing`](./src/shared/routing).
 - Put pure transforms in the owning feature folder under [`src/features/`](./src/features).
 - Put domain-neutral helpers in [`src/shared/`](./src/shared).

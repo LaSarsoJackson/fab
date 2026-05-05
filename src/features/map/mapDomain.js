@@ -13,7 +13,6 @@ import { getGeoJsonBounds, isLatLngBoundsExpressionValid } from "../../shared/ge
  * - how hover and pointer state behave
  * - how burial and section styles are derived
  * - how geolocation fixes are normalized and filtered
- * - how PMTiles experiment glyphs are shaped
  *
  * It intentionally does not own React state, refs, DOM, or Leaflet/runtime
  * lifecycles. Those stay in the map shell and renderer-specific modules.
@@ -24,7 +23,10 @@ import { getGeoJsonBounds, isLatLngBoundsExpressionValid } from "../../shared/ge
 //=============================================================================
 
 const EARTH_RADIUS_METERS = 6371008.8;
+const DEFAULT_COORDINATE_PRECISION = 8;
+const PROGRAMMATIC_MOVE_GUARD_TIMEOUT_MS = 1400;
 const TOUCH_LIKE_POINTER_TYPES = new Set(["touch", "pen"]);
+const noop = () => {};
 
 export const MAP_PRESENTATION_POLICY = Object.freeze({
   sectionOverviewMarkerMinZoom: 13,
@@ -148,6 +150,205 @@ export const shouldIgnoreSectionBackgroundSelection = ({
   return nextClickedSection === normalizeSectionValue(activeSection);
 };
 
+export const shouldApplyViewportFocus = ({
+  hasUserViewportIntent = false,
+  isExplicitFocus = false,
+} = {}) => Boolean(isExplicitFocus || !hasUserViewportIntent);
+
+export const shouldTreatViewportMoveAsUserIntent = ({
+  eventType = "",
+  isProgrammaticMove = false,
+} = {}) => {
+  const normalizedEventType = String(eventType || "").toLowerCase();
+
+  if (normalizedEventType === "dragstart") {
+    return true;
+  }
+
+  return !isProgrammaticMove;
+};
+
+export const createViewportIntentController = ({
+  onUserViewportIntent = noop,
+} = {}) => {
+  // Auto-focus should stop once the user takes control of the viewport, but
+  // programmatic Leaflet moves emit the same move events as real drags/zooms.
+  // Track a small move depth so Map.jsx can distinguish those cases.
+  let hasUserViewportIntent = false;
+  let programmaticMoveDepth = 0;
+  const notifyUserViewportIntent = typeof onUserViewportIntent === "function"
+    ? onUserViewportIntent
+    : noop;
+
+  const markExplicitFocus = () => {
+    hasUserViewportIntent = false;
+  };
+
+  const canApplyFocus = ({ isExplicitFocus = false } = {}) => {
+    const shouldFocus = shouldApplyViewportFocus({
+      hasUserViewportIntent,
+      isExplicitFocus,
+    });
+
+    if (shouldFocus && isExplicitFocus) {
+      markExplicitFocus();
+    }
+
+    return shouldFocus;
+  };
+
+  const markUserIntent = () => {
+    hasUserViewportIntent = true;
+    notifyUserViewportIntent();
+  };
+
+  const handleMoveStart = (eventType) => {
+    if (!shouldTreatViewportMoveAsUserIntent({
+      eventType,
+      isProgrammaticMove: programmaticMoveDepth > 0,
+    })) {
+      return;
+    }
+
+    markUserIntent();
+  };
+
+  const runProgrammaticMove = (map, moveCallback) => {
+    if (!map || typeof moveCallback !== "function") {
+      return undefined;
+    }
+
+    programmaticMoveDepth += 1;
+
+    let didFinish = false;
+    let timeoutId = null;
+    const finish = () => {
+      if (didFinish) {
+        return;
+      }
+
+      didFinish = true;
+      map.off?.("moveend", finish);
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+      programmaticMoveDepth = Math.max(0, programmaticMoveDepth - 1);
+    };
+
+    if (typeof map.once === "function") {
+      map.once("moveend", finish);
+      timeoutId = setTimeout(finish, PROGRAMMATIC_MOVE_GUARD_TIMEOUT_MS);
+    }
+
+    try {
+      const result = moveCallback();
+      if (typeof map.once !== "function") {
+        finish();
+      }
+      return result;
+    } catch (error) {
+      finish();
+      throw error;
+    }
+  };
+
+  return {
+    canApplyFocus,
+    getProgrammaticMoveDepth: () => programmaticMoveDepth,
+    hasUserViewportIntent: () => hasUserViewportIntent,
+    handleMoveStart,
+    markExplicitFocus,
+    markUserIntent,
+    runProgrammaticMove,
+  };
+};
+
+const buildBaseViewportPadding = (basePadding) => ({
+  topLeft: [basePadding, basePadding],
+  bottomRight: [basePadding, basePadding],
+});
+
+const getRectSize = (rect = {}) => ({
+  width: Math.max(0, (rect.right || 0) - (rect.left || 0)),
+  height: Math.max(0, (rect.bottom || 0) - (rect.top || 0)),
+});
+
+export const getPopupViewportPadding = ({
+  containerRect,
+  overlayRect,
+  basePadding = 16,
+  edgeThreshold = 12,
+  dominantCoverage = 0.6,
+} = {}) => {
+  const padding = buildBaseViewportPadding(basePadding);
+
+  if (!containerRect || !overlayRect) {
+    return padding;
+  }
+
+  // The sidebar/mobile sheet can cover one side of the map. Translate that
+  // overlap into Leaflet autopan padding so focused markers remain visible.
+  const overlapLeft = Math.max(containerRect.left, overlayRect.left);
+  const overlapTop = Math.max(containerRect.top, overlayRect.top);
+  const overlapRight = Math.min(containerRect.right, overlayRect.right);
+  const overlapBottom = Math.min(containerRect.bottom, overlayRect.bottom);
+
+  if (overlapRight <= overlapLeft || overlapBottom <= overlapTop) {
+    return padding;
+  }
+
+  const overlapWidth = overlapRight - overlapLeft;
+  const overlapHeight = overlapBottom - overlapTop;
+  const { width: containerWidth, height: containerHeight } = getRectSize(containerRect);
+  if (!containerWidth || !containerHeight) {
+    return padding;
+  }
+
+  const touchesLeft = Math.abs(overlapLeft - containerRect.left) <= edgeThreshold;
+  const touchesRight = Math.abs(containerRect.right - overlapRight) <= edgeThreshold;
+  const touchesTop = Math.abs(overlapTop - containerRect.top) <= edgeThreshold;
+  const touchesBottom = Math.abs(containerRect.bottom - overlapBottom) <= edgeThreshold;
+
+  if (overlapWidth >= containerWidth * dominantCoverage) {
+    if (touchesBottom && !touchesTop) {
+      padding.bottomRight[1] = Math.ceil(overlapHeight) + basePadding;
+      return padding;
+    }
+
+    if (touchesTop && !touchesBottom) {
+      padding.topLeft[1] = Math.ceil(overlapHeight) + basePadding;
+      return padding;
+    }
+  }
+
+  if (overlapHeight >= containerHeight * dominantCoverage) {
+    if (touchesLeft && !touchesRight) {
+      padding.topLeft[0] = Math.ceil(overlapWidth) + basePadding;
+      return padding;
+    }
+
+    if (touchesRight && !touchesLeft) {
+      padding.bottomRight[0] = Math.ceil(overlapWidth) + basePadding;
+      return padding;
+    }
+  }
+
+  if (touchesLeft) {
+    padding.topLeft[0] = Math.ceil(overlapWidth) + basePadding;
+  }
+  if (touchesRight) {
+    padding.bottomRight[0] = Math.ceil(overlapWidth) + basePadding;
+  }
+  if (touchesTop) {
+    padding.topLeft[1] = Math.ceil(overlapHeight) + basePadding;
+  }
+  if (touchesBottom) {
+    padding.bottomRight[1] = Math.ceil(overlapHeight) + basePadding;
+  }
+
+  return padding;
+};
+
 //=============================================================================
 // Selection State Rules
 //=============================================================================
@@ -206,6 +407,9 @@ export const createMapSelectionState = ({
   activeBurialId = null,
   hoveredBurialId = null,
 } = {}) => {
+  // Keep selected records as the only durable state. Active and hovered ids are
+  // allowed only when they still point at a selected record, which prevents
+  // stale Leaflet hover/focus state from leaking into the sidebar.
   const nextSelectedBurials = dedupeSelectedBurials(selectedBurials);
   const selectedBurialIds = new Set(nextSelectedBurials.map((burial) => burial.id));
   const nextActiveBurialId = normalizeBurialId(activeBurialId);
@@ -314,6 +518,9 @@ export const MAP_SELECTION_ACTION_TYPES = Object.freeze({
   SET_HOVER: "setHover",
 });
 
+// Map selection updates funnel through action creators so search results,
+// section markers, tour stops, deep links, and popup close events all normalize
+// active/hovered/selected state the same way.
 export const clearMapSelectionFocus = ({ clearHover = false } = {}) => ({
   type: MAP_SELECTION_ACTION_TYPES.CLEAR_FOCUS,
   clearHover,
@@ -414,6 +621,8 @@ const compareSectionValues = (left, right) => {
 const buildSectionFeatureGroups = (sectionsGeoJson = {}) => {
   const groups = new Map();
 
+  // A single visible section can contain multiple polygons in the source data.
+  // Group first, then compute one browse/focus bound per logical section id.
   (sectionsGeoJson.features || []).forEach((feature) => {
     const sectionValue = normalizeSectionValue(feature?.properties?.Section);
     if (!sectionValue) {
@@ -629,12 +838,62 @@ export const resolveClusterExpansionZoom = ({
   return Math.max(0, terminalZoom);
 };
 
+export const getMarkerCoordinateKey = (
+  marker,
+  precision = DEFAULT_COORDINATE_PRECISION
+) => {
+  const latLng = marker?.getLatLng?.();
+  if (!latLng) return "";
+
+  const lat = Number(latLng.lat);
+  const lng = Number(latLng.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "";
+
+  return `${lat.toFixed(precision)}:${lng.toFixed(precision)}`;
+};
+
+export const getDistinctMarkerLocationCount = (markers = []) => {
+  const coordinateKeys = new Set();
+
+  markers.forEach((marker) => {
+    const coordinateKey = getMarkerCoordinateKey(marker);
+    if (coordinateKey) {
+      coordinateKeys.add(coordinateKey);
+    }
+  });
+
+  return coordinateKeys.size;
+};
+
+export const areMarkersAtSameLocation = (markers = []) => (
+  markers.length > 1 && getDistinctMarkerLocationCount(markers) === 1
+);
+
+export const getClusterIconCount = (
+  cluster,
+  markers = cluster?.getAllChildMarkers?.() || []
+) => {
+  const childCount = Number(cluster?.getChildCount?.());
+  return Number.isFinite(childCount) && childCount > 0
+    ? childCount
+    : markers.length;
+};
+
 export const resolveRoadOverlayVisibility = ({
+  currentZoom = 0,
   roadOverlayVisible = false,
   hasActiveRoute = false,
   hasTrackedLocation = false,
+  sectionDetailMinZoom = MAP_PRESENTATION_POLICY.sectionDetailMinZoom,
 } = {}) => (
-  Boolean(roadOverlayVisible || hasActiveRoute || hasTrackedLocation)
+  Boolean(
+    // Roads stay visible automatically when they provide orientation for route
+    // following or location tracking, even if the manual overlay toggle is off.
+    roadOverlayVisible ||
+    hasActiveRoute ||
+    hasTrackedLocation ||
+    currentZoom >= sectionDetailMinZoom
+  )
 );
 
 export const areRouteLatLngTuplesEquivalent = (left, right) => (
@@ -659,6 +918,8 @@ export const resolveMapPresentationPolicy = ({
   hasTrackedLocation = false,
   preferSectionOverviewMarkers = false,
 } = {}) => {
+  // Map chrome asks for one policy object per render so zoom, active route,
+  // location, and section/tour focus cannot drift through separate conditionals.
   const sectionVisibility = resolveSectionOverlayVisibility({
     currentZoom,
     preferOverviewMarkers: preferSectionOverviewMarkers,
@@ -686,6 +947,7 @@ export const resolveMapPresentationPolicy = ({
       selectedTour,
     }),
     showRoads: resolveRoadOverlayVisibility({
+      currentZoom,
       roadOverlayVisible,
       hasActiveRoute,
       hasTrackedLocation,
@@ -741,12 +1003,36 @@ const ACTIVE_SECTION_BURIAL_MARKER_STYLE = {
   hitRadius: 18,
 };
 
-export const ROAD_LAYER_STYLE = {
-  color: "#36424b",
-  weight: 1.35,
-  opacity: 0.58,
-  fillOpacity: 0.08,
+const ROAD_LINE_BASE_STYLE = {
+  fill: false,
+  interactive: false,
+  bubblingMouseEvents: false,
+  lineCap: "round",
+  lineJoin: "round",
 };
+
+export const ROAD_LAYER_STYLES = [
+  {
+    ...ROAD_LINE_BASE_STYLE,
+    color: "#5c6469",
+    weight: 8,
+    opacity: 0.2,
+  },
+  {
+    ...ROAD_LINE_BASE_STYLE,
+    color: "#d8d1c5",
+    weight: 6.25,
+    opacity: 0.64,
+  },
+  {
+    ...ROAD_LINE_BASE_STYLE,
+    color: "#f8f6ef",
+    weight: 4.5,
+    opacity: 0.96,
+  },
+];
+
+export const ROAD_LAYER_STYLE = ROAD_LAYER_STYLES[ROAD_LAYER_STYLES.length - 1];
 
 const normalizeSectionBurialMarkerKey = (record = {}) => {
   if (record.id) {
@@ -869,7 +1155,18 @@ export const getSectionPolygonStyle = (options = {}) => {
 export const LOCATION_RECENT_FIX_WINDOW_MS = 15000;
 export const LOCATION_MAX_ACCEPTABLE_ACCURACY_METERS = 75;
 export const LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS = 150;
+// In weak-signal cemetery conditions a coarse network/Wi-Fi fix is still more
+// useful than nothing. The map shell may opt in to accepting such fixes as
+// "approximate" via this looser threshold. The accepted candidate is then
+// flagged so the shell can show an informational tone and continue trying to
+// upgrade it via watchPosition.
+export const LOCATION_APPROXIMATE_MAX_ACCURACY_METERS = 1000;
 export const LOCATION_JITTER_DEADBAND_METERS = 2.5;
+
+export const isApproximateLocationAccuracy = (accuracyMeters) => (
+  Number.isFinite(accuracyMeters)
+  && accuracyMeters > LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS
+);
 
 export const normalizeLocationPosition = (position) => {
   const latitude = Number(position?.coords?.latitude);
@@ -959,6 +1256,38 @@ export const selectBestRecentLocationCandidate = (candidates) => {
       ? candidate
       : bestCandidate;
   }, null);
+};
+
+export const selectRouteTrackingLocationCandidate = (
+  candidates,
+  { previousLocation = null } = {}
+) => {
+  if (!Array.isArray(candidates) || candidates.length === 0) {
+    return null;
+  }
+
+  const bestAccuracyCandidate = selectBestRecentLocationCandidate(candidates);
+  // While navigating, meaningful fresh movement is more useful than the most
+  // accurate stale fix. The deadband below keeps small GPS jitter from moving
+  // the route origin on every watch update.
+  const freshestCandidate = candidates.reduce((freshest, candidate) => {
+    if (!freshest) {
+      return candidate;
+    }
+
+    return Number(candidate?.recordedAt) >= Number(freshest?.recordedAt)
+      ? candidate
+      : freshest;
+  }, null);
+
+  if (!previousLocation || !freshestCandidate || freshestCandidate === bestAccuracyCandidate) {
+    return bestAccuracyCandidate || freshestCandidate;
+  }
+
+  const movementMeters = calculateLocationDistanceMeters(previousLocation, freshestCandidate);
+  return movementMeters > LOCATION_JITTER_DEADBAND_METERS
+    ? freshestCandidate
+    : bestAccuracyCandidate;
 };
 
 export const areLocationCandidatesEquivalent = (left, right) => (
@@ -1086,197 +1415,3 @@ export const buildLocationAccuracyGeoJson = (location, { steps = 48 } = {}) => {
     ],
   };
 };
-
-//=============================================================================
-// PMTiles Experiment Rules
-//=============================================================================
-
-export const PMTILES_EXPERIMENT_GLYPH_PALETTE = {
-  approximate: {
-    fill: "rgba(214, 155, 86, 0.28)",
-    stroke: "rgba(124, 83, 40, 0.72)",
-    guide: "rgba(124, 83, 40, 0.2)",
-    label: "Lot-level record",
-    detail: "Placed from section and lot details; exact grave position may vary.",
-  },
-  indexed: {
-    fill: "rgba(18, 94, 74, 0.28)",
-    stroke: "rgba(15, 69, 54, 0.82)",
-    guide: "rgba(15, 69, 54, 0.24)",
-    label: "Grave-level record",
-    detail: "Includes added grave or tier detail, so it appears more strongly.",
-  },
-};
-
-const getNumericBurialProperty = (props, key) => {
-  const numericValue = Number(props?.[key] ?? 0);
-  return Number.isFinite(numericValue) ? numericValue : 0;
-};
-
-export const hasIndexedBurialPlacement = (props = {}) => (
-  getNumericBurialProperty(props, "Grave") > 0 ||
-  getNumericBurialProperty(props, "Tier") > 0
-);
-
-const getExperimentalBurialVisualKey = (props = {}) => String(
-  props.OBJECTID ??
-  props.objectid ??
-  [
-    props.Section,
-    props.Lot,
-    props.Grave,
-    props.Tier,
-    props.First_Name,
-    props.Last_Name,
-  ].join(":")
-);
-
-const hashExperimentalBurialKey = (value) => {
-  let hash = 2166136261;
-
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-
-  return hash >>> 0;
-};
-
-const getPmtilesExperimentOffsetScale = (zoom) => {
-  if (zoom >= 22) return 5.2;
-  if (zoom >= 20) return 4.2;
-  if (zoom >= 18) return 3.2;
-  return 2.2;
-};
-
-export const getPmtilesExperimentGlyphSize = (zoom, isIndexed) => {
-  if (zoom >= 22) return isIndexed ? 5.6 : 5;
-  if (zoom >= 20) return isIndexed ? 5 : 4.5;
-  if (zoom >= 18) return isIndexed ? 4.4 : 4;
-  return isIndexed ? 3.9 : 3.5;
-};
-
-export const getPmtilesExperimentGlyphOffset = (zoom, props = {}, isIndexed) => {
-  const grave = getNumericBurialProperty(props, "Grave");
-  const tier = getNumericBurialProperty(props, "Tier");
-  const hash = hashExperimentalBurialKey(getExperimentalBurialVisualKey(props));
-  const offsetScale = getPmtilesExperimentOffsetScale(zoom);
-
-  if (isIndexed) {
-    const angle = (
-      ((grave > 0 ? grave : hash % 24) % 16) / 16
-    ) * Math.PI * 2 + ((hash % 7) * 0.07);
-    const tierBand = tier > 0 ? Math.min(tier, 6) : ((hash % 4) + 1);
-    const distance = Math.min(6, offsetScale * (0.72 + ((tierBand - 1) * 0.14)));
-    return {
-      dx: Math.cos(angle) * distance,
-      dy: Math.sin(angle) * distance,
-    };
-  }
-
-  const angle = ((hash % 24) / 24) * Math.PI * 2;
-  const distance = offsetScale * (0.42 + ((hash % 5) * 0.08));
-  return {
-    dx: Math.cos(angle) * distance,
-    dy: Math.sin(angle) * distance,
-  };
-};
-
-const drawPmtilesExperimentGuide = (context, startX, startY, endX, endY, guideColor, zoom) => {
-  const distance = Math.hypot(endX - startX, endY - startY);
-
-  if (distance < 0.6) {
-    return;
-  }
-
-  context.save();
-  context.strokeStyle = guideColor;
-  context.lineWidth = zoom >= 20 ? 1 : 0.8;
-  context.beginPath();
-  context.moveTo(startX, startY);
-  context.lineTo(endX, endY);
-  context.stroke();
-  context.restore();
-};
-
-const drawPmtilesExperimentCircleGlyph = (context, centerX, centerY, size, fillColor, strokeColor, zoom) => {
-  context.save();
-  context.fillStyle = fillColor;
-  context.strokeStyle = strokeColor;
-  context.lineWidth = zoom >= 20 ? 1.15 : 1;
-  context.beginPath();
-  context.arc(centerX, centerY, size, 0, Math.PI * 2);
-  context.fill();
-  context.stroke();
-  context.restore();
-};
-
-const drawPmtilesExperimentDiamondGlyph = (context, centerX, centerY, size, fillColor, strokeColor, zoom) => {
-  context.save();
-  context.fillStyle = fillColor;
-  context.strokeStyle = strokeColor;
-  context.lineWidth = zoom >= 20 ? 1.25 : 1.05;
-  context.beginPath();
-  context.moveTo(centerX, centerY - size);
-  context.lineTo(centerX + size, centerY);
-  context.lineTo(centerX, centerY + size);
-  context.lineTo(centerX - size, centerY);
-  context.closePath();
-  context.fill();
-  context.stroke();
-  context.restore();
-};
-
-export class ExperimentalBurialGlyphSymbolizer {
-  constructor(variant) {
-    this.variant = variant;
-  }
-
-  draw(context, geom, zoom, feature) {
-    const anchor = geom?.[0]?.[0];
-    if (!anchor) return;
-
-    const props = feature?.props || {};
-    const isIndexed = this.variant === "indexed";
-    const palette = isIndexed
-      ? PMTILES_EXPERIMENT_GLYPH_PALETTE.indexed
-      : PMTILES_EXPERIMENT_GLYPH_PALETTE.approximate;
-    const { dx, dy } = getPmtilesExperimentGlyphOffset(zoom, props, isIndexed);
-    const centerX = anchor.x + dx;
-    const centerY = anchor.y + dy;
-    const size = getPmtilesExperimentGlyphSize(zoom, isIndexed);
-
-    drawPmtilesExperimentGuide(
-      context,
-      anchor.x,
-      anchor.y,
-      centerX,
-      centerY,
-      palette.guide,
-      zoom
-    );
-
-    if (isIndexed) {
-      drawPmtilesExperimentDiamondGlyph(
-        context,
-        centerX,
-        centerY,
-        size,
-        palette.fill,
-        palette.stroke,
-        zoom
-      );
-      return;
-    }
-
-    drawPmtilesExperimentCircleGlyph(
-      context,
-      centerX,
-      centerY,
-      size,
-      palette.fill,
-      palette.stroke,
-      zoom
-    );
-  }
-}

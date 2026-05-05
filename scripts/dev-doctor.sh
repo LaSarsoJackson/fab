@@ -6,6 +6,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 GEOSPATIAL_PYTHON_RESOLVER="./scripts/geospatial/resolve_geospatial_python.sh"
 
+# Doctor reports hard blockers as FAIL and optional local capabilities as WARN
+# so contributors can still run the web app without the GeoParquet toolchain.
 status_ok() {
   printf "OK   %s\n" "$1"
 }
@@ -67,23 +69,6 @@ else
   status_warn "GeoParquet toolchain not installed. 'build:geoparquet' and 'validate:geoparquet' need a Python with geopandas, pyarrow, and shapely."
 fi
 
-if SITE_TWIN_PYTHON="$("$GEOSPATIAL_PYTHON_RESOLVER" numpy osgeo 2>/dev/null)"; then
-  SITE_TWIN_PYTHON_VERSION="$("$SITE_TWIN_PYTHON" -c 'import platform; print(platform.python_version())')"
-  if command -v pdal >/dev/null 2>&1; then
-    status_ok "Site twin toolchain ready (${SITE_TWIN_PYTHON} / Python ${SITE_TWIN_PYTHON_VERSION}; pdal)"
-  else
-    status_warn "Site twin Python ready (${SITE_TWIN_PYTHON} / Python ${SITE_TWIN_PYTHON_VERSION}) but pdal is missing. 'build:site-twin' preview builds need PDAL."
-  fi
-else
-  status_warn "Site twin geospatial toolchain not installed. 'build:site-twin' needs a Python with numpy and GDAL bindings."
-fi
-
-if command -v tippecanoe >/dev/null 2>&1; then
-  status_ok "PMTiles toolchain ready (tippecanoe)"
-else
-  status_warn "tippecanoe not installed. 'build:pmtiles' will be unavailable until it is installed."
-fi
-
 if [ -d node_modules/react-scripts ]; then
   status_ok "Dependencies installed"
 else
@@ -94,12 +79,6 @@ if [ -f src/data/TourBiographyAliases.json ]; then
   status_ok "Derived tour biography aliases present"
 else
   status_warn "Missing src/data/TourBiographyAliases.json. Run 'bun run build:tour-data'."
-fi
-
-if command -v docker >/dev/null 2>&1; then
-  status_ok "Docker available for offline Valhalla routing"
-else
-  status_warn "Docker not installed. Local/offline Valhalla routing scripts will be unavailable."
 fi
 
 if has_env_key REACT_APP_DEV_IMAGE_SERVER_ORIGIN; then

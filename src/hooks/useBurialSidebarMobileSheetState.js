@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+/**
+ * Centralizes the mobile bottom-sheet state machine so the sidebar component
+ * only decides when context changes, not how snap points and drawer expansion
+ * should translate into pixel heights.
+ */
 export const MOBILE_SHEET_STATES = {
   COLLAPSED: "collapsed",
   PEEK: "peek",
@@ -10,6 +15,9 @@ const SNAP_COLLAPSED_FRACTION = 0.22;
 const SNAP_PEEK_FRACTION = 0.50;
 const SNAP_FULL_FRACTION = 0.92;
 
+// Fractions are intentionally relative to the available sheet max height; that
+// keeps the drawer usable across Safari's changing toolbar sizes and standalone
+// PWA mode.
 export const getDefaultMobileSheetState = ({
   hasBrowseContext = false,
   hasSelectedBurials = false,

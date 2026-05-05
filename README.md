@@ -42,10 +42,6 @@ Optional tools:
 
 - `geopandas`, `pyarrow`, and `shapely` for GeoParquet conversion and parity
   validation
-- `numpy`, GDAL Python bindings, and `pdal` for the site twin / digital twin
-  preview pipeline
-- `tippecanoe` for PMTiles generation
-- Docker for the optional local/offline Valhalla routing workflow
 
 ### Install
 
@@ -55,37 +51,23 @@ bun install
 
 ### Configure local environment
 
-Create a local `.env` file when you need routing overrides or want to override
-the default image origin:
+Create a local `.env` file when you want to override the default image origin:
 
 ```bash
-REACT_APP_DEV_ROUTING_PROVIDER=api
-REACT_APP_VALHALLA_API_URL=https://valhalla1.openstreetmap.de
-REACT_APP_VALHALLA_PROXY_PATH=/__valhalla
 REACT_APP_DEV_IMAGE_SERVER_ORIGIN=http://127.0.0.1:8000
 ```
 
 Notes:
 
-- Routing providers:
-  `api` uses the hosted Valhalla HTTP API,
-  `local` uses the bundled `src/data/ARC_Roads.json` road graph in-browser,
-  `valhalla` uses the local dev proxy for an offline Valhalla instance.
-- `REACT_APP_DEV_ROUTING_PROVIDER` is honored in development only. The default
-  provider is `api`.
-- `REACT_APP_VALHALLA_API_URL` only affects the hosted `api` provider.
-- `REACT_APP_VALHALLA_PROXY_PATH` defaults to `/__valhalla` and is used by the
-  development proxy for local/offline Valhalla.
-- Shared route hashes, deep-link query keys, provider ids, Valhalla defaults,
-  and external directions URL builders live in `src/shared/routing`.
-- The route destination is still snapped against the bundled cemetery road
-  network before routing so the app continues to respect the project’s local
-  road geometry even when the hosted or offline Valhalla provider is active.
+- `Route on Map` uses the bundled cemetery road network in the browser, with no
+  hosted routing API or local routing proxy.
+- `Open in Maps` builds external Apple Maps or Google Maps walking links from
+  `src/shared/routing`.
 - `bun run start` defaults `REACT_APP_DEV_IMAGE_SERVER_ORIGIN` to the local
   companion image server on `http://127.0.0.1:8000`.
-- The static admin studio at `#/admin` is development-only for now. It opens
-  when `REACT_APP_ENVIRONMENT` resolves to development and is hidden in
-  production builds.
+- Development-only surfaces such as the static admin studio, custom renderer,
+  PMTiles previews, and site-twin tools live on `dev-features`; see
+  [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md).
 
 ### Run the app
 
@@ -119,8 +101,6 @@ Useful overrides:
 ## Common commands
 
 - `bun run start`: start the development environment
-- `bun run routing:offline:start`: start or create the local Valhalla container
-- `bun run routing:offline:stop`: stop the local Valhalla container
 - `bun run doctor`: check local prerequisites and optional tooling
 - `bun run lint`: run the repository ESLint baseline across app, unit, and browser tests
 - `bun run test`: run the default automated test suite
@@ -132,12 +112,6 @@ Useful overrides:
   bounds
 - `bun run build:geoparquet`: convert the burial source JSON into GeoParquet
 - `bun run validate:geoparquet`: verify GeoParquet parity with the JSON source
-- `bun run build:pmtiles`: generate PMTiles experiment artifacts
-- `bun run build:site-twin`: fetch the latest ortho/LiDAR inputs and build the
-  site twin preview package
-- `bun run build:site-twin:terrain`: build the terrain-only site twin preview
-- `bun run build:site-twin:metadata`: resolve the latest source metadata
-  without downloading large inputs
 
 Test split:
 
@@ -185,9 +159,9 @@ Start with these documents:
 - [docs/codebase-structure.md](./docs/codebase-structure.md) for directory
   ownership and placement rules
 - [docs/routing-architecture.md](./docs/routing-architecture.md) for client
-  route, deep-link, directions-link, and routing-provider URL ownership
-- [docs/geospatial-site-twin.md](./docs/geospatial-site-twin.md) for the
-  cemetery digital twin/site twin pipeline
+  route, deep-link, in-app road routing, and external directions-link ownership
+- [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md) for the branch
+  workflow for development-only surfaces
 
 Common entry points:
 
@@ -195,17 +169,14 @@ Common entry points:
   routing
 - [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx): search, browse controls,
   selected record UI, and mobile drawer behavior
-- [`src/AdminApp.jsx`](./src/AdminApp.jsx): static admin workspace
 - [`src/features/browse/`](./src/features/browse): search indexing and browse
   result shaping
 - [`src/features/tours/`](./src/features/tours): tour definitions, alias
   generation, and burial-tour reconciliation
 - [`src/features/map/`](./src/features/map): popup models, selection reducer/actions,
-  viewport helpers, and runtime-specific map logic
-- [`src/shared/routing/`](./src/shared/routing): route hashes, query keys,
-  routing provider ids, Valhalla URL defaults/builders, and external directions links
-- [`src/admin/`](./src/admin): file-backed admin modules, workbook import and
-  export, and update bundles
+  viewport helpers, and map-specific logic
+- [`src/shared/routing/`](./src/shared/routing): query keys and external
+  Apple Maps / Google Maps directions links
 
 ## Deployment notes
 

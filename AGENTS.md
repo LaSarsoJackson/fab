@@ -13,8 +13,8 @@ Then read only the task-specific note you need:
 
 - [`docs/codebase-structure.md`](./docs/codebase-structure.md) for directory ownership
 - [`docs/map-architecture.md`](./docs/map-architecture.md) before touching `src/Map.jsx`
-- [`docs/static-admin-studio.md`](./docs/static-admin-studio.md) before changing admin data-edit flows
 - [`docs/app-profile-architecture.md`](./docs/app-profile-architecture.md) before changing FAB-only app configuration
+- [`docs/dev-branch-workflow.md`](./docs/dev-branch-workflow.md) before changing development-only surfaces
 - [`docs/ui-principles.md`](./docs/ui-principles.md) before changing shared UI patterns
 - [`docs/unified-stack-roadmap.md`](./docs/unified-stack-roadmap.md) when planning work that affects FABFG or the shared stack
 
@@ -32,11 +32,9 @@ Then read only the task-specific note you need:
 
 - [`src/Map.jsx`](./src/Map.jsx): map orchestration, selections, routing, overlays
 - [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx): search, browse, selected-record UI, mobile drawer
-- [`src/AdminApp.jsx`](./src/AdminApp.jsx): static admin workspace
 - [`src/features/browse/`](./src/features/browse): search indexing and browse-result shaping
 - [`src/features/tours/`](./src/features/tours): tour definitions, alias generation, burial-tour reconciliation
 - [`src/features/map/`](./src/features/map): popup presentation, viewport helpers, selection reducer/actions
-- [`src/admin/`](./src/admin): static-admin state, exports, workbook import/export, update bundles
 
 ## Source Vs Generated Files
 
@@ -93,7 +91,7 @@ If you change runtime/profile wiring:
 ## Contributor Priorities
 
 - Keep moves additive when possible. The worktree may contain in-flight architecture cleanup already.
-- Prefer changes that strengthen the custom map boundary instead of leaking more Leaflet details into shared app code.
+- Keep development-only surfaces on `dev-features` unless they are being promoted into the shipped app.
 - Treat FABFG alignment as shared-contract work first and wrapper-specific work second.
 - Favor clearer Apple-HIG-inspired interaction patterns over decorative UI churn: safer spacing, fewer gestures, stronger hierarchy, and obvious states.
 

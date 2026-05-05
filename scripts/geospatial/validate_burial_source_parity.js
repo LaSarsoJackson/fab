@@ -1,10 +1,10 @@
 import fs from "fs/promises";
 
 import { APP_PROFILE } from "../../src/features/fab/profile.js";
-import { getPreferredBuildSourceArtifact } from "../../src/features/map/engine/backend.js";
 import {
   getBurialGeoJsonPath,
   getBurialGeoParquetCandidates,
+  getPreferredBuildSourceArtifact,
   loadBurialFeatureCollection,
 } from "./load_burial_source.js";
 
@@ -51,6 +51,8 @@ const canonicalizeFeature = (feature = {}) => {
   const properties = feature.properties || {};
   const objectId = normalizeScalar(properties.OBJECTID);
 
+  // Validate the fields that define the public burial record contract rather
+  // than comparing whole source files with format-specific metadata noise.
   return {
     objectId: objectId == null ? null : String(objectId),
     properties: CANONICAL_PROPERTY_KEYS.reduce((result, key) => ({
@@ -102,6 +104,8 @@ const main = async () => {
     loadBurialFeatureCollection({ preferGeoParquet: true }),
   ]);
 
+  // The validation must prove the preferred loader actually chose GeoParquet;
+  // otherwise a missing artifact could silently pass by falling back to JSON.
   if (geoParquetSource.source.format !== "geoparquet") {
     console.error("GeoParquet validation failed: the preferred-source loader did not resolve to a GeoParquet artifact.");
     process.exit(1);
