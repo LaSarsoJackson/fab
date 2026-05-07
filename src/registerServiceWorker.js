@@ -1,4 +1,4 @@
-import { buildPublicAssetUrl } from "./shared/runtime/runtimeEnv";
+import { buildPublicAssetUrl } from "./shared/runtimeEnv";
 
 const registerServiceWorker = () => {
   // Local development should always fetch fresh bundles and data. The service

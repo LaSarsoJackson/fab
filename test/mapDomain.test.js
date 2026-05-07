@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  areMarkersAtSameLocation,
   areLocationCandidatesEquivalent,
   areRouteLatLngTuplesEquivalent,
   beginLeafletSectionHover,
   buildLocationAccuracyGeoJson,
+  buildStackedRecordDisplayCoordinateMap,
   buildSectionAffordanceMarkers,
   buildSectionBoundsById,
   buildSectionOverviewMarkers,
@@ -32,7 +32,7 @@ import {
   resolveSectionClusterMarkerVisibility,
   resolveClusterExpansionZoom,
   resolveMapPresentationPolicy,
-  resolveRoadOverlayVisibility,
+  resolveSameCoordinateSectionBrowseContext,
   resolveSectionAffordanceMarkerVisibility,
   resolveSectionBurialDisableClusteringZoom,
   resolveSectionOverlayVisibility,
@@ -53,6 +53,10 @@ import {
 
 describe("mapDomain", () => {
   const markerAt = (lat, lng) => ({
+    getLatLng: () => ({ lat, lng }),
+  });
+  const burialMarkerAt = (lat, lng, burialRecord) => ({
+    burialRecord,
     getLatLng: () => ({ lat, lng }),
   });
 
@@ -470,13 +474,11 @@ describe("mapDomain", () => {
         MAP_PRESENTATION_POLICY.sectionBurialIndividualMinZoom
       );
       expect(resolveClusterExpansionZoom({
-        currentZoom: 17,
         disableClusteringAtZoom: 19,
       })).toBe(19);
-      expect(resolveClusterExpansionZoom({
-        currentZoom: 18,
-        disableClusteringAtZoom: 19,
-      })).toBe(19);
+      expect(resolveClusterExpansionZoom()).toBe(
+        MAP_PRESENTATION_POLICY.sectionBurialIndividualMinZoom
+      );
     });
 
     test("keeps cluster badges tied to underlying burial records", () => {
@@ -489,7 +491,6 @@ describe("mapDomain", () => {
       ];
 
       expect(getDistinctMarkerLocationCount(markers)).toBe(3);
-      expect(areMarkersAtSameLocation(markers)).toBe(false);
       expect(getClusterIconCount({ getChildCount: () => markers.length }, markers)).toBe(5);
     });
 
@@ -501,19 +502,88 @@ describe("mapDomain", () => {
       ];
 
       expect(getDistinctMarkerLocationCount(markers)).toBe(1);
-      expect(areMarkersAtSameLocation(markers)).toBe(true);
       expect(getClusterIconCount({ getChildCount: () => markers.length }, markers)).toBe(3);
     });
 
-    test("keeps roads off until explicitly enabled or useful for orientation", () => {
-      expect(resolveRoadOverlayVisibility()).toBe(false);
-      expect(resolveRoadOverlayVisibility({ roadOverlayVisible: true })).toBe(true);
-      expect(resolveRoadOverlayVisibility({ hasActiveRoute: true })).toBe(true);
-      expect(resolveRoadOverlayVisibility({ hasTrackedLocation: true })).toBe(true);
-      expect(resolveRoadOverlayVisibility({
-        currentZoom: MAP_PRESENTATION_POLICY.sectionDetailMinZoom,
-      })).toBe(true);
+    test("routes same-coordinate burial stacks into section lot browse", () => {
+      const markers = [
+        burialMarkerAt(42.709101, -73.734101, { Section: "50", Lot: "1", Tier: "0" }),
+        burialMarkerAt(42.709101, -73.734101, { Section: "50", Lot: "1", Tier: "0" }),
+        burialMarkerAt(42.709101, -73.734101, { Section: "50", Lot: "1", Tier: "0" }),
+      ];
 
+      expect(resolveSameCoordinateSectionBrowseContext(markers)).toEqual({
+        sectionFilter: "50",
+        filterType: "lot",
+        lotTierFilter: "1",
+      });
+    });
+
+    test("falls back to tier browse when a coordinate stack has no shared lot", () => {
+      const markers = [
+        burialMarkerAt(42.709101, -73.734101, { Section: "214", Lot: "12", Tier: "5" }),
+        burialMarkerAt(42.709101, -73.734101, { Section: "214", Lot: "18", Tier: "5" }),
+      ];
+
+      expect(resolveSameCoordinateSectionBrowseContext(markers)).toEqual({
+        sectionFilter: "214",
+        filterType: "tier",
+        lotTierFilter: "5",
+      });
+    });
+
+    test("uses tier browse when the shared lot is an unknown placeholder", () => {
+      const markers = [
+        burialMarkerAt(42.709101, -73.734101, { Section: "132", Lot: "-99", Tier: "10" }),
+        burialMarkerAt(42.709101, -73.734101, { Section: "132", Lot: "-99", Tier: "10" }),
+      ];
+
+      expect(resolveSameCoordinateSectionBrowseContext(markers)).toEqual({
+        sectionFilter: "132",
+        filterType: "tier",
+        lotTierFilter: "10",
+      });
+    });
+
+    test("ignores mixed-location or mixed-section clusters for stack browse", () => {
+      expect(resolveSameCoordinateSectionBrowseContext([
+        burialMarkerAt(42.709101, -73.734101, { Section: "50", Lot: "1" }),
+        burialMarkerAt(42.709202, -73.734202, { Section: "50", Lot: "1" }),
+      ])).toBeNull();
+
+      expect(resolveSameCoordinateSectionBrowseContext([
+        burialMarkerAt(42.709101, -73.734101, { Section: "50", Lot: "1" }),
+        burialMarkerAt(42.709101, -73.734101, { Section: "51", Lot: "1" }),
+      ])).toBeNull();
+    });
+
+    test("keeps stack browse detection tied to source coordinates after display offsets", () => {
+      const records = [
+        { id: "one", Section: "50", Lot: "1", coordinates: [-73.731094, 42.709337] },
+        { id: "two", Section: "50", Lot: "1", coordinates: [-73.731094, 42.709337] },
+      ];
+      const displayCoordinatesById = buildStackedRecordDisplayCoordinateMap(records);
+      const markers = records.map((record) => {
+        const displayCoordinates = displayCoordinatesById.get(record.id);
+
+        return {
+          burialRecord: record,
+          getLatLng: () => ({
+            lat: displayCoordinates[1],
+            lng: displayCoordinates[0],
+          }),
+        };
+      });
+
+      expect(getDistinctMarkerLocationCount(markers)).toBe(2);
+      expect(resolveSameCoordinateSectionBrowseContext(markers)).toEqual({
+        sectionFilter: "50",
+        filterType: "lot",
+        lotTierFilter: "1",
+      });
+    });
+
+    test("keeps road rendering tied to the explicit overlay toggle", () => {
       expect(resolveMapPresentationPolicy({
         currentZoom: 14,
         maxZoom: 19,
@@ -530,12 +600,24 @@ describe("mapDomain", () => {
       expect(resolveMapPresentationPolicy({
         currentZoom: 16,
         maxZoom: 19,
+        hasActiveRoute: true,
+        hasTrackedLocation: true,
       })).toMatchObject({
-        showRoads: true,
+        showRoads: false,
         showSectionAffordanceMarkers: false,
         showSectionClusterMarkers: true,
         showSectionOverviewMarkers: false,
         showSections: true,
+      });
+
+      expect(resolveMapPresentationPolicy({
+        currentZoom: 16,
+        maxZoom: 19,
+        hasActiveRoute: true,
+        hasTrackedLocation: true,
+        roadOverlayVisible: true,
+      })).toMatchObject({
+        showRoads: true,
       });
 
       expect(resolveMapPresentationPolicy({
@@ -679,6 +761,29 @@ describe("mapDomain", () => {
       expect(hoveredStyle.fillOpacity).toBeGreaterThan(baseStyle.fillOpacity);
       expect(activeStyle.radius).toBeGreaterThan(hoveredStyle.radius);
       expect(activeStyle.fillOpacity).toBeGreaterThan(hoveredStyle.fillOpacity);
+    });
+
+    test("spreads exact-coordinate record stacks without changing source coordinates", () => {
+      const records = [
+        { id: "one", coordinates: [-73.731094, 42.709337] },
+        { id: "two", coordinates: [-73.731094, 42.709337] },
+        { id: "three", coordinates: [-73.731094, 42.709337] },
+        { id: "separate", coordinates: [-73.731239, 42.709374] },
+      ];
+      const displayCoordinatesById = buildStackedRecordDisplayCoordinateMap(records);
+
+      expect(displayCoordinatesById.has("separate")).toBe(false);
+      expect(displayCoordinatesById.size).toBe(3);
+      expect(records[0].coordinates).toEqual([-73.731094, 42.709337]);
+
+      const displayKeys = new Set(
+        records
+          .slice(0, 3)
+          .map((record) => displayCoordinatesById.get(record.id))
+          .map((coordinates) => coordinates.map((value) => value.toFixed(8)).join(":"))
+      );
+
+      expect(displayKeys.size).toBe(3);
     });
 
     test("hides section burial singletons until the close-in preview zoom", () => {

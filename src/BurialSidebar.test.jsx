@@ -228,6 +228,29 @@ describe("BurialSidebar", () => {
     );
   });
 
+  domTest("shows section browse results when a section is selected after initial render", () => {
+    const { rerender } = renderSidebar();
+
+    expect(screen.getByPlaceholderText(/Search by name, section, or lot/i)).toBeInTheDocument();
+    expect(screen.queryByText("Anna Tracy")).not.toBeInTheDocument();
+
+    rerender(
+      <BurialSidebar
+        {...createBaseProps()}
+        sectionFilter="99"
+        showAllBurials
+      />
+    );
+    flushBrowseTimers();
+
+    expect(screen.getByRole("button", { name: "Sections" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByPlaceholderText(/Search this section/i)).toBeInTheDocument();
+
+    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
+    expect(within(browseWorkspace).getAllByText("Thomas Tracy").length).toBeGreaterThan(0);
+  });
+
   domTest("supports mobile query entry and clearing from the search field without forcing drawer expansion", () => {
     renderSidebar({ isMobile: true });
 
@@ -253,6 +276,10 @@ describe("BurialSidebar", () => {
     fireEvent.click(screen.getByLabelText("Clear search query"));
 
     expect(input).toHaveValue("");
+    const snapHeights = mockBottomSheetState.snapTo.mock.calls.map((call) => (
+      call[0]({ maxHeight: 1000 })
+    ));
+    expect(snapHeights.every((height) => height <= 80)).toBe(true);
   });
 
   domTest("lets mobile users collapse and reopen the search panel", () => {
@@ -260,11 +287,21 @@ describe("BurialSidebar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Hide search panel" }));
     expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(1);
-    expect(mockBottomSheetState.snapTo.mock.calls[0][0]({ maxHeight: 1000 })).toBeCloseTo(220);
+    expect(mockBottomSheetState.snapTo.mock.calls[0][0]({ maxHeight: 1000 })).toBeCloseTo(80);
 
     fireEvent.click(screen.getByRole("button", { name: "Show search panel" }));
     expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(2);
     expect(mockBottomSheetState.snapTo.mock.calls[1][0]({ maxHeight: 1000 })).toBeCloseTo(500);
+  });
+
+  domTest("lets the map shell fully hide mobile chrome when that control is available", () => {
+    const onRequestHideChrome = jest.fn();
+    renderSidebar({ isMobile: true, onRequestHideChrome });
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide search panel" }));
+
+    expect(onRequestHideChrome).toHaveBeenCalledTimes(1);
+    expect(mockBottomSheetState.snapTo).not.toHaveBeenCalled();
   });
 
   domTest("shows actionable GPS guidance when location is unavailable", () => {
@@ -282,7 +319,7 @@ describe("BurialSidebar", () => {
     const rerenderProps = createBaseProps();
     const { rerender } = renderSidebar({ isMobile: true });
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(220);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(80);
 
     rerender(
       <BurialSidebar
@@ -302,7 +339,7 @@ describe("BurialSidebar", () => {
     const { rerender } = renderSidebar({ isMobile: true });
 
     act(() => {
-      mockBottomSheetState.currentHeight = 120;
+      mockBottomSheetState.currentHeight = 80;
       mockBottomSheetState.lastProps.onSpringEnd({ type: "SNAP" });
     });
 
@@ -317,8 +354,32 @@ describe("BurialSidebar", () => {
       />
     );
 
-    expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(1);
-    expect(mockBottomSheetState.snapTo.mock.calls[0][0]({ maxHeight: 1000 })).toBeCloseTo(500);
+    expect(mockBottomSheetState.snapTo.mock.calls.length).toBeLessThanOrEqual(1);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
+  });
+
+  domTest("keeps map-driven section browse at mobile peek height", () => {
+    const rerenderProps = createBaseProps();
+    const { rerender } = renderSidebar({ isMobile: true });
+
+    act(() => {
+      mockBottomSheetState.currentHeight = 80;
+      mockBottomSheetState.lastProps.onSpringEnd({ type: "SNAP" });
+    });
+
+    mockBottomSheetState.snapTo.mockReset();
+
+    rerender(
+      <BurialSidebar
+        {...rerenderProps}
+        isMobile
+        sectionFilter="99"
+        showAllBurials
+      />
+    );
+
+    expect(mockBottomSheetState.snapTo.mock.calls.length).toBeLessThanOrEqual(1);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
   });
 
   domTest("uses direct mobile preview actions for routing and external maps", () => {
@@ -340,6 +401,66 @@ describe("BurialSidebar", () => {
 
     expect(onStartRouting).toHaveBeenCalledWith(expect.objectContaining({ id: burialRecords[0].id }));
     expect(onOpenExternalDirections).toHaveBeenCalledWith(expect.objectContaining({ id: burialRecords[0].id }));
+  });
+
+  domTest("renders tour portrait media in the compact mobile selection card", () => {
+    const selectedTourRecord = {
+      ...burialRecords[0],
+      id: "tour:Notable:1:99:18",
+      source: "tour",
+      title: "Notable",
+      tourKey: "Notable",
+      tourName: "Notables Tour 2020",
+      portraitImageName: "Schuyler70a.jpg",
+      biographyLink: "Schuyler70",
+    };
+
+    renderSidebar({
+      isMobile: true,
+      activeBurialId: selectedTourRecord.id,
+      selectedBurials: [selectedTourRecord],
+      selectedTour: "Notables Tour 2020",
+      tourResults: [selectedTourRecord],
+    });
+
+    const selectedSummary = screen.getByText("Selection").closest(".left-sidebar__panel");
+    const portrait = within(selectedSummary).getByAltText("Anna Tracy portrait");
+
+    expect(within(selectedSummary).getByText("Tap the image to open the ARCE biography.")).toBeInTheDocument();
+    expect(portrait).toHaveAttribute("src", expect.stringContaining("Schuyler70a.jpg"));
+    expect(within(selectedSummary).getByRole("link", { name: "Anna Tracy portrait" })).toHaveAttribute(
+      "href",
+      "https://www.albany.edu/arce/Schuyler70.html"
+    );
+  });
+
+  domTest("renders small portrait thumbnails inline for tour browse rows", () => {
+    const tourRecord = {
+      ...burialRecords[0],
+      id: "tour:Notable:1:99:18",
+      source: "tour",
+      title: "Notable",
+      tourKey: "Notable",
+      tourName: "Notables Tour 2020",
+      portraitImageName: "Schuyler70a.jpg",
+      biographyLink: "Schuyler70",
+    };
+
+    renderSidebar({
+      isMobile: true,
+      selectedTour: "Notables Tour 2020",
+      tourResults: [tourRecord],
+    });
+
+    flushBrowseTimers();
+
+    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const resultCard = within(browseWorkspace).getByText("Anna Tracy").closest(".left-sidebar__result-card");
+    const thumbnail = resultCard.querySelector(".left-sidebar__result-thumbnail-image");
+
+    expect(resultCard.querySelector(".left-sidebar__result-card-layout--with-thumbnail")).not.toBeNull();
+    expect(thumbnail).not.toBeNull();
+    expect(thumbnail).toHaveAttribute("src", expect.stringContaining("Schuyler70a.jpg"));
   });
 
   domTest("keeps the mobile drawer at peek when a browse result is selected", () => {

@@ -8,7 +8,7 @@ import {
   formatSharedSelectionCountLabel,
   parseDeepLinkState,
   parseFieldPacketValue,
-} from "../src/features/deeplinks/fieldPackets";
+} from "../src/features/fieldPackets";
 
 const selectedRecords = [
   {

@@ -62,7 +62,7 @@ Notes:
 - `Route on Map` uses the bundled cemetery road network in the browser, with no
   hosted routing API or local routing proxy.
 - `Open in Maps` builds external Apple Maps or Google Maps walking links from
-  `src/shared/routing`.
+  `src/shared/routing.js`.
 - `bun run start` defaults `REACT_APP_DEV_IMAGE_SERVER_ORIGIN` to the local
   companion image server on `http://127.0.0.1:8000`.
 - Development-only surfaces such as the static admin studio, custom renderer,
@@ -175,7 +175,7 @@ Common entry points:
   generation, and burial-tour reconciliation
 - [`src/features/map/`](./src/features/map): popup models, selection reducer/actions,
   viewport helpers, and map-specific logic
-- [`src/shared/routing/`](./src/shared/routing): query keys and external
+- [`src/shared/routing.js`](./src/shared/routing.js): query keys and external
   Apple Maps / Google Maps directions links
 
 ## Deployment notes

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildPublicAssetUrl } from "../src/shared/runtime/runtimeEnv";
+import { buildPublicAssetUrl } from "../src/shared/runtimeEnv";
 
 describe("buildPublicAssetUrl", () => {
   test("prefixes asset paths with the configured public url", () => {

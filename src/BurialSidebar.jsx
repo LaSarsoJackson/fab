@@ -36,17 +36,18 @@ import {
   getBrowseSourceMode,
   MIN_BROWSE_QUERY_LENGTH,
 } from "./features/browse/browseResults";
-import { buildSharedSelectionPresentation } from "./features/deeplinks/fieldPackets";
+import { buildSharedSelectionPresentation } from "./features/fieldPackets";
 import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordPresentation";
-import { useBurialSidebarBrowseState } from "./hooks/useBurialSidebarBrowseState";
+import { resolvePortraitImageName } from "./features/tours/tourDerivedData";
 import {
   MOBILE_SHEET_STATES,
+  useBurialSidebarBrowseState,
   useBurialSidebarMobileSheetState,
-} from "./hooks/useBurialSidebarMobileSheetState";
+} from "./features/browse/sidebarState";
 import {
   getRuntimeEnv,
   isFieldPacketsEnabled as resolveFieldPacketsEnabled,
-} from "./shared/runtime/runtimeEnv";
+} from "./shared/runtimeEnv";
 
 /**
  * Sidebar shell for search, browse, selected records, directions actions, and
@@ -152,6 +153,40 @@ const LOCATION_WEAK_SIGNAL_STATUS = APP_PROFILE.map.locationMessages?.weakSignal
 const EMPTY_PACKET_RECORDS = [];
 const EMPTY_ACTIONS = [];
 const SELECTION_PANEL_TITLE = "Selection";
+
+function BrowseResultPortraitThumbnail({ result }) {
+  const portraitImageName = cleanRecordValue(resolvePortraitImageName(result));
+  const popupView = useMemo(
+    () => (portraitImageName ? buildPopupViewModel(result) : null),
+    [portraitImageName, result]
+  );
+  const [mediaUrl, setMediaUrl] = useState(() => popupView?.imageUrl || "");
+  const thumbnailKey = result?.id || popupView?.imageAlt || "";
+
+  useEffect(() => {
+    setMediaUrl(popupView?.imageUrl || "");
+  }, [thumbnailKey, popupView?.imageUrl]);
+
+  const handleImageError = useCallback(() => {
+    setMediaUrl("");
+  }, []);
+
+  if (!portraitImageName || !mediaUrl) {
+    return null;
+  }
+
+  return (
+    <Box className="left-sidebar__result-thumbnail" aria-hidden="true">
+      <img
+        className="left-sidebar__result-thumbnail-image"
+        src={mediaUrl}
+        alt=""
+        loading="lazy"
+        onError={handleImageError}
+      />
+    </Box>
+  );
+}
 
 const hasFieldPacketContent = (fieldPacket) => {
   if (!fieldPacket) {
@@ -369,6 +404,7 @@ function BrowseResultsPanel({
                 const resultTourLabel = result.tourName || tourStyle?.name || "";
                 const shouldShowTourChip = Boolean(tourStyle)
                   && !(scopedTourLabel && resultTourLabel === scopedTourLabel);
+                const shouldShowInlineThumbnail = browseSource === "tour";
 
                 return (
                   <ListItem key={result.id} disablePadding sx={{ display: "block", pb: 1 }}>
@@ -408,62 +444,74 @@ function BrowseResultsPanel({
                         },
                       }}
                     >
-                      {metadataSummary && (
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            display: "block",
-                            position: "relative",
-                            zIndex: 1,
-                            mb: 0.45,
-                            color: "var(--muted-text)",
-                            fontWeight: 700,
-                            letterSpacing: "0.03em",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {metadataSummary}
-                        </Typography>
-                      )}
-                      <Typography variant="subtitle2" sx={{ position: "relative", zIndex: 1, lineHeight: 1.25 }}>
-                        {formatBrowseResultName(result)}
-                      </Typography>
-                      {locationSummary && (
-                        <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.5 }}>
-                          {locationSummary}
-                        </Typography>
-                      )}
-                      {!locationSummary && result.secondaryText && (
-                        <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.5 }}>
-                          {result.secondaryText}
-                        </Typography>
-                      )}
-                      {lifeSummary && (
-                        <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.35 }}>
-                          {lifeSummary}
-                        </Typography>
-                      )}
-                      <Box sx={{ position: "relative", zIndex: 1, display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1 }}>
-                        {isActive && <Chip size="small" color="primary" label="Active" />}
-                        {isPinned && !isActive && (
-                          <Chip
-                            size="small"
-                            label="Pinned"
-                            sx={{
-                              backgroundColor: "var(--accent-soft)",
-                              color: "var(--accent-strong)",
-                            }}
-                          />
-                        )}
-                        {shouldShowTourChip && (
-                          <Chip
-                            size="small"
-                            label={result.tourName || tourStyle.name}
-                            sx={{
-                              color: "white",
-                              backgroundColor: tourStyle.color,
-                            }}
-                          />
+                      <Box
+                        className={[
+                          "left-sidebar__result-card-layout",
+                          shouldShowInlineThumbnail ? "left-sidebar__result-card-layout--with-thumbnail" : "",
+                        ].filter(Boolean).join(" ")}
+                      >
+                        <Box className="left-sidebar__result-card-copy">
+                          {metadataSummary && (
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                display: "block",
+                                position: "relative",
+                                zIndex: 1,
+                                mb: 0.45,
+                                color: "var(--muted-text)",
+                                fontWeight: 700,
+                                letterSpacing: "0.03em",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              {metadataSummary}
+                            </Typography>
+                          )}
+                          <Typography variant="subtitle2" sx={{ position: "relative", zIndex: 1, lineHeight: 1.25 }}>
+                            {formatBrowseResultName(result)}
+                          </Typography>
+                          {locationSummary && (
+                            <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.5 }}>
+                              {locationSummary}
+                            </Typography>
+                          )}
+                          {!locationSummary && result.secondaryText && (
+                            <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.5 }}>
+                              {result.secondaryText}
+                            </Typography>
+                          )}
+                          {lifeSummary && (
+                            <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.35 }}>
+                              {lifeSummary}
+                            </Typography>
+                          )}
+                          <Box sx={{ position: "relative", zIndex: 1, display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1 }}>
+                            {isActive && <Chip size="small" color="primary" label="Active" />}
+                            {isPinned && !isActive && (
+                              <Chip
+                                size="small"
+                                label="Pinned"
+                                sx={{
+                                  backgroundColor: "var(--accent-soft)",
+                                  color: "var(--accent-strong)",
+                                }}
+                              />
+                            )}
+                            {shouldShowTourChip && (
+                              <Chip
+                                size="small"
+                                label={result.tourName || tourStyle.name}
+                                sx={{
+                                  color: "white",
+                                  backgroundColor: tourStyle.color,
+                                }}
+                              />
+                            )}
+                          </Box>
+                        </Box>
+                        {shouldShowInlineThumbnail && (
+                          <BrowseResultPortraitThumbnail result={result} />
                         )}
                       </Box>
                     </ButtonBase>
@@ -898,6 +946,39 @@ function SelectedPlaceCard({
       return "";
     });
   }, [popupView.imageFallbackUrl]);
+  const mediaContent = mediaUrl ? (
+    <Box className="popup-card__media">
+      {popupView.imageHint && (
+        <Box component="p" className="popup-card__hint">
+          {popupView.imageHint}
+        </Box>
+      )}
+      {popupView.imageLinkUrl ? (
+        <a
+          className="popup-card__image-link"
+          href={popupView.imageLinkUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img
+            className="popup-card__image"
+            src={mediaUrl}
+            alt={popupView.imageAlt}
+            loading="lazy"
+            onError={handleImageError}
+          />
+        </a>
+      ) : (
+        <img
+          className="popup-card__image"
+          src={mediaUrl}
+          alt={popupView.imageAlt}
+          loading="lazy"
+          onError={handleImageError}
+        />
+      )}
+    </Box>
+  ) : null;
 
   if (isCompact) {
     const hasCompactMeta = Boolean(isRouteActive || tourStyle);
@@ -955,6 +1036,7 @@ function SelectedPlaceCard({
               )}
             </Box>
           )}
+          {mediaContent}
           <Box className="popup-card__actions left-sidebar__selected-place-card-actions">
             <button
               type="button"
@@ -1068,39 +1150,7 @@ function SelectedPlaceCard({
             ))}
           </Box>
         )}
-        {mediaUrl && (
-          <Box className="popup-card__media">
-            {popupView.imageHint && (
-              <Box component="p" className="popup-card__hint">
-                {popupView.imageHint}
-              </Box>
-            )}
-            {popupView.imageLinkUrl ? (
-              <a
-                className="popup-card__image-link"
-                href={popupView.imageLinkUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <img
-                  className="popup-card__image"
-                  src={mediaUrl}
-                  alt={popupView.imageAlt}
-                  loading="lazy"
-                  onError={handleImageError}
-                />
-              </a>
-            ) : (
-              <img
-                className="popup-card__image"
-                src={mediaUrl}
-                alt={popupView.imageAlt}
-                loading="lazy"
-                onError={handleImageError}
-              />
-            )}
-          </Box>
-        )}
+        {mediaContent}
         <Box className="popup-card__actions left-sidebar__selected-place-card-actions">
           <button
             type="button"
@@ -1540,6 +1590,7 @@ function BurialSidebar({
   onOpenDirectionsMenu,
   onRemoveSelectedBurial,
   onRequestBurialDataLoad,
+  onRequestHideChrome,
   onSectionChange,
   onShareFieldPacket,
   onStartRouting,
@@ -1740,7 +1791,7 @@ function BurialSidebar({
       shouldRevealBrowseContext
       && resolvedMobileSheetState !== MOBILE_SHEET_STATES.FULL
     ) {
-      maximizeMobileSheet();
+      expandMobileSheet();
     }
 
     scrollMobileSheetToTop();
@@ -1748,7 +1799,6 @@ function BurialSidebar({
     activeBurialId,
     expandMobileSheet,
     isMobile,
-    maximizeMobileSheet,
     resolvedMobileSheetState,
     scrollMobileSheetToTop,
     sectionFilter,
@@ -1898,6 +1948,11 @@ function BurialSidebar({
       return;
     }
 
+    if (onRequestHideChrome) {
+      onRequestHideChrome();
+      return;
+    }
+
     setIsMobileSearchPanelCollapsedByControl(true);
     collapseMobileSheet();
   }, [
@@ -1905,6 +1960,7 @@ function BurialSidebar({
     expandMobileSheet,
     isMobile,
     isMobileSearchPanelCollapsedByControl,
+    onRequestHideChrome,
   ]);
 
   const handleClearAllBrowseState = useCallback(() => {
@@ -2332,8 +2388,6 @@ function BurialSidebar({
   }
 
   // -- Mobile render: Apple Maps-style BottomSheet --
-  const mobileSheetHandle = <div aria-hidden="true" />;
-
   const mobileSheetBody = (
     <Box
       ref={(node) => {
@@ -2364,7 +2418,7 @@ function BurialSidebar({
       ].join(" ")}
       snapPoints={mobileSnapPoints}
       defaultSnap={mobileDefaultSnap}
-      header={mobileSheetHandle}
+      header={false}
       expandOnContentDrag
       onSpringEnd={handleSheetSpringEnd}
     >

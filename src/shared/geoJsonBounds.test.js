@@ -1,16 +1,16 @@
-import ProjectedSec75Headstones from "../../data/Projected_Sec75_Headstones.json";
-import ProjectedSec49Headstones from "../../data/Projected_Sec49_Headstones.json";
-import NotablesTour20 from "../../data/NotablesTour20.json";
-import IndependenceTour20 from "../../data/IndependenceTour20.json";
-import AfricanAmericanTour20 from "../../data/AfricanAmericanTour20.json";
-import ArtistTour20 from "../../data/ArtistTour20.json";
-import AssociationsTour20 from "../../data/AssociationsTour20.json";
-import AuthorsPublishersTour20 from "../../data/AuthorsPublishersTour20.json";
-import BusinessFinanceTour20 from "../../data/BusinessFinanceTour20.json";
-import CivilWarTour20 from "../../data/CivilWarTour20.json";
-import SocietyPillarsTour20 from "../../data/SocietyPillarsTour20.json";
-import AlbanyMayors from "../../data/AlbanyMayors_fixed.json";
-import GAR from "../../data/GAR_fixed.json";
+import ProjectedSec75Headstones from "../data/Projected_Sec75_Headstones.json";
+import ProjectedSec49Headstones from "../data/Projected_Sec49_Headstones.json";
+import NotablesTour20 from "../data/NotablesTour20.json";
+import IndependenceTour20 from "../data/IndependenceTour20.json";
+import AfricanAmericanTour20 from "../data/AfricanAmericanTour20.json";
+import ArtistTour20 from "../data/ArtistTour20.json";
+import AssociationsTour20 from "../data/AssociationsTour20.json";
+import AuthorsPublishersTour20 from "../data/AuthorsPublishersTour20.json";
+import BusinessFinanceTour20 from "../data/BusinessFinanceTour20.json";
+import CivilWarTour20 from "../data/CivilWarTour20.json";
+import SocietyPillarsTour20 from "../data/SocietyPillarsTour20.json";
+import AlbanyMayors from "../data/AlbanyMayors_fixed.json";
+import GAR from "../data/GAR_fixed.json";
 import {
   getGeoJsonBounds,
   hasValidGeoJsonCoordinates,

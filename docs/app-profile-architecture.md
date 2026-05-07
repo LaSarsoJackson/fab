@@ -17,7 +17,7 @@ the one app that actually ships.
 ## Runtime Features
 
 Only shipped product toggles belong in `RUNTIME_FEATURE_FLAGS` inside
-[`src/shared/runtime/runtimeEnv.js`](../src/shared/runtime/runtimeEnv.js):
+[`src/shared/runtimeEnv.js`](../src/shared/runtimeEnv.js):
 
 - `fieldPackets`
 

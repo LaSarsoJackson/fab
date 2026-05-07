@@ -3,7 +3,7 @@ import {
   getMobileSheetSnapHeight,
   getMobileSheetStateFromHeight,
   MOBILE_SHEET_STATES,
-} from "../src/hooks/useBurialSidebarMobileSheetState";
+} from "../src/features/browse/sidebarState";
 
 describe("mobile sheet state helpers", () => {
   test("treats selected burials as mobile context so selections stay visible", () => {
@@ -32,13 +32,39 @@ describe("mobile sheet state helpers", () => {
     expect(getMobileSheetSnapHeight({
       maxHeight: 1000,
       state: MOBILE_SHEET_STATES.COLLAPSED,
-    })).toBeCloseTo(220);
+    })).toBeCloseTo(80);
     expect(getMobileSheetSnapHeight({
       maxHeight: 1000,
       state: MOBILE_SHEET_STATES.PEEK,
     })).toBeCloseTo(500);
     expect(getMobileSheetSnapHeight({
       maxHeight: 1000,
+      state: MOBILE_SHEET_STATES.FULL,
+    })).toBeCloseTo(920);
+  });
+
+  test("does not let short mobile content stretch into an empty full-height sheet", () => {
+    expect(getMobileSheetSnapHeight({
+      maxHeight: 1000,
+      minHeight: 340,
+      state: MOBILE_SHEET_STATES.PEEK,
+    })).toBeCloseTo(340);
+    expect(getMobileSheetSnapHeight({
+      maxHeight: 1000,
+      minHeight: 340,
+      state: MOBILE_SHEET_STATES.FULL,
+    })).toBeCloseTo(340);
+  });
+
+  test("does not treat the collapsed header height as the full content height", () => {
+    expect(getMobileSheetSnapHeight({
+      maxHeight: 1000,
+      minHeight: 104,
+      state: MOBILE_SHEET_STATES.PEEK,
+    })).toBeCloseTo(500);
+    expect(getMobileSheetSnapHeight({
+      maxHeight: 1000,
+      minHeight: 104,
       state: MOBILE_SHEET_STATES.FULL,
     })).toBeCloseTo(920);
   });

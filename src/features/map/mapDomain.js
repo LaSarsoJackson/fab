@@ -1,4 +1,4 @@
-import { getGeoJsonBounds, isLatLngBoundsExpressionValid } from "../../shared/geo/geoJsonBounds";
+import { getGeoJsonBounds, isLatLngBoundsExpressionValid } from "../../shared/geoJsonBounds";
 
 //=============================================================================
 // Module Boundary
@@ -23,9 +23,11 @@ import { getGeoJsonBounds, isLatLngBoundsExpressionValid } from "../../shared/ge
 //=============================================================================
 
 const EARTH_RADIUS_METERS = 6371008.8;
+const METERS_PER_DEGREE_LATITUDE = 111320;
 const DEFAULT_COORDINATE_PRECISION = 8;
 const PROGRAMMATIC_MOVE_GUARD_TIMEOUT_MS = 1400;
 const TOUCH_LIKE_POINTER_TYPES = new Set(["touch", "pen"]);
+const UNKNOWN_LOT_VALUES = new Set(["-99", "-99.0"]);
 const noop = () => {};
 
 export const MAP_PRESENTATION_POLICY = Object.freeze({
@@ -852,6 +854,30 @@ export const getMarkerCoordinateKey = (
   return `${lat.toFixed(precision)}:${lng.toFixed(precision)}`;
 };
 
+// Display markers may be nudged apart, but cluster decisions still need the
+// original cemetery coordinate when the marker carries its source burial record.
+const getRecordCoordinateKey = (
+  record,
+  precision = DEFAULT_COORDINATE_PRECISION
+) => {
+  const coordinates = record?.coordinates;
+  if (!Array.isArray(coordinates) || coordinates.length < 2) return "";
+
+  const lng = Number(coordinates[0]);
+  const lat = Number(coordinates[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "";
+
+  return `${lat.toFixed(precision)}:${lng.toFixed(precision)}`;
+};
+
+const getMarkerSourceCoordinateKey = (
+  marker,
+  precision = DEFAULT_COORDINATE_PRECISION
+) => (
+  getRecordCoordinateKey(marker?.burialRecord, precision) ||
+  getMarkerCoordinateKey(marker, precision)
+);
+
 export const getDistinctMarkerLocationCount = (markers = []) => {
   const coordinateKeys = new Set();
 
@@ -865,9 +891,186 @@ export const getDistinctMarkerLocationCount = (markers = []) => {
   return coordinateKeys.size;
 };
 
-export const areMarkersAtSameLocation = (markers = []) => (
-  markers.length > 1 && getDistinctMarkerLocationCount(markers) === 1
+const areMarkersFromSameSourceLocation = (markers = []) => {
+  const coordinateKeys = markers
+    .map((marker) => getMarkerSourceCoordinateKey(marker))
+    .filter(Boolean);
+
+  return (
+    markers.length > 1 &&
+    coordinateKeys.length === markers.length &&
+    new Set(coordinateKeys).size === 1
+  );
+};
+
+const getSharedRecordValue = (records = [], fieldNames = []) => {
+  const values = records.map((record) => (
+    fieldNames
+      .map((fieldName) => normalizeSectionValue(record?.[fieldName]))
+      .find(Boolean) || ""
+  ));
+  const [sharedValue] = values;
+
+  return sharedValue && values.every((value) => value === sharedValue)
+    ? sharedValue
+    : "";
+};
+
+const isUsableLotValue = (value) => (
+  Boolean(value) && !UNKNOWN_LOT_VALUES.has(normalizeSectionValue(value))
 );
+
+const resolveStackedRecordDisplayOffset = (
+  stackIndex,
+  stackSize,
+  offsetMeters
+) => {
+  if (stackSize <= 1 || !Number.isFinite(stackIndex) || stackIndex < 0) {
+    return { eastMeters: 0, northMeters: 0 };
+  }
+
+  if (stackSize <= 8) {
+    const angle = (-Math.PI / 2) + ((Math.PI * 2 * stackIndex) / stackSize);
+    return {
+      eastMeters: Math.cos(angle) * offsetMeters,
+      northMeters: Math.sin(angle) * offsetMeters,
+    };
+  }
+
+  let remainingIndex = stackIndex;
+  let ring = 1;
+  let ringCapacity = 8;
+
+  while (remainingIndex >= ringCapacity) {
+    remainingIndex -= ringCapacity;
+    ring += 1;
+    ringCapacity = ring * 8;
+  }
+
+  const angle = (
+    (-Math.PI / 2) +
+    ((Math.PI * 2 * (remainingIndex + (ring % 2 === 0 ? 0.5 : 0))) / ringCapacity)
+  );
+  const radiusMeters = offsetMeters * ring;
+
+  return {
+    eastMeters: Math.cos(angle) * radiusMeters,
+    northMeters: Math.sin(angle) * radiusMeters,
+  };
+};
+
+const offsetCoordinateByMeters = (coordinates, { eastMeters = 0, northMeters = 0 } = {}) => {
+  if (!Array.isArray(coordinates) || coordinates.length < 2) {
+    return null;
+  }
+
+  const lng = Number(coordinates[0]);
+  const lat = Number(coordinates[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return null;
+  }
+
+  const longitudeScale = Math.max(Math.abs(Math.cos(toRadians(lat))), 0.000001);
+  return [
+    lng + (eastMeters / (METERS_PER_DEGREE_LATITUDE * longitudeScale)),
+    lat + (northMeters / METERS_PER_DEGREE_LATITUDE),
+  ];
+};
+
+export const buildStackedRecordDisplayCoordinateMap = (
+  records = [],
+  {
+    getRecordId = (record) => record?.id,
+    offsetMeters = 1.15,
+  } = {}
+) => {
+  const groupsByCoordinate = new Map();
+  const displayCoordinatesById = new Map();
+
+  records.forEach((record, recordIndex) => {
+    const recordId = normalizeSectionValue(getRecordId(record));
+    const coordinateKey = getRecordCoordinateKey(record);
+    if (!recordId || !coordinateKey) return;
+
+    let coordinateGroup = groupsByCoordinate.get(coordinateKey);
+    if (!coordinateGroup) {
+      coordinateGroup = [];
+      groupsByCoordinate.set(coordinateKey, coordinateGroup);
+    }
+
+    coordinateGroup.push({ record, recordId, recordIndex });
+  });
+
+  // Some burial records share an exact GIS point. Only the render coordinate is
+  // offset; routing, deep links, and stack detection continue to use the source
+  // coordinate on the record.
+  groupsByCoordinate.forEach((coordinateGroup) => {
+    if (coordinateGroup.length < 2) {
+      return;
+    }
+
+    coordinateGroup
+      .sort((left, right) => left.recordIndex - right.recordIndex)
+      .forEach(({ record, recordId }, stackIndex) => {
+        const displayCoordinates = offsetCoordinateByMeters(
+          record.coordinates,
+          resolveStackedRecordDisplayOffset(stackIndex, coordinateGroup.length, offsetMeters)
+        );
+
+        if (displayCoordinates) {
+          displayCoordinatesById.set(recordId, displayCoordinates);
+        }
+      });
+  });
+
+  return displayCoordinatesById;
+};
+
+export const resolveSameCoordinateSectionBrowseContext = (markers = []) => {
+  const burialRecords = markers
+    .map((marker) => marker?.burialRecord)
+    .filter(Boolean);
+
+  if (
+    burialRecords.length < 2 ||
+    burialRecords.length !== markers.length ||
+    !areMarkersFromSameSourceLocation(markers)
+  ) {
+    return null;
+  }
+
+  const sectionFilter = getSharedRecordValue(burialRecords, ["Section", "section"]);
+  if (!sectionFilter) {
+    return null;
+  }
+
+  // For one-source-coordinate clusters, the section browse panel is clearer
+  // than opening another map-only list. Prefer the narrowest shared cemetery
+  // field so the existing sidebar result list does the work.
+  const sharedLot = getSharedRecordValue(burialRecords, ["Lot", "lot"]);
+  if (isUsableLotValue(sharedLot)) {
+    return {
+      sectionFilter,
+      filterType: "lot",
+      lotTierFilter: sharedLot,
+    };
+  }
+
+  const sharedTier = getSharedRecordValue(burialRecords, ["Tier", "tier"]);
+  if (sharedTier) {
+    return {
+      sectionFilter,
+      filterType: "tier",
+      lotTierFilter: sharedTier,
+    };
+  }
+
+  return {
+    sectionFilter,
+    filterType: "lot",
+    lotTierFilter: "",
+  };
+};
 
 export const getClusterIconCount = (
   cluster,
@@ -878,23 +1081,6 @@ export const getClusterIconCount = (
     ? childCount
     : markers.length;
 };
-
-export const resolveRoadOverlayVisibility = ({
-  currentZoom = 0,
-  roadOverlayVisible = false,
-  hasActiveRoute = false,
-  hasTrackedLocation = false,
-  sectionDetailMinZoom = MAP_PRESENTATION_POLICY.sectionDetailMinZoom,
-} = {}) => (
-  Boolean(
-    // Roads stay visible automatically when they provide orientation for route
-    // following or location tracking, even if the manual overlay toggle is off.
-    roadOverlayVisible ||
-    hasActiveRoute ||
-    hasTrackedLocation ||
-    currentZoom >= sectionDetailMinZoom
-  )
-);
 
 export const areRouteLatLngTuplesEquivalent = (left, right) => (
   Array.isArray(left) &&
@@ -914,12 +1100,10 @@ export const resolveMapPresentationPolicy = ({
   sectionFilter = "",
   selectedTour = null,
   roadOverlayVisible = false,
-  hasActiveRoute = false,
-  hasTrackedLocation = false,
   preferSectionOverviewMarkers = false,
 } = {}) => {
-  // Map chrome asks for one policy object per render so zoom, active route,
-  // location, and section/tour focus cannot drift through separate conditionals.
+  // Map chrome asks for one policy object per render so zoom and section/tour
+  // focus cannot drift through separate conditionals.
   const sectionVisibility = resolveSectionOverlayVisibility({
     currentZoom,
     preferOverviewMarkers: preferSectionOverviewMarkers,
@@ -946,12 +1130,7 @@ export const resolveMapPresentationPolicy = ({
       sectionFilter,
       selectedTour,
     }),
-    showRoads: resolveRoadOverlayVisibility({
-      currentZoom,
-      roadOverlayVisible,
-      hasActiveRoute,
-      hasTrackedLocation,
-    }),
+    showRoads: Boolean(roadOverlayVisible),
     sectionBurialDisableClusteringZoom,
     sectionBurialIndividualMarkerMinZoom: sectionBurialDisableClusteringZoom,
   };
@@ -1164,8 +1343,7 @@ export const LOCATION_APPROXIMATE_MAX_ACCURACY_METERS = 1000;
 export const LOCATION_JITTER_DEADBAND_METERS = 2.5;
 
 export const isApproximateLocationAccuracy = (accuracyMeters) => (
-  Number.isFinite(accuracyMeters)
-  && accuracyMeters > LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS
+  Number(accuracyMeters) > LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS
 );
 
 export const normalizeLocationPosition = (position) => {

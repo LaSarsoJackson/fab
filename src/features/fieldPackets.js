@@ -1,5 +1,5 @@
-import { formatBrowseResultName } from "../browse/browseResults";
-import { ROUTING_QUERY_PARAMS } from "../../shared/routing";
+import { formatBrowseResultName } from "./browse/browseResults";
+import { ROUTING_QUERY_PARAMS } from "../shared/routing";
 
 export const SHARED_LINK_QUERY_PARAM = ROUTING_QUERY_PARAMS.sharedSelection;
 

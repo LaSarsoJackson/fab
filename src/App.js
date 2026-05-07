@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { APP_PROFILE } from "./features/fab/profile";
-import { syncDocumentMetadata } from "./shared/runtime/runtimeEnv";
+import { syncDocumentMetadata } from "./shared/runtimeEnv";
 import "./App.css";
 
 const BurialMap = lazy(() => import("./Map"));

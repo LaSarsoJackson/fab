@@ -4,7 +4,7 @@ import {
   getRuntimeEnv,
   isFieldPacketsEnabled,
   RUNTIME_FEATURE_FLAGS,
-} from "../src/shared/runtime/runtimeEnv";
+} from "../src/shared/runtimeEnv";
 
 describe("getRuntimeEnv", () => {
   test("keeps runtime flags limited to shipped product features", () => {

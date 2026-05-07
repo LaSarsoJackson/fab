@@ -1,4 +1,4 @@
-import { getGeoJsonBounds } from "../../shared/geo/geoJsonBounds";
+import { getGeoJsonBounds } from "../../shared/geoJsonBounds";
 
 //=============================================================================
 // Module Boundary

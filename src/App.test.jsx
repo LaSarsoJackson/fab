@@ -5,7 +5,7 @@ import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import App from "./App";
 import { APP_PROFILE } from "./features/fab/profile";
-import { syncDocumentMetadata } from "./shared/runtime/runtimeEnv";
+import { syncDocumentMetadata } from "./shared/runtimeEnv";
 
 jest.mock("./Map", () => ({
   __esModule: true,
