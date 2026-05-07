@@ -1,3 +1,8 @@
+/**
+ * Build-time generator for runtime data artifacts. It mirrors the browser-side
+ * browse and tour-matching rules so generated search payloads stay compatible
+ * with map/sidebar selection behavior.
+ */
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';

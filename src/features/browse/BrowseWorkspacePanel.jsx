@@ -621,6 +621,8 @@ export default function BrowseWorkspacePanel({
 }) {
   const selectedTourDefinition = tourDefinitions.find((definition) => definition.name === selectedTour) || null;
   const shouldPromotePriorityContent = Boolean(isMobile && priorityContent);
+  // On mobile, selected-record controls should appear immediately below the
+  // drawer header. Desktop has enough room to keep them below browse controls.
   const inlinePriorityContent = shouldPromotePriorityContent ? null : priorityContent;
 
   return (

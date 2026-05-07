@@ -53,6 +53,9 @@ const cacheBrowseResults = (cache, key, results) => {
 
   cache.set(key, results);
 
+  // Keep the cache small and LRU-like. Large cemetery search results are cheap
+  // to recompute during idle time, but unbounded arrays add memory pressure on
+  // mobile Safari.
   if (cache.size <= BROWSE_RESULTS_CACHE_LIMIT) {
     return;
   }
@@ -81,6 +84,8 @@ function usePreferredBrowseSource({
   });
   const hasExternalBrowseContext = initialBrowseSource === "section" || initialBrowseSource === "tour";
   const didInitialBrowseSourceChange = initialBrowseSource !== previousInitialBrowseSourceRef.current;
+  // Parent context wins until the user explicitly chooses a different browse
+  // source. That keeps deep links and map-driven section/tour clicks coherent.
   const shouldUseExternalBrowseSource = (
     hasExternalBrowseContext &&
     (!hasExplicitBrowseSourcePreference || didInitialBrowseSourceChange)
@@ -248,6 +253,8 @@ export function useBurialSidebarBrowseState({
   const shouldDeferBrowseResults = browseSource === "all"
     && trimmedBrowseQuery.length >= MIN_BROWSE_QUERY_LENGTH
     && burialRecords.length >= ASYNC_BROWSE_RECORD_THRESHOLD;
+  // Section and tour result sets are small enough to compute synchronously.
+  // Full-cemetery queries defer once the burial dataset crosses the threshold.
   const browseCacheKey = useMemo(
     () => buildBrowseCacheKey({
       browseSource,
@@ -450,6 +457,8 @@ export function useBurialSidebarMobileSheetState({
     : mobileSheetState;
 
   const mobileSnapPoints = useCallback(({ maxHeight, minHeight }) => {
+    // Deduplicate because constrained viewports can collapse peek/full heights
+    // into the same physical snap point.
     const snapPoints = [
       getMobileSheetSnapHeight({
         maxHeight,

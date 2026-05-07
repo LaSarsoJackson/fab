@@ -108,6 +108,8 @@ const buildSearchableLabel = (displayName, secondaryText, tourName) => (
 );
 
 const buildBrowseId = (prefix, parts) => (
+  // Generated search rows and raw GeoJSON records do not share a single stable
+  // id field, so browse ids combine source and durable cemetery fields.
   `${prefix}:${parts.map((part) => cleanValue(part)).filter(Boolean).join(":")}`
 );
 
@@ -207,6 +209,8 @@ export const buildTourBrowseResult = (feature, { tourKey, tourName } = {}) => {
         Position: position,
       })
     : {};
+  // Tour definitions can provide their key/name out-of-band; fall back to raw
+  // record fields for legacy tour JSON loaded directly in tests or tooling.
   const resolvedTourKey = cleanValue(
     tourKey ||
     readCandidateValue(properties, TOUR_RECORD_FIELDS.tourKey || ["title", "Tour_ID"])
@@ -419,6 +423,8 @@ export const buildBrowseResults = ({
   const recordTourName = (record) => cleanValue(record.tourName || record.title || "");
 
   if (activeSource === "tour") {
+    // Tour browse is scoped to already-loaded tour stops. Full cemetery search
+    // stays separate so a tour filter never silently widens to all burials.
     if (!cleanValue(selectedTour)) {
       return {
         activeSource,
@@ -440,6 +446,8 @@ export const buildBrowseResults = ({
   }
 
   if (activeSource === "section") {
+    // Section browse can come from the burial source or a tour replacement
+    // definition, but downstream filtering/search uses the same result shape.
     if (!cleanValue(sectionFilter)) {
       return {
         activeSource,

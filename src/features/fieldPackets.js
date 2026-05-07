@@ -1,3 +1,8 @@
+/**
+ * Field packets are compact, URL-safe snapshots of a selected map view. They
+ * preserve enough record and viewport state for shared links without making
+ * loose query params compete with the packed payload.
+ */
 import { formatBrowseResultName } from "./browse/browseResults";
 import { ROUTING_QUERY_PARAMS } from "../shared/routing";
 
@@ -45,6 +50,8 @@ const normalizeMapBounds = (value) => {
   const north = normalizeFiniteNumber(northEast[0]);
   const east = normalizeFiniteNumber(northEast[1]);
 
+  // Bounds use Leaflet order: [[south, west], [north, east]]. Reject partial
+  // bounds so restored links cannot focus the map with mixed coordinate axes.
   if ([south, west, north, east].some((coordinate) => coordinate === null)) {
     return null;
   }
@@ -161,6 +168,8 @@ export const buildDefaultFieldPacketName = ({
 } = {}) => {
   const recordCount = selectedRecords.length;
 
+  // Prefer contextual names over generic counts so share sheets and restored
+  // packet banners remain meaningful outside the original browsing session.
   if (selectedTour) {
     return selectedTour;
   }
@@ -320,6 +329,8 @@ export const buildSharedSelectionPresentation = (packet = {}) => {
   const sectionLabel = sectionFilter ? `Section ${sectionFilter}` : "";
   const countLabel = formatSharedSelectionCountLabel(recordCount);
 
+  // Presentation is deliberately derived from normalized packet state, not the
+  // current URL, so malformed or hand-edited links fall back predictably.
   const title = explicitName ||
     selectedTour ||
     sectionLabel ||

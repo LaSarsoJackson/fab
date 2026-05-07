@@ -1,3 +1,8 @@
+/**
+ * Browser smoke tests for the shipped map/search flow. These tests watch local
+ * asset failures and uncaught browser errors because many regressions surface
+ * as broken map data loads before they produce a clear DOM assertion failure.
+ */
 const { test, expect } = require("@playwright/test");
 
 const TEST_APP_PORT = process.env.PLAYWRIGHT_APP_PORT || "4173";

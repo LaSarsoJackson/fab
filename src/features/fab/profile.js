@@ -17,6 +17,9 @@ const FAB_SITE_NAME = "Albany Rural Cemetery";
 const FAB_HOME_URL = `${FAB_SITE_ROOT_URL}/`;
 const FAB_IMAGE_DIRECTORY = "images";
 const FAB_NO_IMAGE_FILE_NAME = "no-image.jpg";
+// Profile-owned copy and URLs are used by both the web shell and the hosted
+// native wrapper, so keep them centralized instead of duplicating constants in
+// app components.
 const FAB_BIOGRAPHY_IMAGE_HINT = "Tap the image to open the ARCE biography.";
 const FAB_IOS_APP_STORE_URL = "https://apps.apple.com/us/app/albany-grave-finder/id6746413050";
 const FAB_DEV_IMAGE_SERVER_ORIGIN = (process.env.REACT_APP_DEV_IMAGE_SERVER_ORIGIN || "")
@@ -109,6 +112,8 @@ const buildFabPopupRows = (record = {}, helpers = {}) => {
     ? headstone
     : `Headstone ${headstone}`;
 
+  // Popup rows intentionally stay profile-owned because these labels reflect
+  // Albany Rural Cemetery source fields, not generic map presentation rules.
   return [
     title ? { label: "Role", value: title } : null,
     rank && rank !== title ? { label: "Rank", value: rank } : null,
@@ -179,6 +184,9 @@ const TOUR_MODULES = FAB_TOUR_DEFINITIONS.map((definition) => ({
 }));
 
 const MAP_BASEMAPS = [
+  // Basemap specs are data, not rendering code. Map chrome consumes these
+  // profile entries so new sources can be reviewed without touching Leaflet
+  // lifecycle code.
   {
     id: "imagery",
     label: "Imagery",

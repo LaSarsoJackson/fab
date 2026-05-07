@@ -1,3 +1,7 @@
+/**
+ * Root React shell for FAB. Keep this file limited to app-wide theme,
+ * document metadata, viewport sizing, and the lazy map entrypoint.
+ */
 import React, { Suspense, lazy, useEffect } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { APP_PROFILE } from "./features/fab/profile";

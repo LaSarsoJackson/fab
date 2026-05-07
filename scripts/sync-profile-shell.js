@@ -1,3 +1,8 @@
+/**
+ * Synchronizes static public shell files from the FAB app profile. Run this
+ * when profile-owned document title, description, app name, or noscript copy
+ * changes so the checked-in HTML and manifest match runtime metadata.
+ */
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";

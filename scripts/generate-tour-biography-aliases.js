@@ -1,3 +1,8 @@
+/**
+ * Generates deterministic biography alias metadata from all declared FAB tour
+ * files. The browser uses the artifact to recover ARCE biography links for tour
+ * records that only contain portrait filenames.
+ */
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";

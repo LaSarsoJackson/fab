@@ -205,6 +205,8 @@ const findBestSectionLotMatch = (
     return null;
   }
 
+  // Only candidates sharing a section/lot reach the scoring stage. The
+  // acceptance threshold then protects against same-lot family-name collisions.
   let bestCandidate = null;
   let bestScore = Number.NEGATIVE_INFINITY;
 
@@ -327,6 +329,8 @@ export const harmonizeTourBrowseResult = (tourRecord, burialLookup) => {
     Birth: matchedBurial?.Birth || tourRecord.Birth,
     Death: matchedBurial?.Death || tourRecord.Death,
   });
+  // Matched burial rows stay canonical for map/search identity, while tour rows
+  // supply the curated image, title, and stop-position metadata.
   const mergedRecord = {
     ...tourRecord,
     ...(matchedBurial

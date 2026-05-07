@@ -1,3 +1,7 @@
+/**
+ * Production-only service-worker registration. The registered URL must honor
+ * PUBLIC_URL because GitHub Pages serves FAB from the /fab subpath.
+ */
 import { buildPublicAssetUrl } from "./shared/runtimeEnv";
 
 const registerServiceWorker = () => {

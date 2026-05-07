@@ -1,3 +1,8 @@
+/**
+ * Pure helpers for recovering tour biography and portrait metadata from uneven
+ * legacy tour files. These functions run in both the browser and build scripts,
+ * so they avoid DOM/runtime dependencies.
+ */
 import { normalizeName } from "../browse/burialSearch";
 
 export const IMAGE_EXTENSION_PATTERN = /\.(?:avif|gif|jpe?g|png|svg|webp)$/i;

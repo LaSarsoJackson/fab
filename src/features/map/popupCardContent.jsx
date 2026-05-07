@@ -1,3 +1,8 @@
+/**
+ * React content rendered inside Leaflet popups. The component handles DOM
+ * event isolation and layout recalculation that Leaflet cannot infer from
+ * React image/font updates.
+ */
 import React, { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { Box } from "@mui/material";
 

@@ -1,3 +1,8 @@
+/**
+ * Runtime PWA cache policy for the static FAB build. The service worker keeps
+ * the shell installable, caches the compact public search payload generously,
+ * and avoids pinning full source datasets into constrained browser storage.
+ */
 const STATIC_CACHE = 'fab-static-v3';
 const RUNTIME_CACHE = 'fab-runtime-v3';
 // Keep the app shell installable, but leave large and frequently regenerated
@@ -15,6 +20,8 @@ const IMAGE_ASSET_PATTERN = /\.(?:png|jpg|jpeg|gif|webp|avif)$/i;
 const JSON_ASSET_PATTERN = /\.json$/i;
 const FIELD_SEARCH_PAYLOAD_PATTERN = /\/data\/Search_Burials\.json$/i;
 const LARGE_DATASET_PATTERN = /(Geo_Burials|Burials|ARC_Burials).*\.json$/i;
+// Most runtime assets are tiny enough for a conservative cache cap. Search data
+// is the exception because it is the offline-critical browse payload.
 const MAX_RUNTIME_CACHE_BYTES = 1_500_000;
 const MAX_FIELD_DATA_CACHE_BYTES = 50_000_000;
 

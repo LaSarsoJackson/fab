@@ -1,3 +1,8 @@
+/**
+ * Popup presentation adapter for normalized browse records. It delegates
+ * cemetery-specific labels and URLs to the FAB profile while keeping defensive
+ * date, image, and display-name normalization reusable by map UI.
+ */
 import { buildLocationSummary, formatBrowseResultName } from "../browse/browseResults";
 import { APP_PROFILE } from "../fab/profile";
 import { resolvePortraitImageName } from "../tours/tourDerivedData";

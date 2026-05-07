@@ -55,6 +55,8 @@ export const sortSectionValues = (a, b) => {
 };
 
 export const buildSearchIndex = (options, { getTourName, initialIndex } = {}) => {
+  // Each bucket supports one high-intent query path. Keeping indexes separate
+  // avoids coupling section/lot/year commands to looser token scoring.
   const {
     bySection,
     byLot,
@@ -137,6 +139,8 @@ export const smartSearch = (
   if (!input) return [];
 
   if (YEAR_PATTERN.test(input)) {
+    // A four-digit input is almost always a birth/death year in this app, so
+    // resolve it before numeric section and lot shortcuts.
     if (index?.byYear?.has(input)) {
       return dedupe(index.byYear.get(input));
     }
@@ -183,6 +187,8 @@ export const smartSearch = (
   }
 
   if (NUMBER_PATTERN.test(input)) {
+    // Bare numbers are intentionally broad: visitors often remember only a
+    // section, lot, or life-date fragment. Dedupe preserves useful unions.
     const indexMatches = [];
     if (index?.bySection?.has(input)) indexMatches.push(...index.bySection.get(input));
     if (index?.byLot?.has(input)) indexMatches.push(...index.byLot.get(input));
@@ -270,6 +276,8 @@ export const smartSearch = (
           (tourValue.includes(input) ||
             (inputTokens.length > 0 && inputTokens.every((token) => tourValue.includes(token))));
 
+        // Score only viable candidates after the index narrows the pool. This
+        // keeps typeahead fast while preserving deterministic relevance order.
         if (!(orderedNameMatch || allNameTokensMatch || labelMatch || allLabelTokensMatch || tourMatch)) {
           return null;
         }

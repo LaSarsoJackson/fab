@@ -1,3 +1,7 @@
+/**
+ * Validates that the optional GeoParquet burial source remains a 1:1 canonical
+ * replacement for the checked-in GeoJSON fields consumed by FAB.
+ */
 import fs from "fs/promises";
 
 import { APP_PROFILE } from "../../src/features/fab/profile.js";
@@ -20,6 +24,9 @@ const CANONICAL_PROPERTY_KEYS = [
   "Death",
 ];
 
+// Floating-point coordinates can round-trip through Parquet with harmless
+// representation differences. Nine decimals keeps sub-millimeter precision for
+// equality checks while removing serialization noise.
 const COORDINATE_PRECISION = 9;
 
 const normalizeScalar = (value) => {

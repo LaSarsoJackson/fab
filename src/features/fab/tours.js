@@ -1,3 +1,8 @@
+/**
+ * FAB-owned tour registry. Definitions here connect human tour names,
+ * checked-in source files, optional section-browse replacements, and the
+ * record enrichment needed by shared browse/map code.
+ */
 import tourBiographyAliases from "../../data/TourBiographyAliases.json";
 import {
   resolveBiographyReferenceFromAliases,
@@ -5,6 +10,8 @@ import {
 } from "../tours/tourDerivedData";
 
 export const FAB_TOUR_DEFINITIONS = [
+  // Fixed-format headstone tours replace ordinary section browse results so
+  // visitors see the curated projected-headstone records for these sections.
   {
     key: "Lot7",
     name: "Soldier's Lot (Section 75, Lot 7)",
@@ -127,6 +134,8 @@ const FAB_TOUR_COLOR_OVERRIDES = {
   GAR: "#000080",
 };
 
+// Keep fallback colors deterministic so new tours get stable marker colors
+// before a curator chooses a specific palette entry.
 const FALLBACK_TOUR_COLORS = [
   "#2f6f8f",
   "#8a5a44",
@@ -146,6 +155,9 @@ export const FAB_TOUR_STYLES = Object.fromEntries(
 );
 
 export const enrichFabTourRecord = (record = {}) => {
+  // Tour JSON is uneven: some records carry biography slugs, some only carry a
+  // portrait. Alias metadata recovers the biography link without hardcoding
+  // special cases for individual tour files.
   const portraitImageName = resolvePortraitImageName(record);
   const biographyLink = resolveBiographyReferenceFromAliases(
     {

@@ -1,3 +1,8 @@
+/**
+ * Geospatial source loader for build scripts. It prefers the configured
+ * GeoParquet artifact when available and falls back to the canonical GeoJSON
+ * source so local contributor machines can still run the default pipeline.
+ */
 import fs from "fs/promises";
 import path from "path";
 import { execFile } from "child_process";
@@ -126,6 +131,8 @@ export const getBurialGeoParquetCandidates = () => {
       .map((artifact) => artifact.filePath),
   ].filter(Boolean);
 
+  // Default candidates preserve backwards compatibility for contributors who
+  // generated GeoParquet before the storage strategy was profile-driven.
   const defaultPaths = [
     "src/data/Geo_Burials.parquet",
     "public/data/geo_burials.parquet",
@@ -213,6 +220,8 @@ export async function loadBurialFeatureCollection(options = {}) {
           },
         };
       } catch (error) {
+        // GeoParquet is an optimization path. Falling back keeps `build:data`
+        // usable when optional Python/GIS dependencies are broken locally.
         console.warn(
           `[geospatial] Falling back to GeoJSON because GeoParquet load failed for ${candidatePath}: ${error.message}`
         );

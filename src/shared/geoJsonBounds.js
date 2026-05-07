@@ -1,3 +1,8 @@
+/**
+ * Small GeoJSON traversal helpers shared by map code and tests. They accept
+ * FeatureCollections, Features, GeometryCollections, and raw geometries while
+ * returning Leaflet-compatible bounds for the app shell.
+ */
 const updateBounds = (currentBounds, lng, lat) => ({
   south: Math.min(currentBounds.south, lat),
   west: Math.min(currentBounds.west, lng),

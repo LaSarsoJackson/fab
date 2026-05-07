@@ -1,3 +1,7 @@
+/**
+ * Browser bootstrap for the React app. Everything after mount is delegated to
+ * feature/profile modules so this entrypoint stays auditable.
+ */
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
