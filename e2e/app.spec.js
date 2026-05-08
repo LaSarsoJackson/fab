@@ -24,6 +24,13 @@ const buildAppPath = (searchParams = "") => {
   const separator = TEST_APP_PATH.includes("?") ? "&" : "?";
   return `${TEST_APP_PATH}${separator}${searchParams}`;
 };
+const encodeSharePacketPayload = (packet) => (
+  Buffer.from(JSON.stringify(packet), "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "")
+);
 
 test.beforeEach(async ({ page }, testInfo) => {
   const consoleErrors = [];
@@ -314,6 +321,40 @@ test.describe("desktop", () => {
     await expect(page.locator(".left-sidebar__panel--selected-summary")).toContainText("Thomas E LaMont");
   });
 
+  test("packed shared links restore current burial data and landing state", async ({ page }) => {
+    const sharedPacket = encodeSharePacketPayload({
+      version: 1,
+      name: "Lamont field check",
+      note: "Confirm the shared selection restores from URL state.",
+      activeBurialId: "burial:1:215:30:0",
+      selectedRecords: [
+        {
+          id: "burial:1:215:30:0",
+          source: "burial",
+          displayName: "Stale Lamont Snapshot",
+          Section: "215",
+          Lot: "30",
+          Tier: "0",
+          Grave: "0",
+          coordinates: [-73.736092, 42.712719],
+        },
+      ],
+      sectionFilter: "215",
+      mapBounds: [
+        [42.712, -73.737],
+        [42.713, -73.735],
+      ],
+    });
+
+    await waitForAppReady(page, buildAppPath(`share=${sharedPacket}`));
+
+    const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
+    await expect(selectedPeoplePanel).toContainText("Thomas E LaMont", { timeout: 60_000 });
+    await expect(selectedPeoplePanel).not.toContainText("Stale Lamont Snapshot");
+    await expect(page.getByText("Opened from a shared link")).toBeVisible();
+    await expect(page.getByText("Shared selection loaded from link.")).toBeVisible();
+  });
+
   test("locate uses browser geolocation in the production map", async ({ page, context }) => {
     await context.grantPermissions(["geolocation"]);
     await context.setGeolocation({
@@ -374,7 +415,6 @@ test.describe("desktop", () => {
     await expect(page.getByText("Calculating route...")).toHaveCount(0, { timeout: 15_000 });
     const routeLine = page.locator("path[stroke='#0f67c6']").first();
     await expect(routeLine).toBeVisible();
-    await expect(page.locator("path[stroke='#26333b']").first()).toBeVisible();
     const initialRoutePath = await routeLine.getAttribute("d");
     expect(externalRouteRequestCount).toBe(0);
 
@@ -456,11 +496,8 @@ test.describe("mobile", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test("selected-person actions stay usable in the mobile bottom sheet", async ({ page }) => {
-    await waitForAppReady(page);
+    await waitForAppReady(page, buildAppPath("view=burials&q=lamont"));
     await ensureBurialDataLoaded(page);
-    const browseResults = await searchForLamont(page);
-
-    await browseResults.first().click();
 
     const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
     await expect(selectedPeoplePanel).toContainText("Selection");

@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
-import { GeoJSON, TileLayer, useMap } from "react-leaflet";
+import React, { memo, useEffect } from "react";
+import L from "leaflet";
+import { CircleMarker, GeoJSON, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 import {
   Box,
   ClickAwayListener,
@@ -36,8 +37,133 @@ const MAP_CONTROL_BUTTON_SIZE = 44;
 const DEFAULT_BASEMAP_KEEP_BUFFER = 1;
 const GEOJSON_DATA_KEYS = new WeakMap();
 let nextGeoJsonDataKey = 1;
+const CEMETERY_CLUSTER_GLYPH = `
+  <svg class="cemetery-cluster__glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+    <path
+      d="M10 27V12.5C10 8.91 12.91 6 16.5 6S23 8.91 23 12.5V27H25.5V29H7.5V27H10Z"
+      fill="#657b72"
+      fill-opacity="0.78"
+      stroke="rgba(47, 75, 67, 0.78)"
+      stroke-width="1.4"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M13.2 12.2H19.8"
+      stroke="rgba(255,255,255,0.75)"
+      stroke-width="1.4"
+      stroke-linecap="round"
+    />
+    <path
+      d="M16.5 9.4V15"
+      stroke="rgba(255,255,255,0.75)"
+      stroke-width="1.4"
+      stroke-linecap="round"
+    />
+  </svg>
+`;
+const SECTION_AFFORDANCE_GLYPH = `
+  <svg class="section-affordance__glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+    <path
+      d="M10 27V12.5C10 8.91 12.91 6 16.5 6S23 8.91 23 12.5V27H25.5V29H7.5V27H10Z"
+      fill="rgba(108, 121, 131, 0.32)"
+      stroke="rgba(242, 247, 249, 0.82)"
+      stroke-width="1.35"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M13.2 12.2H19.8"
+      stroke="rgba(255,255,255,0.82)"
+      stroke-width="1.35"
+      stroke-linecap="round"
+    />
+    <path
+      d="M16.5 9.4V15"
+      stroke="rgba(255,255,255,0.82)"
+      stroke-width="1.35"
+      stroke-linecap="round"
+    />
+  </svg>
+`;
+const sectionClusterIcons = new Map();
+const sectionAffordanceIcons = new Map();
 
 const buildPaddingPoint = (x, y) => [x, y];
+
+const formatSectionClusterCountLabel = (count = 0) => {
+  const normalizedCount = Math.max(0, Number(count) || 0);
+  if (normalizedCount >= 1000) {
+    return `${(normalizedCount / 1000).toFixed(normalizedCount >= 10000 ? 0 : 1).replace(/\.0$/, "")}k`;
+  }
+
+  return String(normalizedCount);
+};
+
+const getSectionOverviewMarkerRadius = (count = 0) => {
+  if (count >= 2000) return 9;
+  if (count >= 1000) return 8;
+  if (count >= 300) return 7;
+  return 6;
+};
+
+const getSectionClusterIconSize = (count = 0) => {
+  const normalizedCount = Math.max(0, Number(count) || 0);
+  if (normalizedCount >= 3000) return 34;
+  if (normalizedCount >= 1500) return 32;
+  if (normalizedCount >= 700) return 31;
+  return 30;
+};
+
+export const createCemeteryClusterIcon = ({
+  count = 0,
+  label = String(Math.max(0, Number(count) || 0)),
+  size = 30,
+  wrapperClassName = "cemetery-cluster",
+  className = "custom-cluster-icon",
+} = {}) => L.divIcon({
+  html: `
+    <div class="${wrapperClassName}">
+      ${CEMETERY_CLUSTER_GLYPH}
+      <span class="cemetery-cluster__count">${label}</span>
+    </div>
+  `,
+  className,
+  iconSize: [size, size],
+  iconAnchor: [size / 2, size / 2],
+});
+
+const getSectionClusterIcon = (count = 0) => {
+  const normalizedSize = getSectionClusterIconSize(count);
+  const label = formatSectionClusterCountLabel(count);
+  const cacheKey = `${normalizedSize}:${label}`;
+
+  if (!sectionClusterIcons.has(cacheKey)) {
+    sectionClusterIcons.set(cacheKey, createCemeteryClusterIcon({
+      label,
+      size: normalizedSize,
+      wrapperClassName: "cemetery-cluster section-cluster",
+      className: "custom-cluster-icon section-cluster-icon",
+    }));
+  }
+
+  return sectionClusterIcons.get(cacheKey);
+};
+
+const getSectionAffordanceIcon = (size = 28) => {
+  const normalizedSize = Number.isFinite(Number(size))
+    ? Math.round(Number(size))
+    : 28;
+
+  if (!sectionAffordanceIcons.has(normalizedSize)) {
+    sectionAffordanceIcons.set(normalizedSize, L.divIcon({
+      html: `<div class="section-affordance">${SECTION_AFFORDANCE_GLYPH}</div>`,
+      className: "section-affordance-icon",
+      iconSize: [normalizedSize, normalizedSize],
+      iconAnchor: [normalizedSize / 2, normalizedSize / 2],
+    }));
+  }
+
+  return sectionAffordanceIcons.get(normalizedSize);
+};
 
 const getOverlayRect = (getOverlayElement) => {
   if (typeof getOverlayElement !== "function") return undefined;
@@ -551,6 +677,108 @@ export function ActiveLeafletBasemap({ basemap, keepBuffer = DEFAULT_BASEMAP_KEE
 
   return <LeafletBasemapLayer basemap={basemap} keepBuffer={keepBuffer} />;
 }
+
+export const MapSectionOverviewMarkers = memo(function MapSectionOverviewMarkers({
+  markers,
+  onSelectSection,
+}) {
+  if (!Array.isArray(markers) || markers.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      {markers.map((marker) => (
+        <CircleMarker
+          key={marker.id}
+          center={[marker.lat, marker.lng]}
+          radius={getSectionOverviewMarkerRadius(marker.count)}
+          pathOptions={{
+            color: "rgba(29, 63, 54, 0.42)",
+            weight: 1.5,
+            fillColor: "rgba(255, 255, 255, 0.96)",
+            fillOpacity: 0.92,
+          }}
+          eventHandlers={{
+            click: () => onSelectSection?.(marker.sectionValue, marker.bounds),
+          }}
+        >
+          <Tooltip
+            direction="top"
+            offset={[0, -6]}
+            className="section-label section-label--overview"
+          >
+            {`Section ${marker.sectionValue}`}
+          </Tooltip>
+        </CircleMarker>
+      ))}
+    </>
+  );
+});
+
+export const MapSectionClusterMarkers = memo(function MapSectionClusterMarkers({
+  markers,
+  onSelectSection,
+}) {
+  if (!Array.isArray(markers) || markers.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      {markers.map((marker) => (
+        <Marker
+          key={`cluster-${marker.id}`}
+          position={[marker.lat, marker.lng]}
+          icon={getSectionClusterIcon(marker.count)}
+          eventHandlers={{
+            click: () => onSelectSection?.(marker.sectionValue, marker.bounds),
+          }}
+        >
+          <Tooltip
+            direction="top"
+            offset={[0, -8]}
+            className="section-label section-label--overview"
+          >
+            {`Section ${marker.sectionValue}`}
+          </Tooltip>
+        </Marker>
+      ))}
+    </>
+  );
+});
+
+export const MapSectionAffordanceMarkers = memo(function MapSectionAffordanceMarkers({
+  markers,
+  onSelectSection,
+}) {
+  if (!Array.isArray(markers) || markers.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      {markers.map((marker) => (
+        <Marker
+          key={marker.id}
+          position={[marker.lat, marker.lng]}
+          icon={getSectionAffordanceIcon(marker.size)}
+          eventHandlers={{
+            click: () => onSelectSection?.(marker.sectionValue, marker.bounds),
+          }}
+        >
+          <Tooltip
+            direction="top"
+            offset={[0, -8]}
+            className="section-label section-label--overview"
+          >
+            {`Section ${marker.sectionValue}`}
+          </Tooltip>
+        </Marker>
+      ))}
+    </>
+  );
+});
 
 // Bridges Leaflet events back to the map shell without making the shell call
 // `useMap`. This keeps viewport intent and zoom state centralized in Map.jsx.

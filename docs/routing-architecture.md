@@ -16,7 +16,8 @@ Use [`src/shared/routing.js`](../src/shared/routing.js) for route and URL contra
 - [`src/features/map/mapRouting.js`](../src/features/map/mapRouting.js): route
   calculation, bundled road-graph snapping, and local shortest-path routing.
 - [`src/features/fieldPackets.js`](../src/features/fieldPackets.js): field-packet
-  encoding/decoding and URL state parsing using the shared query-key registry.
+  encoding/decoding, URL state parsing, and restored-record reconciliation
+  using the shared query-key registry.
 
 ## Editing Guidance
 
@@ -26,5 +27,6 @@ Use [`src/shared/routing.js`](../src/shared/routing.js) for route and URL contra
   logic there.
 - Keep walking-route calculation in `mapRouting.js`; do not move road-graph
   routing into shared URL helpers.
-- Keep packed share payload structure in `src/features/fieldPackets.js`; the shared
-  routing module only owns the public query-key contract.
+- Keep packed share payload structure and current-data hydration in
+  `src/features/fieldPackets.js`; the shared routing module only owns the public
+  query-key contract.

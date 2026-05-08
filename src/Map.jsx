@@ -20,7 +20,7 @@ import React, { memo, useState, useEffect, useMemo, useRef, useCallback } from "
 import ReactDOM from "react-dom";
 
 // Leaflet and Map-related Dependencies
-import { MapContainer, Popup, Marker, GeoJSON, CircleMarker, Tooltip, useMap } from "react-leaflet";
+import { MapContainer, Popup, Marker, GeoJSON, CircleMarker, useMap } from "react-leaflet";
 import L from 'leaflet';  // Core Leaflet library for map functionality
 import "./index.css";
 import 'leaflet.markercluster/dist/leaflet.markercluster';  // Clustering support for markers
@@ -108,6 +108,7 @@ import {
 } from "./features/map/mapDomain";
 import {
   ActiveLeafletBasemap,
+  createCemeteryClusterIcon,
   CustomZoomControl,
   DefaultExtentButton,
   fitBoundsInVisibleViewport,
@@ -119,6 +120,9 @@ import {
   MobileLocateButton,
   RouteStatusOverlay,
   SidebarToggleControl,
+  MapSectionAffordanceMarkers,
+  MapSectionClusterMarkers,
+  MapSectionOverviewMarkers,
   panIntoVisibleViewport,
   schedulePopupInView,
 } from "./features/map/mapChrome";
@@ -130,6 +134,7 @@ import {
   buildFieldPacketState,
   buildSharedSelectionPresentation,
   parseDeepLinkState,
+  resolveFieldPacketRestoration,
 } from "./features/fieldPackets";
 import {
   buildBurialLookup,
@@ -252,113 +257,6 @@ const isLocationCandidateWithinBuffer = (candidate) => {
     point([candidate.longitude, candidate.latitude]),
     LOCATION_BUFFER_BOUNDARY
   );
-};
-
-const CEMETERY_CLUSTER_GLYPH = `
-  <svg class="cemetery-cluster__glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-    <path
-      d="M10 27V12.5C10 8.91 12.91 6 16.5 6S23 8.91 23 12.5V27H25.5V29H7.5V27H10Z"
-      fill="#657b72"
-      fill-opacity="0.78"
-      stroke="rgba(47, 75, 67, 0.78)"
-      stroke-width="1.4"
-      stroke-linejoin="round"
-    />
-    <path
-      d="M13.2 12.2H19.8"
-      stroke="rgba(255,255,255,0.75)"
-      stroke-width="1.4"
-      stroke-linecap="round"
-    />
-    <path
-      d="M16.5 9.4V15"
-      stroke="rgba(255,255,255,0.75)"
-      stroke-width="1.4"
-      stroke-linecap="round"
-    />
-  </svg>
-`;
-const sectionClusterIcons = new Map();
-
-const formatSectionClusterCountLabel = (count = 0) => {
-  const normalizedCount = Math.max(0, Number(count) || 0);
-  if (normalizedCount >= 1000) {
-    return `${(normalizedCount / 1000).toFixed(normalizedCount >= 10000 ? 0 : 1).replace(/\.0$/, "")}k`;
-  }
-
-  return String(normalizedCount);
-};
-
-const getSectionClusterIconSize = (count = 0) => {
-  const normalizedCount = Math.max(0, Number(count) || 0);
-  if (normalizedCount >= 3000) return 34;
-  if (normalizedCount >= 1500) return 32;
-  if (normalizedCount >= 700) return 31;
-  return 30;
-};
-
-const getSectionClusterIcon = (count = 0) => {
-  const normalizedSize = getSectionClusterIconSize(count);
-  const label = formatSectionClusterCountLabel(count);
-  const cacheKey = `${normalizedSize}:${label}`;
-
-  if (!sectionClusterIcons.has(cacheKey)) {
-    sectionClusterIcons.set(cacheKey, L.divIcon({
-      html: `
-        <div class="cemetery-cluster section-cluster">
-          ${CEMETERY_CLUSTER_GLYPH}
-          <span class="cemetery-cluster__count">${label}</span>
-        </div>
-      `,
-      className: 'custom-cluster-icon section-cluster-icon',
-      iconSize: [normalizedSize, normalizedSize],
-      iconAnchor: [normalizedSize / 2, normalizedSize / 2],
-    }));
-  }
-
-  return sectionClusterIcons.get(cacheKey);
-};
-
-const SECTION_AFFORDANCE_GLYPH = `
-  <svg class="section-affordance__glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-    <path
-      d="M10 27V12.5C10 8.91 12.91 6 16.5 6S23 8.91 23 12.5V27H25.5V29H7.5V27H10Z"
-      fill="rgba(108, 121, 131, 0.32)"
-      stroke="rgba(242, 247, 249, 0.82)"
-      stroke-width="1.35"
-      stroke-linejoin="round"
-    />
-    <path
-      d="M13.2 12.2H19.8"
-      stroke="rgba(255,255,255,0.82)"
-      stroke-width="1.35"
-      stroke-linecap="round"
-    />
-    <path
-      d="M16.5 9.4V15"
-      stroke="rgba(255,255,255,0.82)"
-      stroke-width="1.35"
-      stroke-linecap="round"
-    />
-  </svg>
-`;
-const sectionAffordanceIcons = new Map();
-
-const getSectionAffordanceIcon = (size = 28) => {
-  const normalizedSize = Number.isFinite(Number(size))
-    ? Math.round(Number(size))
-    : 28;
-
-  if (!sectionAffordanceIcons.has(normalizedSize)) {
-    sectionAffordanceIcons.set(normalizedSize, L.divIcon({
-      html: `<div class="section-affordance">${SECTION_AFFORDANCE_GLYPH}</div>`,
-      className: "section-affordance-icon",
-      iconSize: [normalizedSize, normalizedSize],
-      iconAnchor: [normalizedSize / 2, normalizedSize / 2],
-    }));
-  }
-
-  return sectionAffordanceIcons.get(normalizedSize);
 };
 
 const isRenderableBounds = (bounds) => (
@@ -574,115 +472,6 @@ function MapTourController({ selectedTour, overlayMaps, tourNames }) {
 
   return null;
 }
-
-const getSectionOverviewMarkerRadius = (count = 0) => {
-  if (count >= 2000) return 9;
-  if (count >= 1000) return 8;
-  if (count >= 300) return 7;
-  return 6;
-};
-
-const MapSectionOverviewMarkers = memo(function MapSectionOverviewMarkers({
-  markers,
-  onSelectSection,
-}) {
-  if (!Array.isArray(markers) || markers.length === 0) {
-    return null;
-  }
-
-  return (
-    <>
-      {markers.map((marker) => (
-        <CircleMarker
-          key={marker.id}
-          center={[marker.lat, marker.lng]}
-          radius={getSectionOverviewMarkerRadius(marker.count)}
-          pathOptions={{
-            color: "rgba(29, 63, 54, 0.42)",
-            weight: 1.5,
-            fillColor: "rgba(255, 255, 255, 0.96)",
-            fillOpacity: 0.92,
-          }}
-          eventHandlers={{
-            click: () => onSelectSection?.(marker.sectionValue, marker.bounds),
-          }}
-        >
-          <Tooltip
-            direction="top"
-            offset={[0, -6]}
-            className="section-label section-label--overview"
-          >
-            {`Section ${marker.sectionValue}`}
-          </Tooltip>
-        </CircleMarker>
-      ))}
-    </>
-  );
-});
-
-const MapSectionClusterMarkers = memo(function MapSectionClusterMarkers({
-  markers,
-  onSelectSection,
-}) {
-  if (!Array.isArray(markers) || markers.length === 0) {
-    return null;
-  }
-
-  return (
-    <>
-      {markers.map((marker) => (
-        <Marker
-          key={`cluster-${marker.id}`}
-          position={[marker.lat, marker.lng]}
-          icon={getSectionClusterIcon(marker.count)}
-          eventHandlers={{
-            click: () => onSelectSection?.(marker.sectionValue, marker.bounds),
-          }}
-        >
-          <Tooltip
-            direction="top"
-            offset={[0, -8]}
-            className="section-label section-label--overview"
-          >
-            {`Section ${marker.sectionValue}`}
-          </Tooltip>
-        </Marker>
-      ))}
-    </>
-  );
-});
-
-const MapSectionAffordanceMarkers = memo(function MapSectionAffordanceMarkers({
-  markers,
-  onSelectSection,
-}) {
-  if (!Array.isArray(markers) || markers.length === 0) {
-    return null;
-  }
-
-  return (
-    <>
-      {markers.map((marker) => (
-        <Marker
-          key={marker.id}
-          position={[marker.lat, marker.lng]}
-          icon={getSectionAffordanceIcon(marker.size)}
-          eventHandlers={{
-            click: () => onSelectSection?.(marker.sectionValue, marker.bounds),
-          }}
-        >
-          <Tooltip
-            direction="top"
-            offset={[0, -8]}
-            className="section-label section-label--overview"
-          >
-            {`Section ${marker.sectionValue}`}
-          </Tooltip>
-        </Marker>
-      ))}
-    </>
-  );
-});
 
 const MapRoadLayers = memo(function MapRoadLayers({ roadsData }) {
   return (
@@ -1807,14 +1596,13 @@ export default function BurialMap() {
       if (timeoutId !== null) {
         clearTimeout(timeoutId);
       }
-      // Avoid showing "GPS unavailable" while the watch pipeline is still
-      // actively trying. The watch's own error handler will surface the
-      // unavailable state if it eventually fails.
+      // A watch can keep emitting unusably coarse fixes forever. Once the
+      // foreground request has exhausted its own retry window, surface a final
+      // fallback state instead of leaving the chrome on "still trying".
       if (
         !nextLocation
         && markUnavailableWhenEmpty
         && !acceptedLocationRef.current
-        && watchIdRef.current === null
       ) {
         setStatus(LOCATION_MESSAGES.unavailable);
       }
@@ -2518,17 +2306,7 @@ export default function BurialMap() {
       iconCreateFunction: (cluster) => {
         const childMarkers = cluster.getAllChildMarkers?.() || [];
         const count = getClusterIconCount(cluster, childMarkers);
-        return L.divIcon({
-          html: `
-            <div class="cemetery-cluster">
-              ${CEMETERY_CLUSTER_GLYPH}
-              <span class="cemetery-cluster__count">${count}</span>
-            </div>
-          `,
-          className: 'custom-cluster-icon',
-          iconSize: [30, 30],
-          iconAnchor: [15, 15],
-        });
+        return createCemeteryClusterIcon({ count });
       }
     });
 
@@ -3746,20 +3524,19 @@ export default function BurialMap() {
       // Packed share links carry the most complete restored state. Apply them
       // before loose query params so the client does not merge two competing
       // selection sources.
-      const nextFieldPacket = deepLink.fieldPacket;
-      const packetSelections = (nextFieldPacket.selectedRecords || []).map((record) => (
-        record?.source === "burial"
-          ? burialRecordsById.get(record.id) || record
-          : record
-      ));
-      const nextActiveBurial = nextFieldPacket.activeBurialId
-        ? packetSelections.find((record) => record.id === nextFieldPacket.activeBurialId) || null
-        : null;
+      const {
+        fieldPacket: nextFieldPacket,
+        selectedRecords: packetSelections,
+        activeRecord: nextActiveRecord,
+        selectedTour: packetSelectedTour,
+        sectionFilter: packetSectionFilter,
+        mapBounds: packetMapBounds,
+      } = resolveFieldPacketRestoration(deepLink.fieldPacket, { burialRecordsById });
 
-      if (nextFieldPacket.selectedTour) {
-        handleTourSelect(nextFieldPacket.selectedTour, { isExplicitFocus: false });
-      } else if (nextFieldPacket.sectionFilter) {
-        activateSectionBrowse(nextFieldPacket.sectionFilter, undefined, { isExplicitFocus: false });
+      if (packetSelectedTour) {
+        handleTourSelect(packetSelectedTour, { isExplicitFocus: false });
+      } else if (packetSectionFilter) {
+        activateSectionBrowse(packetSectionFilter, undefined, { isExplicitFocus: false });
       }
 
       setFieldPacket(nextFieldPacket);
@@ -3770,16 +3547,16 @@ export default function BurialMap() {
       if (packetSelections.length > 0) {
         dispatchSelectionAction(replaceMapSelectionRecords({
           records: packetSelections,
-          activeRecordId: nextActiveBurial?.id || null,
+          activeRecordId: nextActiveRecord?.id || null,
           hoveredRecordId: null,
         }));
 
         const map = getMapInstance();
         if (map) {
-          if (isLatLngBoundsExpressionValid(nextFieldPacket.mapBounds)) {
-            fitMapBoundsInViewport(map, nextFieldPacket.mapBounds);
-          } else if (nextActiveBurial?.coordinates) {
-            focusBurial(nextActiveBurial, {
+          if (isLatLngBoundsExpressionValid(packetMapBounds)) {
+            fitMapBoundsInViewport(map, packetMapBounds);
+          } else if (nextActiveRecord?.coordinates) {
+            focusBurial(nextActiveRecord, {
               addToSelection: false,
               animate: false,
               openTourPopup: false,

@@ -14,7 +14,7 @@ so there is a clearer answer to "where should this change go?"
 - [`src/features/browse/`](../src/features/browse): search indexing, browse result shaping, and shared record labels
 - [`src/features/tours/`](../src/features/tours): tour definitions, alias recovery, tour styles, and burial-tour reconciliation
 - [`src/features/map/`](../src/features/map): popup view-models, a single `mapDomain.js` module for pure map rules, viewport intent, popup geometry, and selection-state reduction, a single `mapRouting.js` module for bundled-road walking-route calculation, map chrome, and generated bounds
-- [`src/features/fieldPackets.js`](../src/features/fieldPackets.js): field-packet/shared-link encoding, parsing, and presentation state
+- [`src/features/fieldPackets.js`](../src/features/fieldPackets.js): field-packet/shared-link encoding, parsing, restoration reconciliation, and presentation state
 
 ## Shared Helpers
 

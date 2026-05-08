@@ -62,7 +62,7 @@ Key folders:
 - [`src/features/browse/`](./src/features/browse): search indexing and browse-result shaping
 - [`src/features/map/`](./src/features/map): map-specific runtime helpers, popup models, shared map chrome, and selection logic
 - [`src/features/tours/`](./src/features/tours): tour definitions, matching, and derived metadata
-- [`src/features/deeplinks/`](./src/features/deeplinks): shared-link encoding and field packet state
+- [`src/features/fieldPackets.js`](./src/features/fieldPackets.js): shared-link encoding, restoration reconciliation, and field packet state
 - [`src/shared/`](./src/shared): domain-neutral helpers such as routing contracts, runtime features, and GeoJSON utilities
 - [`scripts/`](./scripts): build-time generators, migrations, and deployment wrappers
 
@@ -80,7 +80,7 @@ If you are not sure where a change belongs, stop at
   [`src/features/map/mapRouting.js`](./src/features/map/mapRouting.js) so map
   navigation logic has one home.
 - Keep client route hashes, URL query-key names, and external directions links in
-  [`src/shared/routing`](./src/shared/routing).
+  [`src/shared/routing.js`](./src/shared/routing.js).
 - Put pure transforms in the owning feature folder under [`src/features/`](./src/features).
 - Put domain-neutral helpers in [`src/shared/`](./src/shared).
 - Keep FAB-only behavior in [`src/features/fab/profile.js`](./src/features/fab/profile.js) for app/profile/presentation defaults and [`src/features/fab/tours.js`](./src/features/fab/tours.js) for tour definitions.

@@ -8,6 +8,7 @@ import {
   formatSharedSelectionCountLabel,
   parseDeepLinkState,
   parseFieldPacketValue,
+  resolveFieldPacketRestoration,
 } from "../src/features/fieldPackets";
 
 const selectedRecords = [
@@ -258,6 +259,68 @@ describe("fieldPackets", () => {
 
     expect(state.fieldPacket?.activeBurialId).toBe("");
     expect(state.fieldPacket?.selectedBurialIds).toEqual(["burial:1:99:18"]);
+  });
+
+  test("restores shared links against current burial data without dropping tour snapshots", () => {
+    const currentBurialRecord = {
+      ...selectedRecords[0],
+      displayName: "Anna Tracy, current dataset",
+      hydratedFromCurrentData: true,
+    };
+    const packet = buildFieldPacketState({
+      selectedRecords,
+      activeBurialId: selectedRecords[0].id,
+      selectedTour: "Notables Tour 2020",
+      mapBounds: [
+        [42.70, -73.74],
+        [42.71, -73.73],
+      ],
+    });
+
+    const restored = resolveFieldPacketRestoration(packet, {
+      burialRecordsById: new Map([[currentBurialRecord.id, currentBurialRecord]]),
+    });
+
+    expect(restored.fieldPacket).toEqual(packet);
+    expect(restored.selectedRecords[0]).toBe(currentBurialRecord);
+    expect(restored.selectedRecords[1]).toEqual(packet.selectedRecords[1]);
+    expect(restored.activeRecord).toBe(currentBurialRecord);
+    expect(restored.selectedTour).toBe("Notables Tour 2020");
+    expect(restored.sectionFilter).toBe("");
+    expect(restored.mapBounds).toEqual([
+      [42.7, -73.74],
+      [42.71, -73.73],
+    ]);
+  });
+
+  test("keeps a tour snapshot active when the shared link points at the tour record", () => {
+    const packet = buildFieldPacketState({
+      selectedRecords,
+      activeBurialId: selectedRecords[1].id,
+      selectedTour: "Notables Tour 2020",
+    });
+    const currentBurialRecord = {
+      ...selectedRecords[0],
+      displayName: "Anna Tracy, current dataset",
+    };
+
+    const restored = resolveFieldPacketRestoration(packet, {
+      burialRecordsById: new Map([[currentBurialRecord.id, currentBurialRecord]]),
+    });
+
+    expect(restored.selectedRecords[0]).toBe(currentBurialRecord);
+    expect(restored.activeRecord).toEqual(packet.selectedRecords[1]);
+  });
+
+  test("returns an empty restoration state for missing packets", () => {
+    expect(resolveFieldPacketRestoration(null)).toEqual({
+      fieldPacket: buildFieldPacketState(),
+      selectedRecords: [],
+      activeRecord: null,
+      selectedTour: "",
+      sectionFilter: "",
+      mapBounds: null,
+    });
   });
 
   test("builds public share links with the share query param", () => {

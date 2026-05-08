@@ -283,6 +283,48 @@ export const parseDeepLinkState = (search = "", tourNames = []) => {
   };
 };
 
+export const resolveFieldPacketRestoration = (fieldPacket, {
+  burialRecordsById = new Map(),
+} = {}) => {
+  if (!fieldPacket) {
+    const emptyPacket = buildFieldPacketState();
+
+    return {
+      fieldPacket: emptyPacket,
+      selectedRecords: [],
+      activeRecord: null,
+      selectedTour: "",
+      sectionFilter: "",
+      mapBounds: null,
+    };
+  }
+
+  const packetState = buildFieldPacketState(fieldPacket);
+  const getCurrentBurialRecord = typeof burialRecordsById?.get === "function"
+    ? (recordId) => burialRecordsById.get(recordId)
+    : () => null;
+
+  // Restored burial snapshots should hydrate from the current dataset when it
+  // is available, while tour-only snapshots remain valid offline link payloads.
+  const selectedRecords = packetState.selectedRecords.map((record) => (
+    record.source === "burial"
+      ? getCurrentBurialRecord(record.id) || record
+      : record
+  ));
+  const activeRecord = packetState.activeBurialId
+    ? selectedRecords.find((record) => record.id === packetState.activeBurialId) || null
+    : null;
+
+  return {
+    fieldPacket: packetState,
+    selectedRecords,
+    activeRecord,
+    selectedTour: packetState.selectedTour,
+    sectionFilter: packetState.sectionFilter,
+    mapBounds: packetState.mapBounds,
+  };
+};
+
 export const buildFieldPacketShareUrl = ({
   packet,
   currentUrl = "",
