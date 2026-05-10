@@ -8,10 +8,22 @@ import {
   loadCoreMapData,
   normalizeMapFeatureCollection,
 } from "../src/features/fab/profile";
+import { BOUNDARY_BBOX } from "../src/features/map/generatedBounds";
 
 const TOUR_FEATURE = APP_PROFILE.features?.tours || null;
 const TOUR_DEFINITIONS = TOUR_FEATURE?.definitions || [];
 const TOUR_STYLES = TOUR_FEATURE?.styles || {};
+const BOUNDARY_BOUNDS = [
+  [BOUNDARY_BBOX[1], BOUNDARY_BBOX[0]],
+  [BOUNDARY_BBOX[3], BOUNDARY_BBOX[2]],
+];
+
+const boundsContain = (outer, inner) => (
+  outer[0][0] <= inner[0][0] &&
+  outer[0][1] <= inner[0][1] &&
+  outer[1][0] >= inner[1][0] &&
+  outer[1][1] >= inner[1][1]
+);
 
 describe("app profile", () => {
   test("exposes the active data modules through the shared profile", () => {
@@ -50,6 +62,25 @@ describe("app profile", () => {
     expect(geoParquetArtifact).toBeTruthy();
     expect(geoParquetArtifact.filePath).toBe("src/data/Geo_Burials.parquet");
     expect(geoParquetArtifact.buildCommand).toBe("bun run build:geoparquet");
+  });
+
+  test("keeps default and imagery extents covering the generated cemetery boundary", () => {
+    expect(boundsContain(APP_PROFILE.map.defaultViewBounds, BOUNDARY_BOUNDS)).toBe(true);
+    expect(boundsContain(APP_PROFILE.map.paddedBoundaryBounds, BOUNDARY_BOUNDS)).toBe(true);
+
+    const imageryBasemap = APP_PROFILE.map.basemaps.find((basemap) => basemap.id === "imagery");
+    const detailOverlay = imageryBasemap.imageOverlays.find((overlay) => overlay.id === "cemetery-detail");
+
+    expect(imageryBasemap.fallbackRaster).toMatchObject({
+      type: "raster-xyz",
+      maxNativeZoom: 19,
+      maxZoom: 20,
+    });
+    expect(boundsContain(detailOverlay.bounds, APP_PROFILE.map.paddedBoundaryBounds)).toBe(true);
+    expect(detailOverlay.bounds[0][0]).toBeLessThan(APP_PROFILE.map.paddedBoundaryBounds[0][0]);
+    expect(detailOverlay.bounds[0][1]).toBeLessThan(APP_PROFILE.map.paddedBoundaryBounds[0][1]);
+    expect(detailOverlay.bounds[1][0]).toBeGreaterThan(APP_PROFILE.map.paddedBoundaryBounds[1][0]);
+    expect(detailOverlay.bounds[1][1]).toBeGreaterThan(APP_PROFILE.map.paddedBoundaryBounds[1][1]);
   });
 
   test("keeps large map geometry behind async data modules instead of embedding it in the profile shell", () => {

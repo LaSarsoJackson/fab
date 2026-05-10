@@ -271,7 +271,7 @@ function SectionRefinementControls({
   return (
     <Box sx={{ mt: 1.2 }}>
       <Typography variant="subtitle2" className="left-sidebar__browse-detail-title" gutterBottom>
-        Refine Section {sectionFilter}
+        Refine
       </Typography>
       <Box
         className="left-sidebar__control-grid"

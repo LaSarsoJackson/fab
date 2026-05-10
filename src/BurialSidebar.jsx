@@ -219,6 +219,7 @@ function BrowseResultsPanel({
   isBrowsePending,
   isCurrentTourLoading,
   onBrowseResultSelect,
+  onClearSelectedBurials,
   onHoverBurialChange,
   query,
   sectionFilter,
@@ -241,39 +242,68 @@ function BrowseResultsPanel({
     () => new Set(selectedBurials.map((item) => item.id)),
     [selectedBurials]
   );
+  const selectedBurialCount = selectedBurials.length;
+  const browseResultIds = useMemo(
+    () => new Set(browseResults.map((result) => result.id)),
+    [browseResults]
+  );
+  const selectedBrowseResults = useMemo(() => {
+    const scopedSelections = selectedBurials.filter((burial) => browseResultIds.has(burial.id));
+    if (!activeBurialId) return scopedSelections;
+
+    const activeSelection = scopedSelections.find((burial) => burial.id === activeBurialId);
+    if (!activeSelection) return scopedSelections;
+
+    return [
+      activeSelection,
+      ...scopedSelections.filter((burial) => burial.id !== activeBurialId),
+    ];
+  }, [activeBurialId, browseResultIds, selectedBurials]);
+  const isShowingSelectedSubset = selectedBrowseResults.length > 0;
+  const displayedResults = isShowingSelectedSubset ? selectedBrowseResults : browseResults;
+  const displayedResultCount = displayedResults.length;
+  const selectedBrowseResultSignature = selectedBrowseResults.map((result) => result.id).join("|");
   const [visibleCount, setVisibleCount] = useState(batchSize);
 
   useEffect(() => {
     // Scope changes should reset incremental pagination so newly selected
     // sections/tours start from the top of their result list.
     setVisibleCount(batchSize);
-  }, [batchSize, browseResults.length, browseSource, query, sectionFilter, selectedTour]);
+  }, [
+    activeBurialId,
+    batchSize,
+    browseResults.length,
+    browseSource,
+    query,
+    sectionFilter,
+    selectedBrowseResultSignature,
+    selectedTour,
+  ]);
 
   const visibleResults = useMemo(
-    () => browseResults.slice(0, visibleCount),
-    [browseResults, visibleCount]
+    () => displayedResults.slice(0, visibleCount),
+    [displayedResults, visibleCount]
   );
-  const hasMoreResults = browseResults.length > visibleCount;
+  const hasMoreResults = displayedResultCount > visibleCount;
   const canShowFewerResults = visibleCount > batchSize;
-  const resultSummary = `${browseResults.length.toLocaleString()} result${browseResults.length === 1 ? "" : "s"}`;
+  const resultSummary = `${displayedResultCount.toLocaleString()} result${displayedResultCount === 1 ? "" : "s"}`;
   const trimmedQuery = query.trim();
   const scopedSectionLabel = browseSource === "section" && sectionFilter
     ? `Section ${sectionFilter}`
     : "";
   const scopedTourLabel = browseSource === "tour" ? selectedTour : "";
-  const shouldRenderEmptyState = browseResults.length === 0;
+  const shouldRenderEmptyState = displayedResultCount === 0;
   const hasScopeChips = scopeChips.length > 0;
-  const resultsEyebrow = browseSource === "section"
-    ? "Section browse"
-    : browseSource === "tour"
-      ? `${TOUR_LABEL} browse`
-      : trimmedQuery
-        ? "Search"
-        : "Browse";
-  const resultsTitle = browseSource === "section" && sectionFilter
-    ? `Section ${sectionFilter}`
-    : browseSource === "tour" && selectedTour
-      ? selectedTour
+  const isScopedBrowse = browseSource === "section" || browseSource === "tour";
+  const resultsEyebrow = isScopedBrowse
+    ? ""
+    : trimmedQuery
+      ? "Search"
+      : "Browse";
+  const resultsTitle = isShowingSelectedSubset
+    ? "Selected records"
+    : isScopedBrowse
+      ? "Results"
       : trimmedQuery
         ? "Search results"
         : "Burials";
@@ -297,19 +327,21 @@ function BrowseResultsPanel({
         }}
       >
         <Box sx={{ minWidth: 0 }}>
-          <Typography
-            variant="caption"
-            sx={{
-              display: "block",
-              color: "var(--muted-text)",
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-            }}
-          >
-            {resultsEyebrow}
-          </Typography>
-          <Typography variant="subtitle2" sx={{ mt: 0.35, lineHeight: 1.2 }}>
+          {resultsEyebrow && (
+            <Typography
+              variant="caption"
+              sx={{
+                display: "block",
+                color: "var(--muted-text)",
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+              }}
+            >
+              {resultsEyebrow}
+            </Typography>
+          )}
+          <Typography variant="subtitle2" sx={{ mt: resultsEyebrow ? 0.35 : 0, lineHeight: 1.2 }}>
             {resultsTitle}
           </Typography>
         </Box>
@@ -318,10 +350,31 @@ function BrowseResultsPanel({
           sx={{ display: "flex", alignItems: "center", gap: 0.75, ml: "auto", flexWrap: "wrap" }}
         >
           {isBrowsePending && <CircularProgress size={14} />}
+          {selectedBurialCount > 0 && (
+            <>
+              <Chip
+                size="small"
+                label={`${selectedBurialCount.toLocaleString()} selected`}
+                sx={{
+                  backgroundColor: "var(--accent-soft)",
+                  color: "var(--accent-strong)",
+                  fontWeight: 700,
+                }}
+              />
+              <Button
+                size="small"
+                color="inherit"
+                variant="text"
+                onClick={onClearSelectedBurials}
+              >
+                Clear selected
+              </Button>
+            </>
+          )}
         </Box>
       </Box>
 
-      {!shouldRenderEmptyState && (
+      {!shouldRenderEmptyState && !isShowingSelectedSubset && (
         <Typography
           className="left-sidebar__results-summary"
           variant="body2"
@@ -381,7 +434,7 @@ function BrowseResultsPanel({
         </Box>
       )}
 
-      {browseResults.length > 0 && (
+      {displayedResultCount > 0 && (
         <>
           <Box className="left-sidebar__results-scroll">
             <List disablePadding onMouseLeave={() => onHoverBurialChange?.(null)}>
@@ -526,7 +579,7 @@ function BrowseResultsPanel({
               sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}
             >
               <Typography variant="caption" sx={{ color: "var(--muted-text)", textAlign: "center" }}>
-                Showing {visibleResults.length} of {browseResults.length}
+                Showing {visibleResults.length} of {displayedResultCount}
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: "auto" }}>
                 {canShowFewerResults && (
@@ -1573,7 +1626,6 @@ function BurialSidebar({
   lotTierFilter,
   mapDataError,
   markerColors,
-  rootRef,
   onBrowseResultSelect,
   onClearSectionFilters,
   onClearSelectedBurials,
@@ -1588,6 +1640,7 @@ function BurialSidebar({
   onInstallApp,
   onOpenAppMenu,
   onOpenDirectionsMenu,
+  onMobileSheetViewportChange,
   onRemoveSelectedBurial,
   onRequestBurialDataLoad,
   onRequestHideChrome,
@@ -1598,6 +1651,7 @@ function BurialSidebar({
   onToggleSectionMarkers,
   onTourChange,
   onUpdateFieldPacket,
+  rootRef,
   searchIndex,
   sectionRecordsOverride,
   sectionIndex,
@@ -1704,13 +1758,17 @@ function BurialSidebar({
       return;
     }
 
+    const rootNode = isMobile
+      ? node?.closest?.("[data-rsbs-overlay]") || node
+      : node;
+
     if (typeof rootRef === "function") {
-      rootRef(node);
+      rootRef(rootNode);
       return;
     }
 
-    rootRef.current = node;
-  }, [rootRef]);
+    rootRef.current = rootNode;
+  }, [isMobile, rootRef]);
 
   const setSidebarScrollNode = useCallback((node) => {
     sidebarScrollRef.current = node;
@@ -1733,6 +1791,11 @@ function BurialSidebar({
 
     scrollContainer.scrollTop = 0;
   }, [isMobile]);
+
+  const handleMobileSheetSpringEnd = useCallback((event) => {
+    handleSheetSpringEnd(event);
+    onMobileSheetViewportChange?.();
+  }, [handleSheetSpringEnd, onMobileSheetViewportChange]);
 
   useEffect(() => {
     if (!isMobile) {
@@ -2172,12 +2235,12 @@ function BurialSidebar({
       {mobileMoreButton}
     </Box>
   ) : null;
-  const shouldShowBrowseResults = browseResults.length > 0
-    || Boolean(browseQuery.trim())
+  const hasExplicitBrowseResultsContext = Boolean(browseQuery.trim())
     || Boolean(sectionFilter)
     || Boolean(selectedTour)
     || isBrowsePending
     || isCurrentTourLoading;
+  const shouldShowBrowseResults = hasExplicitBrowseResultsContext;
   const shouldShowFieldPacketPanel = areFieldPacketsEnabled
     && (selectedBurials.length > 0 || hasFieldPacketContent(fieldPacket));
 
@@ -2193,6 +2256,7 @@ function BurialSidebar({
       isBrowsePending={isBrowsePending}
       isCurrentTourLoading={isCurrentTourLoading}
       onBrowseResultSelect={handleBrowseResultSelect}
+      onClearSelectedBurials={onClearSelectedBurials}
       onHoverBurialChange={onHoverBurialChange}
       query={browseQuery}
       sectionFilter={sectionFilter}
@@ -2257,7 +2321,7 @@ function BurialSidebar({
       onSectionSelection={handleSectionSelection}
       onToggleSectionMarkers={handleToggleSectionMarkers}
       onTourSelection={handleTourSelection}
-      priorityContent={shouldShowBrowseResults ? selectedSummaryContent : null}
+      priorityContent={shouldShowBrowseResults ? null : selectedSummaryContent}
       resultsContent={browseResultsContent}
       searchPlaceholder={searchPlaceholder}
       searchShellNotices={searchShellNotices}
@@ -2348,8 +2412,6 @@ function BurialSidebar({
     <Box sx={{ p: 1.25, display: "grid", gap: 1.25 }}>
       {browseWorkspaceContent}
 
-      {selectedBurials.length > 0 && !shouldShowBrowseResults && selectedSummaryContent}
-
       {shouldShowFieldPacketPanel && (
         <FieldPacketPanel
           fieldPacket={fieldPacket}
@@ -2420,7 +2482,7 @@ function BurialSidebar({
       defaultSnap={mobileDefaultSnap}
       header={false}
       expandOnContentDrag
-      onSpringEnd={handleSheetSpringEnd}
+      onSpringEnd={handleMobileSheetSpringEnd}
     >
       {mobileSheetBody}
     </BottomSheet>

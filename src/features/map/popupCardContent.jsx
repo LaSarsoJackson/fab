@@ -3,7 +3,7 @@
  * event isolation and layout recalculation that Leaflet cannot infer from
  * React image/font updates.
  */
-import React, { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Box } from "@mui/material";
 
 import { stopMapInteractionPropagation } from "./mapDomain";
@@ -19,6 +19,10 @@ export function PopupCardContent({
   onRemove,
   getPopup,
   schedulePopupLayout,
+  stackDescription = "",
+  stackPositionLabel = "",
+  onPreviousRecord,
+  onNextRecord,
 }) {
   const popupView = buildPopupViewModel(record);
   const popupKey = createMapRecordKey(record, 0);
@@ -85,6 +89,40 @@ export function PopupCardContent({
       {popupView.sourceLabel && (
         <Box component="p" className="popup-card__eyebrow">
           {popupView.sourceLabel}
+        </Box>
+      )}
+      {stackPositionLabel && (
+        <Box
+          className="popup-card__stack-nav"
+          aria-label={stackDescription || "Burial records at this marker"}
+        >
+          <span className="popup-card__stack-count" aria-live="polite">
+            {stackPositionLabel}
+          </span>
+          <span className="popup-card__stack-actions">
+            <button
+              type="button"
+              className="popup-card__stack-action"
+              aria-label="Previous burial record at this marker"
+              onClick={(event) => {
+                stopMapInteractionPropagation(event);
+                onPreviousRecord?.(event);
+              }}
+            >
+              &lt;
+            </button>
+            <button
+              type="button"
+              className="popup-card__stack-action"
+              aria-label="Next burial record at this marker"
+              onClick={(event) => {
+                stopMapInteractionPropagation(event);
+                onNextRecord?.(event);
+              }}
+            >
+              &gt;
+            </button>
+          </span>
         </Box>
       )}
       <Box component="h3" className="popup-card__title">
@@ -177,5 +215,88 @@ export function PopupCardContent({
         </button>
       </Box>
     </Box>
+  );
+}
+
+export function PopupCardStackContent({
+  activeRecordId = "",
+  getPopup,
+  onOpenDirectionsMenu,
+  onRemove,
+  onSelectRecord,
+  records = [],
+  schedulePopupLayout,
+}) {
+  const stackRecords = useMemo(() => records.filter(Boolean), [records]);
+  const recordIds = useMemo(
+    () => stackRecords.map((record) => cleanRecordValue(record?.id)),
+    [stackRecords]
+  );
+  const recordSignature = useMemo(() => recordIds.join("|"), [recordIds]);
+  const normalizedActiveRecordId = cleanRecordValue(activeRecordId);
+  const getFallbackRecordId = useCallback(() => recordIds.find(Boolean) || "", [recordIds]);
+  const [currentRecordId, setCurrentRecordId] = useState(() => (
+    recordIds.includes(normalizedActiveRecordId)
+      ? normalizedActiveRecordId
+      : getFallbackRecordId()
+  ));
+
+  useEffect(() => {
+    if (recordIds.includes(normalizedActiveRecordId)) {
+      setCurrentRecordId(normalizedActiveRecordId);
+    }
+  }, [normalizedActiveRecordId, recordIds, recordSignature]);
+
+  useEffect(() => {
+    setCurrentRecordId((currentId) => (
+      recordIds.includes(currentId)
+        ? currentId
+        : getFallbackRecordId()
+    ));
+  }, [getFallbackRecordId, recordIds, recordSignature]);
+
+  const activeIndex = Math.max(
+    0,
+    stackRecords.findIndex((record) => cleanRecordValue(record?.id) === currentRecordId)
+  );
+  const activeRecord = stackRecords[activeIndex];
+
+  const selectRecordAt = useCallback((nextIndex, event) => {
+    stopMapInteractionPropagation(event);
+    if (stackRecords.length === 0) return;
+
+    const normalizedIndex = (nextIndex + stackRecords.length) % stackRecords.length;
+    const nextRecord = stackRecords[normalizedIndex];
+    const nextRecordId = cleanRecordValue(nextRecord?.id);
+    setCurrentRecordId(nextRecordId);
+    onSelectRecord?.(nextRecord);
+    schedulePopupLayout?.(getPopup?.());
+  }, [
+    getPopup,
+    onSelectRecord,
+    schedulePopupLayout,
+    stackRecords,
+  ]);
+
+  useLayoutEffect(() => {
+    schedulePopupLayout?.(getPopup?.());
+  }, [activeIndex, getPopup, schedulePopupLayout]);
+
+  if (!activeRecord) {
+    return null;
+  }
+
+  return (
+    <PopupCardContent
+      record={activeRecord}
+      onOpenDirectionsMenu={(event) => onOpenDirectionsMenu?.(event, activeRecord)}
+      onRemove={() => onRemove?.(activeRecord)}
+      getPopup={getPopup}
+      schedulePopupLayout={schedulePopupLayout}
+      stackDescription={`${stackRecords.length} burial records at this marker`}
+      stackPositionLabel={`${activeIndex + 1}/${stackRecords.length}`}
+      onPreviousRecord={(event) => selectRecordAt(activeIndex - 1, event)}
+      onNextRecord={(event) => selectRecordAt(activeIndex + 1, event)}
+    />
   );
 }

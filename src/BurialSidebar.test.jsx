@@ -25,7 +25,7 @@ jest.mock("react-spring-bottom-sheet", () => {
       }), []);
 
       return (
-        <div data-testid="mock-bottom-sheet">
+        <div data-testid="mock-bottom-sheet" data-rsbs-overlay>
           <div data-testid="mock-bottom-sheet-header">{props.header}</div>
           <div data-testid="mock-bottom-sheet-body">{props.children}</div>
         </div>
@@ -116,6 +116,7 @@ const createBaseProps = () => ({
   onInstallApp: jest.fn(),
   onOpenAppMenu: jest.fn(),
   onOpenDirectionsMenu: jest.fn(),
+  onMobileSheetViewportChange: jest.fn(),
   onRemoveSelectedBurial: jest.fn(),
   onSectionChange: jest.fn(),
   onShareFieldPacket: jest.fn(),
@@ -419,8 +420,6 @@ describe("BurialSidebar", () => {
       isMobile: true,
       activeBurialId: selectedTourRecord.id,
       selectedBurials: [selectedTourRecord],
-      selectedTour: "Notables Tour 2020",
-      tourResults: [selectedTourRecord],
     });
 
     const selectedSummary = screen.getByText("Selection").closest(".left-sidebar__panel");
@@ -800,7 +799,7 @@ describe("BurialSidebar", () => {
     );
   });
 
-  domTest("shows selected summary and the browse workspace together in the mobile sheet", () => {
+  domTest("summarizes selected count in browse results on the mobile sheet", () => {
     const onClearSelectedBurials = jest.fn();
     const { rerender } = renderSidebar({ isMobile: true, sectionFilter: "99", showAllBurials: true });
 
@@ -821,24 +820,35 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    expect(screen.getByText("Selection")).toBeInTheDocument();
     const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const selectedChip = within(browseWorkspace).getByText("2 selected");
     expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
-    expect(within(screen.getByText("Selection").closest(".left-sidebar__panel")).getByRole("button", { name: "Route on map" })).toBeInTheDocument();
+    expect(within(browseWorkspace).queryByText("Selection")).not.toBeInTheDocument();
 
-    const selectedSummary = screen.getByText("Selection").closest(".left-sidebar__panel");
-    expect(within(selectedSummary).getByText("Thomas Tracy")).toBeInTheDocument();
-    expect(within(selectedSummary).getByRole("button", { name: "Hide list" })).toBeInTheDocument();
-
-    fireEvent.click(within(selectedSummary).getByRole("button", { name: "Hide list" }));
-
-    expect(within(selectedSummary).queryByText("Thomas Tracy")).not.toBeInTheDocument();
-    expect(within(selectedSummary).getByRole("button", { name: "Show list" })).toBeInTheDocument();
-    expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
-
-    fireEvent.click(within(selectedSummary).getByRole("button", { name: "Clear" }));
+    fireEvent.click(within(selectedChip.closest(".left-sidebar__results-header")).getByRole("button", { name: "Clear selected" }));
 
     expect(onClearSelectedBurials).toHaveBeenCalled();
+  });
+
+  domTest("uses the bottom-sheet overlay as the mobile viewport padding root", () => {
+    const rootRef = React.createRef();
+
+    renderSidebar({ isMobile: true, rootRef });
+
+    expect(rootRef.current).toHaveAttribute("data-rsbs-overlay");
+  });
+
+  domTest("notifies the map shell after the mobile sheet settles", () => {
+    const onMobileSheetViewportChange = jest.fn();
+
+    renderSidebar({ isMobile: true, onMobileSheetViewportChange });
+
+    act(() => {
+      mockBottomSheetState.currentHeight = 500;
+      mockBottomSheetState.lastProps.onSpringEnd({ type: "SNAP" });
+    });
+
+    expect(onMobileSheetViewportChange).toHaveBeenCalledTimes(1);
   });
 
   domTest("reveals an existing mobile selection on first render instead of collapsing the sheet", () => {
@@ -865,30 +875,60 @@ describe("BurialSidebar", () => {
     expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
   });
 
-  domTest("surfaces the current selection above browse results when both are present", () => {
+  domTest("folds the current selection count into browse results when both are present", () => {
+    const extraSectionRecord = buildBurialBrowseResult(
+      {
+        properties: {
+          OBJECTID: 3,
+          First_Name: "Clara",
+          Last_Name: "Section",
+          Section: "99",
+          Lot: "44",
+          Tier: "0",
+          Grave: "0",
+        },
+        geometry: {
+          coordinates: [-73.73367, 42.71193],
+        },
+      },
+      { getTourName }
+    );
+    const sectionRecords = [...burialRecords, extraSectionRecord];
+
     renderSidebar({
-      activeBurialId: burialRecords[0].id,
+      activeBurialId: burialRecords[1].id,
+      burialRecords: sectionRecords,
       sectionFilter: "99",
       selectedBurials: burialRecords,
+      searchIndex: buildSearchIndex(sectionRecords, { getTourName }),
       showAllBurials: true,
     });
 
     flushBrowseTimers();
 
     const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
-    const selectionPanel = within(browseWorkspace).getByText("Selection").closest(".left-sidebar__panel");
+    const selectedChip = within(browseWorkspace).getByText("2 selected");
+    expect(within(browseWorkspace).getByText("Selected records")).toBeInTheDocument();
+    expect(within(browseWorkspace).queryByText("3 results")).not.toBeInTheDocument();
     const resultsList = within(browseWorkspace)
       .getAllByRole("list")
       .find((list) => !list.closest(".left-sidebar__selected-scroll"));
 
-    expect(selectionPanel).not.toBeNull();
+    expect(within(browseWorkspace).queryByText("Selection")).not.toBeInTheDocument();
     expect(resultsList).not.toBeNull();
+    expect(within(resultsList).queryByText("Clara Section")).not.toBeInTheDocument();
+    const thomasResult = within(resultsList).getByText("Thomas Tracy");
+    const annaResult = within(resultsList).getByText("Anna Tracy");
+
     expect(
-      selectionPanel.compareDocumentPosition(resultsList) & Node.DOCUMENT_POSITION_FOLLOWING
+      selectedChip.compareDocumentPosition(resultsList) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      thomasResult.compareDocumentPosition(annaResult) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
   });
 
-  domTest("promotes selected mobile actions above browse controls", () => {
+  domTest("keeps selected mobile state compact when browse results are active", () => {
     renderSidebar({
       isMobile: true,
       activeBurialId: burialRecords[0].id,
@@ -899,16 +939,17 @@ describe("BurialSidebar", () => {
     flushBrowseTimers();
 
     const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
-    const selectionPanel = within(browseWorkspace).getByText("Selection").closest(".left-sidebar__panel");
     const searchInput = within(browseWorkspace).getByLabelText("Search burials");
+    const selectedChip = within(browseWorkspace).getByText("1 selected");
 
-    expect(within(selectionPanel).getByRole("button", { name: "Route on map" })).toBeInTheDocument();
+    expect(within(browseWorkspace).queryByText("Selection")).not.toBeInTheDocument();
+    expect(within(selectedChip.closest(".left-sidebar__results-header")).getByRole("button", { name: "Clear selected" })).toBeInTheDocument();
     expect(
-      selectionPanel.compareDocumentPosition(searchInput) & Node.DOCUMENT_POSITION_FOLLOWING
+      searchInput.compareDocumentPosition(selectedChip) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
   });
 
-  domTest("hides the idle results panel when there is no active browse context", () => {
+  domTest("keeps selection-only state inside the browse workspace without idle results", () => {
     renderSidebar({
       activeBurialId: burialRecords[0].id,
       selectedBurials: [burialRecords[0]],
@@ -916,11 +957,14 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
+    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const selectionPanel = within(browseWorkspace).getByText("Selection").closest(".left-sidebar__panel");
+
     expect(screen.queryByText("Results")).not.toBeInTheDocument();
-    expect(screen.getByText("Selection")).toBeInTheDocument();
+    expect(selectionPanel.closest(".left-sidebar__browse-workspace")).toBe(browseWorkspace);
   });
 
-  domTest("bounds the desktop selected people list so browse results stay in the sidebar flow", () => {
+  domTest("keeps desktop selected lists out of the browse-results flow", () => {
     const crowdedSelection = Array.from({ length: 8 }, (_, index) => ({
       ...burialRecords[index % burialRecords.length],
       id: `selected-${index}`,
@@ -934,12 +978,11 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    const selectedPanel = screen.getByText("Selection").closest(".left-sidebar__panel");
-    const selectedScroll = selectedPanel.querySelector(".left-sidebar__selected-scroll");
     const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
 
-    expect(selectedScroll).not.toBeNull();
-    expect(within(selectedScroll).getByRole("list")).toBeInTheDocument();
+    expect(within(browseWorkspace).queryByText("Selection")).not.toBeInTheDocument();
+    expect(browseWorkspace.querySelector(".left-sidebar__selected-scroll")).toBeNull();
+    expect(within(browseWorkspace).getByText("8 selected")).toBeInTheDocument();
     expect(browseWorkspace).not.toBeNull();
     expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
   });

@@ -148,7 +148,6 @@ describe("browse sidebar presentation helpers", () => {
       selectedTour: "",
       showAllBurials: true,
     })).toEqual([
-      expect.objectContaining({ key: "scope", label: "Section 12" }),
       { key: "detail", label: "Tier 4" },
       { key: "markers", label: "Markers visible" },
     ]);
@@ -160,9 +159,7 @@ describe("browse sidebar presentation helpers", () => {
       sectionFilter: "",
       selectedTour: "Notables Tour 2020",
       showAllBurials: false,
-    })).toEqual([
-      expect.objectContaining({ key: "scope", label: "Notables Tour 2020" }),
-    ]);
+    })).toEqual([]);
   });
 
   test("builds empty-state action specs for each browse mode", () => {

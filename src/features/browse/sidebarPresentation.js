@@ -249,20 +249,12 @@ export const buildBrowseScopeChips = ({
   selectedTour,
   showAllBurials,
 }) => {
-  const accentChipSx = {
-    backgroundColor: "var(--accent-soft)",
-    color: "var(--accent-strong)",
-    borderColor: "rgba(47, 107, 87, 0.12)",
-  };
-
   if (browseSource === "section") {
     if (!sectionFilter) {
       return [];
     }
 
-    const chips = [
-      { key: "scope", label: `Section ${sectionFilter}`, sx: accentChipSx },
-    ];
+    const chips = [];
 
     if (lotTierFilter) {
       chips.push({
@@ -283,9 +275,7 @@ export const buildBrowseScopeChips = ({
       return [];
     }
 
-    return [
-      { key: "scope", label: selectedTour, sx: accentChipSx },
-    ];
+    return [];
   }
 
   return [];

@@ -108,6 +108,7 @@ Useful overrides:
 - `bun run build`: create a production build
 - `bun run deploy`: build and publish the GitHub Pages deployment
 - `bun run build:tour-data`: regenerate tour biography aliases
+- `bun run build:basemaps`: refresh checked-in NYS ortho basemap images
 - `bun run build:data`: regenerate search data, tour matches, and generated map
   bounds
 - `bun run build:geoparquet`: convert the burial source JSON into GeoParquet

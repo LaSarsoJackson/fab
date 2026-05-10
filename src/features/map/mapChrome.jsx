@@ -1,6 +1,6 @@
 import React, { memo, useEffect } from "react";
 import L from "leaflet";
-import { CircleMarker, GeoJSON, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { CircleMarker, GeoJSON, ImageOverlay, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 import {
   Box,
   ClickAwayListener,
@@ -21,6 +21,7 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import RemoveIcon from "@mui/icons-material/Remove";
 import SearchIcon from "@mui/icons-material/Search";
 import { getPopupViewportPadding } from "./mapDomain";
+import { buildPublicAssetUrl } from "../../shared/runtimeEnv";
 
 /**
  * Leaflet chrome and React-Leaflet adapters.
@@ -34,52 +35,22 @@ const DESKTOP_MAP_CONTROL_TOP = "12px";
 const MOBILE_MAP_CONTROL_RIGHT = "calc(env(safe-area-inset-right, 0px) + 12px)";
 const MOBILE_MAP_CONTROL_TOP = "calc(env(safe-area-inset-top, 0px) + 10px)";
 const MAP_CONTROL_BUTTON_SIZE = 44;
-const DEFAULT_BASEMAP_KEEP_BUFFER = 1;
+const DEFAULT_BASEMAP_KEEP_BUFFER = 4;
 const GEOJSON_DATA_KEYS = new WeakMap();
 let nextGeoJsonDataKey = 1;
-const CEMETERY_CLUSTER_GLYPH = `
-  <svg class="cemetery-cluster__glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+const SECTION_MARKER_GLYPH = `
+  <svg class="section-marker-glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
     <path
       d="M10 27V12.5C10 8.91 12.91 6 16.5 6S23 8.91 23 12.5V27H25.5V29H7.5V27H10Z"
-      fill="#657b72"
-      fill-opacity="0.78"
-      stroke="rgba(47, 75, 67, 0.78)"
-      stroke-width="1.4"
-      stroke-linejoin="round"
-    />
-    <path
-      d="M13.2 12.2H19.8"
-      stroke="rgba(255,255,255,0.75)"
-      stroke-width="1.4"
-      stroke-linecap="round"
-    />
-    <path
-      d="M16.5 9.4V15"
-      stroke="rgba(255,255,255,0.75)"
-      stroke-width="1.4"
-      stroke-linecap="round"
-    />
-  </svg>
-`;
-const SECTION_AFFORDANCE_GLYPH = `
-  <svg class="section-affordance__glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-    <path
-      d="M10 27V12.5C10 8.91 12.91 6 16.5 6S23 8.91 23 12.5V27H25.5V29H7.5V27H10Z"
-      fill="rgba(108, 121, 131, 0.32)"
-      stroke="rgba(242, 247, 249, 0.82)"
+      class="section-marker-glyph__body"
       stroke-width="1.35"
       stroke-linejoin="round"
     />
+    <circle class="section-marker-glyph__dot" cx="16.5" cy="14.8" r="2.15" />
     <path
-      d="M13.2 12.2H19.8"
-      stroke="rgba(255,255,255,0.82)"
-      stroke-width="1.35"
-      stroke-linecap="round"
-    />
-    <path
-      d="M16.5 9.4V15"
-      stroke="rgba(255,255,255,0.82)"
-      stroke-width="1.35"
+      class="section-marker-glyph__base"
+      d="M12.25 24.75H20.75"
+      stroke-width="1.2"
       stroke-linecap="round"
     />
   </svg>
@@ -113,23 +84,88 @@ const getSectionClusterIconSize = (count = 0) => {
   return 30;
 };
 
+const getBurialClusterIconSize = (count = 0) => {
+  const normalizedCount = Math.max(0, Number(count) || 0);
+  if (normalizedCount >= 50) return 40;
+  if (normalizedCount >= 20) return 37;
+  if (normalizedCount >= 10) return 34;
+  if (normalizedCount >= 6) return 32;
+  if (normalizedCount >= 3) return 31;
+  return 30;
+};
+
+const getCemeteryClusterDensityClass = (count = 0, { scale = "field" } = {}) => {
+  const normalizedCount = Math.max(0, Number(count) || 0);
+  if (scale === "section") {
+    if (normalizedCount >= 1000) return "cemetery-cluster--massive";
+    if (normalizedCount >= 250) return "cemetery-cluster--dense";
+    if (normalizedCount >= 75) return "cemetery-cluster--full";
+    if (normalizedCount >= 20) return "cemetery-cluster--clustered";
+    return "cemetery-cluster--small";
+  }
+
+  if (normalizedCount >= 50) return "cemetery-cluster--massive";
+  if (normalizedCount >= 20) return "cemetery-cluster--dense";
+  if (normalizedCount >= 10) return "cemetery-cluster--full";
+  if (normalizedCount >= 6) return "cemetery-cluster--clustered";
+  if (normalizedCount >= 3) return "cemetery-cluster--paired";
+  return "cemetery-cluster--small";
+};
+
+const getCemeteryClusterDensityLabel = (count = 0) => {
+  const normalizedCount = Math.max(0, Number(count) || 0);
+  if (normalizedCount >= 50) return "50 or more records";
+  if (normalizedCount >= 20) return "20 to 49 records";
+  if (normalizedCount >= 10) return "10 to 19 records";
+  if (normalizedCount >= 6) return "6 to 9 records";
+  if (normalizedCount >= 3) return "3 to 5 records";
+  return "1 to 2 records";
+};
+
+const getSectionClusterDensityClass = (count = 0) => (
+  getCemeteryClusterDensityClass(count, { scale: "section" })
+);
+
+const getSectionClusterDensityLabel = (count = 0) => {
+  const normalizedCount = Math.max(0, Number(count) || 0);
+  if (normalizedCount >= 1000) return "1000 or more records";
+  if (normalizedCount >= 250) return "250 to 999 records";
+  if (normalizedCount >= 75) return "75 to 249 records";
+  if (normalizedCount >= 20) return "20 to 74 records";
+  return "fewer than 20 records";
+};
+
 export const createCemeteryClusterIcon = ({
   count = 0,
   label = String(Math.max(0, Number(count) || 0)),
-  size = 30,
-  wrapperClassName = "cemetery-cluster",
+  size,
+  wrapperClassName = "cemetery-cluster cemetery-cluster--burial",
   className = "custom-cluster-icon",
-} = {}) => L.divIcon({
-  html: `
-    <div class="${wrapperClassName}">
-      ${CEMETERY_CLUSTER_GLYPH}
-      <span class="cemetery-cluster__count">${label}</span>
-    </div>
-  `,
-  className,
-  iconSize: [size, size],
-  iconAnchor: [size / 2, size / 2],
-});
+  densityClassName,
+  densityLabel,
+} = {}) => {
+  const normalizedCount = Math.max(0, Number(count) || 0);
+  const normalizedSize = Number.isFinite(Number(size))
+    ? Number(size)
+    : getBurialClusterIconSize(normalizedCount);
+  const resolvedDensityClass = densityClassName === undefined
+    ? getCemeteryClusterDensityClass(normalizedCount)
+    : densityClassName;
+  const wrapperClasses = [wrapperClassName, resolvedDensityClass].filter(Boolean).join(" ");
+  const resolvedDensityLabel = densityLabel || getCemeteryClusterDensityLabel(normalizedCount);
+
+  return L.divIcon({
+    html: `
+      <div class="${wrapperClasses}" data-density-label="${resolvedDensityLabel}">
+        ${SECTION_MARKER_GLYPH}
+        <span class="cemetery-cluster__count">${label}</span>
+      </div>
+    `,
+    className,
+    iconSize: [normalizedSize, normalizedSize],
+    iconAnchor: [normalizedSize / 2, normalizedSize / 2],
+  });
+};
 
 const getSectionClusterIcon = (count = 0) => {
   const normalizedSize = getSectionClusterIconSize(count);
@@ -138,10 +174,13 @@ const getSectionClusterIcon = (count = 0) => {
 
   if (!sectionClusterIcons.has(cacheKey)) {
     sectionClusterIcons.set(cacheKey, createCemeteryClusterIcon({
+      count,
       label,
       size: normalizedSize,
       wrapperClassName: "cemetery-cluster section-cluster",
       className: "custom-cluster-icon section-cluster-icon",
+      densityClassName: getSectionClusterDensityClass(count),
+      densityLabel: getSectionClusterDensityLabel(count),
     }));
   }
 
@@ -155,7 +194,7 @@ const getSectionAffordanceIcon = (size = 28) => {
 
   if (!sectionAffordanceIcons.has(normalizedSize)) {
     sectionAffordanceIcons.set(normalizedSize, L.divIcon({
-      html: `<div class="section-affordance">${SECTION_AFFORDANCE_GLYPH}</div>`,
+      html: `<div class="section-affordance">${SECTION_MARKER_GLYPH}</div>`,
       className: "section-affordance-icon",
       iconSize: [normalizedSize, normalizedSize],
       iconAnchor: [normalizedSize / 2, normalizedSize / 2],
@@ -322,25 +361,83 @@ export const isLeafletRasterBasemap = (basemap) => (
   basemap.urlTemplate.length > 0
 );
 
-export const LeafletBasemapLayer = ({ basemap, keepBuffer = 1 }) => {
+export const isLeafletImageBasemap = (basemap) => (
+  basemap?.type === "image-overlay" && (
+    (
+      Array.isArray(basemap?.imageOverlays) &&
+      basemap.imageOverlays.some((overlay) => (
+        typeof overlay?.imageUrl === "string" &&
+        overlay.imageUrl.length > 0 &&
+        Array.isArray(overlay.bounds)
+      ))
+    ) ||
+    (
+      typeof basemap?.imageUrl === "string" &&
+      basemap.imageUrl.length > 0 &&
+      Array.isArray(basemap.bounds)
+    )
+  )
+);
+
+const getLeafletBasemapNativeMaxZoom = (basemap) => (
+  Number.isFinite(basemap?.maxNativeZoom) ? basemap.maxNativeZoom : basemap?.maxZoom
+);
+
+const LeafletRasterBasemapTile = ({ basemap, keepBuffer }) => (
+  <TileLayer
+    key={basemap.id || basemap.urlTemplate}
+    url={basemap.urlTemplate}
+    minZoom={basemap.minZoom}
+    maxZoom={basemap.maxZoom}
+    maxNativeZoom={getLeafletBasemapNativeMaxZoom(basemap)}
+    tileSize={basemap.tileSize || 256}
+    attribution={basemap.attribution || ""}
+    className="leaflet-basemap-tile"
+    keepBuffer={keepBuffer}
+    updateWhenIdle={false}
+    updateWhenZooming={false}
+  />
+);
+
+export const LeafletBasemapLayer = ({ basemap, keepBuffer = DEFAULT_BASEMAP_KEEP_BUFFER }) => {
+  if (isLeafletImageBasemap(basemap)) {
+    const fallbackRaster = isLeafletRasterBasemap(basemap.fallbackRaster)
+      ? basemap.fallbackRaster
+      : null;
+    const imageOverlays = (Array.isArray(basemap.imageOverlays)
+      ? basemap.imageOverlays
+      : [basemap]
+    ).filter((overlay) => (
+      typeof overlay?.imageUrl === "string" &&
+      overlay.imageUrl.length > 0 &&
+      Array.isArray(overlay.bounds)
+    ));
+
+    return (
+      <>
+        {fallbackRaster && (
+          <LeafletRasterBasemapTile basemap={fallbackRaster} keepBuffer={keepBuffer} />
+        )}
+        {imageOverlays.map((overlay, index) => (
+          <ImageOverlay
+            key={overlay.id || overlay.imageUrl || `${basemap.id}:image:${index}`}
+            url={buildPublicAssetUrl(overlay.imageUrl)}
+            bounds={overlay.bounds}
+            opacity={overlay.opacity ?? basemap.opacity ?? 1}
+            zIndex={overlay.zIndex ?? index + 1}
+            attribution={overlay.attribution || basemap.attribution || ""}
+            className="leaflet-basemap-image"
+          />
+        ))}
+      </>
+    );
+  }
+
   if (!isLeafletRasterBasemap(basemap)) {
     return null;
   }
 
-  return (
-    <TileLayer
-      key={basemap.id || basemap.urlTemplate}
-      url={basemap.urlTemplate}
-      minZoom={basemap.minZoom}
-      maxZoom={basemap.maxZoom}
-      maxNativeZoom={basemap.maxZoom}
-      tileSize={basemap.tileSize || 256}
-      attribution={basemap.attribution || ""}
-      keepBuffer={keepBuffer}
-      updateWhenIdle
-      updateWhenZooming={false}
-    />
-  );
+  return <LeafletRasterBasemapTile basemap={basemap} keepBuffer={keepBuffer} />;
 };
 
 const mapControlShellSx = {
@@ -875,24 +972,47 @@ export function MobileLocateButton({ isMobile, onLocate }) {
   );
 }
 
-export function RouteStatusOverlay({ isCalculating, routingError }) {
+export function RouteStatusOverlay({ isCalculating, isMobile = false, routingError }) {
   if (!isCalculating && !routingError) {
     return null;
   }
 
   const isError = Boolean(routingError);
-
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        position: "absolute",
+  const placementSx = isMobile
+    ? {
+        top: "calc(env(safe-area-inset-top, 0px) + 10px)",
+        right: "calc(env(safe-area-inset-right, 0px) + 68px)",
+        bottom: "auto",
+        left: "calc(env(safe-area-inset-left, 0px) + 12px)",
+        transform: "none",
+        zIndex: 1500,
+      }
+    : {
         bottom: "24px",
         left: "50%",
         transform: "translateX(-50%)",
         zIndex: 1200,
+        maxWidth: "min(520px, calc(100vw - 32px))",
+      };
+
+  return (
+    <Paper
+      elevation={0}
+      className={[
+        "route-status-overlay",
+        isError ? "route-status-overlay--error" : "route-status-overlay--progress",
+        isMobile ? "route-status-overlay--mobile" : "route-status-overlay--desktop",
+      ].join(" ")}
+      data-placement={isMobile ? "mobile-top" : "desktop-bottom"}
+      role="status"
+      aria-live={isError ? "assertive" : "polite"}
+      aria-atomic="true"
+      sx={{
+        position: "absolute",
+        ...placementSx,
         px: 1.6,
         py: 1.1,
+        width: isMobile ? "auto" : "max-content",
         borderRadius: "18px",
         border: isError
           ? "1px solid rgba(170, 52, 48, 0.18)"
@@ -906,7 +1026,15 @@ export function RouteStatusOverlay({ isCalculating, routingError }) {
         WebkitBackdropFilter: "blur(16px)",
       }}
     >
-      <Typography variant="body2" sx={{ color: "inherit", fontWeight: 600 }}>
+      <Typography
+        variant="body2"
+        sx={{
+          color: "inherit",
+          fontWeight: 600,
+          lineHeight: 1.35,
+          overflowWrap: "anywhere",
+        }}
+      >
         {isError ? routingError : "Calculating route..."}
       </Typography>
     </Paper>

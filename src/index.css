@@ -119,9 +119,15 @@ select,
   width: 100%;
   height: 100%;
   background:
-    radial-gradient(720px 520px at 18% 10%, rgba(255, 243, 221, 0.34), transparent 56%),
-    radial-gradient(760px 560px at 92% 0%, rgba(221, 231, 239, 0.46), transparent 58%),
-    linear-gradient(180deg, rgba(233, 238, 243, 0.94), rgba(223, 229, 236, 0.96));
+    radial-gradient(720px 520px at 18% 10%, rgba(196, 205, 185, 0.2), transparent 56%),
+    radial-gradient(760px 560px at 92% 0%, rgba(174, 193, 201, 0.24), transparent 58%),
+    linear-gradient(180deg, #cfd8d0, #bac6bd);
+}
+
+.leaflet-tile-pane,
+.leaflet-basemap-tile,
+.leaflet-basemap-image {
+  background-color: #c8d2c9;
 }
 
 .custom-div-icon {
@@ -941,17 +947,131 @@ select,
 }
 
 .cemetery-cluster {
+  --cluster-scale: 1;
+  --cluster-fill: rgba(90, 123, 111, 0.88);
+  --cluster-stroke: rgba(255, 255, 255, 0.94);
+  --cluster-detail: rgba(255, 255, 255, 0.9);
+  --cluster-highlight: rgba(255, 255, 255, 0.32);
+  --cluster-shadow: rgba(20, 33, 43, 0.22);
+  --cluster-count-bg: rgba(255, 255, 255, 0.96);
+  --cluster-count-border: rgba(31, 74, 61, 0.3);
+  --cluster-count-color: #254f43;
+  --section-marker-fill: var(--cluster-fill);
+  --section-marker-stroke: var(--cluster-stroke);
+  --section-marker-detail: var(--cluster-detail);
   position: relative;
   width: 100%;
   height: 100%;
   display: block;
-  filter: drop-shadow(0 5px 8px rgba(20, 33, 43, 0.12));
+  overflow: visible;
+  transform: translateY(0) scale(var(--cluster-scale));
+  transform-origin: 50% 80%;
+  transition: transform 160ms ease, filter 160ms ease;
+  filter: drop-shadow(0 8px 12px var(--cluster-shadow));
 }
 
-.cemetery-cluster__glyph {
+.cemetery-cluster::before {
+  content: "";
+  position: absolute;
+  left: 14%;
+  right: 10%;
+  bottom: -14%;
+  height: 24%;
+  border-radius: 999px;
+  background: radial-gradient(ellipse at center, var(--cluster-shadow), transparent 68%);
+  opacity: 0.76;
+  transform: rotate(-6deg);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.cemetery-cluster::after {
+  content: "";
+  position: absolute;
+  top: 16%;
+  left: 30%;
+  width: 32%;
+  height: 18%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--cluster-highlight), transparent);
+  opacity: 0.74;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.cemetery-cluster--small {
+  --cluster-fill: rgba(92, 108, 104, 0.9);
+  --cluster-shadow: rgba(20, 33, 43, 0.22);
+  --cluster-count-border: rgba(52, 68, 64, 0.32);
+  --cluster-count-color: #31423d;
+}
+
+.cemetery-cluster--paired {
+  --cluster-fill: rgba(42, 128, 106, 0.94);
+  --cluster-shadow: rgba(18, 67, 56, 0.28);
+  --cluster-count-bg: rgba(226, 249, 240, 0.98);
+  --cluster-count-border: rgba(32, 114, 92, 0.38);
+  --cluster-count-color: #165f4d;
+}
+
+.cemetery-cluster--clustered {
+  --cluster-fill: rgba(39, 118, 146, 0.95);
+  --cluster-shadow: rgba(15, 57, 72, 0.3);
+  --cluster-count-bg: rgba(226, 244, 251, 0.98);
+  --cluster-count-border: rgba(29, 95, 119, 0.4);
+  --cluster-count-color: #174f66;
+}
+
+.cemetery-cluster--full {
+  --cluster-fill: rgba(80, 91, 154, 0.96);
+  --cluster-shadow: rgba(30, 37, 86, 0.31);
+  --cluster-count-bg: rgba(235, 239, 255, 0.98);
+  --cluster-count-border: rgba(66, 76, 137, 0.42);
+  --cluster-count-color: #354177;
+}
+
+.cemetery-cluster--dense {
+  --cluster-fill: rgba(151, 103, 39, 0.97);
+  --cluster-shadow: rgba(82, 48, 12, 0.34);
+  --cluster-count-bg: rgba(255, 241, 209, 0.99);
+  --cluster-count-border: rgba(142, 86, 25, 0.46);
+  --cluster-count-color: #7a4615;
+}
+
+.cemetery-cluster--massive {
+  --cluster-fill: rgba(154, 72, 68, 0.98);
+  --cluster-shadow: rgba(83, 31, 30, 0.36);
+  --cluster-count-bg: rgba(255, 229, 225, 0.99);
+  --cluster-count-border: rgba(146, 60, 55, 0.48);
+  --cluster-count-color: #7d332f;
+}
+
+.leaflet-marker-icon:hover .cemetery-cluster,
+.leaflet-marker-icon:focus .cemetery-cluster {
+  --cluster-scale: 1.04;
+  filter: drop-shadow(0 12px 20px var(--cluster-shadow));
+}
+
+.section-marker-glyph {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.section-marker-glyph__body {
+  fill: var(--section-marker-fill);
+  stroke: var(--section-marker-stroke);
+}
+
+.section-marker-glyph__dot {
+  fill: var(--section-marker-detail);
+}
+
+.section-marker-glyph__base {
+  fill: none;
+  stroke: var(--section-marker-detail);
 }
 
 .cemetery-cluster__count {
@@ -959,21 +1079,97 @@ select,
   right: -8px;
   bottom: -2px;
   min-width: 18px;
-  max-width: 34px;
   height: 18px;
   padding: 0 5px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(248, 251, 250, 0.9);
-  border: 1px solid rgba(47, 75, 67, 0.22);
-  color: #48665e;
+  background: var(--cluster-count-bg);
+  border: 1px solid var(--cluster-count-border);
+  color: var(--cluster-count-color);
   font-size: 0.56rem;
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1;
-  box-shadow: 0 3px 8px rgba(20, 33, 43, 0.08);
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(20, 33, 43, 0.14);
+  z-index: 3;
+}
+
+.section-cluster {
+  --cluster-fill: rgba(108, 121, 131, 0.36);
+  --cluster-stroke: rgba(242, 247, 249, 0.84);
+  --cluster-detail: rgba(255, 255, 255, 0.8);
+  --cluster-highlight: rgba(255, 255, 255, 0.22);
+  --cluster-shadow: rgba(20, 33, 43, 0.13);
+  --cluster-count-bg: rgba(248, 251, 250, 0.9);
+  --cluster-count-border: rgba(47, 75, 67, 0.22);
+  --cluster-count-color: #48665e;
+  filter: drop-shadow(0 5px 8px var(--cluster-shadow));
+}
+
+.section-cluster.cemetery-cluster--small {
+  --cluster-fill: rgba(108, 121, 116, 0.38);
+}
+
+.section-cluster.cemetery-cluster--paired {
+  --cluster-fill: rgba(81, 128, 113, 0.44);
+  --cluster-count-bg: rgba(232, 247, 241, 0.94);
+  --cluster-count-border: rgba(52, 105, 89, 0.26);
+  --cluster-count-color: #326553;
+}
+
+.section-cluster.cemetery-cluster--clustered {
+  --cluster-fill: rgba(80, 120, 126, 0.48);
+  --cluster-count-border: rgba(48, 86, 91, 0.26);
+  --cluster-count-color: #365d63;
+}
+
+.section-cluster.cemetery-cluster--full {
+  --cluster-fill: rgba(76, 103, 132, 0.54);
+  --cluster-count-border: rgba(49, 73, 100, 0.28);
+  --cluster-count-color: #34516f;
+}
+
+.section-cluster.cemetery-cluster--dense {
+  --cluster-fill: rgba(119, 102, 73, 0.58);
+  --cluster-count-bg: rgba(255, 249, 232, 0.92);
+  --cluster-count-border: rgba(116, 82, 40, 0.28);
+  --cluster-count-color: #69502e;
+}
+
+.section-cluster.cemetery-cluster--massive {
+  --cluster-fill: rgba(125, 82, 74, 0.62);
+  --cluster-count-bg: rgba(255, 240, 234, 0.94);
+  --cluster-count-border: rgba(127, 72, 58, 0.3);
+  --cluster-count-color: #704239;
+}
+
+.leaflet-marker-icon:hover .section-cluster,
+.leaflet-marker-icon:focus .section-cluster {
+  --cluster-scale: 1.02;
+  filter: drop-shadow(0 7px 12px rgba(20, 33, 43, 0.18));
+}
+
+.selected-burial-cluster {
+  --cluster-fill: rgba(47, 107, 87, 0.92);
+  --cluster-stroke: rgba(255, 255, 255, 0.96);
+  --cluster-detail: rgba(255, 255, 255, 0.92);
+  --cluster-shadow: rgba(20, 33, 43, 0.26);
+  --cluster-count-bg: rgba(255, 255, 255, 0.98);
+  --cluster-count-border: rgba(47, 107, 87, 0.36);
+  --cluster-count-color: var(--accent-strong);
+  filter: drop-shadow(0 10px 18px rgba(20, 33, 43, 0.24));
+}
+
+.selected-burial-cluster .cemetery-cluster__count {
+  font-size: 0.58rem;
+}
+
+.selected-burial-cluster--highlighted {
+  --cluster-scale: 1.08;
+  filter: drop-shadow(0 12px 22px rgba(20, 33, 43, 0.28));
 }
 
 .section-affordance-icon {
@@ -982,6 +1178,9 @@ select,
 }
 
 .section-affordance {
+  --section-marker-fill: rgba(108, 121, 131, 0.32);
+  --section-marker-stroke: rgba(242, 247, 249, 0.82);
+  --section-marker-detail: rgba(255, 255, 255, 0.82);
   width: 100%;
   height: 100%;
   display: block;
@@ -995,12 +1194,6 @@ select,
   opacity: 0.96;
   transform: scale(1.05);
   filter: drop-shadow(0 6px 14px rgba(20, 33, 43, 0.16));
-}
-
-.section-affordance__glyph {
-  display: block;
-  width: 100%;
-  height: 100%;
 }
 
 .tour-marker {
@@ -1083,6 +1276,55 @@ select,
   color: var(--text-main);
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.popup-card__stack-nav {
+  margin: 0 0 0.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.popup-card__stack-count {
+  min-width: 3.4rem;
+  border-radius: 999px;
+  padding: 0.24rem 0.58rem;
+  background: rgba(47, 107, 87, 0.1);
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.popup-card__stack-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.popup-card__stack-action {
+  appearance: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border-strong);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--text-main);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  font-size: 0.94rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: 0 6px 14px rgba(20, 33, 43, 0.06);
+}
+
+.popup-card__stack-action:hover {
+  background: rgba(247, 250, 251, 0.98);
 }
 
 .popup-card__subtitle {

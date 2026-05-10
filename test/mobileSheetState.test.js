@@ -1,5 +1,6 @@
 import {
   getDefaultMobileSheetState,
+  getEffectiveMobileSheetMaxHeight,
   getMobileSheetSnapHeight,
   getMobileSheetStateFromHeight,
   MOBILE_SHEET_STATES,
@@ -67,6 +68,25 @@ describe("mobile sheet state helpers", () => {
       minHeight: 104,
       state: MOBILE_SHEET_STATES.FULL,
     })).toBeCloseTo(920);
+  });
+
+  test("caps snap heights to the visible mobile viewport", () => {
+    expect(getEffectiveMobileSheetMaxHeight({
+      maxHeight: 875,
+      visualViewportHeight: 810,
+    })).toBe(810);
+
+    expect(getMobileSheetSnapHeight({
+      maxHeight: 875,
+      visualViewportHeight: 810,
+      state: MOBILE_SHEET_STATES.FULL,
+    })).toBeCloseTo(745.2);
+
+    expect(getMobileSheetSnapHeight({
+      maxHeight: 875,
+      visualViewportHeight: 810,
+      state: MOBILE_SHEET_STATES.PEEK,
+    })).toBeCloseTo(405);
   });
 
   test("maps spring-end heights back onto the nearest sheet state", () => {

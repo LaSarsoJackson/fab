@@ -351,6 +351,30 @@ const SNAP_CONTENT_MEASUREMENT_MIN_HEIGHT = SNAP_COLLAPSED_MIN_HEIGHT + 56;
 const SNAP_PEEK_FRACTION = 0.50;
 const SNAP_FULL_FRACTION = 0.92;
 
+export const getEffectiveMobileSheetMaxHeight = ({ maxHeight, visualViewportHeight } = {}) => {
+  const normalizedMaxHeight = Number(maxHeight);
+  const normalizedVisualViewportHeight = Number(visualViewportHeight);
+  const hasMaxHeight = Number.isFinite(normalizedMaxHeight) && normalizedMaxHeight > 0;
+  const hasVisualViewportHeight = Number.isFinite(normalizedVisualViewportHeight)
+    && normalizedVisualViewportHeight > 0;
+
+  if (!hasVisualViewportHeight) {
+    return hasMaxHeight ? normalizedMaxHeight : 0;
+  }
+
+  if (!hasMaxHeight) {
+    return normalizedVisualViewportHeight;
+  }
+
+  return Math.min(normalizedMaxHeight, normalizedVisualViewportHeight);
+};
+
+const getCurrentVisualViewportHeight = () => {
+  if (typeof window === "undefined") return null;
+
+  return window.visualViewport?.height || window.innerHeight || null;
+};
+
 const getSheetContentCeilingHeight = ({ maxHeight, minHeight }) => {
   const fullHeight = maxHeight * SNAP_FULL_FRACTION;
   const measuredContentHeight = Number.isFinite(minHeight) && minHeight > SNAP_CONTENT_MEASUREMENT_MIN_HEIGHT
@@ -376,13 +400,22 @@ export const getDefaultMobileSheetState = ({
   return MOBILE_SHEET_STATES.COLLAPSED;
 };
 
-export const getMobileSheetSnapHeight = ({ maxHeight, minHeight, state }) => {
-  const contentCeilingHeight = getSheetContentCeilingHeight({ maxHeight, minHeight });
+export const getMobileSheetSnapHeight = ({
+  maxHeight,
+  minHeight,
+  state,
+  visualViewportHeight,
+}) => {
+  const effectiveMaxHeight = getEffectiveMobileSheetMaxHeight({ maxHeight, visualViewportHeight });
+  const contentCeilingHeight = getSheetContentCeilingHeight({
+    maxHeight: effectiveMaxHeight,
+    minHeight,
+  });
 
   if (state === MOBILE_SHEET_STATES.COLLAPSED) {
     return Math.min(
       contentCeilingHeight,
-      Math.max(maxHeight * SNAP_COLLAPSED_FRACTION, SNAP_COLLAPSED_MIN_HEIGHT)
+      Math.max(effectiveMaxHeight * SNAP_COLLAPSED_FRACTION, SNAP_COLLAPSED_MIN_HEIGHT)
     );
   }
 
@@ -390,21 +423,24 @@ export const getMobileSheetSnapHeight = ({ maxHeight, minHeight, state }) => {
     return contentCeilingHeight;
   }
 
-  return Math.min(maxHeight * SNAP_PEEK_FRACTION, contentCeilingHeight);
+  return Math.min(effectiveMaxHeight * SNAP_PEEK_FRACTION, contentCeilingHeight);
 };
 
-export const getMobileSheetStateFromHeight = ({ height, windowHeight }) => {
+export const getMobileSheetStateFromHeight = ({ height, windowHeight, visualViewportHeight }) => {
   const collapsedHeight = getMobileSheetSnapHeight({
     maxHeight: windowHeight,
     state: MOBILE_SHEET_STATES.COLLAPSED,
+    visualViewportHeight,
   });
   const peekHeight = getMobileSheetSnapHeight({
     maxHeight: windowHeight,
     state: MOBILE_SHEET_STATES.PEEK,
+    visualViewportHeight,
   });
   const fullHeight = getMobileSheetSnapHeight({
     maxHeight: windowHeight,
     state: MOBILE_SHEET_STATES.FULL,
+    visualViewportHeight,
   });
   const collapsedThreshold = (collapsedHeight + peekHeight) / 2;
   const peekThreshold = (peekHeight + fullHeight) / 2;
@@ -459,21 +495,25 @@ export function useBurialSidebarMobileSheetState({
   const mobileSnapPoints = useCallback(({ maxHeight, minHeight }) => {
     // Deduplicate because constrained viewports can collapse peek/full heights
     // into the same physical snap point.
+    const visualViewportHeight = getCurrentVisualViewportHeight();
     const snapPoints = [
       getMobileSheetSnapHeight({
         maxHeight,
         minHeight,
         state: MOBILE_SHEET_STATES.COLLAPSED,
+        visualViewportHeight,
       }),
       getMobileSheetSnapHeight({
         maxHeight,
         minHeight,
         state: MOBILE_SHEET_STATES.PEEK,
+        visualViewportHeight,
       }),
       getMobileSheetSnapHeight({
         maxHeight,
         minHeight,
         state: MOBILE_SHEET_STATES.FULL,
+        visualViewportHeight,
       }),
     ];
 
@@ -481,11 +521,14 @@ export function useBurialSidebarMobileSheetState({
   }, []);
 
   const mobileDefaultSnap = useCallback(({ maxHeight, minHeight, snapPoints }) => {
+    const visualViewportHeight = getCurrentVisualViewportHeight();
+
     if (resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
       return snapPoints[0] || getMobileSheetSnapHeight({
         maxHeight,
         minHeight,
         state: MOBILE_SHEET_STATES.COLLAPSED,
+        visualViewportHeight,
       });
     }
 
@@ -494,6 +537,7 @@ export function useBurialSidebarMobileSheetState({
         maxHeight,
         minHeight,
         state: MOBILE_SHEET_STATES.FULL,
+        visualViewportHeight,
       });
     }
 
@@ -501,11 +545,17 @@ export function useBurialSidebarMobileSheetState({
       maxHeight,
       minHeight,
       state: MOBILE_SHEET_STATES.PEEK,
+      visualViewportHeight,
     });
   }, [resolvedMobileSheetState]);
 
   const snapMobileSheet = useCallback((state, maxHeight, minHeight) => {
-    return getMobileSheetSnapHeight({ maxHeight, minHeight, state });
+    return getMobileSheetSnapHeight({
+      maxHeight,
+      minHeight,
+      state,
+      visualViewportHeight: getCurrentVisualViewportHeight(),
+    });
   }, []);
 
   const setAndSnapMobileSheet = useCallback((state) => {
@@ -538,6 +588,7 @@ export function useBurialSidebarMobileSheetState({
     const nextState = getMobileSheetStateFromHeight({
       height: sheetRef.current.height,
       windowHeight: window.innerHeight,
+      visualViewportHeight: getCurrentVisualViewportHeight(),
     });
     requestedMobileSheetStateRef.current = nextState;
     setMobileSheetState(nextState);

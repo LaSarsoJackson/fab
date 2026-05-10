@@ -11,6 +11,14 @@ const stripTrailingSlash = (value = "") => String(value).trim().replace(/\/+$/, 
 const createBasemapSpec = (definition) => Object.freeze({ ...definition });
 const createOverlaySourceSpec = (definition) => Object.freeze({ ...definition });
 const createOptimizationArtifactSpec = (definition) => Object.freeze({ ...definition });
+const createBoundsFromBbox = ([west, south, east, north]) => Object.freeze([
+  Object.freeze([south, west]),
+  Object.freeze([north, east]),
+]);
+const padLatLngBounds = (bounds, { latitude = 0, longitude = 0 } = {}) => Object.freeze([
+  Object.freeze([bounds[0][0] - latitude, bounds[0][1] - longitude]),
+  Object.freeze([bounds[1][0] + latitude, bounds[1][1] + longitude]),
+]);
 
 const FAB_SITE_ROOT_URL = "https://www.albany.edu/arce";
 const FAB_SITE_NAME = "Albany Rural Cemetery";
@@ -25,6 +33,53 @@ const FAB_IOS_APP_STORE_URL = "https://apps.apple.com/us/app/albany-grave-finder
 const FAB_DEV_IMAGE_SERVER_ORIGIN = (process.env.REACT_APP_DEV_IMAGE_SERVER_ORIGIN || "")
   .trim()
   .replace(/\/+$/, "");
+const NYS_ORTHO_LATEST_EXPORT_URL = "https://orthos.its.ny.gov/arcgis/rest/services/wms/Latest/MapServer/export";
+const CEMETERY_BOUNDARY_BOUNDS = createBoundsFromBbox(BOUNDARY_BBOX);
+const CEMETERY_DEFAULT_VIEW_BOUNDS = padLatLngBounds(CEMETERY_BOUNDARY_BOUNDS, {
+  latitude: 0.001,
+  longitude: 0.001,
+});
+const CEMETERY_PADDED_BOUNDARY_BOUNDS = padLatLngBounds(CEMETERY_BOUNDARY_BOUNDS, {
+  latitude: 0.01,
+  longitude: 0.01,
+});
+const CEMETERY_ORTHO_OVERVIEW_BOUNDS = Object.freeze([
+  Object.freeze([42.66, -73.82]),
+  Object.freeze([42.75, -73.64]),
+]);
+const CEMETERY_ORTHO_DETAIL_BOUNDS = padLatLngBounds(CEMETERY_BOUNDARY_BOUNDS, {
+  latitude: 0.015,
+  longitude: 0.015,
+});
+const ESRI_WORLD_IMAGERY_BASEMAP = Object.freeze({
+  id: "esri-world-imagery-fallback",
+  type: "raster-xyz",
+  urlTemplate: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  minZoom: 0,
+  maxNativeZoom: 19,
+  maxZoom: 20,
+  tileSize: 256,
+  attribution: "Esri World Imagery",
+});
+
+export const FAB_BASEMAP_IMAGE_EXPORTS = Object.freeze([
+  Object.freeze({
+    id: "overview",
+    imageUrl: "/basemaps/albany-rural-cemetery-nys-ortho-overview.jpg",
+    outputPath: "public/basemaps/albany-rural-cemetery-nys-ortho-overview.jpg",
+    bounds: CEMETERY_ORTHO_OVERVIEW_BOUNDS,
+    sourceExportUrl: NYS_ORTHO_LATEST_EXPORT_URL,
+    maxImageDimension: 4096,
+  }),
+  Object.freeze({
+    id: "cemetery-detail",
+    imageUrl: "/basemaps/albany-rural-cemetery-nys-ortho-latest.jpg",
+    outputPath: "public/basemaps/albany-rural-cemetery-nys-ortho-latest.jpg",
+    bounds: CEMETERY_ORTHO_DETAIL_BOUNDS,
+    sourceExportUrl: NYS_ORTHO_LATEST_EXPORT_URL,
+    maxImageDimension: 4096,
+  }),
+]);
 
 const buildFabSiteUrl = (path = "") => {
   const baseUrl = stripTrailingSlash(FAB_HOME_URL);
@@ -190,11 +245,17 @@ const MAP_BASEMAPS = [
   {
     id: "imagery",
     label: "Imagery",
-    type: "raster-xyz",
-    urlTemplate: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    type: "image-overlay",
+    fallbackRaster: ESRI_WORLD_IMAGERY_BASEMAP,
+    imageOverlays: FAB_BASEMAP_IMAGE_EXPORTS.map((exportDefinition, index) => ({
+      id: exportDefinition.id,
+      imageUrl: exportDefinition.imageUrl,
+      bounds: exportDefinition.bounds,
+      zIndex: index + 1,
+    })),
+    attribution: "NYS ITS Geospatial Services",
     minZoom: 0,
-    maxZoom: 19,
-    tileSize: 256,
+    maxZoom: 20,
   },
   {
     id: "streets",
@@ -202,7 +263,8 @@ const MAP_BASEMAPS = [
     type: "raster-xyz",
     urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
     minZoom: 0,
-    maxZoom: 19,
+    maxNativeZoom: 19,
+    maxZoom: 20,
     tileSize: 256,
   },
 ].map(createBasemapSpec);
@@ -354,14 +416,8 @@ export const APP_PROFILE = {
   map: {
     center: [42.704180, -73.731980],
     zoom: 14,
-    defaultViewBounds: [
-      [42.694180, -73.741980],
-      [42.714180, -73.721980],
-    ],
-    paddedBoundaryBounds: [
-      [BOUNDARY_BBOX[1] - 0.01, BOUNDARY_BBOX[0] - 0.01],
-      [BOUNDARY_BBOX[3] + 0.01, BOUNDARY_BBOX[2] + 0.01],
-    ],
+    defaultViewBounds: CEMETERY_DEFAULT_VIEW_BOUNDS,
+    paddedBoundaryBounds: CEMETERY_PADDED_BOUNDARY_BOUNDS,
     locationBufferBoundary: LOCATION_BUFFER_BOUNDARY,
     locationMessages: {
       inactive: "Location inactive",

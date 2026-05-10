@@ -3,9 +3,9 @@ import { describe, expect, test } from "bun:test";
 import {
   areLocationCandidatesEquivalent,
   areRouteLatLngTuplesEquivalent,
+  buildRecordCoordinateGroups,
   beginLeafletSectionHover,
   buildLocationAccuracyGeoJson,
-  buildStackedRecordDisplayCoordinateMap,
   buildSectionAffordanceMarkers,
   buildSectionBoundsById,
   buildSectionOverviewMarkers,
@@ -16,6 +16,7 @@ import {
   formatSectionOverviewMarkerLabel,
   getClusterIconCount,
   getDistinctMarkerLocationCount,
+  getSameCoordinateMarkerBurialRecords,
   getPopupViewportPadding,
   MAP_PRESENTATION_POLICY,
   getSectionBurialMarkerStyle,
@@ -32,7 +33,6 @@ import {
   resolveSectionClusterMarkerVisibility,
   resolveClusterExpansionZoom,
   resolveMapPresentationPolicy,
-  resolveSameCoordinateSectionBrowseContext,
   resolveSectionAffordanceMarkerVisibility,
   resolveSectionBurialDisableClusteringZoom,
   resolveSectionOverlayVisibility,
@@ -44,6 +44,7 @@ import {
   selectRouteTrackingLocationCandidate,
   shouldHandleSectionHover,
   shouldIgnoreSectionBackgroundSelection,
+  shouldPreserveSectionClickViewport,
   shouldResetRouteGeometryForRequest,
   shouldRejectLocationCandidate,
   shouldShowPersistentSectionTooltips,
@@ -431,7 +432,7 @@ describe("mapDomain", () => {
       })).toBe(false);
     });
 
-    test("uses grave-shaped section affordances as the default click cue", () => {
+    test("uses neutral section affordances as the default click cue", () => {
       expect(resolveSectionAffordanceMarkerVisibility({
         currentZoom: 14,
       })).toBe(true);
@@ -463,6 +464,18 @@ describe("mapDomain", () => {
         currentZoom: 18,
         selectedTour: "Mayors",
       })).toBe(false);
+    });
+
+    test("preserves map-click viewport once the user is already at section detail zoom", () => {
+      expect(shouldPreserveSectionClickViewport({
+        currentZoom: MAP_PRESENTATION_POLICY.sectionDetailMinZoom - 0.5,
+      })).toBe(false);
+      expect(shouldPreserveSectionClickViewport({
+        currentZoom: MAP_PRESENTATION_POLICY.sectionDetailMinZoom,
+      })).toBe(true);
+      expect(shouldPreserveSectionClickViewport({
+        currentZoom: MAP_PRESENTATION_POLICY.sectionBrowseFocusMaxZoom + 1,
+      })).toBe(true);
     });
 
     test("keeps marker clustering and expansion zooms explicit", () => {
@@ -505,82 +518,50 @@ describe("mapDomain", () => {
       expect(getClusterIconCount({ getChildCount: () => markers.length }, markers)).toBe(3);
     });
 
-    test("routes same-coordinate burial stacks into section lot browse", () => {
+    test("returns every burial record in a same-coordinate marker stack", () => {
       const markers = [
-        burialMarkerAt(42.709101, -73.734101, { Section: "50", Lot: "1", Tier: "0" }),
-        burialMarkerAt(42.709101, -73.734101, { Section: "50", Lot: "1", Tier: "0" }),
-        burialMarkerAt(42.709101, -73.734101, { Section: "50", Lot: "1", Tier: "0" }),
+        burialMarkerAt(42.709101, -73.734101, { id: "one", Section: "50", Lot: "1" }),
+        burialMarkerAt(42.709101, -73.734101, { id: "two", Section: "50", Lot: "1" }),
+        burialMarkerAt(42.709101, -73.734101, { id: "three", Section: "50", Lot: "1" }),
       ];
 
-      expect(resolveSameCoordinateSectionBrowseContext(markers)).toEqual({
-        sectionFilter: "50",
-        filterType: "lot",
-        lotTierFilter: "1",
-      });
+      expect(getSameCoordinateMarkerBurialRecords(markers)).toEqual([
+        { id: "one", Section: "50", Lot: "1" },
+        { id: "two", Section: "50", Lot: "1" },
+        { id: "three", Section: "50", Lot: "1" },
+      ]);
     });
 
-    test("falls back to tier browse when a coordinate stack has no shared lot", () => {
-      const markers = [
-        burialMarkerAt(42.709101, -73.734101, { Section: "214", Lot: "12", Tier: "5" }),
-        burialMarkerAt(42.709101, -73.734101, { Section: "214", Lot: "18", Tier: "5" }),
-      ];
-
-      expect(resolveSameCoordinateSectionBrowseContext(markers)).toEqual({
-        sectionFilter: "214",
-        filterType: "tier",
-        lotTierFilter: "5",
-      });
-    });
-
-    test("uses tier browse when the shared lot is an unknown placeholder", () => {
-      const markers = [
-        burialMarkerAt(42.709101, -73.734101, { Section: "132", Lot: "-99", Tier: "10" }),
-        burialMarkerAt(42.709101, -73.734101, { Section: "132", Lot: "-99", Tier: "10" }),
-      ];
-
-      expect(resolveSameCoordinateSectionBrowseContext(markers)).toEqual({
-        sectionFilter: "132",
-        filterType: "tier",
-        lotTierFilter: "10",
-      });
-    });
-
-    test("ignores mixed-location or mixed-section clusters for stack browse", () => {
-      expect(resolveSameCoordinateSectionBrowseContext([
+    test("ignores mixed-location and non-burial clusters for stack selection", () => {
+      expect(getSameCoordinateMarkerBurialRecords([
         burialMarkerAt(42.709101, -73.734101, { Section: "50", Lot: "1" }),
         burialMarkerAt(42.709202, -73.734202, { Section: "50", Lot: "1" }),
-      ])).toBeNull();
+      ])).toEqual([]);
 
-      expect(resolveSameCoordinateSectionBrowseContext([
+      expect(getSameCoordinateMarkerBurialRecords([
         burialMarkerAt(42.709101, -73.734101, { Section: "50", Lot: "1" }),
-        burialMarkerAt(42.709101, -73.734101, { Section: "51", Lot: "1" }),
-      ])).toBeNull();
+        markerAt(42.709101, -73.734101),
+      ])).toEqual([]);
     });
 
-    test("keeps stack browse detection tied to source coordinates after display offsets", () => {
+    test("keeps stack detection tied to source coordinates when display positions differ", () => {
       const records = [
         { id: "one", Section: "50", Lot: "1", coordinates: [-73.731094, 42.709337] },
         { id: "two", Section: "50", Lot: "1", coordinates: [-73.731094, 42.709337] },
       ];
-      const displayCoordinatesById = buildStackedRecordDisplayCoordinateMap(records);
-      const markers = records.map((record) => {
-        const displayCoordinates = displayCoordinatesById.get(record.id);
-
-        return {
-          burialRecord: record,
-          getLatLng: () => ({
-            lat: displayCoordinates[1],
-            lng: displayCoordinates[0],
-          }),
-        };
-      });
+      const markers = [
+        {
+          burialRecord: records[0],
+          getLatLng: () => ({ lat: 42.70933701, lng: -73.73109401 }),
+        },
+        {
+          burialRecord: records[1],
+          getLatLng: () => ({ lat: 42.70933709, lng: -73.73109409 }),
+        },
+      ];
 
       expect(getDistinctMarkerLocationCount(markers)).toBe(2);
-      expect(resolveSameCoordinateSectionBrowseContext(markers)).toEqual({
-        sectionFilter: "50",
-        filterType: "lot",
-        lotTierFilter: "1",
-      });
+      expect(getSameCoordinateMarkerBurialRecords(markers)).toEqual(records);
     });
 
     test("keeps road rendering tied to the explicit overlay toggle", () => {
@@ -763,27 +744,21 @@ describe("mapDomain", () => {
       expect(activeStyle.fillOpacity).toBeGreaterThan(hoveredStyle.fillOpacity);
     });
 
-    test("spreads exact-coordinate record stacks without changing source coordinates", () => {
+    test("groups exact-coordinate record stacks without changing source coordinates", () => {
       const records = [
         { id: "one", coordinates: [-73.731094, 42.709337] },
         { id: "two", coordinates: [-73.731094, 42.709337] },
         { id: "three", coordinates: [-73.731094, 42.709337] },
         { id: "separate", coordinates: [-73.731239, 42.709374] },
       ];
-      const displayCoordinatesById = buildStackedRecordDisplayCoordinateMap(records);
+      const coordinateGroups = buildRecordCoordinateGroups(records);
 
-      expect(displayCoordinatesById.has("separate")).toBe(false);
-      expect(displayCoordinatesById.size).toBe(3);
+      expect(coordinateGroups).toHaveLength(2);
+      expect(coordinateGroups[0].recordIds).toEqual(["one", "two", "three"]);
+      expect(coordinateGroups[0].records).toEqual(records.slice(0, 3));
+      expect(coordinateGroups[0].coordinates).toEqual([-73.731094, 42.709337]);
+      expect(coordinateGroups[1].recordIds).toEqual(["separate"]);
       expect(records[0].coordinates).toEqual([-73.731094, 42.709337]);
-
-      const displayKeys = new Set(
-        records
-          .slice(0, 3)
-          .map((record) => displayCoordinatesById.get(record.id))
-          .map((coordinates) => coordinates.map((value) => value.toFixed(8)).join(":"))
-      );
-
-      expect(displayKeys.size).toBe(3);
     });
 
     test("hides section burial singletons until the close-in preview zoom", () => {

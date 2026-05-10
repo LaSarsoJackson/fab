@@ -63,7 +63,7 @@ import {
 import {
   areLocationCandidatesEquivalent,
   buildLocationAccuracyGeoJson,
-  buildStackedRecordDisplayCoordinateMap,
+  buildRecordCoordinateGroups,
   clearMapSelectionFocus,
   clearMapSelectionFocusForRecord,
   createViewportIntentController,
@@ -93,13 +93,14 @@ import {
   replaceMapSelectionRecords,
   resolveClusterExpansionZoom,
   getClusterIconCount,
-  resolveSameCoordinateSectionBrowseContext,
+  getSameCoordinateMarkerBurialRecords,
   resolveMapPresentationPolicy,
   selectBestRecentLocationCandidate,
   selectRouteTrackingLocationCandidate,
   shouldResetRouteGeometryForRequest,
   shouldShowPersistentSectionTooltips,
   shouldRejectLocationCandidate,
+  shouldPreserveSectionClickViewport,
   smoothLocationCandidate,
   shouldHandleSectionHover,
   shouldIgnoreSectionBackgroundSelection,
@@ -127,7 +128,11 @@ import {
   schedulePopupInView,
 } from "./features/map/mapChrome";
 import { cleanRecordValue } from "./features/map/mapRecordPresentation";
-import { PopupCardContent, createMapRecordKey } from "./features/map/popupCardContent";
+import {
+  PopupCardContent,
+  PopupCardStackContent,
+  createMapRecordKey,
+} from "./features/map/popupCardContent";
 import { calculateWalkingRoute, getRoutingErrorMessage, buildRoadRoutingGraph } from "./features/map/mapRouting";
 import {
   buildFieldPacketShareUrl,
@@ -318,6 +323,20 @@ const createNumberedIcon = (number) => {
   NUMBERED_ICON_CACHE.set(cacheKey, icon);
   return icon;
 };
+
+const createSelectedBurialStackIcon = ({ count = 0, isHighlighted = false } = {}) => (
+  createCemeteryClusterIcon({
+    count,
+    size: 34,
+    wrapperClassName: [
+      "cemetery-cluster",
+      "selected-burial-cluster",
+      isHighlighted ? "selected-burial-cluster--highlighted" : "",
+    ].filter(Boolean).join(" "),
+    className: "custom-cluster-icon selected-burial-cluster-icon",
+    densityClassName: "",
+  })
+);
 
 /**
  * Creates a unique key for a burial record
@@ -770,7 +789,6 @@ export default function BurialMap() {
   );
   const hoveredSectionIdRef = useRef(null);
   const hoveredSectionLayerRef = useRef(null);
-  const activateSectionBrowseRef = useRef(null);
   const canSectionHoverRef = useRef(true);
   const recentTouchSectionInteractionRef = useRef(false);
   const sectionTooltipSyncFrameRef = useRef(null);
@@ -819,6 +837,10 @@ export default function BurialMap() {
   );
   const selectedMarkerOrderById = useMemo(
     () => new Map(selectedBurials.map((burial, index) => [burial.id, index + 1])),
+    [selectedBurials]
+  );
+  const selectedBurialCoordinateGroups = useMemo(
+    () => buildRecordCoordinateGroups(selectedBurials),
     [selectedBurials]
   );
   const locationAccuracyGeoJson = useMemo(() => buildLocationAccuracyGeoJson(
@@ -1099,6 +1121,71 @@ export default function BurialMap() {
 
     schedulePopupInView(popup, { getOverlayElement });
   }, [getOverlayElement]);
+  const scheduleActivePopupLayout = useCallback(() => {
+    let openPopup = null;
+    const popupBurialId = popupBurialIdRef.current;
+
+    if (popupBurialId) {
+      openPopup =
+        selectedMarkerLayersRef.current.get(popupBurialId)?.getPopup?.() ||
+        sectionMarkersByIdRef.current.get(popupBurialId)?.getPopup?.() ||
+        tourFeatureLayersRef.current.get(popupBurialId)?.getPopup?.() ||
+        null;
+    }
+
+    if (!openPopup) {
+      const map = getMapInstance();
+      map?.eachLayer?.((layer) => {
+        if (openPopup) {
+          return;
+        }
+
+        const candidatePopup = layer?.getPopup?.();
+        if (candidatePopup?.isOpen?.()) {
+          openPopup = candidatePopup;
+        }
+      });
+    }
+
+    if (openPopup) {
+      schedulePopupLayout(openPopup);
+    }
+  }, [getMapInstance, schedulePopupLayout]);
+  useEffect(() => {
+    if (!isSearchPanelVisible || typeof ResizeObserver === "undefined") {
+      return undefined;
+    }
+
+    const overlayElement = sidebarOverlayRef.current;
+    if (!overlayElement) {
+      return undefined;
+    }
+
+    let frame = null;
+    const observer = new ResizeObserver(() => {
+      if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+        scheduleActivePopupLayout();
+        return;
+      }
+
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        scheduleActivePopupLayout();
+      });
+    });
+
+    observer.observe(overlayElement);
+
+    return () => {
+      observer.disconnect();
+      if (frame && typeof window !== "undefined" && typeof window.cancelAnimationFrame === "function") {
+        window.cancelAnimationFrame(frame);
+      }
+    };
+  }, [isSearchPanelVisible, scheduleActivePopupLayout]);
   const canIdlePrefetchTours = useMemo(() => {
     if (typeof navigator === 'undefined') {
       return !isMobile;
@@ -1305,20 +1392,6 @@ export default function BurialMap() {
     sectionFilter,
     sectionRecordsOverride,
   ]);
-  const sectionBurialDisplayCoordinatesById = useMemo(
-    () => buildStackedRecordDisplayCoordinateMap(sectionBurials, {
-      getRecordId: getSectionBurialMarkerId,
-      offsetMeters: 1.15,
-    }),
-    [sectionBurials]
-  );
-  const selectedBurialDisplayCoordinatesById = useMemo(
-    () => buildStackedRecordDisplayCoordinateMap(selectedBurials, {
-      offsetMeters: 1.85,
-    }),
-    [selectedBurials]
-  );
-
   /**
    * Build search indexes off the main interaction path.
    * This keeps first paint responsive even with large datasets.
@@ -1856,16 +1929,16 @@ export default function BurialMap() {
   const getPopupLayerForBurial = useCallback((burial) => {
     if (!burial) return null;
 
-    const sectionMarker = sectionMarkersByIdRef.current.get(getSectionBurialMarkerId(burial));
-    if (sectionMarker) {
-      return sectionMarker;
-    }
-
     if (burial.source === "tour") {
       return tourFeatureLayersRef.current.get(burial.id) || null;
     }
 
-    return selectedMarkerLayersRef.current.get(burial.id) || null;
+    const selectedMarker = selectedMarkerLayersRef.current.get(burial.id);
+    if (selectedMarker) {
+      return selectedMarker;
+    }
+
+    return sectionMarkersByIdRef.current.get(getSectionBurialMarkerId(burial)) || null;
   }, []);
   const handlePopupBurialOpen = useCallback((burial) => {
     popupBurialIdRef.current = burial?.id || null;
@@ -2021,6 +2094,25 @@ export default function BurialMap() {
   const selectBurial = useCallback((burial, options = {}) => {
     focusBurial(burial, options);
   }, [focusBurial]);
+
+  const selectBurialStack = useCallback((records = [], { activeRecord = null } = {}) => {
+    const stackRecords = records.filter((record) => cleanRecordValue(record?.id));
+    if (stackRecords.length === 0) {
+      return;
+    }
+
+    const preferredActiveId = cleanRecordValue(activeRecord?.id);
+    const nextActiveRecord = stackRecords.find((record) => (
+      cleanRecordValue(record?.id) === preferredActiveId
+    )) ||
+      stackRecords[0];
+
+    dispatchSelectionAction(replaceMapSelectionRecords({
+      records: stackRecords,
+      activeRecordId: nextActiveRecord.id,
+      hoveredRecordId: null,
+    }));
+  }, [dispatchSelectionAction]);
 
   /**
    * Removes a burial from search results
@@ -2289,13 +2381,17 @@ export default function BurialMap() {
   }, [selectBurial]);
 
   /**
-   * Creates the section-burial cluster group. Same-coordinate stacks open the
-   * section browse list; other clusters move to the next detail zoom band.
+   * Creates the section-burial cluster group. Same-coordinate stacks remain
+   * clustered even at max zoom and select every record at that GIS point;
+   * broader clusters move to the next detail zoom band or spiderfy at max.
    */
   const createClusterGroup = useCallback(() => {
     const clusterGroup = L.markerClusterGroup({
-      maxClusterRadius: sectionBurialClusterRadius,
-      disableClusteringAtZoom: sectionBurialDisableClusteringZoom,
+      maxClusterRadius: (zoom) => (
+        zoom >= sectionBurialDisableClusteringZoom
+          ? 1
+          : sectionBurialClusterRadius
+      ),
       spiderfyOnMaxZoom: false,
       showCoverageOnHover: false,
       zoomToBoundsOnClick: false,
@@ -2326,17 +2422,13 @@ export default function BurialMap() {
         disableClusteringAtZoom: sectionBurialDisableClusteringZoom,
       });
       const targetLatLng = cluster.getLatLng?.() || clusterBounds?.getCenter?.();
-      const stackBrowseContext = resolveSameCoordinateSectionBrowseContext(childMarkers);
-      if (stackBrowseContext) {
-        // A source-coordinate stack is already represented well by the sidebar.
-        // Keep the map focused near it, but let the section browse list carry
-        // the record-level selection work instead of building a second list.
-        activateSectionBrowseRef.current?.(stackBrowseContext.sectionFilter, undefined, {
-          focusMap: false,
-          filterType: stackBrowseContext.filterType,
-          isExplicitFocus: true,
-          lotTierFilter: stackBrowseContext.lotTierFilter,
-        });
+      const sameCoordinateRecords = getSameCoordinateMarkerBurialRecords(childMarkers);
+      if (sameCoordinateRecords.length > 1) {
+        const activeStackRecord = sameCoordinateRecords.find((record) => (
+          cleanRecordValue(record?.id) === activeBurialIdRef.current
+        )) || sameCoordinateRecords[0];
+
+        selectBurialStack(sameCoordinateRecords, { activeRecord: activeStackRecord });
 
         if (!targetLatLng) {
           return;
@@ -2381,6 +2473,11 @@ export default function BurialMap() {
         return;
       }
 
+      if (targetZoom <= map.getZoom() && typeof cluster.spiderfy === "function") {
+        cluster.spiderfy();
+        return;
+      }
+
       fitMapBoundsInViewport(map, clusterBounds, {
         animate: !shouldReduceMapMotion,
         isExplicitFocus: true,
@@ -2395,6 +2492,7 @@ export default function BurialMap() {
     panMapIntoViewport,
     sectionBurialClusterRadius,
     sectionBurialDisableClusteringZoom,
+    selectBurialStack,
     shouldReduceMapMotion,
     runProgrammaticViewportMove,
   ]);
@@ -3108,10 +3206,8 @@ export default function BurialMap() {
 
     const isActive = activeBurialIdRef.current === burial.id;
     const isHovered = !isActive && hoveredBurialIdRef.current === burial.id;
-    const markerId = getSectionBurialMarkerId(burial);
-    const displayCoordinates = sectionBurialDisplayCoordinatesById.get(markerId) || burial.coordinates;
     const marker = L.circleMarker(
-      [displayCoordinates[1], displayCoordinates[0]],
+      [burial.coordinates[1], burial.coordinates[0]],
       getSectionBurialMarkerStyle(burial, {
         currentZoom: getSectionBurialPresentationZoom(),
         individualMarkerMinZoom: sectionBurialIndividualMarkerMinZoomRef.current,
@@ -3161,7 +3257,6 @@ export default function BurialMap() {
     handleHoverBurialChange,
     removeFromResults,
     schedulePopupLayout,
-    sectionBurialDisplayCoordinatesById,
     selectMapBurial,
   ]);
 
@@ -3429,7 +3524,10 @@ export default function BurialMap() {
   const focusSectionOnMap = useCallback((
     sectionValue,
     bounds,
-    { isExplicitFocus = false } = {}
+    {
+      isExplicitFocus = false,
+      preserveViewportAtDetailZoom = false,
+    } = {}
   ) => {
     const map = getMapInstance();
     if (!map || !sectionValue) return;
@@ -3439,11 +3537,27 @@ export default function BurialMap() {
       return;
     }
 
+    if (
+      preserveViewportAtDetailZoom &&
+      shouldPreserveSectionClickViewport({
+        currentZoom: map.getZoom?.(),
+        sectionDetailMinZoom,
+      })
+    ) {
+      return;
+    }
+
     fitMapBoundsInViewport(map, sectionBounds, {
       isExplicitFocus,
       maxZoom: sectionBrowseFocusMaxZoom,
     });
-  }, [fitMapBoundsInViewport, getMapInstance, sectionBoundsById, sectionBrowseFocusMaxZoom]);
+  }, [
+    fitMapBoundsInViewport,
+    getMapInstance,
+    sectionBoundsById,
+    sectionBrowseFocusMaxZoom,
+    sectionDetailMinZoom,
+  ]);
 
   const activateSectionBrowse = useCallback((
     sectionValue,
@@ -3453,6 +3567,7 @@ export default function BurialMap() {
       focusMap = true,
       isExplicitFocus = true,
       lotTierFilter: nextLotTierFilter = "",
+      preserveViewportAtDetailZoom = false,
     } = {}
   ) => {
     const nextSection = sectionValue || "";
@@ -3468,14 +3583,22 @@ export default function BurialMap() {
       setSelectedTour(null);
       setShowAllBurials(true);
       if (focusMap) {
-        focusSectionOnMap(nextSection, bounds, { isExplicitFocus });
+        focusSectionOnMap(nextSection, bounds, {
+          isExplicitFocus,
+          preserveViewportAtDetailZoom,
+        });
       }
       return;
     }
 
     setShowAllBurials(false);
   }, [clearActiveBurialFocus, clearHoveredSection, focusSectionOnMap, requestBurialDataLoad]);
-  activateSectionBrowseRef.current = activateSectionBrowse;
+
+  const activateMapSectionBrowse = useCallback((sectionValue, bounds) => {
+    activateSectionBrowse(sectionValue, bounds, {
+      preserveViewportAtDetailZoom: true,
+    });
+  }, [activateSectionBrowse]);
 
   const clearSectionFilters = useCallback(() => {
     clearActiveBurialFocus({ clearHover: true });
@@ -3654,7 +3777,7 @@ export default function BurialMap() {
           return;
         }
 
-        activateSectionBrowse(sectionValue, layer.getBounds());
+        activateMapSectionBrowse(sectionValue, layer.getBounds());
         L.DomEvent.stopPropagation(event);
       },
       mouseover: () => {
@@ -3724,7 +3847,7 @@ export default function BurialMap() {
       },
     });
   }, [
-    activateSectionBrowse,
+    activateMapSectionBrowse,
     clearHoveredSection,
     hideSectionTooltip,
     restoreSectionLayerStyle,
@@ -3933,6 +4056,7 @@ export default function BurialMap() {
           lotTierFilter={lotTierFilter}
           mapDataError={mapDataError}
           markerColors={MARKER_COLORS}
+          onMobileSheetViewportChange={scheduleActivePopupLayout}
           rootRef={sidebarOverlayRef}
           onBrowseResultSelect={handleBrowseResultSelect}
           onClearSectionFilters={clearSectionFilters}
@@ -4073,6 +4197,7 @@ export default function BurialMap() {
 
       <RouteStatusOverlay
         isCalculating={isRouteLoading}
+        isMobile={isMobile}
         routingError={routeError}
       />
 
@@ -4083,7 +4208,7 @@ export default function BurialMap() {
           attributionControl={false}
           bounceAtZoomLimits={false}
           zoomControl={false}
-          fadeAnimation={!shouldReduceMapMotion}
+          fadeAnimation={false}
           maxZoom={activeBasemapMaxZoom}
           markerZoomAnimation={!shouldReduceMapMotion}
           tapTolerance={isMobile ? 18 : 15}
@@ -4106,7 +4231,7 @@ export default function BurialMap() {
             onEachSectionFeature={onEachSectionFeature}
             onLayerControlOpenChange={setIsLayerControlOpen}
             onLocateMarker={onLocateMarker}
-            onSelectSection={activateSectionBrowse}
+            onSelectSection={activateMapSectionBrowse}
             onToggleSearchPanel={handleToggleSearchPanel}
             onViewportMoveStart={handleViewportMoveStart}
             onToggleOverlay={handleToggleOverlay}
@@ -4156,13 +4281,101 @@ export default function BurialMap() {
             />
           )}
 
-          {selectedBurials.map((burial, index) => {
-            const displayCoordinates = selectedBurialDisplayCoordinatesById.get(cleanRecordValue(burial.id)) ||
-              burial.coordinates;
+          {selectedBurialCoordinateGroups.map((group, groupIndex) => {
+            const { coordinateKey, coordinates, records, recordIds } = group;
+            if (!Array.isArray(coordinates) || records.length === 0) {
+              return null;
+            }
+
+            const [lng, lat] = coordinates;
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+              return null;
+            }
+
+            if (records.length > 1) {
+              const activeStackRecord = records.find((record) => record.id === activeBurialId) || records[0];
+              const isHighlighted = records.some((record) => (
+                record.id === activeBurialId ||
+                record.id === hoveredBurialId
+              ));
+
+              return (
+                <Marker
+                  key={`selected-stack-${coordinateKey}-${recordIds.join("-")}`}
+                  ref={(layer) => {
+                    records.forEach((record) => {
+                      if (layer) {
+                        selectedMarkerLayersRef.current.set(record.id, layer);
+                      } else {
+                        selectedMarkerLayersRef.current.delete(record.id);
+                      }
+                    });
+                  }}
+                  position={[lat, lng]}
+                  icon={createSelectedBurialStackIcon({
+                    count: records.length,
+                    isHighlighted,
+                  })}
+                  keyboard={false}
+                  eventHandlers={{
+                    mouseover: () => {
+                      handleHoverBurialChange(activeStackRecord.id);
+                    },
+                    mouseout: () => {
+                      clearHoveredBurialIfCurrent(activeStackRecord.id);
+                    },
+                    click: () => {
+                      selectBurialStack(records, { activeRecord: activeStackRecord });
+                    },
+                    popupopen: ({ popup }) => {
+                      const popupRecord = records.find((record) => (
+                        record.id === activeBurialIdRef.current
+                      )) || activeStackRecord;
+                      handlePopupBurialOpen(popupRecord);
+                      schedulePopupLayout(popup);
+                    },
+                    popupclose: () => {
+                      const popupRecord = records.find((record) => (
+                        record.id === activeBurialIdRef.current
+                      )) || activeStackRecord;
+                      handlePopupBurialClose(popupRecord);
+                    },
+                  }}
+                  zIndexOffset={isHighlighted ? 1300 : 1100}
+                >
+                  {shouldUseMapPopups && (
+                    <Popup>
+                      <PopupCardStackContent
+                        records={records}
+                        activeRecordId={activeBurialId}
+                        onSelectRecord={(record) => {
+                          selectMapBurial(record, {
+                            animate: false,
+                            openTourPopup: false,
+                            preserveViewport: true,
+                          });
+                        }}
+                        onOpenDirectionsMenu={(event, record) => {
+                          handleOpenDirectionsMenu(event, record);
+                        }}
+                        onRemove={(record) => {
+                          removeFromResults(record.id);
+                        }}
+                        schedulePopupLayout={schedulePopupLayout}
+                        getPopup={() => selectedMarkerLayersRef.current.get(activeStackRecord.id)?.getPopup?.()}
+                      />
+                    </Popup>
+                  )}
+                </Marker>
+              );
+            }
+
+            const [burial] = records;
+            const markerNumber = selectedMarkerOrderById.get(burial.id) || groupIndex + 1;
 
             return (
               <Marker
-                key={createUniqueKey(burial, index)}
+                key={createUniqueKey(burial, groupIndex)}
                 ref={(layer) => {
                   if (layer) {
                     selectedMarkerLayersRef.current.set(burial.id, layer);
@@ -4171,8 +4384,8 @@ export default function BurialMap() {
                     selectedMarkerLayersRef.current.delete(burial.id);
                   }
                 }}
-                position={[displayCoordinates[1], displayCoordinates[0]]}
-                icon={createNumberedIcon(index + 1)}
+                position={[lat, lng]}
+                icon={createNumberedIcon(markerNumber)}
                 keyboard={false}
                 eventHandlers={{
                   mouseover: () => handleHoverBurialChange(burial.id),
