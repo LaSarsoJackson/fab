@@ -14,6 +14,8 @@ Start with these documents:
 
 If you are changing a specific subsystem, follow the relevant note from the
 architecture index before you start moving files around.
+For broad cleanup, comment work, or ownership consolidation, start with
+[docs/maintainability-playbook.md](./docs/maintainability-playbook.md).
 
 ## Local development
 
@@ -84,6 +86,9 @@ If you are not sure where a change belongs, stop at
 - Put pure transforms in the owning feature folder under [`src/features/`](./src/features).
 - Put domain-neutral helpers in [`src/shared/`](./src/shared).
 - Keep FAB-only behavior in [`src/features/fab/profile.js`](./src/features/fab/profile.js) for app/profile/presentation defaults and [`src/features/fab/tours.js`](./src/features/fab/tours.js) for tour definitions.
+- Add comments when they explain boundaries, runtime constraints, generated
+  data rules, or non-obvious browser/Leaflet behavior; avoid comments that only
+  restate ordinary code.
 - Do not add new helpers back under the retired `src/lib` layout.
 
 ## Source and generated files

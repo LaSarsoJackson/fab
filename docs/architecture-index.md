@@ -20,6 +20,10 @@ Use this file to decide which note to read before making a change.
 - Changing where helpers or feature code should live:
   [codebase-structure.md](./codebase-structure.md)
 
+- Doing repo-wide maintainability work, adding comments, or consolidating
+  ownership:
+  [maintainability-playbook.md](./maintainability-playbook.md)
+
 - Adding FAB-only branding, data modules, tours, or presentation rules:
   [app-profile-architecture.md](./app-profile-architecture.md)
 
@@ -42,3 +46,4 @@ Use this file to decide which note to read before making a change.
 - section browse and section marker parity
 - tour stop matching and tour popup data
 - contributor-facing docs drifting away from current architecture
+- comments that describe old architecture after source consolidation

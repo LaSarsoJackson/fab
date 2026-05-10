@@ -1,3 +1,11 @@
+/*
+ * Global style contract for the shipped FAB app.
+ *
+ * Keep viewport tokens, Leaflet overrides, sidebar layout, popup styling, and
+ * mobile sheet rules here so component files only carry dynamic state styles.
+ * App.js owns the live viewport variables that compensate for mobile browser
+ * chrome and safe areas.
+ */
 :root {
   --app-height: 100vh;
   --app-width: 100vw;
@@ -97,6 +105,7 @@ select,
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Map canvas and marker primitives. */
 .map-container {
   position: relative;
   width: 100vw;
@@ -153,75 +162,7 @@ select,
   font-size: 16px;
 }
 
-.custom-map-surface {
-  position: relative;
-  overflow: hidden;
-}
-
-.custom-map-runtime {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  user-select: none;
-  touch-action: none;
-}
-
-.custom-map-runtime__tiles,
-.custom-map-runtime__canvas {
-  position: absolute;
-  inset: 0;
-}
-
-.custom-map-runtime__tiles,
-.custom-map-runtime__tile,
-.custom-map-runtime__canvas {
-  pointer-events: none;
-}
-
-.custom-map-runtime__tile {
-  position: absolute;
-  display: block;
-  object-fit: cover;
-}
-
-.custom-map-runtime__popup-shell {
-  position: absolute;
-  z-index: 1100;
-  pointer-events: auto;
-}
-
-.custom-map-runtime__popup-card {
-  position: relative;
-  border-radius: 18px;
-  border: 1px solid rgba(20, 33, 43, 0.1);
-  background: #fff;
-  box-shadow: 0 18px 44px rgba(20, 33, 43, 0.22);
-  overflow: hidden;
-}
-
-.custom-map-runtime__popup-anchor {
-  position: absolute;
-  left: var(--popup-anchor-x, 50%);
-  width: 18px;
-  height: 18px;
-  background: #fff;
-  border: 1px solid rgba(20, 33, 43, 0.1);
-  transform: translateX(-50%) rotate(45deg);
-  z-index: -1;
-}
-
-.custom-map-runtime__popup-shell[data-placement="top"] .custom-map-runtime__popup-anchor {
-  bottom: -9px;
-  border-left: 0;
-  border-top: 0;
-}
-
-.custom-map-runtime__popup-shell[data-placement="bottom"] .custom-map-runtime__popup-anchor {
-  top: -9px;
-  border-right: 0;
-  border-bottom: 0;
-}
-
+/* Sidebar shell, browse workspace, selection cards, and result-list chrome. */
 .left-sidebar {
   color: var(--text-main);
 }
@@ -938,6 +879,7 @@ select,
   background: rgba(255, 255, 255, 0.82);
 }
 
+/* Leaflet-rendered section labels, clusters, section affordances, and tour pins. */
 .leaflet-tooltip.section-label,
 .section-label {
   background: transparent !important;
@@ -991,10 +933,6 @@ select,
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.custom-cluster {
-  background: none !important;
 }
 
 .custom-cluster-icon {
@@ -1118,6 +1056,7 @@ select,
   color: var(--text-main);
 }
 
+/* Popup card styles are shared by Leaflet popups and selected-record cards. */
 .popup-card {
   min-width: 228px;
   max-width: min(272px, calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 44px));
@@ -1347,6 +1286,7 @@ select,
   margin-top: 0;
 }
 
+/* Third-party Leaflet controls and MUI autocomplete overlays. */
 .leaflet-top.leaflet-right .leaflet-control {
   margin-top: 12px;
   margin-right: 12px;
@@ -1405,6 +1345,7 @@ select,
   padding: 8px;
 }
 
+/* Mobile bottom-sheet layout. Keep map controls reachable while preserving safe areas. */
 @media (max-width: 1024px) {
   .left-sidebar--desktop {
     width: min(360px, calc(100vw - 24px));
@@ -1603,6 +1544,7 @@ select,
   }
 }
 
+/* Motion safety for visitors who request reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

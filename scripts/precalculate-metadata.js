@@ -16,6 +16,7 @@ import { buildBurialBrowseResult, buildTourBrowseResult } from "../src/features/
 import { normalizeName } from "../src/features/browse/burialSearch.js";
 import { TOUR_DEFINITIONS } from "../src/features/fab/profile.js";
 import { buildTourLookup } from "../src/features/tours/tourRecordHarmonization.js";
+import { hasValidGeoJsonCoordinates } from "../src/shared/geoJsonBounds.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -148,13 +149,26 @@ const buildNormalizedBurialEntries = (burialFeatures, { getTourName } = {}) => (
   }))
 );
 
+const getRenderableTourFeatures = (definition, module) => {
+  const features = module.default?.features || module.features || [];
+  const validFeatures = features.filter((feature) => hasValidGeoJsonCoordinates(feature));
+
+  if (validFeatures.length !== features.length) {
+    console.warn(
+      `Skipped ${features.length - validFeatures.length} invalid features while loading "${definition.name}" for build data.`
+    );
+  }
+
+  return validFeatures;
+};
+
 async function precalculate() {
   console.log('Loading TOUR_DEFINITIONS...');
   const loadedRecords = [];
   for (const definition of TOUR_DEFINITIONS) {
     console.log(`Loading tour: ${definition.name}`);
     const module = await definition.load();
-    const features = module.default?.features || module.features || [];
+    const features = getRenderableTourFeatures(definition, module);
     const browseResults = features.map((feature) => (
       buildTourBrowseResult(feature, {
         tourKey: definition.key,
@@ -208,9 +222,12 @@ async function precalculate() {
   console.log('Generating minified search index...');
   const searchBurials = normalizedBurialEntries.map(({ feature, properties, burialRecord }) => {
     const match = matches[burialRecord.id];
+    const sourceCoordinates = feature.geometry?.coordinates || null;
 
     // Runtime search downloads this compact shape, then rebuilds the full
-    // browse result. Keep keys short here because this file ships to visitors.
+    // browse result. Coordinates stay verbatim from the source record; any
+    // display-only spreading for exact stacks happens later in mapDomain.
+    // Keep keys short here because this file ships to visitors.
     return {
       i: properties.OBJECTID,
       f: cleanValue(properties.First_Name),
@@ -222,7 +239,7 @@ async function precalculate() {
       b: cleanValue(properties.Birth),
       d: cleanValue(properties.Death),
       tk: match ? match.tourKey : '',
-      c: feature.geometry?.coordinates || null,
+      c: sourceCoordinates,
       n: burialRecord.fullNameNormalized,
       sl: burialRecord.searchableLabelLower,
       nv: burialRecord.nameVariantsNormalized

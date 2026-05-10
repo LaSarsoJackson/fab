@@ -29,6 +29,7 @@
     "start:images": "python3 -m http.server 8000 --bind 127.0.0.1",
     "start:bun": "bun run start",
     "sync:profile-shell": "bun run scripts/sync-profile-shell.js",
+    "build:icons": "bun run scripts/generate-app-icons.js",
     "deploy": "bash ./scripts/deploy-production.sh",
     "build:tour-data": "bun run scripts/generate-tour-biography-aliases.js",
     "build:geoparquet": "bash ./scripts/migrations/geoparquet/generate_geoparquet.sh",

@@ -158,6 +158,8 @@ Start with these documents:
   architecture notes
 - [docs/codebase-structure.md](./docs/codebase-structure.md) for directory
   ownership and placement rules
+- [docs/maintainability-playbook.md](./docs/maintainability-playbook.md) for
+  repo-wide cleanup, comment policy, and source-of-truth boundaries
 - [docs/routing-architecture.md](./docs/routing-architecture.md) for client
   route, deep-link, in-app road routing, and external directions-link ownership
 - [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md) for the branch

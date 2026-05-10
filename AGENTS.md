@@ -13,6 +13,8 @@ Then read only the task-specific note you need:
 
 - [`docs/codebase-structure.md`](./docs/codebase-structure.md) for directory ownership
 - [`docs/map-architecture.md`](./docs/map-architecture.md) before touching `src/Map.jsx`
+- [`docs/maintainability-playbook.md`](./docs/maintainability-playbook.md) before repo-wide cleanup,
+  comment, or ownership work
 - [`docs/app-profile-architecture.md`](./docs/app-profile-architecture.md) before changing FAB-only app configuration
 - [`docs/dev-branch-workflow.md`](./docs/dev-branch-workflow.md) before changing development-only surfaces
 - [`docs/ui-principles.md`](./docs/ui-principles.md) before changing shared UI patterns
