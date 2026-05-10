@@ -85,6 +85,7 @@ const createBaseProps = () => ({
   activeRouteBurialId: null,
   burialDataError: "",
   burialRecords,
+  burialRecordsById: new Map(burialRecords.map((record) => [record.id, record])),
   fieldPacket: null,
   fieldPacketNotice: null,
   filterType: "lot",

@@ -8,12 +8,35 @@ import { cancelIdleTask, scheduleIdleTask } from "../../shared/runtimeEnv";
 
 /**
  * Owns the sidebar's derived browse state: current browse source, query,
- * incremental result limits, idle-result computation, and the small LRU cache
- * that keeps repeated section/tour searches responsive.
+ * incremental result limits, worker-backed full-cemetery search, and the small
+ * LRU cache that keeps repeated section/tour searches responsive.
  */
 export const DEFAULT_RESULT_LIMIT = 10;
 const ASYNC_BROWSE_RECORD_THRESHOLD = 5000;
 const BROWSE_RESULTS_CACHE_LIMIT = 24;
+let browseSearchWorkerFactoryPromise = null;
+
+const canUseBrowseSearchWorker = () => (
+  typeof window !== "undefined" &&
+  typeof window.Worker === "function"
+);
+
+const loadBrowseSearchWorkerFactory = () => {
+  if (!canUseBrowseSearchWorker()) {
+    return Promise.resolve(null);
+  }
+
+  if (!browseSearchWorkerFactoryPromise) {
+    browseSearchWorkerFactoryPromise = import("./browseSearchWorkerClient")
+      .then((module) => module.createBrowseSearchWorker)
+      .catch((error) => {
+        console.warn("Browse search worker unavailable; falling back to idle search.", error);
+        return null;
+      });
+  }
+
+  return browseSearchWorkerFactoryPromise;
+};
 
 const hasPinnedBrowseContext = ({
   browseQuery = "",
@@ -138,7 +161,9 @@ function usePreferredBrowseSource({
 
 function useDeferredBrowseResults({
   browseCacheKey,
+  browseQuery,
   burialRecords,
+  burialRecordsById,
   sectionRecordsOverride,
   computeBrowseResults,
   getTourName,
@@ -149,8 +174,184 @@ function useDeferredBrowseResults({
   tourResultsLength,
 }) {
   const browseResultsCacheRef = useRef(new Map());
+  const computeBrowseResultsRef = useRef(computeBrowseResults);
+  const recordsByIdRef = useRef(new Map());
+  const workerRef = useRef(null);
+  const workerRecordVersionRef = useRef(0);
+  const workerReadyVersionRef = useRef(0);
+  const latestWorkerRequestIdRef = useRef(0);
+  const pendingWorkerQueryRef = useRef(null);
+  const workerUnavailableRef = useRef(false);
   const [deferredBrowseResults, setDeferredBrowseResults] = useState([]);
   const [isBrowsePending, setIsBrowsePending] = useState(false);
+
+  useEffect(() => {
+    computeBrowseResultsRef.current = computeBrowseResults;
+  }, [computeBrowseResults]);
+
+  useEffect(() => {
+    recordsByIdRef.current = burialRecordsById || new Map(
+      burialRecords.map((record) => [record.id, record])
+    );
+  }, [burialRecords, burialRecordsById]);
+
+  const clearBrowseSearchWorker = useCallback(() => {
+    if (workerRef.current) {
+      workerRef.current.terminate();
+      workerRef.current = null;
+    }
+    workerReadyVersionRef.current = 0;
+    pendingWorkerQueryRef.current = null;
+  }, []);
+
+  const finishPendingWorkerQueryOnMainThread = useCallback((pendingQuery) => {
+    if (
+      !pendingQuery ||
+      pendingQuery.requestId !== latestWorkerRequestIdRef.current ||
+      pendingQuery.recordVersion !== workerRecordVersionRef.current
+    ) {
+      return;
+    }
+
+    const nextResults = computeBrowseResultsRef.current();
+    cacheBrowseResults(browseResultsCacheRef.current, pendingQuery.browseCacheKey, nextResults);
+    setDeferredBrowseResults(nextResults);
+    setIsBrowsePending(false);
+    pendingWorkerQueryRef.current = null;
+  }, []);
+
+  const postPendingWorkerQuery = useCallback(() => {
+    const worker = workerRef.current;
+    const pendingQuery = pendingWorkerQueryRef.current;
+
+    if (
+      !worker ||
+      !pendingQuery ||
+      workerReadyVersionRef.current !== pendingQuery.recordVersion
+    ) {
+      return;
+    }
+
+    worker.postMessage({
+      type: "query",
+      requestId: pendingQuery.requestId,
+      recordVersion: pendingQuery.recordVersion,
+      query: pendingQuery.query,
+    });
+  }, []);
+
+  const handleWorkerMessage = useCallback((event) => {
+    const message = event?.data || {};
+
+    if (message.recordVersion !== workerRecordVersionRef.current) {
+      return;
+    }
+
+    if (message.type === "ready") {
+      workerReadyVersionRef.current = message.recordVersion;
+      postPendingWorkerQuery();
+      return;
+    }
+
+    if (message.type === "results") {
+      const pendingQuery = pendingWorkerQueryRef.current;
+      if (
+        !pendingQuery ||
+        message.requestId !== pendingQuery.requestId ||
+        message.requestId !== latestWorkerRequestIdRef.current
+      ) {
+        return;
+      }
+
+      const recordsById = recordsByIdRef.current;
+      const nextResults = (message.resultIds || [])
+        .map((id) => recordsById.get(id))
+        .filter(Boolean);
+
+      cacheBrowseResults(browseResultsCacheRef.current, pendingQuery.browseCacheKey, nextResults);
+      setDeferredBrowseResults(nextResults);
+      setIsBrowsePending(false);
+      pendingWorkerQueryRef.current = null;
+      return;
+    }
+
+    if (message.type === "error" || message.type === "stale") {
+      workerUnavailableRef.current = true;
+      finishPendingWorkerQueryOnMainThread(pendingWorkerQueryRef.current);
+    }
+  }, [finishPendingWorkerQueryOnMainThread, postPendingWorkerQuery]);
+
+  const hydrateBrowseSearchWorker = useCallback((recordVersion) => {
+    if (!canUseBrowseSearchWorker()) {
+      workerUnavailableRef.current = true;
+      return undefined;
+    }
+
+    let cancelled = false;
+    workerUnavailableRef.current = false;
+
+    loadBrowseSearchWorkerFactory().then((createWorker) => {
+      if (cancelled || recordVersion !== workerRecordVersionRef.current) {
+        return;
+      }
+
+      if (!createWorker) {
+        workerUnavailableRef.current = true;
+        finishPendingWorkerQueryOnMainThread(pendingWorkerQueryRef.current);
+        return;
+      }
+
+      let worker;
+      try {
+        worker = createWorker();
+      } catch (error) {
+        console.warn("Browse search worker failed to start; falling back to idle search.", error);
+        workerUnavailableRef.current = true;
+        finishPendingWorkerQueryOnMainThread(pendingWorkerQueryRef.current);
+        return;
+      }
+
+      workerRef.current = worker;
+      worker.onmessage = handleWorkerMessage;
+      worker.onerror = () => {
+        const pendingQuery = pendingWorkerQueryRef.current;
+        workerUnavailableRef.current = true;
+        clearBrowseSearchWorker();
+        finishPendingWorkerQueryOnMainThread(pendingQuery);
+      };
+      worker.postMessage({
+        type: "hydrate",
+        recordVersion,
+        records: burialRecords,
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    burialRecords,
+    clearBrowseSearchWorker,
+    finishPendingWorkerQueryOnMainThread,
+    handleWorkerMessage,
+  ]);
+
+  const queueWorkerBrowseQuery = useCallback(({ query, browseCacheKey: nextBrowseCacheKey }) => {
+    if (!canUseBrowseSearchWorker() || workerUnavailableRef.current) {
+      return null;
+    }
+
+    const requestId = latestWorkerRequestIdRef.current + 1;
+    latestWorkerRequestIdRef.current = requestId;
+    pendingWorkerQueryRef.current = {
+      browseCacheKey: nextBrowseCacheKey,
+      query,
+      recordVersion: workerRecordVersionRef.current,
+      requestId,
+    };
+    postPendingWorkerQuery();
+    return requestId;
+  }, [postPendingWorkerQuery]);
 
   // Input collections are large and can be replaced wholesale after data
   // reloads, so cache invalidation follows object identity instead of trying
@@ -168,7 +369,29 @@ function useDeferredBrowseResults({
   ]);
 
   useEffect(() => {
+    workerRecordVersionRef.current += 1;
+    workerUnavailableRef.current = false;
+    setDeferredBrowseResults([]);
+    clearBrowseSearchWorker();
+
+    const recordVersion = workerRecordVersionRef.current;
+    if (burialRecords.length < ASYNC_BROWSE_RECORD_THRESHOLD) {
+      return undefined;
+    }
+
+    const cancelHydration = hydrateBrowseSearchWorker(recordVersion);
+    return () => {
+      if (typeof cancelHydration === "function") {
+        cancelHydration();
+      }
+      clearBrowseSearchWorker();
+    };
+  }, [burialRecords, clearBrowseSearchWorker, hydrateBrowseSearchWorker]);
+
+  useEffect(() => {
     if (!shouldDeferBrowseResults) {
+      latestWorkerRequestIdRef.current += 1;
+      pendingWorkerQueryRef.current = null;
       setIsBrowsePending(false);
       return undefined;
     }
@@ -183,9 +406,26 @@ function useDeferredBrowseResults({
     let cancelled = false;
     setIsBrowsePending(true);
 
-    // Full-cemetery searches can touch tens of thousands of records. Running
-    // them during idle time avoids blocking typing, drawer animation, and map
-    // interaction while still returning cached results immediately on repeats.
+    // Full-cemetery searches can touch tens of thousands of records. Prefer a
+    // dedicated worker so scoring does not compete with typing, drawer motion,
+    // or Leaflet interaction; the idle path remains the fallback for old
+    // browsers and test environments.
+    const workerRequestId = queueWorkerBrowseQuery({
+      browseCacheKey,
+      query: browseQuery,
+    });
+    if (workerRequestId) {
+      return () => {
+        cancelled = true;
+        if (
+          pendingWorkerQueryRef.current?.requestId === workerRequestId &&
+          latestWorkerRequestIdRef.current === workerRequestId
+        ) {
+          pendingWorkerQueryRef.current = null;
+        }
+      };
+    }
+
     const handle = scheduleIdleTask(() => {
       if (cancelled) {
         return;
@@ -208,7 +448,13 @@ function useDeferredBrowseResults({
       cancelled = true;
       cancelIdleTask(handle);
     };
-  }, [browseCacheKey, computeBrowseResults, shouldDeferBrowseResults]);
+  }, [
+    browseCacheKey,
+    browseQuery,
+    computeBrowseResults,
+    queueWorkerBrowseQuery,
+    shouldDeferBrowseResults,
+  ]);
 
   const browseResults = useMemo(
     () => (shouldDeferBrowseResults ? deferredBrowseResults : computeBrowseResults()),
@@ -225,6 +471,7 @@ export function useBurialSidebarBrowseState({
   initialBrowseSource,
   initialQuery,
   burialRecords,
+  burialRecordsById,
   sectionRecordsOverride,
   sectionIndex,
   searchIndex,
@@ -305,7 +552,9 @@ export function useBurialSidebarBrowseState({
   );
   const { browseResults, isBrowsePending } = useDeferredBrowseResults({
     browseCacheKey,
+    browseQuery,
     burialRecords,
+    burialRecordsById,
     computeBrowseResults,
     getTourName,
     searchIndex,

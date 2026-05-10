@@ -4039,6 +4039,7 @@ export default function BurialMap() {
           activeRouteBurialId={activeRouteBurialId}
           burialDataError={burialDataError}
           burialRecords={burialRecords}
+          burialRecordsById={burialRecordsById}
           fieldPacket={fieldPacket}
           fieldPacketNotice={fieldPacketNotice}
           filterType={filterType}
