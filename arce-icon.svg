@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ARCE Cemetery Explorer icon</title>
+  <desc id="desc">A green ARCE app mark with a cemetery arch and route path.</desc>
+  <rect width="512" height="512" rx="108" fill="#2f6b57"/>
+  <path d="M96 330C96 224 167 140 256 140s160 84 160 190v82H96z" fill="#f7f2e8"/>
+  <path d="M129 330C129 243 186 176 256 176s127 67 127 154v48H129z" fill="#dfe8e3"/>
+  <path d="M156 330C156 261 201 209 256 209s100 52 100 121v28H156z" fill="#f7f2e8"/>
+  <path d="M96 412h320" stroke="#18212b" stroke-width="24" stroke-linecap="round"/>
+  <path d="M96 330C96 224 167 140 256 140s160 84 160 190v82H96z" fill="none" stroke="#18212b" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M166 344c42-28 82 13 127-6 30-13 55-47 106-30 20 7 35 18 46 32" fill="none" stroke="#d7a844" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="166" cy="344" r="16" fill="#d7a844" stroke="#18212b" stroke-width="10"/>
+  <circle cx="445" cy="340" r="16" fill="#d7a844" stroke="#18212b" stroke-width="10"/>
+  <text x="256" y="291" text-anchor="middle" fill="#18212b" font-family="Manrope, Avenir Next, Arial, sans-serif" font-size="104" font-weight="850">ARCE</text>
+</svg>

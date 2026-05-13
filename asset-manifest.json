@@ -1,13 +1,12 @@
 {
   "files": {
-    "main.css": "/fab/static/css/main.6608692e.css",
-    "main.js": "/fab/static/js/main.d2c63d7b.js",
-    "static/css/621.6437563f.chunk.css": "/fab/static/css/621.6437563f.chunk.css",
-    "static/js/621.4e8d4c1c.chunk.js": "/fab/static/js/621.4e8d4c1c.chunk.js",
-    "static/js/254.0be38aca.chunk.js": "/fab/static/js/254.0be38aca.chunk.js",
+    "main.css": "/fab/static/css/main.57c06ec4.css",
+    "main.js": "/fab/static/js/main.0adfa1fb.js",
+    "static/css/309.6437563f.chunk.css": "/fab/static/css/309.6437563f.chunk.css",
+    "static/js/309.ca84d601.chunk.js": "/fab/static/js/309.ca84d601.chunk.js",
     "static/js/620.549c99d8.chunk.js": "/fab/static/js/620.549c99d8.chunk.js",
     "static/js/998.a33273bc.chunk.js": "/fab/static/js/998.a33273bc.chunk.js",
-    "static/js/843.2b011d67.chunk.js": "/fab/static/js/843.2b011d67.chunk.js",
+    "static/js/843.26f27277.chunk.js": "/fab/static/js/843.26f27277.chunk.js",
     "static/js/95.0850df7d.chunk.js": "/fab/static/js/95.0850df7d.chunk.js",
     "static/js/274.ed855673.chunk.js": "/fab/static/js/274.ed855673.chunk.js",
     "static/js/817.b67fae0e.chunk.js": "/fab/static/js/817.b67fae0e.chunk.js",
@@ -22,18 +21,14 @@
     "static/js/676.4f63d6f6.chunk.js": "/fab/static/js/676.4f63d6f6.chunk.js",
     "static/js/451.61d29932.chunk.js": "/fab/static/js/451.61d29932.chunk.js",
     "static/js/691.5bba1b87.chunk.js": "/fab/static/js/691.5bba1b87.chunk.js",
-    "static/js/281.7261622e.chunk.js": "/fab/static/js/281.7261622e.chunk.js",
     "static/js/354.9ac44a63.chunk.js": "/fab/static/js/354.9ac44a63.chunk.js",
-    "static/js/737.b251f6bb.chunk.js": "/fab/static/js/737.b251f6bb.chunk.js",
-    "static/js/658.fab1f1fe.chunk.js": "/fab/static/js/658.fab1f1fe.chunk.js",
-    "static/js/958.3f4ef357.chunk.js": "/fab/static/js/958.3f4ef357.chunk.js",
-    "static/js/362.3872a438.chunk.js": "/fab/static/js/362.3872a438.chunk.js",
-    "static/js/679.6fe3f3d2.chunk.js": "/fab/static/js/679.6fe3f3d2.chunk.js",
-    "static/js/106.aa4731ab.chunk.js": "/fab/static/js/106.aa4731ab.chunk.js",
+    "static/js/968.64fb62da.chunk.js": "/fab/static/js/968.64fb62da.chunk.js",
+    "static/js/250.cb57e982.chunk.js": "/fab/static/js/250.cb57e982.chunk.js",
+    "static/js/322.784a4d80.chunk.js": "/fab/static/js/322.784a4d80.chunk.js",
     "index.html": "/fab/index.html"
   },
   "entrypoints": [
-    "static/css/main.6608692e.css",
-    "static/js/main.d2c63d7b.js"
+    "static/css/main.57c06ec4.css",
+    "static/js/main.0adfa1fb.js"
   ]
 }

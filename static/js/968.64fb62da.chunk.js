@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkfab=self.webpackChunkfab||[]).push([[968],{7968:(e,r,s)=>{s.r(r),s.d(r,{createBrowseSearchWorker:()=>a});const a=()=>new Worker(new URL(s.p+s.u(250),s.b))}}]);
