@@ -47,8 +47,8 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
-    "test:watch": "bun test --watch src test",
-    "test:coverage": "bun test --coverage src test",
+    "test:watch": "rg --files src test -g '*.test.js' -0 | xargs -0 bun test --watch",
+    "test:coverage": "rg --files src test -g '*.test.js' -0 | xargs -0 bun test --coverage && node_modules/.bin/jest --config ./jest.dom.config.cjs --runInBand --coverage",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
