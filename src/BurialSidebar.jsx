@@ -37,6 +37,7 @@ import {
   MIN_BROWSE_QUERY_LENGTH,
 } from "./features/browse/browseResults";
 import { buildSharedSelectionPresentation } from "./features/fieldPackets";
+import { PopupCardStackNavigation } from "./features/map/popupCardContent";
 import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordPresentation";
 import { resolvePortraitImageName } from "./features/tours/tourDerivedData";
 import {
@@ -977,6 +978,7 @@ function SelectedPlaceCard({
   onRemoveSelectedBurial,
   onStartRouting,
   onStopRouting,
+  stackNavigation = null,
   tourStyle,
 }) {
   const popupView = useMemo(() => buildPopupViewModel(burial), [burial]);
@@ -1051,6 +1053,14 @@ function SelectedPlaceCard({
             <Box component="p" className="popup-card__eyebrow">
               {popupView.sourceLabel}
             </Box>
+          )}
+          {stackNavigation && (
+            <PopupCardStackNavigation
+              stackDescription={stackNavigation.description}
+              stackPositionLabel={stackNavigation.positionLabel}
+              onPreviousRecord={stackNavigation.onPrevious}
+              onNextRecord={stackNavigation.onNext}
+            />
           )}
           <Box component="h3" className="popup-card__title">
             {popupView.heading}
@@ -1258,6 +1268,7 @@ function SelectedSummaryPanel({
   onStartRouting,
   onStopRouting,
   onToggleExpanded,
+  selectedBurialCoordinateGroups = [],
   selectedBurialRefs,
   selectedBurials,
   tourStyles,
@@ -1275,6 +1286,25 @@ function SelectedSummaryPanel({
   const selectionSummaryLabel = "Pinned for focus & directions";
   const shouldShowSelectionToggle = isMobile && hasMultipleSelectedBurials;
   const shouldShowSecondarySelections = secondarySelectedBurials.length > 0 && (!isMobile || isExpanded);
+  const leadCoordinateGroup = selectedBurialCoordinateGroups.find((group) => (
+    group.recordIds.includes(leadBurial.id)
+  ));
+  const leadStackRecords = leadCoordinateGroup?.records || [];
+  const activeStackIndex = leadStackRecords.findIndex((record) => record.id === leadBurial.id);
+  const leadStackNavigation = isMobile && leadStackRecords.length > 1 && activeStackIndex >= 0
+    ? {
+        description: `${leadStackRecords.length} burial records at this marker`,
+        positionLabel: `${activeStackIndex + 1}/${leadStackRecords.length}`,
+        onPrevious: () => {
+          const previousIndex = (activeStackIndex - 1 + leadStackRecords.length) % leadStackRecords.length;
+          onFocusSelectedBurial(leadStackRecords[previousIndex]);
+        },
+        onNext: () => {
+          const nextIndex = (activeStackIndex + 1) % leadStackRecords.length;
+          onFocusSelectedBurial(leadStackRecords[nextIndex]);
+        },
+      }
+    : null;
 
   return (
     <Box
@@ -1350,6 +1380,7 @@ function SelectedSummaryPanel({
           onRemoveSelectedBurial={onRemoveSelectedBurial}
           onStartRouting={onStartRouting}
           onStopRouting={onStopRouting}
+          stackNavigation={leadStackNavigation}
           tourStyle={leadTourStyle}
         />
       ) : (
@@ -1657,6 +1688,7 @@ function BurialSidebar({
   sectionRecordsOverride,
   sectionIndex,
   sectionFilter,
+  selectedBurialCoordinateGroups = [],
   selectedBurialRefs,
   selectedBurials,
   selectedTour,
@@ -2286,11 +2318,14 @@ function BurialSidebar({
       onStartRouting={onStartRouting}
       onStopRouting={onStopRouting}
       onToggleExpanded={toggleSelectedSummary}
+      selectedBurialCoordinateGroups={selectedBurialCoordinateGroups}
       selectedBurialRefs={selectedBurialRefs}
       selectedBurials={selectedBurials}
       tourStyles={tourStyles}
     />
   ) : null;
+  const shouldShowSelectedSummaryPriority = Boolean(selectedSummaryContent)
+    && (!shouldShowBrowseResults || isMobile);
 
   const browseWorkspaceContent = (
     <BrowseWorkspacePanel
@@ -2323,7 +2358,7 @@ function BurialSidebar({
       onSectionSelection={handleSectionSelection}
       onToggleSectionMarkers={handleToggleSectionMarkers}
       onTourSelection={handleTourSelection}
-      priorityContent={shouldShowBrowseResults ? null : selectedSummaryContent}
+      priorityContent={shouldShowSelectedSummaryPriority ? selectedSummaryContent : null}
       resultsContent={browseResultsContent}
       searchPlaceholder={searchPlaceholder}
       searchShellNotices={searchShellNotices}

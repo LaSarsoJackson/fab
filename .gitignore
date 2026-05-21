@@ -40,3 +40,4 @@ yarn-error.log*
 build.zip
 /.playwright-cli
 /.clawpatch
+/.playwright-mcp

@@ -7,6 +7,7 @@ import BurialSidebar from "./BurialSidebar";
 import { APP_PROFILE } from "./features/fab/profile";
 import { buildBurialBrowseResult } from "./features/browse/browseResults";
 import { buildSearchIndex } from "./features/browse/burialSearch";
+import { buildRecordCoordinateGroups } from "./features/map/mapDomain";
 
 const mockBottomSheetState = { currentHeight: 0, lastProps: null, snapTo: jest.fn() };
 
@@ -128,6 +129,7 @@ const createBaseProps = () => ({
   onUpdateFieldPacket: jest.fn(),
   searchIndex: buildSearchIndex(burialRecords, { getTourName }),
   sectionFilter: "",
+  selectedBurialCoordinateGroups: [],
   selectedBurialRefs: { current: new Map() },
   selectedBurials: [],
   selectedTour: "",
@@ -403,6 +405,36 @@ describe("BurialSidebar", () => {
 
     expect(onStartRouting).toHaveBeenCalledWith(expect.objectContaining({ id: burialRecords[0].id }));
     expect(onOpenExternalDirections).toHaveBeenCalledWith(expect.objectContaining({ id: burialRecords[0].id }));
+  });
+
+  domTest("shows same-marker stack navigation in the compact mobile selection card while browse results are visible", () => {
+    const stackedSecondRecord = {
+      ...burialRecords[1],
+      coordinates: burialRecords[0].coordinates,
+    };
+    const onFocusSelectedBurial = jest.fn();
+
+    renderSidebar({
+      isMobile: true,
+      activeBurialId: burialRecords[0].id,
+      sectionFilter: "99",
+      selectedBurialCoordinateGroups: buildRecordCoordinateGroups([burialRecords[0], stackedSecondRecord]),
+      selectedBurials: [burialRecords[0], stackedSecondRecord],
+      showAllBurials: true,
+      onFocusSelectedBurial,
+    });
+
+    const selectedSummary = screen.getByText("Selection").closest(".left-sidebar__panel");
+
+    expect(within(selectedSummary).getByText("1/2")).toBeInTheDocument();
+
+    fireEvent.click(within(selectedSummary).getByRole("button", {
+      name: "Next burial record at this marker",
+    }));
+
+    expect(onFocusSelectedBurial).toHaveBeenCalledWith(expect.objectContaining({
+      id: stackedSecondRecord.id,
+    }));
   });
 
   domTest("renders tour portrait media in the compact mobile selection card", () => {
@@ -824,7 +856,7 @@ describe("BurialSidebar", () => {
     const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
     const selectedChip = within(browseWorkspace).getByText("2 selected");
     expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
-    expect(within(browseWorkspace).queryByText("Selection")).not.toBeInTheDocument();
+    expect(within(browseWorkspace).getByText("Selection")).toBeInTheDocument();
 
     fireEvent.click(within(selectedChip.closest(".left-sidebar__results-header")).getByRole("button", { name: "Clear selected" }));
 
@@ -929,7 +961,7 @@ describe("BurialSidebar", () => {
     ).toBeTruthy();
   });
 
-  domTest("keeps selected mobile state compact when browse results are active", () => {
+  domTest("keeps selected mobile actions available when browse results are active", () => {
     renderSidebar({
       isMobile: true,
       activeBurialId: burialRecords[0].id,
@@ -943,7 +975,7 @@ describe("BurialSidebar", () => {
     const searchInput = within(browseWorkspace).getByLabelText("Search burials");
     const selectedChip = within(browseWorkspace).getByText("1 selected");
 
-    expect(within(browseWorkspace).queryByText("Selection")).not.toBeInTheDocument();
+    expect(within(browseWorkspace).getByText("Selection")).toBeInTheDocument();
     expect(within(selectedChip.closest(".left-sidebar__results-header")).getByRole("button", { name: "Clear selected" })).toBeInTheDocument();
     expect(
       searchInput.compareDocumentPosition(selectedChip) & Node.DOCUMENT_POSITION_FOLLOWING

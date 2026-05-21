@@ -4090,6 +4090,7 @@ export default function BurialMap() {
           sectionRecordsOverride={sectionRecordsOverride}
           sectionIndex={burialSectionIndex}
           sectionFilter={sectionFilter}
+          selectedBurialCoordinateGroups={selectedBurialCoordinateGroups}
           selectedBurialRefs={selectedBurialRefs}
           selectedBurials={selectedBurials}
           selectedTour={selectedTour}
