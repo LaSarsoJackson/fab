@@ -24,9 +24,7 @@ const WALKING_SPEED_METERS_PER_SECOND = 1.4;
 const DEFAULT_NEARBY_NODE_CONNECTION_TOLERANCE_METERS = 1;
 
 export const DEFAULT_MAX_SNAP_DISTANCE_METERS = 250;
-export const DEFAULT_GET_TO_ROAD_MAX_ORIGIN_SNAP_DISTANCE_METERS = 1600;
-export const ROUTING_MODE_ROAD_NETWORK = "road-network";
-export const ROUTING_MODE_GET_TO_ROAD = "get-to-road";
+export const DEFAULT_MAX_ORIGIN_SNAP_DISTANCE_METERS = 1600;
 
 const createRoutingError = (message, { code = "", provider = "local", status = 0 } = {}) => {
   const error = new Error(message);
@@ -45,7 +43,7 @@ const isCoordinatePairValid = (value) => (
   Number.isFinite(Number(value[1]))
 );
 
-const createRouteFeatureCollection = (coordinates, { routingMode = ROUTING_MODE_ROAD_NETWORK } = {}) => ({
+const createRouteFeatureCollection = (coordinates) => ({
   type: "FeatureCollection",
   features: [
     {
@@ -53,7 +51,6 @@ const createRouteFeatureCollection = (coordinates, { routingMode = ROUTING_MODE_
       properties: {
         id: "active-route",
         kind: "walking-route",
-        routingMode,
       },
       geometry: {
         type: "LineString",
@@ -458,7 +455,6 @@ const calculateClientSideWalkingRoute = ({
   maxDestinationSnapDistanceMeters,
   maxOriginSnapDistanceMeters,
   roadGraph,
-  routingMode = ROUTING_MODE_ROAD_NETWORK,
   to,
   maxSnapDistanceMeters = DEFAULT_MAX_SNAP_DISTANCE_METERS,
 } = {}) => {
@@ -480,16 +476,9 @@ const calculateClientSideWalkingRoute = ({
     });
   }
 
-  const resolvedRoutingMode = routingMode === ROUTING_MODE_GET_TO_ROAD
-    ? ROUTING_MODE_GET_TO_ROAD
-    : ROUTING_MODE_ROAD_NETWORK;
   const resolvedOriginSnapDistanceMeters = Number.isFinite(Number(maxOriginSnapDistanceMeters))
     ? Number(maxOriginSnapDistanceMeters)
-    : (
-      resolvedRoutingMode === ROUTING_MODE_GET_TO_ROAD
-        ? DEFAULT_GET_TO_ROAD_MAX_ORIGIN_SNAP_DISTANCE_METERS
-        : maxSnapDistanceMeters
-    );
+    : DEFAULT_MAX_ORIGIN_SNAP_DISTANCE_METERS;
   const resolvedDestinationSnapDistanceMeters = Number.isFinite(Number(maxDestinationSnapDistanceMeters))
     ? Number(maxDestinationSnapDistanceMeters)
     : maxSnapDistanceMeters;
@@ -566,9 +555,7 @@ const calculateClientSideWalkingRoute = ({
     prependCoordinate(coordinates, rawFromCoordinate),
     rawToCoordinate
   );
-  const geojson = createRouteFeatureCollection(routeCoordinates, {
-    routingMode: resolvedRoutingMode,
-  });
+  const geojson = createRouteFeatureCollection(routeCoordinates);
 
   return {
     provider: "local",
@@ -585,7 +572,6 @@ export const calculateWalkingRoute = async ({
   maxOriginSnapDistanceMeters,
   maxSnapDistanceMeters,
   roadGraph,
-  routingMode,
   to,
 } = {}) => calculateClientSideWalkingRoute({
   from,
@@ -593,7 +579,6 @@ export const calculateWalkingRoute = async ({
   maxOriginSnapDistanceMeters,
   maxSnapDistanceMeters,
   roadGraph,
-  routingMode,
   to,
 });
 

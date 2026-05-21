@@ -8,7 +8,6 @@ import { APP_PROFILE } from "./features/fab/profile";
 import { buildBurialBrowseResult } from "./features/browse/browseResults";
 import { buildSearchIndex } from "./features/browse/burialSearch";
 import { buildRecordCoordinateGroups } from "./features/map/mapDomain";
-import { ROUTING_MODE_GET_TO_ROAD } from "./features/map/mapRouting";
 
 const mockBottomSheetState = { currentHeight: 0, lastProps: null, snapTo: jest.fn() };
 
@@ -406,9 +405,10 @@ describe("BurialSidebar", () => {
 
     expect(onStartRouting).toHaveBeenCalledWith(expect.objectContaining({ id: burialRecords[0].id }));
     expect(onOpenExternalDirections).toHaveBeenCalledWith(expect.objectContaining({ id: burialRecords[0].id }));
+    expect(within(selectedSummary).queryByRole("button", { name: "Get to road" })).not.toBeInTheDocument();
   });
 
-  domTest("uses a distinct mobile preview action for get-to-road routing", () => {
+  domTest("does not expose a separate get-to-road routing action", () => {
     const onStartRouting = jest.fn();
 
     renderSidebar({
@@ -420,12 +420,9 @@ describe("BurialSidebar", () => {
 
     const selectedSummary = screen.getByText("Selection").closest(".left-sidebar__panel");
 
-    fireEvent.click(within(selectedSummary).getByRole("button", { name: "Get to road" }));
-
-    expect(onStartRouting).toHaveBeenCalledWith(
-      expect.objectContaining({ id: burialRecords[0].id }),
-      { routingMode: ROUTING_MODE_GET_TO_ROAD }
-    );
+    expect(within(selectedSummary).queryByRole("button", { name: "Get to road" })).not.toBeInTheDocument();
+    fireEvent.click(within(selectedSummary).getByRole("button", { name: "Route on map" }));
+    expect(onStartRouting).toHaveBeenCalledWith(expect.objectContaining({ id: burialRecords[0].id }));
   });
 
   domTest("shows same-marker stack navigation in the compact mobile selection card while browse results are visible", () => {

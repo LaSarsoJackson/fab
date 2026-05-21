@@ -5,7 +5,6 @@ import {
   buildRoadRoutingGraph,
   calculateWalkingRoute,
   getRoutingErrorMessage,
-  ROUTING_MODE_GET_TO_ROAD,
   snapPointToRoadNetwork,
 } from "../src/features/map/mapRouting";
 
@@ -286,13 +285,12 @@ describe("map routing helpers", () => {
     });
   });
 
-  test("routes from an off-network origin to the nearest road when requested", async () => {
+  test("routes from an off-network origin to the nearest road by default", async () => {
     const roadGraph = buildRoadRoutingGraph(SIMPLE_ROADS);
     const route = await calculateWalkingRoute({
       roadGraph,
       from: [42.7005, -73.7375],
       to: [42.70908, -73.72157],
-      routingMode: ROUTING_MODE_GET_TO_ROAD,
     });
 
     const coordinates = route.geojson.features[0].geometry.coordinates;

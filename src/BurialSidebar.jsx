@@ -39,7 +39,6 @@ import {
 import { buildSharedSelectionPresentation } from "./features/fieldPackets";
 import { PopupCardStackNavigation } from "./features/map/popupCardContent";
 import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordPresentation";
-import { ROUTING_MODE_GET_TO_ROAD } from "./features/map/mapRouting";
 import { resolvePortraitImageName } from "./features/tours/tourDerivedData";
 import {
   MOBILE_SHEET_STATES,
@@ -1116,15 +1115,6 @@ function SelectedPlaceCard({
             >
               {isRouteActive ? "Stop route" : "Route on map"}
             </button>
-            {!isRouteActive && (
-              <button
-                type="button"
-                className="popup-card__action popup-card__action--secondary"
-                onClick={() => onStartRouting?.(burial, { routingMode: ROUTING_MODE_GET_TO_ROAD })}
-              >
-                Get to road
-              </button>
-            )}
             <button
               type="button"
               className="popup-card__action popup-card__action--secondary"
@@ -1239,15 +1229,6 @@ function SelectedPlaceCard({
           >
             {isRouteActive ? "Stop route" : "Route on map"}
           </button>
-          {!isRouteActive && (
-            <button
-              type="button"
-              className="popup-card__action popup-card__action--secondary"
-              onClick={() => onStartRouting?.(burial, { routingMode: ROUTING_MODE_GET_TO_ROAD })}
-            >
-              Get to road
-            </button>
-          )}
           <button
             type="button"
             className="popup-card__action popup-card__action--secondary"
