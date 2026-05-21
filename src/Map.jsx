@@ -133,7 +133,13 @@ import {
   PopupCardStackContent,
   createMapRecordKey,
 } from "./features/map/popupCardContent";
-import { calculateWalkingRoute, getRoutingErrorMessage, buildRoadRoutingGraph } from "./features/map/mapRouting";
+import {
+  buildRoadRoutingGraph,
+  calculateWalkingRoute,
+  getRoutingErrorMessage,
+  ROUTING_MODE_GET_TO_ROAD,
+  ROUTING_MODE_ROAD_NETWORK,
+} from "./features/map/mapRouting";
 import {
   buildFieldPacketShareUrl,
   buildFieldPacketState,
@@ -760,6 +766,7 @@ export default function BurialMap() {
   const [status, setStatus] = useState(LOCATION_MESSAGES.inactive);
   const [routingOrigin, setRoutingOrigin] = useState(null);
   const [routingDestination, setRoutingDestination] = useState(null);
+  const [routingMode, setRoutingMode] = useState(ROUTING_MODE_ROAD_NETWORK);
   const [routeGeoJson, setRouteGeoJson] = useState(null);
   const [isRouteLoading, setIsRouteLoading] = useState(false);
   const [routeError, setRouteError] = useState("");
@@ -2756,7 +2763,7 @@ export default function BurialMap() {
    * Starts the in-map cemetery-road route to a burial location.
    * External Apple/Google Maps directions are handled by openExternalDirections.
    */
-  const startRouting = useCallback(async (burial) => {
+  const startRouting = useCallback(async (burial, options = {}) => {
     if (!Array.isArray(burial?.coordinates)) {
       setStatus('Directions unavailable for this burial');
       return;
@@ -2780,6 +2787,9 @@ export default function BurialMap() {
     });
 
     setRouteError("");
+    setRoutingMode(options?.routingMode === ROUTING_MODE_GET_TO_ROAD
+      ? ROUTING_MODE_GET_TO_ROAD
+      : ROUTING_MODE_ROAD_NETWORK);
     setRoutingOrigin([location.latitude, location.longitude]);
     setRoutingDestination([burial.coordinates[1], burial.coordinates[0]]);
     activeRouteBurialIdRef.current = burial.id;
@@ -2798,6 +2808,7 @@ export default function BurialMap() {
   const stopRouting = useCallback(() => {
     setRoutingOrigin(null);
     setRoutingDestination(null);
+    setRoutingMode(ROUTING_MODE_ROAD_NETWORK);
     setRouteGeoJson(null);
     setIsRouteLoading(false);
     setRouteError("");
@@ -2859,6 +2870,7 @@ export default function BurialMap() {
     void calculateWalkingRoute({
       from: routingOrigin,
       roadGraph: roadRoutingGraph,
+      routingMode,
       to: routingDestination,
     }).then((routeResult) => {
       if (ignore) {
@@ -2892,6 +2904,7 @@ export default function BurialMap() {
       setRouteGeoJson(null);
       setRoutingOrigin(null);
       setRoutingDestination(null);
+      setRoutingMode(ROUTING_MODE_ROAD_NETWORK);
       activeRouteBurialIdRef.current = null;
       renderedRouteDestinationRef.current = null;
       setActiveRouteBurialId(null);
@@ -2905,6 +2918,7 @@ export default function BurialMap() {
     getMapInstance,
     roadRoutingGraph,
     routingDestination,
+    routingMode,
     routingOrigin,
     sectionBurialIndividualMarkerMinZoom,
   ]);
@@ -4182,6 +4196,19 @@ export default function BurialMap() {
                 <DirectionsIcon fontSize="small" sx={{ mr: 1 }} />
                 {activeRouteBurialId === directionsMenuBurial.id ? 'Stop Route' : 'Route on Map'}
               </MenuItem>,
+              activeRouteBurialId !== directionsMenuBurial.id ? (
+                <MenuItem
+                  key="get-to-road"
+                  onClick={async () => {
+                    const burial = directionsMenuBurial;
+                    handleCloseDirectionsMenu();
+                    await startRouting(burial, { routingMode: ROUTING_MODE_GET_TO_ROAD });
+                  }}
+                >
+                  <DirectionsIcon fontSize="small" sx={{ mr: 1 }} />
+                  Get to road
+                </MenuItem>
+              ) : null,
               <MenuItem
                 key="external"
                 onClick={() => {

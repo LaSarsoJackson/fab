@@ -8,6 +8,7 @@ import { APP_PROFILE } from "./features/fab/profile";
 import { buildBurialBrowseResult } from "./features/browse/browseResults";
 import { buildSearchIndex } from "./features/browse/burialSearch";
 import { buildRecordCoordinateGroups } from "./features/map/mapDomain";
+import { ROUTING_MODE_GET_TO_ROAD } from "./features/map/mapRouting";
 
 const mockBottomSheetState = { currentHeight: 0, lastProps: null, snapTo: jest.fn() };
 
@@ -405,6 +406,26 @@ describe("BurialSidebar", () => {
 
     expect(onStartRouting).toHaveBeenCalledWith(expect.objectContaining({ id: burialRecords[0].id }));
     expect(onOpenExternalDirections).toHaveBeenCalledWith(expect.objectContaining({ id: burialRecords[0].id }));
+  });
+
+  domTest("uses a distinct mobile preview action for get-to-road routing", () => {
+    const onStartRouting = jest.fn();
+
+    renderSidebar({
+      isMobile: true,
+      activeBurialId: burialRecords[0].id,
+      selectedBurials: [burialRecords[0]],
+      onStartRouting,
+    });
+
+    const selectedSummary = screen.getByText("Selection").closest(".left-sidebar__panel");
+
+    fireEvent.click(within(selectedSummary).getByRole("button", { name: "Get to road" }));
+
+    expect(onStartRouting).toHaveBeenCalledWith(
+      expect.objectContaining({ id: burialRecords[0].id }),
+      { routingMode: ROUTING_MODE_GET_TO_ROAD }
+    );
   });
 
   domTest("shows same-marker stack navigation in the compact mobile selection card while browse results are visible", () => {

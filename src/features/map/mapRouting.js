@@ -24,6 +24,9 @@ const WALKING_SPEED_METERS_PER_SECOND = 1.4;
 const DEFAULT_NEARBY_NODE_CONNECTION_TOLERANCE_METERS = 1;
 
 export const DEFAULT_MAX_SNAP_DISTANCE_METERS = 250;
+export const DEFAULT_GET_TO_ROAD_MAX_ORIGIN_SNAP_DISTANCE_METERS = 1600;
+export const ROUTING_MODE_ROAD_NETWORK = "road-network";
+export const ROUTING_MODE_GET_TO_ROAD = "get-to-road";
 
 const createRoutingError = (message, { code = "", provider = "local", status = 0 } = {}) => {
   const error = new Error(message);
@@ -42,7 +45,7 @@ const isCoordinatePairValid = (value) => (
   Number.isFinite(Number(value[1]))
 );
 
-const createRouteFeatureCollection = (coordinates) => ({
+const createRouteFeatureCollection = (coordinates, { routingMode = ROUTING_MODE_ROAD_NETWORK } = {}) => ({
   type: "FeatureCollection",
   features: [
     {
@@ -50,6 +53,7 @@ const createRouteFeatureCollection = (coordinates) => ({
       properties: {
         id: "active-route",
         kind: "walking-route",
+        routingMode,
       },
       geometry: {
         type: "LineString",
@@ -451,7 +455,10 @@ export const snapPointToRoadNetwork = (lat, lng, roadGraph, options = {}) => {
 
 const calculateClientSideWalkingRoute = ({
   from,
+  maxDestinationSnapDistanceMeters,
+  maxOriginSnapDistanceMeters,
   roadGraph,
+  routingMode = ROUTING_MODE_ROAD_NETWORK,
   to,
   maxSnapDistanceMeters = DEFAULT_MAX_SNAP_DISTANCE_METERS,
 } = {}) => {
@@ -473,11 +480,25 @@ const calculateClientSideWalkingRoute = ({
     });
   }
 
+  const resolvedRoutingMode = routingMode === ROUTING_MODE_GET_TO_ROAD
+    ? ROUTING_MODE_GET_TO_ROAD
+    : ROUTING_MODE_ROAD_NETWORK;
+  const resolvedOriginSnapDistanceMeters = Number.isFinite(Number(maxOriginSnapDistanceMeters))
+    ? Number(maxOriginSnapDistanceMeters)
+    : (
+      resolvedRoutingMode === ROUTING_MODE_GET_TO_ROAD
+        ? DEFAULT_GET_TO_ROAD_MAX_ORIGIN_SNAP_DISTANCE_METERS
+        : maxSnapDistanceMeters
+    );
+  const resolvedDestinationSnapDistanceMeters = Number.isFinite(Number(maxDestinationSnapDistanceMeters))
+    ? Number(maxDestinationSnapDistanceMeters)
+    : maxSnapDistanceMeters;
+
   const startSnap = snapPointToRoadNetwork(from[0], from[1], roadGraph, {
-    maxSnapDistanceMeters,
+    maxSnapDistanceMeters: resolvedOriginSnapDistanceMeters,
   });
   const endSnap = snapPointToRoadNetwork(to[0], to[1], roadGraph, {
-    maxSnapDistanceMeters,
+    maxSnapDistanceMeters: resolvedDestinationSnapDistanceMeters,
   });
 
   if (!startSnap || !endSnap) {
@@ -535,6 +556,9 @@ const calculateClientSideWalkingRoute = ({
 
   const rawFromCoordinate = [Number(from[1]), Number(from[0])];
   const rawToCoordinate = [Number(to[1]), Number(to[0])];
+  const endpointConnectorDistanceMeters =
+    haversineDistanceMeters(rawFromCoordinate, startSnap.coordinate) +
+    haversineDistanceMeters(endSnap.coordinate, rawToCoordinate);
   // Include the unsnapped start/end coordinates so the drawn line visibly
   // begins at the user's fix and ends at the selected burial, while the middle
   // still follows the nearest cemetery roads.
@@ -542,12 +566,14 @@ const calculateClientSideWalkingRoute = ({
     prependCoordinate(coordinates, rawFromCoordinate),
     rawToCoordinate
   );
-  const geojson = createRouteFeatureCollection(routeCoordinates);
+  const geojson = createRouteFeatureCollection(routeCoordinates, {
+    routingMode: resolvedRoutingMode,
+  });
 
   return {
     provider: "local",
-    distance: distanceMeters,
-    time: (distanceMeters / WALKING_SPEED_METERS_PER_SECOND) * 1000,
+    distance: distanceMeters + endpointConnectorDistanceMeters,
+    time: ((distanceMeters + endpointConnectorDistanceMeters) / WALKING_SPEED_METERS_PER_SECOND) * 1000,
     geojson,
     bounds: getGeoJsonBounds(geojson),
   };
@@ -555,13 +581,19 @@ const calculateClientSideWalkingRoute = ({
 
 export const calculateWalkingRoute = async ({
   from,
+  maxDestinationSnapDistanceMeters,
+  maxOriginSnapDistanceMeters,
   maxSnapDistanceMeters,
   roadGraph,
+  routingMode,
   to,
 } = {}) => calculateClientSideWalkingRoute({
   from,
+  maxDestinationSnapDistanceMeters,
+  maxOriginSnapDistanceMeters,
   maxSnapDistanceMeters,
   roadGraph,
+  routingMode,
   to,
 });
 
