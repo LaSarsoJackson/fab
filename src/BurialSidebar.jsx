@@ -1746,12 +1746,10 @@ function BurialSidebar({
     selectedTour && loadingTourName === selectedTour && tourResults.length === 0
   );
   const sidebarScrollRef = useRef(null);
-  const previousActiveBurialIdRef = useRef(activeBurialId);
-  const previousSectionFilterRef = useRef(sectionFilter);
-  const previousSelectedTourRef = useRef(selectedTour);
-  const previousSelectionSignatureRef = useRef(
-    selectedBurials.map((record) => record.id).sort().join("|")
-  );
+  const previousActiveBurialIdRef = useRef(null);
+  const previousSectionFilterRef = useRef("");
+  const previousSelectedTourRef = useRef("");
+  const previousSelectionSignatureRef = useRef("");
 
   const setSidebarRootNode = useCallback((node) => {
     // `react-spring-bottom-sheet` owns part of the mobile DOM tree, so the map
@@ -2323,7 +2321,7 @@ function BurialSidebar({
       onSectionSelection={handleSectionSelection}
       onToggleSectionMarkers={handleToggleSectionMarkers}
       onTourSelection={handleTourSelection}
-      priorityContent={shouldShowBrowseResults ? null : selectedSummaryContent}
+      priorityContent={selectedSummaryContent}
       resultsContent={browseResultsContent}
       searchPlaceholder={searchPlaceholder}
       searchShellNotices={searchShellNotices}

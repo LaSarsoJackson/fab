@@ -64,6 +64,19 @@ describe("app profile", () => {
     expect(geoParquetArtifact.buildCommand).toBe("bun run build:geoparquet");
   });
 
+  test("keeps the full burial source out of browser data-module loaders", () => {
+    const burialModule = DATA_MODULES.find(
+      (definition) => definition.id === APP_PROFILE.moduleIds.primaryRecord
+    );
+    const searchArtifact = APP_PROFILE.map.optimizationArtifacts.find(
+      (artifact) => artifact.id === burialModule.deliveryArtifactId
+    );
+
+    expect(burialModule.sourcePath).toBe("src/data/Geo_Burials.json");
+    expect(burialModule.load).toBeUndefined();
+    expect(searchArtifact.publicPath).toBe("/data/Search_Burials.json");
+  });
+
   test("keeps default and imagery extents covering the generated cemetery boundary", () => {
     expect(boundsContain(APP_PROFILE.map.defaultViewBounds, BOUNDARY_BOUNDS)).toBe(true);
     expect(boundsContain(APP_PROFILE.map.paddedBoundaryBounds, BOUNDARY_BOUNDS)).toBe(true);

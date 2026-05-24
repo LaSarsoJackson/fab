@@ -264,7 +264,8 @@ test.describe("desktop", () => {
     await page.getByRole("option", { name: "Section 215" }).click();
     await expect(sectionInput).toHaveValue("Section 215");
     await expect(browseSearchInput).toHaveAttribute("placeholder", "Search this section");
-    await expect(sectionBrowseDetail).toContainText("Refine Section 215");
+    await expect(sectionBrowseDetail.getByRole("heading", { name: "Refine" })).toBeVisible();
+    await expect(page.locator(".left-sidebar__panel--browse")).toContainText("114 results");
 
     const markerToggle = sectionBrowseDetail.getByRole("button", { name: /section markers/i });
     await expect(markerToggle).toBeVisible();
@@ -283,7 +284,7 @@ test.describe("desktop", () => {
     await sectionBrowseDetail.getByRole("button", { name: "Clear" }).click();
     await expect(sectionInput).toHaveValue("");
     await expect(browseSearchInput).toHaveAttribute("placeholder", "Select a section to browse");
-    await expect(sectionBrowseDetail).not.toContainText("Refine Section 215");
+    await expect(sectionBrowseDetail.getByRole("heading", { name: "Refine" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Show section markers" })).toHaveCount(0);
   });
 

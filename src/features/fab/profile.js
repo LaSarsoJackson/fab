@@ -191,14 +191,17 @@ const buildCoreDataModule = (definition) => ({
 
 const CORE_DATA_MODULES = [
   // Data modules are the profile-level source registry used by runtime loading,
-  // artifact generation, and contributor docs.
+  // artifact generation, and contributor docs. The full burial source is kept
+  // metadata-only here because runtime browse uses the generated public search
+  // payload; importing the source GeoJSON would make webpack emit it as a giant
+  // JavaScript chunk.
   buildCoreDataModule({
     id: "burials",
     label: "Burials",
     description: "Burial records used by search and map browsing.",
     fileName: "Geo_Burials.json",
     sourcePath: "src/data/Geo_Burials.json",
-    load: () => import("../../data/Geo_Burials.json"),
+    deliveryArtifactId: "burials-search-index",
   }),
   buildCoreDataModule({
     id: "sections",
@@ -484,6 +487,10 @@ export const getDataModule = (moduleId) => (
 );
 
 export const loadDataModule = async (moduleDefinition) => {
+  if (typeof moduleDefinition?.load !== "function") {
+    throw new Error(`Data module ${moduleDefinition?.id || "unknown"} does not declare a runtime loader.`);
+  }
+
   const loaded = await moduleDefinition.load();
   return loaded.default || loaded;
 };

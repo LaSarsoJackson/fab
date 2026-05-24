@@ -823,8 +823,12 @@ describe("BurialSidebar", () => {
 
     const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
     const selectedChip = within(browseWorkspace).getByText("2 selected");
+    const selectionPanel = within(browseWorkspace).getByText("Selection").closest(".left-sidebar__panel--selected-summary");
+
+    expect(selectionPanel).not.toBeNull();
+    expect(within(selectionPanel).getByText("Pinned for focus & directions")).toBeInTheDocument();
+    expect(within(selectionPanel).getByRole("button", { name: "Route on map" })).toBeInTheDocument();
     expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
-    expect(within(browseWorkspace).queryByText("Selection")).not.toBeInTheDocument();
 
     fireEvent.click(within(selectedChip.closest(".left-sidebar__results-header")).getByRole("button", { name: "Clear selected" }));
 
@@ -909,13 +913,15 @@ describe("BurialSidebar", () => {
 
     const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
     const selectedChip = within(browseWorkspace).getByText("2 selected");
+    const selectionPanel = within(browseWorkspace).getByText("Selection").closest(".left-sidebar__panel--selected-summary");
     expect(within(browseWorkspace).getByText("Selected records")).toBeInTheDocument();
     expect(within(browseWorkspace).queryByText("3 results")).not.toBeInTheDocument();
     const resultsList = within(browseWorkspace)
       .getAllByRole("list")
       .find((list) => !list.closest(".left-sidebar__selected-scroll"));
 
-    expect(within(browseWorkspace).queryByText("Selection")).not.toBeInTheDocument();
+    expect(selectionPanel).not.toBeNull();
+    expect(within(selectionPanel).getAllByRole("button", { name: "Directions" }).length).toBeGreaterThan(0);
     expect(resultsList).not.toBeNull();
     expect(within(resultsList).queryByText("Clara Section")).not.toBeInTheDocument();
     const thomasResult = within(resultsList).getByText("Thomas Tracy");
@@ -942,9 +948,15 @@ describe("BurialSidebar", () => {
     const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
     const searchInput = within(browseWorkspace).getByLabelText("Search burials");
     const selectedChip = within(browseWorkspace).getByText("1 selected");
+    const selectionHeading = within(browseWorkspace).getByText("Selection");
+    const selectionPanel = selectionHeading.closest(".left-sidebar__panel--selected-summary");
 
-    expect(within(browseWorkspace).queryByText("Selection")).not.toBeInTheDocument();
+    expect(selectionPanel).not.toBeNull();
+    expect(within(selectionPanel).getByRole("button", { name: "Route on map" })).toBeInTheDocument();
     expect(within(selectedChip.closest(".left-sidebar__results-header")).getByRole("button", { name: "Clear selected" })).toBeInTheDocument();
+    expect(
+      selectionHeading.compareDocumentPosition(searchInput) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(
       searchInput.compareDocumentPosition(selectedChip) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
@@ -965,7 +977,7 @@ describe("BurialSidebar", () => {
     expect(selectionPanel.closest(".left-sidebar__browse-workspace")).toBe(browseWorkspace);
   });
 
-  domTest("keeps desktop selected lists out of the browse-results flow", () => {
+  domTest("keeps desktop selected actions visible above browse results", () => {
     const crowdedSelection = Array.from({ length: 8 }, (_, index) => ({
       ...burialRecords[index % burialRecords.length],
       id: `selected-${index}`,
@@ -980,9 +992,11 @@ describe("BurialSidebar", () => {
     flushBrowseTimers();
 
     const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const selectionPanel = within(browseWorkspace).getByText("Selection").closest(".left-sidebar__panel--selected-summary");
 
-    expect(within(browseWorkspace).queryByText("Selection")).not.toBeInTheDocument();
-    expect(browseWorkspace.querySelector(".left-sidebar__selected-scroll")).toBeNull();
+    expect(selectionPanel).not.toBeNull();
+    expect(within(selectionPanel).getAllByRole("button", { name: "Directions" }).length).toBeGreaterThan(0);
+    expect(selectionPanel.querySelector(".left-sidebar__selected-scroll")).not.toBeNull();
     expect(within(browseWorkspace).getByText("8 selected")).toBeInTheDocument();
     expect(browseWorkspace).not.toBeNull();
     expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
