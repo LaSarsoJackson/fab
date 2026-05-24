@@ -276,7 +276,7 @@ select,
 }
 
 .left-sidebar__selection-action.MuiButton-root {
-  min-height: 40px;
+  min-height: 44px;
   border-radius: 999px;
   padding-inline: 16px;
   font-weight: 700;
@@ -401,6 +401,38 @@ select,
     radial-gradient(120% 120% at 0% 0%, rgba(255, 255, 255, 0.18), transparent 58%);
 }
 
+.left-sidebar__visit-status {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(20, 33, 43, 0.08);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.76),
+    0 8px 16px rgba(20, 33, 43, 0.05);
+}
+
+.left-sidebar__visit-status--active {
+  border-color: rgba(47, 107, 87, 0.18);
+  background: rgba(217, 232, 224, 0.78);
+}
+
+.left-sidebar__visit-status-label {
+  color: var(--muted-text);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.left-sidebar__visit-status-detail {
+  color: var(--text-main);
+  font-size: 0.84rem;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .left-sidebar .MuiDivider-root {
   border-color: rgba(20, 33, 43, 0.08);
   opacity: 0.8;
@@ -477,6 +509,81 @@ select,
 
 .left-sidebar__browse-toolbar {
   align-items: center;
+}
+
+.left-sidebar__visit-flow {
+  display: grid;
+  gap: 8px;
+}
+
+.left-sidebar__visit-flow-label {
+  color: var(--muted-text);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.left-sidebar__visit-tasks {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr;
+}
+
+.left-sidebar__visit-task.MuiButton-root {
+  justify-content: flex-start;
+  align-items: center;
+  min-width: 0;
+  min-height: 58px;
+  padding: 9px 11px;
+  border-radius: 16px;
+  border: 1px solid rgba(20, 33, 43, 0.08);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--text-main);
+  text-align: left;
+  text-transform: none;
+  box-shadow:
+    0 8px 18px rgba(20, 33, 43, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+.left-sidebar__visit-task.MuiButton-root:hover {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.left-sidebar__visit-task.MuiButton-root .MuiButton-startIcon {
+  flex-shrink: 0;
+  margin-right: 10px;
+  color: var(--muted-text);
+}
+
+.left-sidebar__visit-task-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.left-sidebar__visit-task-label {
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.left-sidebar__visit-task-detail {
+  color: var(--muted-text);
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.left-sidebar__visit-task--active.MuiButton-root {
+  border-color: rgba(47, 107, 87, 0.18);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.left-sidebar__visit-task--active.MuiButton-root .MuiButton-startIcon,
+.left-sidebar__visit-task--active .left-sidebar__visit-task-detail {
+  color: var(--accent-strong);
 }
 
 .left-sidebar__browse-contexts {
@@ -1424,7 +1531,7 @@ select,
   appearance: none;
   border: 1px solid transparent;
   border-radius: 999px;
-  min-height: 36px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1516,7 +1623,7 @@ select,
 
 .left-sidebar__selected-place-card-actions {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7.75rem), 1fr));
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: stretch;
 }
 
@@ -1685,6 +1792,19 @@ select,
   padding-bottom: 0.6rem;
 }
 
+.left-sidebar__mobile-body[data-mobile-sheet-state="collapsed"] .left-sidebar__visit-status {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.left-sidebar__mobile-body[data-mobile-sheet-state="collapsed"] .left-sidebar__visit-status-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .left-sidebar__mobile-body[data-mobile-sheet-state="collapsed"] .left-sidebar__sheet-header .MuiTypography-overline {
   display: none;
 }
@@ -1727,6 +1847,10 @@ select,
 
 .left-sidebar--mobile .left-sidebar__browse-segmented {
   min-width: 100%;
+}
+
+.left-sidebar--mobile .left-sidebar__visit-task.MuiButton-root {
+  min-height: 60px;
 }
 
 .left-sidebar--mobile .left-sidebar__results-header {

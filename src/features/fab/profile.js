@@ -434,11 +434,11 @@ export const APP_PROFILE = {
       // Surfaced when only a coarse (network/Wi-Fi or low-accuracy GPS) fix
       // has been accepted. The shell continues watching for a better fix.
       approximate: "Approximate location (improving signal...)",
-      unsupported: "GPS is not supported in this browser. Search by name or section, or use Open in Maps.",
+      unsupported: "GPS is not supported in this browser. Search by name or section, then tap Navigate.",
       unavailable: "GPS is unavailable. Check signal and permissions, or search by name or section.",
       permissionDenied: "Location permission denied. Enable it in your browser/OS settings, or search by name or section.",
-      outOfBounds: `Location is outside cemetery range. Search still works; use Open in Maps for off-site directions.`,
-      routeLocationRequired: `Route on Map needs your current location near ${FAB_SITE_NAME}. Use Open in Maps for directions from farther away.`,
+      outOfBounds: `Search still works. Tap Navigate for driving directions to ${FAB_SITE_NAME}.`,
+      routeLocationRequired: `Continue with Maps for now. On-site navigation will start when you arrive.`,
     },
     defaultBasemapId: "imagery",
     basemaps: MAP_BASEMAPS,

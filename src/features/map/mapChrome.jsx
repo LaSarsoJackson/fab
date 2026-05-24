@@ -972,12 +972,18 @@ export function MobileLocateButton({ isMobile, onLocate }) {
   );
 }
 
-export function RouteStatusOverlay({ isCalculating, isMobile = false, routingError }) {
-  if (!isCalculating && !routingError) {
+export function RouteStatusOverlay({
+  isCalculating,
+  isMobile = false,
+  routingError,
+  routingNotice = "",
+}) {
+  if (!isCalculating && !routingError && !routingNotice) {
     return null;
   }
 
   const isError = Boolean(routingError);
+  const message = routingError || routingNotice || "Starting on-site navigation...";
   const placementSx = isMobile
     ? {
         top: "calc(env(safe-area-inset-top, 0px) + 10px)",
@@ -1035,7 +1041,7 @@ export function RouteStatusOverlay({ isCalculating, isMobile = false, routingErr
           overflowWrap: "anywhere",
         }}
       >
-        {isError ? routingError : "Calculating route..."}
+        {message}
       </Typography>
     </Paper>
   );

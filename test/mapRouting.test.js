@@ -5,6 +5,7 @@ import {
   buildRoadRoutingGraph,
   calculateWalkingRoute,
   getRoutingErrorMessage,
+  isCoordinateNearRoadNetwork,
   snapPointToRoadNetwork,
 } from "../src/features/map/mapRouting";
 
@@ -271,6 +272,13 @@ describe("map routing helpers", () => {
     expect(snap.lng).toBeCloseTo(-73.73195, 3);
   });
 
+  test("checks practical on-site routing readiness by road-network snap distance", () => {
+    const roadGraph = buildRoadRoutingGraph(SIMPLE_ROADS);
+
+    expect(isCoordinateNearRoadNetwork([42.7042, -73.73195], roadGraph)).toBe(true);
+    expect(isCoordinateNearRoadNetwork([42.72, -73.75], roadGraph)).toBe(false);
+  });
+
   test("reports an on-site routing error when an endpoint is outside the cemetery road network", async () => {
     const roadGraph = buildRoadRoutingGraph(SIMPLE_ROADS);
 
@@ -300,10 +308,8 @@ describe("map routing helpers", () => {
   test("surfaces local routing errors with user-facing copy", () => {
     expect(getRoutingErrorMessage({
       code: "LOCAL_ROUTING_OUT_OF_RANGE",
-    })).toBe("Local road routing only works near the cemetery road network.");
-    expect(getRoutingErrorMessage({})).toBe(
-      "Unable to calculate route. The locations might be inaccessible by foot or too far apart."
-    );
+    })).toBe("Continue with Maps for now. On-site navigation will start when you arrive.");
+    expect(getRoutingErrorMessage({})).toBe("Unable to start on-site navigation. Try Navigate again.");
     expect(getRoutingErrorMessage(new Error("No route found"))).toBe("No route found");
   });
 });

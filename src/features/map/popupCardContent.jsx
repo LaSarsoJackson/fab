@@ -15,7 +15,7 @@ export const createMapRecordKey = (record, index = 0) => (
 
 export function PopupCardContent({
   record,
-  onOpenDirectionsMenu,
+  onNavigate,
   onRemove,
   getPopup,
   schedulePopupLayout,
@@ -198,10 +198,10 @@ export function PopupCardContent({
           className="popup-card__action popup-card__action--primary"
           onClick={(event) => {
             stopMapInteractionPropagation(event);
-            onOpenDirectionsMenu?.(event);
+            onNavigate?.(event);
           }}
         >
-          Directions
+          Navigate
         </button>
         <button
           type="button"
@@ -221,7 +221,7 @@ export function PopupCardContent({
 export function PopupCardStackContent({
   activeRecordId = "",
   getPopup,
-  onOpenDirectionsMenu,
+  onNavigate,
   onRemove,
   onSelectRecord,
   records = [],
@@ -289,7 +289,7 @@ export function PopupCardStackContent({
   return (
     <PopupCardContent
       record={activeRecord}
-      onOpenDirectionsMenu={(event) => onOpenDirectionsMenu?.(event, activeRecord)}
+      onNavigate={(event) => onNavigate?.(event, activeRecord)}
       onRemove={() => onRemove?.(activeRecord)}
       getPopup={getPopup}
       schedulePopupLayout={schedulePopupLayout}

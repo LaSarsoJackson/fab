@@ -15,12 +15,12 @@ describe("mobile sheet state helpers", () => {
     })).toBe(MOBILE_SHEET_STATES.PEEK);
   });
 
-  test("keeps idle mobile state collapsed and desktop state full", () => {
+  test("opens the idle mobile visit sheet and keeps desktop state full", () => {
     expect(getDefaultMobileSheetState({
       hasBrowseContext: false,
       hasSelectedBurials: false,
       isMobile: true,
-    })).toBe(MOBILE_SHEET_STATES.COLLAPSED);
+    })).toBe(MOBILE_SHEET_STATES.PEEK);
 
     expect(getDefaultMobileSheetState({
       hasBrowseContext: false,
@@ -37,7 +37,7 @@ describe("mobile sheet state helpers", () => {
     expect(getMobileSheetSnapHeight({
       maxHeight: 1000,
       state: MOBILE_SHEET_STATES.PEEK,
-    })).toBeCloseTo(500);
+    })).toBeCloseTo(620);
     expect(getMobileSheetSnapHeight({
       maxHeight: 1000,
       state: MOBILE_SHEET_STATES.FULL,
@@ -62,7 +62,7 @@ describe("mobile sheet state helpers", () => {
       maxHeight: 1000,
       minHeight: 104,
       state: MOBILE_SHEET_STATES.PEEK,
-    })).toBeCloseTo(500);
+    })).toBeCloseTo(620);
     expect(getMobileSheetSnapHeight({
       maxHeight: 1000,
       minHeight: 104,
@@ -86,7 +86,7 @@ describe("mobile sheet state helpers", () => {
       maxHeight: 875,
       visualViewportHeight: 810,
       state: MOBILE_SHEET_STATES.PEEK,
-    })).toBeCloseTo(405);
+    })).toBeCloseTo(502.2);
   });
 
   test("maps spring-end heights back onto the nearest sheet state", () => {

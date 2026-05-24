@@ -35,8 +35,6 @@ import {
   MenuItem,
   useMediaQuery,
 } from "@mui/material";
-import DirectionsIcon from '@mui/icons-material/Directions';
-import LaunchIcon from '@mui/icons-material/Launch';
 
 // Local Data and Styles
 import {
@@ -133,7 +131,12 @@ import {
   PopupCardStackContent,
   createMapRecordKey,
 } from "./features/map/popupCardContent";
-import { calculateWalkingRoute, getRoutingErrorMessage, buildRoadRoutingGraph } from "./features/map/mapRouting";
+import {
+  calculateWalkingRoute,
+  getRoutingErrorMessage,
+  buildRoadRoutingGraph,
+  isCoordinateNearRoadNetwork,
+} from "./features/map/mapRouting";
 import {
   buildFieldPacketShareUrl,
   buildFieldPacketState,
@@ -231,7 +234,15 @@ const GEOLOCATION_FALLBACK_REQUEST_OPTIONS = {
 };
 const GEOLOCATION_PERMISSION_DENIED = 1;
 const ROUTING_LOCATION_REQUIRED_MESSAGE = LOCATION_MESSAGES.routeLocationRequired ||
-  "Route on Map needs your current location near the cemetery. Use Open in Maps for directions from farther away.";
+  "Continue with Maps for now. On-site navigation will start when you arrive.";
+const NAVIGATION_DESTINATION_STORAGE_KEY = "fab.navigationDestination.v1";
+const NAVIGATION_NOTICE_AUTO_HIDE_MS = 6000;
+const NAVIGATION_LOCATION_DECISION_WAIT_MS = 1400;
+const ROUTE_LOCATION_REFRESH_INTERVAL_MS = 5000;
+const ROUTE_LOCATION_REFRESH_OPTIONS = {
+  ...GEOLOCATION_REQUEST_OPTIONS,
+  timeout: 5000,
+};
 const SECTION_MARKER_BATCH_SIZE = 300;
 const SEARCH_INDEX_PUBLIC_PATH = APP_PROFILE.artifacts.searchIndexPublicPath;
 const EMPTY_TOUR_RESULTS = [];
@@ -252,6 +263,90 @@ const DEFAULT_MAP_OVERLAY_VISIBILITY = MAP_OVERLAY_OPTIONS.reduce((visibility, o
   ...visibility,
   [option.id]: option.defaultVisible,
 }), {});
+
+const hasBurialNavigationCoordinates = (burial) => (
+  Array.isArray(burial?.coordinates) &&
+  Number.isFinite(Number(burial.coordinates[0])) &&
+  Number.isFinite(Number(burial.coordinates[1]))
+);
+
+const createNavigationDestinationRecord = (burial) => {
+  if (!hasBurialNavigationCoordinates(burial)) {
+    return null;
+  }
+
+  const displayName = formatBrowseResultName(burial);
+
+  return {
+    id: cleanRecordValue(burial.id) || `navigation:${burial.coordinates[0]},${burial.coordinates[1]}`,
+    source: burial.source || "navigation",
+    displayName,
+    label: burial.label || displayName,
+    fullName: burial.fullName || displayName,
+    First_Name: burial.First_Name || "",
+    Last_Name: burial.Last_Name || "",
+    Section: burial.Section || burial.section || "",
+    Lot: burial.Lot || burial.lot || "",
+    Tier: burial.Tier || burial.tier || "",
+    Grave: burial.Grave || burial.grave || "",
+    Birth: burial.Birth || burial.birth || "",
+    Death: burial.Death || burial.death || "",
+    coordinates: [Number(burial.coordinates[0]), Number(burial.coordinates[1])],
+    title: burial.title || burial.tourKey || "",
+    tourKey: burial.tourKey || burial.title || "",
+    tourName: burial.tourName || "",
+    savedAt: Number.isFinite(Number(burial.savedAt)) ? Number(burial.savedAt) : Date.now(),
+  };
+};
+
+const readStoredNavigationDestination = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(NAVIGATION_DESTINATION_STORAGE_KEY);
+    if (!storedValue) {
+      return null;
+    }
+
+    return createNavigationDestinationRecord(JSON.parse(storedValue));
+  } catch (error) {
+    console.warn("Unable to restore saved navigation destination:", error);
+    return null;
+  }
+};
+
+const writeStoredNavigationDestination = (burial) => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const destination = createNavigationDestinationRecord(burial);
+  if (!destination) {
+    return null;
+  }
+
+  try {
+    window.localStorage.setItem(NAVIGATION_DESTINATION_STORAGE_KEY, JSON.stringify(destination));
+  } catch (error) {
+    console.warn("Unable to save navigation destination:", error);
+  }
+
+  return destination;
+};
+
+const clearStoredNavigationDestination = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(NAVIGATION_DESTINATION_STORAGE_KEY);
+  } catch (error) {
+    console.warn("Unable to clear saved navigation destination:", error);
+  }
+};
 
 const isLocationCandidateWithinBuffer = (candidate) => {
   if (!candidate) {
@@ -405,7 +500,7 @@ const createTourMarker = (tourKey, tourStyles) => {
 const bindReactPopup = ({
   layer,
   record,
-  onOpenDirectionsMenu,
+  onNavigate,
   onPopupClose,
   onPopupOpen,
   onRemove,
@@ -426,7 +521,7 @@ const bindReactPopup = ({
       (
         <PopupCardContent
           record={record}
-          onOpenDirectionsMenu={onOpenDirectionsMenu}
+          onNavigate={onNavigate}
           onRemove={onRemove}
           getPopup={() => layer.getPopup?.()}
           schedulePopupLayout={schedulePopupLayout}
@@ -560,10 +655,12 @@ const MapStaticLayers = memo(function MapStaticLayers({
           defaultViewBounds={DEFAULT_VIEW_BOUNDS}
           fitMapBounds={fitMapBoundsInViewport}
         />
-        <SidebarToggleControl
-          isSearchPanelVisible={isSearchPanelVisible}
-          onToggle={onToggleSearchPanel}
-        />
+        {(!isMobile || !isSearchPanelVisible) && (
+          <SidebarToggleControl
+            isSearchPanelVisible={isSearchPanelVisible}
+            onToggle={onToggleSearchPanel}
+          />
+        )}
         <CustomZoomControl isMobile={isMobile} />
         <MobileLocateButton isMobile={isMobile} onLocate={onLocateMarker} />
       </MapControlStack>
@@ -630,7 +727,7 @@ const createOnEachTourFeature = (
   onSelect,
   onHoverStart,
   onHoverEnd,
-  onOpenDirectionsMenu,
+  onNavigate,
   onPopupClose,
   onPopupOpen,
   onRemoveResult,
@@ -648,8 +745,8 @@ const createOnEachTourFeature = (
     bindReactPopup({
       layer,
       record: browseResult,
-      onOpenDirectionsMenu: (event) => {
-        onOpenDirectionsMenu(event, browseResult);
+      onNavigate: (event) => {
+        onNavigate(event, browseResult);
       },
       onPopupClose,
       onPopupOpen,
@@ -763,10 +860,10 @@ export default function BurialMap() {
   const [routeGeoJson, setRouteGeoJson] = useState(null);
   const [isRouteLoading, setIsRouteLoading] = useState(false);
   const [routeError, setRouteError] = useState("");
+  const [navigationNotice, setNavigationNotice] = useState("");
+  const [navigationDestination, setNavigationDestination] = useState(readStoredNavigationDestination);
   const [activeRouteBurialId, setActiveRouteBurialId] = useState(null);
   const [appMenuAnchorEl, setAppMenuAnchorEl] = useState(null);
-  const [directionsMenuAnchorEl, setDirectionsMenuAnchorEl] = useState(null);
-  const [directionsMenuBurial, setDirectionsMenuBurial] = useState(null);
   const { boundaryData, roadsData, sectionsData } = coreMapData;
 
   // Component references.
@@ -801,7 +898,12 @@ export default function BurialMap() {
   const pendingPopupBurialRef = useRef(null);
   const popupBurialIdRef = useRef(null);
   const activeRouteBurialIdRef = useRef(null);
-  const directionsMenuBurialRef = useRef(null);
+  const navigationDestinationRef = useRef(navigationDestination);
+  const navigationNoticeTimeoutRef = useRef(null);
+  const activeNavigationBurialRef = useRef(null);
+  const suppressAutoOnSiteNavigationUntilRef = useRef(0);
+  const openExternalDirectionsRef = useRef(null);
+  const routeLocationRefreshInFlightRef = useRef(false);
   const watchIdRef = useRef(null);
   const acceptedLocationRef = useRef(null);
   const locationRecentCandidatesRef = useRef([]);
@@ -963,7 +1065,6 @@ export default function BurialMap() {
     )
   );
   const appMenuOpen = Boolean(appMenuAnchorEl);
-  const directionsMenuOpen = Boolean(directionsMenuAnchorEl);
   const isAppleMobile = useMemo(() => {
     if (typeof navigator === 'undefined') return false;
 
@@ -2126,14 +2227,18 @@ export default function BurialMap() {
       setRouteGeoJson(null);
       setIsRouteLoading(false);
       setRouteError("");
+      setNavigationNotice("");
       activeRouteBurialIdRef.current = null;
+      activeNavigationBurialRef.current = null;
       renderedRouteDestinationRef.current = null;
       setActiveRouteBurialId(null);
     }
 
-    if (directionsMenuBurialRef.current?.id === burialId) {
-      setDirectionsMenuAnchorEl(null);
-      setDirectionsMenuBurial(null);
+    if (navigationDestinationRef.current?.id === burialId) {
+      navigationDestinationRef.current = null;
+      activeNavigationBurialRef.current = null;
+      setNavigationDestination(null);
+      clearStoredNavigationDestination();
     }
   }, [dispatchSelectionAction]);
 
@@ -2147,11 +2252,14 @@ export default function BurialMap() {
     setRouteGeoJson(null);
     setIsRouteLoading(false);
     setRouteError("");
+    setNavigationNotice("");
     activeRouteBurialIdRef.current = null;
+    activeNavigationBurialRef.current = null;
+    navigationDestinationRef.current = null;
     renderedRouteDestinationRef.current = null;
     setActiveRouteBurialId(null);
-    setDirectionsMenuAnchorEl(null);
-    setDirectionsMenuBurial(null);
+    setNavigationDestination(null);
+    clearStoredNavigationDestination();
     closeMapPopup();
   }, [closeMapPopup, dispatchSelectionAction]);
 
@@ -2355,18 +2463,6 @@ export default function BurialMap() {
     await installPromptEvent.userChoice;
     setInstallPromptEvent(null);
   }, [installPromptEvent]);
-
-  const handleOpenDirectionsMenu = useCallback((anchorOrEvent, burial) => {
-    anchorOrEvent?.stopPropagation?.();
-    const anchorEl = anchorOrEvent?.currentTarget || anchorOrEvent || null;
-    setDirectionsMenuAnchorEl(anchorEl);
-    setDirectionsMenuBurial(burial);
-  }, []);
-
-  const handleCloseDirectionsMenu = useCallback(() => {
-    setDirectionsMenuAnchorEl(null);
-    setDirectionsMenuBurial(null);
-  }, []);
 
   /**
    * Search and browse result clicks are explicit focus requests, so they are
@@ -2752,65 +2848,82 @@ export default function BurialMap() {
   // Routing Functions
   //=============================================================================
 
-  /**
-   * Starts the in-map cemetery-road route to a burial location.
-   * External Apple/Google Maps directions are handled by openExternalDirections.
-   */
-  const startRouting = useCallback(async (burial) => {
-    if (!Array.isArray(burial?.coordinates)) {
-      setStatus('Directions unavailable for this burial');
+  const showNavigationNotice = useCallback((
+    message,
+    { autoHideMs = NAVIGATION_NOTICE_AUTO_HIDE_MS } = {}
+  ) => {
+    if (navigationNoticeTimeoutRef.current !== null) {
+      clearTimeout(navigationNoticeTimeoutRef.current);
+      navigationNoticeTimeoutRef.current = null;
+    }
+
+    setNavigationNotice(message || "");
+
+    if (!message || !Number.isFinite(autoHideMs) || autoHideMs <= 0) {
       return;
     }
 
-    markExplicitViewportFocus();
-    resetLocationCandidateWindow();
-    ensureLocationWatchActive();
-
-    const location = acceptedLocationRef.current || await requestCurrentLocation();
-
-    if (!location) {
-      setRouteError(ROUTING_LOCATION_REQUIRED_MESSAGE);
-      return;
-    }
-
-    selectBurial(burial, {
-      animate: false,
-      isExplicitFocus: true,
-      openTourPopup: true,
-    });
-
-    setRouteError("");
-    setRoutingOrigin([location.latitude, location.longitude]);
-    setRoutingDestination([burial.coordinates[1], burial.coordinates[0]]);
-    activeRouteBurialIdRef.current = burial.id;
-    setActiveRouteBurialId(burial.id);
-  }, [
-    ensureLocationWatchActive,
-    markExplicitViewportFocus,
-    requestCurrentLocation,
-    resetLocationCandidateWindow,
-    selectBurial,
-  ]);
-
-  /**
-   * Stops the current navigation
-   */
-  const stopRouting = useCallback(() => {
-    setRoutingOrigin(null);
-    setRoutingDestination(null);
-    setRouteGeoJson(null);
-    setIsRouteLoading(false);
-    setRouteError("");
-    activeRouteBurialIdRef.current = null;
-    renderedRouteDestinationRef.current = null;
-    setActiveRouteBurialId(null);
+    navigationNoticeTimeoutRef.current = setTimeout(() => {
+      setNavigationNotice("");
+      navigationNoticeTimeoutRef.current = null;
+    }, autoHideMs);
   }, []);
 
-  const openExternalDirections = useCallback((burial) => {
-    if (!Array.isArray(burial.coordinates)) {
-      setStatus('Directions unavailable for this burial');
-      return;
+  const clearNavigationDestination = useCallback(() => {
+    navigationDestinationRef.current = null;
+    activeNavigationBurialRef.current = null;
+    suppressAutoOnSiteNavigationUntilRef.current = 0;
+    setNavigationDestination(null);
+    clearStoredNavigationDestination();
+  }, []);
+
+  const saveNavigationDestination = useCallback((burial) => {
+    const destination = writeStoredNavigationDestination(burial);
+    if (!destination) {
+      return null;
     }
+
+    navigationDestinationRef.current = destination;
+    setNavigationDestination(destination);
+    return destination;
+  }, []);
+
+  const isLocationReadyForOnSiteNavigation = useCallback((location) => {
+    if (!location || isApproximateLocationAccuracy(location.accuracyMeters)) {
+      return false;
+    }
+
+    return isCoordinateNearRoadNetwork(
+      [location.latitude, location.longitude],
+      roadRoutingGraph
+    );
+  }, [roadRoutingGraph]);
+
+  const waitForOnSiteNavigationLocation = useCallback(async () => {
+    const currentLocation = acceptedLocationRef.current;
+    if (isLocationReadyForOnSiteNavigation(currentLocation)) {
+      return currentLocation;
+    }
+
+    ensureLocationWatchActive();
+    const location = await waitForAcceptedLocation(NAVIGATION_LOCATION_DECISION_WAIT_MS);
+    return isLocationReadyForOnSiteNavigation(location) ? location : null;
+  }, [
+    ensureLocationWatchActive,
+    isLocationReadyForOnSiteNavigation,
+    waitForAcceptedLocation,
+  ]);
+
+  const openExternalDirections = useCallback((
+    burial,
+    { notice = "Opening driving directions...", travelMode = "driving" } = {}
+  ) => {
+    if (!hasBurialNavigationCoordinates(burial)) {
+      setStatus('Directions unavailable for this burial');
+      return false;
+    }
+
+    showNavigationNotice(notice);
 
     const link = buildDirectionsLink({
       latitude: burial.coordinates[1],
@@ -2818,21 +2931,168 @@ export default function BurialMap() {
       label: formatBrowseResultName(burial),
       originLatitude: lat,
       originLongitude: lng,
+      travelMode,
       userAgent: typeof navigator === 'undefined' ? '' : navigator.userAgent,
     });
 
     if (!link) {
       setStatus('Directions unavailable for this burial');
-      return;
+      return false;
     }
 
     if (link.target === 'self') {
       window.location.assign(link.href);
-      return;
+      return true;
     }
 
     window.open(link.href, link.target, 'noopener,noreferrer');
-  }, [lat, lng]);
+    return true;
+  }, [lat, lng, showNavigationNotice]);
+
+  useEffect(() => {
+    openExternalDirectionsRef.current = openExternalDirections;
+  }, [openExternalDirections]);
+
+  const startOnSiteRouting = useCallback((burial, { location = acceptedLocationRef.current } = {}) => {
+    if (!hasBurialNavigationCoordinates(burial)) {
+      setStatus('Directions unavailable for this burial');
+      return false;
+    }
+
+    const usableLocation = location || acceptedLocationRef.current;
+    if (!isLocationReadyForOnSiteNavigation(usableLocation)) {
+      setRouteError(ROUTING_LOCATION_REQUIRED_MESSAGE);
+      return false;
+    }
+
+    const destination = saveNavigationDestination(burial) || createNavigationDestinationRecord(burial);
+    const routeBurial = destination
+      ? { ...destination, ...burial, coordinates: destination.coordinates }
+      : burial;
+
+    markExplicitViewportFocus();
+    resetLocationCandidateWindow();
+    ensureLocationWatchActive();
+
+    selectBurial(routeBurial, {
+      animate: false,
+      isExplicitFocus: true,
+      openTourPopup: true,
+    });
+
+    setRouteError("");
+    setRoutingOrigin([usableLocation.latitude, usableLocation.longitude]);
+    setRoutingDestination([routeBurial.coordinates[1], routeBurial.coordinates[0]]);
+    activeRouteBurialIdRef.current = routeBurial.id;
+    activeNavigationBurialRef.current = routeBurial;
+    setActiveRouteBurialId(routeBurial.id);
+    return true;
+  }, [
+    ensureLocationWatchActive,
+    isLocationReadyForOnSiteNavigation,
+    markExplicitViewportFocus,
+    resetLocationCandidateWindow,
+    saveNavigationDestination,
+    selectBurial,
+  ]);
+
+  /**
+   * Stops the current navigation.
+   */
+  const stopRouting = useCallback(() => {
+    setRoutingOrigin(null);
+    setRoutingDestination(null);
+    setRouteGeoJson(null);
+    setIsRouteLoading(false);
+    setRouteError("");
+    setNavigationNotice("");
+    activeRouteBurialIdRef.current = null;
+    activeNavigationBurialRef.current = null;
+    renderedRouteDestinationRef.current = null;
+    setActiveRouteBurialId(null);
+    clearNavigationDestination();
+  }, [clearNavigationDestination]);
+
+  const handleNavigateToBurial = useCallback(async (eventOrBurial, maybeBurial = null) => {
+    const burial = maybeBurial || eventOrBurial;
+    if (maybeBurial) {
+      eventOrBurial?.stopPropagation?.();
+    }
+
+    if (!hasBurialNavigationCoordinates(burial)) {
+      setStatus('Directions unavailable for this burial');
+      return;
+    }
+
+    if (activeRouteBurialIdRef.current === burial.id) {
+      stopRouting();
+      return;
+    }
+
+    suppressAutoOnSiteNavigationUntilRef.current = 0;
+    const destination = saveNavigationDestination(burial) || createNavigationDestinationRecord(burial);
+    const navigationBurial = destination
+      ? { ...destination, ...burial, coordinates: destination.coordinates }
+      : burial;
+    const currentLocation = acceptedLocationRef.current;
+
+    if (isLocationReadyForOnSiteNavigation(currentLocation)) {
+      showNavigationNotice("You're near the cemetery. Switching to on-site navigation.");
+      startOnSiteRouting(navigationBurial, { location: currentLocation });
+      return;
+    }
+
+    const quickLocation = currentLocation ? null : await waitForOnSiteNavigationLocation();
+    if (quickLocation) {
+      showNavigationNotice("You're near the cemetery. Switching to on-site navigation.");
+      startOnSiteRouting(navigationBurial, { location: quickLocation });
+      return;
+    }
+
+    setRouteError("");
+    activeNavigationBurialRef.current = navigationBurial;
+    openExternalDirections(navigationBurial, {
+      notice: "Opening driving directions...",
+      travelMode: "driving",
+    });
+
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => {
+        if (destination && navigationDestinationRef.current?.id === destination.id) {
+          showNavigationNotice("On-site navigation will begin when you arrive.", {
+            autoHideMs: 8000,
+          });
+        }
+      }, 1200);
+    }
+  }, [
+    isLocationReadyForOnSiteNavigation,
+    openExternalDirections,
+    saveNavigationDestination,
+    showNavigationNotice,
+    startOnSiteRouting,
+    stopRouting,
+    waitForOnSiteNavigationLocation,
+  ]);
+
+  const continueNavigationDestinationOnSite = useCallback((location = acceptedLocationRef.current) => {
+    const destination = navigationDestinationRef.current;
+    if (
+      !destination ||
+      activeRouteBurialIdRef.current === destination.id ||
+      Date.now() < suppressAutoOnSiteNavigationUntilRef.current ||
+      !isLocationReadyForOnSiteNavigation(location)
+    ) {
+      return false;
+    }
+
+    showNavigationNotice("You're near the cemetery. Switching to on-site navigation.");
+    return startOnSiteRouting(destination, { location });
+  }, [
+    isLocationReadyForOnSiteNavigation,
+    showNavigationNotice,
+    startOnSiteRouting,
+  ]);
 
   useEffect(() => {
     if (!routingOrigin || !routingDestination) {
@@ -2884,7 +3144,18 @@ export default function BurialMap() {
 
       console.error("Routing error:", error);
       setIsRouteLoading(false);
-      setRouteError(getRoutingErrorMessage(error));
+      const fallbackBurial = activeNavigationBurialRef.current;
+      const shouldFallbackToExternal = Boolean(
+        shouldResetRouteGeometry &&
+        fallbackBurial &&
+        activeRouteBurialIdRef.current === fallbackBurial.id
+      );
+
+      setRouteError(
+        shouldFallbackToExternal
+          ? ""
+          : getRoutingErrorMessage(error)
+      );
       if (!shouldResetRouteGeometry) {
         return;
       }
@@ -2893,8 +3164,17 @@ export default function BurialMap() {
       setRoutingOrigin(null);
       setRoutingDestination(null);
       activeRouteBurialIdRef.current = null;
+      activeNavigationBurialRef.current = null;
       renderedRouteDestinationRef.current = null;
       setActiveRouteBurialId(null);
+
+      if (shouldFallbackToExternal) {
+        suppressAutoOnSiteNavigationUntilRef.current = Date.now() + 60000;
+        openExternalDirectionsRef.current?.(fallbackBurial, {
+          notice: "Opening driving directions...",
+          travelMode: "driving",
+        });
+      }
     });
 
     return () => {
@@ -3125,8 +3405,15 @@ export default function BurialMap() {
   }, [activeRouteBurialId]);
 
   useEffect(() => {
-    directionsMenuBurialRef.current = directionsMenuBurial;
-  }, [directionsMenuBurial]);
+    navigationDestinationRef.current = navigationDestination;
+  }, [navigationDestination]);
+
+  useEffect(() => () => {
+    if (navigationNoticeTimeoutRef.current !== null) {
+      clearTimeout(navigationNoticeTimeoutRef.current);
+      navigationNoticeTimeoutRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (!burialRecordsById.size) return;
@@ -3155,11 +3442,16 @@ export default function BurialMap() {
       return latest;
     }));
 
-    setDirectionsMenuBurial((current) => {
+    setNavigationDestination((current) => {
       if (current?.source !== "burial") return current;
 
       const latest = burialRecordsById.get(current.id);
-      return latest || current;
+      const nextDestination = latest ? createNavigationDestinationRecord(latest) : current;
+      if (nextDestination) {
+        navigationDestinationRef.current = nextDestination;
+        writeStoredNavigationDestination(nextDestination);
+      }
+      return nextDestination || current;
     });
   }, [burialRecordsById, dispatchSelectionAction]);
 
@@ -3175,6 +3467,80 @@ export default function BurialMap() {
     }
   }, [activeBurialId, selectedBurials]);
 
+  useEffect(() => {
+    if (!navigationDestination || activeRouteBurialId === navigationDestination.id) {
+      return;
+    }
+
+    ensureLocationWatchActive();
+    continueNavigationDestinationOnSite(acceptedLocationRef.current);
+  }, [
+    activeRouteBurialId,
+    continueNavigationDestinationOnSite,
+    ensureLocationWatchActive,
+    navigationDestination,
+  ]);
+
+  useEffect(() => {
+    if (!navigationDestination) {
+      return;
+    }
+
+    continueNavigationDestinationOnSite(acceptedLocationRef.current);
+  }, [
+    continueNavigationDestinationOnSite,
+    lat,
+    lng,
+    locationAccuracyMeters,
+    navigationDestination,
+  ]);
+
+  useEffect(() => {
+    if (!activeRouteBurialId || typeof window === "undefined" || !navigator.geolocation) {
+      routeLocationRefreshInFlightRef.current = false;
+      return undefined;
+    }
+
+    let isCancelled = false;
+    const refreshActiveRouteLocation = () => {
+      if (routeLocationRefreshInFlightRef.current) {
+        return;
+      }
+
+      routeLocationRefreshInFlightRef.current = true;
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          routeLocationRefreshInFlightRef.current = false;
+          if (!isCancelled) {
+            updateLocationFromPosition(position);
+          }
+        },
+        (error) => {
+          routeLocationRefreshInFlightRef.current = false;
+          if (!isCancelled) {
+            handleLocationError(error);
+          }
+        },
+        ROUTE_LOCATION_REFRESH_OPTIONS,
+      );
+    };
+
+    const intervalId = window.setInterval(
+      refreshActiveRouteLocation,
+      ROUTE_LOCATION_REFRESH_INTERVAL_MS
+    );
+
+    return () => {
+      isCancelled = true;
+      window.clearInterval(intervalId);
+      routeLocationRefreshInFlightRef.current = false;
+    };
+  }, [
+    activeRouteBurialId,
+    handleLocationError,
+    updateLocationFromPosition,
+  ]);
+
   /**
    * Stop any active geolocation watch when the map shell unmounts.
    */
@@ -3189,7 +3555,9 @@ export default function BurialMap() {
 
     const handleVisibilityChange = () => {
       if (!document.hidden && watchIdRef.current !== null) {
-        void requestCurrentLocation();
+        void requestCurrentLocation().then((location) => {
+          continueNavigationDestinationOnSite(location || acceptedLocationRef.current);
+        });
       }
     };
 
@@ -3197,7 +3565,7 @@ export default function BurialMap() {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [requestCurrentLocation]);
+  }, [continueNavigationDestinationOnSite, requestCurrentLocation]);
 
   const buildSectionMarker = useCallback((burial) => {
     if (!Array.isArray(burial.coordinates)) {
@@ -3220,8 +3588,8 @@ export default function BurialMap() {
     bindReactPopup({
       layer: marker,
       record: burial,
-      onOpenDirectionsMenu: (event) => {
-        handleOpenDirectionsMenu(event, burial);
+      onNavigate: (event) => {
+        handleNavigateToBurial(event, burial);
       },
       onPopupClose: handlePopupBurialClose,
       onPopupOpen: handlePopupBurialOpen,
@@ -3251,7 +3619,7 @@ export default function BurialMap() {
   }, [
     clearHoveredBurialIfCurrent,
     getSectionBurialPresentationZoom,
-    handleOpenDirectionsMenu,
+    handleNavigateToBurial,
     handlePopupBurialClose,
     handlePopupBurialOpen,
     handleHoverBurialChange,
@@ -3912,7 +4280,7 @@ export default function BurialMap() {
           selectBurial,
           handleHoverBurialChange,
           clearHoveredBurialIfCurrent,
-          handleOpenDirectionsMenu,
+          handleNavigateToBurial,
           handlePopupBurialClose,
           handlePopupBurialOpen,
           removeFromResults,
@@ -3947,7 +4315,7 @@ export default function BurialMap() {
     }
   }, [
     clearHoveredBurialIfCurrent,
-    handleOpenDirectionsMenu,
+    handleNavigateToBurial,
     handlePopupBurialClose,
     handlePopupBurialOpen,
     handleHoverBurialChange,
@@ -4065,20 +4433,18 @@ export default function BurialMap() {
           onFilterTypeChange={setFilterType}
           onFocusSelectedBurial={handleResultClick}
           onHoverBurialChange={handleHoverBurialChange}
-          onOpenExternalDirections={openExternalDirections}
           onLocateMarker={onLocateMarker}
           onLotTierFilterChange={setLotTierFilter}
           onClearFieldPacket={clearFieldPacket}
           onCopyFieldPacketLink={copyFieldPacketLink}
           onInstallApp={handleInstallApp}
           onOpenAppMenu={handleOpenAppMenu}
-          onOpenDirectionsMenu={handleOpenDirectionsMenu}
+          onNavigateToBurial={handleNavigateToBurial}
           onRemoveSelectedBurial={removeFromResults}
           onRequestBurialDataLoad={requestBurialDataLoad}
           onRequestHideChrome={handleToggleSearchPanel}
           onSectionChange={activateSectionBrowse}
           onShareFieldPacket={shareFieldPacket}
-          onStartRouting={startRouting}
           onStopRouting={stopRouting}
           onToggleSectionMarkers={() => {
             requestBurialDataLoad();
@@ -4151,54 +4517,10 @@ export default function BurialMap() {
         )}
       </Menu>
 
-      <Menu
-        anchorEl={directionsMenuAnchorEl}
-        open={directionsMenuOpen}
-        onClose={handleCloseDirectionsMenu}
-        anchorOrigin={{
-          vertical: "bottom",
-          horizontal: "left",
-        }}
-        transformOrigin={{
-          vertical: "top",
-          horizontal: "left",
-        }}
-      >
-        {directionsMenuBurial
-          ? [
-              <MenuItem
-                key="route"
-                onClick={async () => {
-                  const burial = directionsMenuBurial;
-                  handleCloseDirectionsMenu();
-                  if (activeRouteBurialId === burial.id) {
-                    stopRouting();
-                    return;
-                  }
-                  await startRouting(burial);
-                }}
-              >
-                <DirectionsIcon fontSize="small" sx={{ mr: 1 }} />
-                {activeRouteBurialId === directionsMenuBurial.id ? 'Stop Route' : 'Route on Map'}
-              </MenuItem>,
-              <MenuItem
-                key="external"
-                onClick={() => {
-                  const burial = directionsMenuBurial;
-                  handleCloseDirectionsMenu();
-                  openExternalDirections(burial);
-                }}
-              >
-                <LaunchIcon fontSize="small" sx={{ mr: 1 }} />
-                Open in Maps
-              </MenuItem>,
-            ]
-          : null}
-      </Menu>
-
       <RouteStatusOverlay
         isCalculating={isRouteLoading}
         isMobile={isMobile}
+        routingNotice={navigationNotice}
         routingError={routeError}
       />
 
@@ -4356,8 +4678,8 @@ export default function BurialMap() {
                             preserveViewport: true,
                           });
                         }}
-                        onOpenDirectionsMenu={(event, record) => {
-                          handleOpenDirectionsMenu(event, record);
+                        onNavigate={(event, record) => {
+                          handleNavigateToBurial(event, record);
                         }}
                         onRemove={(record) => {
                           removeFromResults(record.id);
@@ -4410,7 +4732,7 @@ export default function BurialMap() {
                   <Popup>
                     <PopupCardContent
                       record={burial}
-                      onOpenDirectionsMenu={(event) => handleOpenDirectionsMenu(event, burial)}
+                      onNavigate={(event) => handleNavigateToBurial(event, burial)}
                       onRemove={() => {
                         removeFromResults(burial.id);
                       }}

@@ -109,19 +109,17 @@ const createBaseProps = () => ({
   onFilterTypeChange: jest.fn(),
   onFocusSelectedBurial: jest.fn(),
   onHoverBurialChange: jest.fn(),
-  onOpenExternalDirections: jest.fn(),
   onLocateMarker: jest.fn(),
   onLotTierFilterChange: jest.fn(),
   onClearFieldPacket: jest.fn(),
   onCopyFieldPacketLink: jest.fn(),
   onInstallApp: jest.fn(),
   onOpenAppMenu: jest.fn(),
-  onOpenDirectionsMenu: jest.fn(),
+  onNavigateToBurial: jest.fn(),
   onMobileSheetViewportChange: jest.fn(),
   onRemoveSelectedBurial: jest.fn(),
   onSectionChange: jest.fn(),
   onShareFieldPacket: jest.fn(),
-  onStartRouting: jest.fn(),
   onStopRouting: jest.fn(),
   onToggleSectionMarkers: jest.fn(),
   onTourChange: jest.fn(),
@@ -245,24 +243,25 @@ describe("BurialSidebar", () => {
     );
     flushBrowseTimers();
 
-    expect(screen.getByRole("button", { name: "Sections" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Explore section" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByPlaceholderText(/Search this section/i)).toBeInTheDocument();
 
-    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const browseWorkspace = screen.getByText("Find your way").closest(".left-sidebar__panel");
     expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
     expect(within(browseWorkspace).getAllByText("Thomas Tracy").length).toBeGreaterThan(0);
   });
 
-  domTest("supports mobile query entry and clearing from the search field without forcing drawer expansion", () => {
+  domTest("supports mobile query entry and clearing from the guided peek sheet", () => {
     renderSidebar({ isMobile: true });
 
-    expect(screen.getByRole("button", { name: "Sections" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Tours" })).toBeInTheDocument();
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(620);
+    expect(screen.getByRole("button", { name: "Explore section" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start a tour" })).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Section" })).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Search by name, section, or lot/i)).toBeInTheDocument();
     expect(screen.queryByText("Start with a section")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "More options" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "My location" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Locate me" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Clear all browse filters")).not.toBeInTheDocument();
 
     const input = screen.getByPlaceholderText(/Search by name, section, or lot/i);
@@ -278,10 +277,8 @@ describe("BurialSidebar", () => {
     fireEvent.click(screen.getByLabelText("Clear search query"));
 
     expect(input).toHaveValue("");
-    const snapHeights = mockBottomSheetState.snapTo.mock.calls.map((call) => (
-      call[0]({ maxHeight: 1000 })
-    ));
-    expect(snapHeights.every((height) => height <= 80)).toBe(true);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(620);
+    expect(mockBottomSheetState.snapTo).not.toHaveBeenCalled();
   });
 
   domTest("lets mobile users collapse and reopen the search panel", () => {
@@ -293,7 +290,23 @@ describe("BurialSidebar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Show search panel" }));
     expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(2);
-    expect(mockBottomSheetState.snapTo.mock.calls[1][0]({ maxHeight: 1000 })).toBeCloseTo(500);
+    expect(mockBottomSheetState.snapTo.mock.calls[1][0]({ maxHeight: 1000 })).toBeCloseTo(620);
+  });
+
+  domTest("lets mobile users reopen the search panel after dragging the sheet closed", () => {
+    renderSidebar({ isMobile: true });
+
+    act(() => {
+      mockBottomSheetState.currentHeight = 80;
+      mockBottomSheetState.lastProps.onSpringEnd({ type: "SNAP" });
+    });
+
+    mockBottomSheetState.snapTo.mockReset();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show search panel" }));
+
+    expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(1);
+    expect(mockBottomSheetState.snapTo.mock.calls[0][0]({ maxHeight: 1000 })).toBeCloseTo(620);
   });
 
   domTest("lets the map shell fully hide mobile chrome when that control is available", () => {
@@ -317,11 +330,11 @@ describe("BurialSidebar", () => {
     expect(screen.getByText(/search by name or section/i)).toBeInTheDocument();
   });
 
-  domTest("expands the mobile drawer from the collapsed browse shell when a point selection arrives", () => {
+  domTest("opens the mobile visit sheet before a point selection arrives", () => {
     const rerenderProps = createBaseProps();
     const { rerender } = renderSidebar({ isMobile: true });
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(80);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(620);
 
     rerender(
       <BurialSidebar
@@ -332,8 +345,8 @@ describe("BurialSidebar", () => {
       />
     );
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
-    expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(1);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(620);
+    expect(mockBottomSheetState.snapTo).not.toHaveBeenCalled();
   });
 
   domTest("re-expands a collapsed mobile drawer when a map selection arrives", () => {
@@ -357,7 +370,7 @@ describe("BurialSidebar", () => {
     );
 
     expect(mockBottomSheetState.snapTo.mock.calls.length).toBeLessThanOrEqual(1);
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(620);
   });
 
   domTest("keeps map-driven section browse at mobile peek height", () => {
@@ -381,28 +394,25 @@ describe("BurialSidebar", () => {
     );
 
     expect(mockBottomSheetState.snapTo.mock.calls.length).toBeLessThanOrEqual(1);
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(620);
   });
 
-  domTest("uses direct mobile preview actions for routing and external maps", () => {
-    const onStartRouting = jest.fn();
-    const onOpenExternalDirections = jest.fn();
+  domTest("uses one direct mobile preview action for navigation", () => {
+    const onNavigateToBurial = jest.fn();
 
     renderSidebar({
       isMobile: true,
       activeBurialId: burialRecords[0].id,
       selectedBurials: [burialRecords[0]],
-      onStartRouting,
-      onOpenExternalDirections,
+      onNavigateToBurial,
     });
 
     const selectedSummary = screen.getByText("Selection").closest(".left-sidebar__panel");
 
-    fireEvent.click(within(selectedSummary).getByRole("button", { name: "Route on map" }));
-    fireEvent.click(within(selectedSummary).getByRole("button", { name: "Open in Maps" }));
+    fireEvent.click(within(selectedSummary).getByRole("button", { name: "Navigate" }));
 
-    expect(onStartRouting).toHaveBeenCalledWith(expect.objectContaining({ id: burialRecords[0].id }));
-    expect(onOpenExternalDirections).toHaveBeenCalledWith(expect.objectContaining({ id: burialRecords[0].id }));
+    expect(onNavigateToBurial).toHaveBeenCalledWith(expect.objectContaining({ id: burialRecords[0].id }));
+    expect(within(selectedSummary).queryByRole("button", { name: "Open in Maps" })).not.toBeInTheDocument();
   });
 
   domTest("renders tour portrait media in the compact mobile selection card", () => {
@@ -454,7 +464,7 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const browseWorkspace = screen.getByText("Find your way").closest(".left-sidebar__panel");
     const resultCard = within(browseWorkspace).getByText("Anna Tracy").closest(".left-sidebar__result-card");
     const thumbnail = resultCard.querySelector(".left-sidebar__result-thumbnail-image");
 
@@ -475,7 +485,7 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(620);
 
     fireEvent.click(screen.getByText("Anna Tracy"));
 
@@ -486,7 +496,7 @@ describe("BurialSidebar", () => {
         Lot: "18",
       })
     );
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(620);
   });
 
   domTest("keeps the section results visible when a point selection arrives on mobile", () => {
@@ -497,7 +507,7 @@ describe("BurialSidebar", () => {
       showAllBurials: true,
     });
 
-    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const browseWorkspace = screen.getByText("Find your way").closest(".left-sidebar__panel");
     expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
 
     rerender(
@@ -511,9 +521,9 @@ describe("BurialSidebar", () => {
       />
     );
 
-    const nextBrowseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const nextBrowseWorkspace = screen.getByText("Find your way").closest(".left-sidebar__panel");
     expect(within(nextBrowseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(620);
   });
 
   domTest("uses contextual clear controls without duplicating browse state", () => {
@@ -566,7 +576,7 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    expect(screen.getByRole("button", { name: "Tours" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Start a tour" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("combobox", { name: "Tour" })).toHaveValue("Notables Tour 2020");
 
     const tourPanel = screen.getByText(/Choose tour/i).closest(".left-sidebar__browse-detail");
@@ -585,7 +595,7 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    expect(screen.getByRole("button", { name: "Tours" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Start a tour" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText(/Choose tour/i)).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Tour" })).toHaveValue("");
     expect(screen.getByPlaceholderText(/Select a tour to browse/i)).toBeInTheDocument();
@@ -602,7 +612,7 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    fireEvent.click(screen.getByRole("button", { name: "Sections" }));
+    fireEvent.click(screen.getByRole("button", { name: "Explore section" }));
 
     expect(onTourChange).toHaveBeenCalledWith(null);
 
@@ -620,7 +630,7 @@ describe("BurialSidebar", () => {
     expect(screen.getByRole("combobox", { name: "Section" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Select a section to browse/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Sections" }));
+    fireEvent.click(screen.getByRole("button", { name: "Explore section" }));
 
     expect(screen.queryByText("Choose section")).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Section" })).not.toBeInTheDocument();
@@ -635,11 +645,11 @@ describe("BurialSidebar", () => {
     expect(screen.queryByText("Results")).not.toBeInTheDocument();
     expect(screen.queryByText("Type at least 2 characters to search.")).not.toBeInTheDocument();
     expect(screen.queryByText("Start with a section")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sections" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Explore section" })).toHaveAttribute("aria-pressed", "false");
 
-    fireEvent.click(screen.getByRole("button", { name: "Sections" }));
+    fireEvent.click(screen.getByRole("button", { name: "Explore section" }));
 
-    expect(screen.getByRole("button", { name: "Sections" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Explore section" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("combobox", { name: "Section" })).toBeInTheDocument();
     expect(screen.queryByText("Results")).not.toBeInTheDocument();
   });
@@ -821,13 +831,13 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const browseWorkspace = screen.getByText("Find your way").closest(".left-sidebar__panel");
     const selectedChip = within(browseWorkspace).getByText("2 selected");
     const selectionPanel = within(browseWorkspace).getByText("Selection").closest(".left-sidebar__panel--selected-summary");
 
     expect(selectionPanel).not.toBeNull();
     expect(within(selectionPanel).getByText("Pinned for focus & directions")).toBeInTheDocument();
-    expect(within(selectionPanel).getByRole("button", { name: "Route on map" })).toBeInTheDocument();
+    expect(within(selectionPanel).getAllByRole("button", { name: "Navigate" }).length).toBeGreaterThan(0);
     expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
 
     fireEvent.click(within(selectedChip.closest(".left-sidebar__results-header")).getByRole("button", { name: "Clear selected" }));
@@ -863,7 +873,7 @@ describe("BurialSidebar", () => {
       selectedBurials: [burialRecords[0]],
     });
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(620);
     expect(mockBottomSheetState.snapTo).not.toHaveBeenCalled();
   });
 
@@ -872,15 +882,15 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const browseWorkspace = screen.getByText("Find your way").closest(".left-sidebar__panel");
 
     expect(browseWorkspace).not.toBeNull();
-    expect(within(browseWorkspace).getByText("Browse")).toBeInTheDocument();
+    expect(within(browseWorkspace).getByText("Find your way")).toBeInTheDocument();
     expect(within(browseWorkspace).getByLabelText("Search burials")).toBeInTheDocument();
     expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
   });
 
-  domTest("folds the current selection count into browse results when both are present", () => {
+  domTest("keeps browse results visible with selected count when both are present", () => {
     const extraSectionRecord = buildBurialBrowseResult(
       {
         properties: {
@@ -911,28 +921,25 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const browseWorkspace = screen.getByText("Find your way").closest(".left-sidebar__panel");
     const selectedChip = within(browseWorkspace).getByText("2 selected");
     const selectionPanel = within(browseWorkspace).getByText("Selection").closest(".left-sidebar__panel--selected-summary");
-    expect(within(browseWorkspace).getByText("Selected records")).toBeInTheDocument();
-    expect(within(browseWorkspace).queryByText("3 results")).not.toBeInTheDocument();
+    expect(within(browseWorkspace).getByText("Results")).toBeInTheDocument();
+    expect(within(browseWorkspace).getByText("3 results")).toBeInTheDocument();
     const resultsList = within(browseWorkspace)
       .getAllByRole("list")
       .find((list) => !list.closest(".left-sidebar__selected-scroll"));
 
     expect(selectionPanel).not.toBeNull();
-    expect(within(selectionPanel).getAllByRole("button", { name: "Directions" }).length).toBeGreaterThan(0);
+    expect(within(selectionPanel).getAllByRole("button", { name: "Navigate" }).length).toBeGreaterThan(0);
     expect(resultsList).not.toBeNull();
-    expect(within(resultsList).queryByText("Clara Section")).not.toBeInTheDocument();
+    expect(within(resultsList).getByText("Clara Section")).toBeInTheDocument();
     const thomasResult = within(resultsList).getByText("Thomas Tracy");
-    const annaResult = within(resultsList).getByText("Anna Tracy");
 
     expect(
       selectedChip.compareDocumentPosition(resultsList) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
-    expect(
-      thomasResult.compareDocumentPosition(annaResult) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
+    expect(within(thomasResult.closest(".left-sidebar__result-card")).getByText("Active")).toBeInTheDocument();
   });
 
   domTest("keeps selected mobile state compact when browse results are active", () => {
@@ -945,20 +952,20 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const browseWorkspace = screen.getByText("Find your way").closest(".left-sidebar__panel");
     const searchInput = within(browseWorkspace).getByLabelText("Search burials");
     const selectedChip = within(browseWorkspace).getByText("1 selected");
     const selectionHeading = within(browseWorkspace).getByText("Selection");
     const selectionPanel = selectionHeading.closest(".left-sidebar__panel--selected-summary");
 
     expect(selectionPanel).not.toBeNull();
-    expect(within(selectionPanel).getByRole("button", { name: "Route on map" })).toBeInTheDocument();
+    expect(within(selectionPanel).getByRole("button", { name: "Navigate" })).toBeInTheDocument();
     expect(within(selectedChip.closest(".left-sidebar__results-header")).getByRole("button", { name: "Clear selected" })).toBeInTheDocument();
     expect(
-      selectionHeading.compareDocumentPosition(searchInput) & Node.DOCUMENT_POSITION_FOLLOWING
+      searchInput.compareDocumentPosition(selectionHeading) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
     expect(
-      searchInput.compareDocumentPosition(selectedChip) & Node.DOCUMENT_POSITION_FOLLOWING
+      selectionHeading.compareDocumentPosition(selectedChip) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
   });
 
@@ -970,7 +977,7 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const browseWorkspace = screen.getByText("Find your way").closest(".left-sidebar__panel");
     const selectionPanel = within(browseWorkspace).getByText("Selection").closest(".left-sidebar__panel");
 
     expect(screen.queryByText("Results")).not.toBeInTheDocument();
@@ -991,11 +998,11 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    const browseWorkspace = screen.getByText("Browse").closest(".left-sidebar__panel");
+    const browseWorkspace = screen.getByText("Find your way").closest(".left-sidebar__panel");
     const selectionPanel = within(browseWorkspace).getByText("Selection").closest(".left-sidebar__panel--selected-summary");
 
     expect(selectionPanel).not.toBeNull();
-    expect(within(selectionPanel).getAllByRole("button", { name: "Directions" }).length).toBeGreaterThan(0);
+    expect(within(selectionPanel).getAllByRole("button", { name: "Navigate" }).length).toBeGreaterThan(0);
     expect(selectionPanel.querySelector(".left-sidebar__selected-scroll")).not.toBeNull();
     expect(within(browseWorkspace).getByText("8 selected")).toBeInTheDocument();
     expect(browseWorkspace).not.toBeNull();
@@ -1045,7 +1052,7 @@ describe("BurialSidebar", () => {
       />
     );
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(500);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(620);
     expect(mockBottomSheetState.snapTo).not.toHaveBeenCalled();
   });
 

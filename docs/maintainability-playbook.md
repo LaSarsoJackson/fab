@@ -118,5 +118,6 @@ bun run build:data
 - `src/lib` is retired. Do not add new helpers there.
 - Development-only surfaces belong on `dev-features` unless they are being
   promoted into the shipped app.
-- `Route on Map` is local-road routing; `Open in Maps` is the external handoff.
+- `Navigate` is the user-facing action; Map.jsx decides between local-road
+  routing and the external Maps handoff.
 - Shared URLs affect both the web app and `FABFG`.

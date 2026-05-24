@@ -124,6 +124,82 @@ const buildSelectionBadgeSx = ({ color, isLead = false }) => ({
   mt: 0.2,
 });
 
+const getRecordFromLookup = (recordsById, id) => {
+  if (!id) return null;
+  if (recordsById && typeof recordsById.get === "function") {
+    return recordsById.get(id) || null;
+  }
+  return recordsById?.[id] || null;
+};
+
+const buildVisitStatus = ({
+  activeBurialId,
+  activeRouteBurialId,
+  browseQuery,
+  burialRecordsById,
+  sectionFilter,
+  selectedBurials,
+  selectedTour,
+}) => {
+  const routeRecord = getRecordFromLookup(burialRecordsById, activeRouteBurialId)
+    || selectedBurials.find((record) => record.id === activeRouteBurialId)
+    || null;
+
+  if (activeRouteBurialId) {
+    return {
+      label: "Navigating",
+      detail: routeRecord
+        ? `Continue to ${formatBrowseResultName(routeRecord)}.`
+        : "Continue to grave location.",
+      tone: "active",
+    };
+  }
+
+  const activeRecord = getRecordFromLookup(burialRecordsById, activeBurialId)
+    || selectedBurials.find((record) => record.id === activeBurialId)
+    || selectedBurials[0]
+    || null;
+
+  if (activeRecord) {
+    return {
+      label: "Grave selected",
+      detail: formatBrowseResultName(activeRecord),
+      tone: "selected",
+    };
+  }
+
+  if (selectedTour) {
+    return {
+      label: "Tour selected",
+      detail: selectedTour,
+      tone: "selected",
+    };
+  }
+
+  if (sectionFilter) {
+    return {
+      label: "Exploring section",
+      detail: `Section ${sectionFilter}`,
+      tone: "selected",
+    };
+  }
+
+  const trimmedQuery = browseQuery.trim();
+  if (trimmedQuery) {
+    return {
+      label: "Searching",
+      detail: trimmedQuery,
+      tone: "selected",
+    };
+  }
+
+  return {
+    label: "Ready",
+    detail: "Find a grave, start a tour, or explore a section.",
+    tone: "idle",
+  };
+};
+
 const panelSurfaceStyles = {
   position: "relative",
   overflow: "hidden",
@@ -145,7 +221,7 @@ const APP_HOME_URL = APP_SHELL.homeUrl || "#";
 const DEFAULT_LOCATION_STATUS = APP_PROFILE.map.locationMessages?.inactive || "Location inactive";
 const LOCATION_ACTIVE_STATUS = APP_PROFILE.map.locationMessages?.active || "Location active";
 const LOCATION_LOCATING_STATUS = APP_PROFILE.map.locationMessages?.locating || "Locating...";
-const LOCATION_OUT_OF_BOUNDS_STATUS = APP_PROFILE.map.locationMessages?.outOfBounds || "Location outside cemetery range";
+const LOCATION_OUT_OF_BOUNDS_STATUS = APP_PROFILE.map.locationMessages?.outOfBounds || "Tap Navigate for driving directions.";
 const LOCATION_UNAVAILABLE_STATUS = APP_PROFILE.map.locationMessages?.unavailable || "GPS unavailable";
 const LOCATION_UNSUPPORTED_STATUS = APP_PROFILE.map.locationMessages?.unsupported || "GPS unsupported";
 const LOCATION_APPROXIMATE_STATUS = APP_PROFILE.map.locationMessages?.approximate || "";
@@ -243,26 +319,8 @@ function BrowseResultsPanel({
     [selectedBurials]
   );
   const selectedBurialCount = selectedBurials.length;
-  const browseResultIds = useMemo(
-    () => new Set(browseResults.map((result) => result.id)),
-    [browseResults]
-  );
-  const selectedBrowseResults = useMemo(() => {
-    const scopedSelections = selectedBurials.filter((burial) => browseResultIds.has(burial.id));
-    if (!activeBurialId) return scopedSelections;
-
-    const activeSelection = scopedSelections.find((burial) => burial.id === activeBurialId);
-    if (!activeSelection) return scopedSelections;
-
-    return [
-      activeSelection,
-      ...scopedSelections.filter((burial) => burial.id !== activeBurialId),
-    ];
-  }, [activeBurialId, browseResultIds, selectedBurials]);
-  const isShowingSelectedSubset = selectedBrowseResults.length > 0;
-  const displayedResults = isShowingSelectedSubset ? selectedBrowseResults : browseResults;
+  const displayedResults = browseResults;
   const displayedResultCount = displayedResults.length;
-  const selectedBrowseResultSignature = selectedBrowseResults.map((result) => result.id).join("|");
   const [visibleCount, setVisibleCount] = useState(batchSize);
 
   useEffect(() => {
@@ -276,7 +334,6 @@ function BrowseResultsPanel({
     browseSource,
     query,
     sectionFilter,
-    selectedBrowseResultSignature,
     selectedTour,
   ]);
 
@@ -300,13 +357,11 @@ function BrowseResultsPanel({
     : trimmedQuery
       ? "Search"
       : "Browse";
-  const resultsTitle = isShowingSelectedSubset
-    ? "Selected records"
-    : isScopedBrowse
-      ? "Results"
-      : trimmedQuery
-        ? "Search results"
-        : "Burials";
+  const resultsTitle = isScopedBrowse
+    ? "Results"
+    : trimmedQuery
+      ? "Search results"
+      : "Burials";
 
   return (
     <Box
@@ -374,7 +429,7 @@ function BrowseResultsPanel({
         </Box>
       </Box>
 
-      {!shouldRenderEmptyState && !isShowingSelectedSubset && (
+      {!shouldRenderEmptyState && (
         <Typography
           className="left-sidebar__results-summary"
           variant="body2"
@@ -623,7 +678,7 @@ function SelectedPeopleList({
   markerColors,
   onFocusSelectedBurial,
   onHoverBurialChange,
-  onOpenDirectionsMenu,
+  onNavigateToBurial,
   onRemoveSelectedBurial,
   selectedBurialOrderById,
   selectedBurialRefs,
@@ -776,9 +831,12 @@ function SelectedPeopleList({
                   size="small"
                   variant="contained"
                   startIcon={<DirectionsIcon />}
-                  onClick={(event) => onOpenDirectionsMenu(event, burial)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onNavigateToBurial(event, burial);
+                  }}
                 >
-                  Directions
+                  {isRouteActive ? "Stop Navigation" : "Navigate"}
                 </Button>
                 <Button
                   className="left-sidebar__selection-action left-sidebar__selection-action--secondary"
@@ -817,7 +875,7 @@ function SelectionLeadCard({
   markerColor,
   onFocusSelectedBurial,
   onHoverBurialChange,
-  onOpenDirectionsMenu,
+  onNavigateToBurial,
   onRemoveSelectedBurial,
   tourStyle,
 }) {
@@ -943,10 +1001,10 @@ function SelectionLeadCard({
           startIcon={<DirectionsIcon />}
           onClick={(event) => {
             event.stopPropagation();
-            onOpenDirectionsMenu(event, burial);
+            onNavigateToBurial(event, burial);
           }}
         >
-          Directions
+          {isRouteActive ? "Stop Navigation" : "Navigate"}
         </Button>
         <Button
           className="left-sidebar__selection-action left-sidebar__selection-action--secondary"
@@ -973,9 +1031,8 @@ function SelectedPlaceCard({
   isCompact = false,
   isRouteActive,
   markerColor,
-  onOpenExternalDirections,
+  onNavigateToBurial,
   onRemoveSelectedBurial,
-  onStartRouting,
   onStopRouting,
   tourStyle,
 }) {
@@ -1055,6 +1112,29 @@ function SelectedPlaceCard({
           <Box component="h3" className="popup-card__title">
             {popupView.heading}
           </Box>
+          <Box className="popup-card__actions left-sidebar__selected-place-card-actions">
+            <button
+              type="button"
+              className="popup-card__action popup-card__action--primary"
+              onClick={() => {
+                if (isRouteActive) {
+                  onStopRouting?.();
+                  return;
+                }
+
+                onNavigateToBurial?.(burial);
+              }}
+            >
+              {isRouteActive ? "Stop Navigation" : "Navigate"}
+            </button>
+            <button
+              type="button"
+              className="popup-card__action popup-card__action--ghost"
+              onClick={() => onRemoveSelectedBurial(burial.id)}
+            >
+              Remove
+            </button>
+          </Box>
           {locationSummary && (
             <Box component="p" className="popup-card__subtitle">
               {locationSummary}
@@ -1090,36 +1170,6 @@ function SelectedPlaceCard({
             </Box>
           )}
           {mediaContent}
-          <Box className="popup-card__actions left-sidebar__selected-place-card-actions">
-            <button
-              type="button"
-              className="popup-card__action popup-card__action--primary"
-              onClick={() => {
-                if (isRouteActive) {
-                  onStopRouting?.();
-                  return;
-                }
-
-                onStartRouting?.(burial);
-              }}
-            >
-              {isRouteActive ? "Stop route" : "Route on map"}
-            </button>
-            <button
-              type="button"
-              className="popup-card__action popup-card__action--secondary"
-              onClick={() => onOpenExternalDirections?.(burial)}
-            >
-              Open in Maps
-            </button>
-            <button
-              type="button"
-              className="popup-card__action popup-card__action--ghost"
-              onClick={() => onRemoveSelectedBurial(burial.id)}
-            >
-              Remove
-            </button>
-          </Box>
         </Box>
       </Box>
     );
@@ -1214,17 +1264,10 @@ function SelectedPlaceCard({
                 return;
               }
 
-              onStartRouting?.(burial);
+              onNavigateToBurial?.(burial);
             }}
           >
-            {isRouteActive ? "Stop route" : "Route on map"}
-          </button>
-          <button
-            type="button"
-            className="popup-card__action popup-card__action--secondary"
-            onClick={() => onOpenExternalDirections?.(burial)}
-          >
-            Open in Maps
+            {isRouteActive ? "Stop Navigation" : "Navigate"}
           </button>
           <button
             type="button"
@@ -1252,10 +1295,8 @@ function SelectedSummaryPanel({
   onClearSelectedBurials,
   onFocusSelectedBurial,
   onHoverBurialChange,
-  onOpenExternalDirections,
-  onOpenDirectionsMenu,
+  onNavigateToBurial,
   onRemoveSelectedBurial,
-  onStartRouting,
   onStopRouting,
   onToggleExpanded,
   selectedBurialRefs,
@@ -1346,9 +1387,8 @@ function SelectedSummaryPanel({
           isCompact
           isRouteActive={isRouteActive}
           markerColor={markerColors[leadBurialIndex % markerColors.length]}
-          onOpenExternalDirections={onOpenExternalDirections}
+          onNavigateToBurial={onNavigateToBurial}
           onRemoveSelectedBurial={onRemoveSelectedBurial}
-          onStartRouting={onStartRouting}
           onStopRouting={onStopRouting}
           tourStyle={leadTourStyle}
         />
@@ -1363,7 +1403,7 @@ function SelectedSummaryPanel({
           markerColor={markerColors[leadBurialIndex % markerColors.length]}
           onFocusSelectedBurial={onFocusSelectedBurial}
           onHoverBurialChange={onHoverBurialChange}
-          onOpenDirectionsMenu={onOpenDirectionsMenu}
+          onNavigateToBurial={onNavigateToBurial}
           onRemoveSelectedBurial={onRemoveSelectedBurial}
           tourStyle={leadTourStyle}
         />
@@ -1392,7 +1432,7 @@ function SelectedSummaryPanel({
             markerColors={markerColors}
             onFocusSelectedBurial={onFocusSelectedBurial}
             onHoverBurialChange={onHoverBurialChange}
-            onOpenDirectionsMenu={onOpenDirectionsMenu}
+            onNavigateToBurial={onNavigateToBurial}
             onRemoveSelectedBurial={onRemoveSelectedBurial}
             selectedBurialOrderById={selectedBurialOrderById}
             selectedBurialRefs={selectedBurialRefs}
@@ -1633,21 +1673,19 @@ function BurialSidebar({
   onFilterTypeChange,
   onFocusSelectedBurial,
   onHoverBurialChange,
-  onOpenExternalDirections,
   onLocateMarker,
   onLotTierFilterChange,
   onClearFieldPacket,
   onCopyFieldPacketLink,
   onInstallApp,
   onOpenAppMenu,
-  onOpenDirectionsMenu,
+  onNavigateToBurial,
   onMobileSheetViewportChange,
   onRemoveSelectedBurial,
   onRequestBurialDataLoad,
   onRequestHideChrome,
   onSectionChange,
   onShareFieldPacket,
-  onStartRouting,
   onStopRouting,
   onToggleSectionMarkers,
   onTourChange,
@@ -1857,7 +1895,7 @@ function BurialSidebar({
       expandMobileSheet();
     }
 
-    scrollMobileSheetToTop();
+    scrollMobileSheetToTop("auto");
   }, [
     activeBurialId,
     expandMobileSheet,
@@ -1938,8 +1976,14 @@ function BurialSidebar({
   const handleBrowseSourceChange = useCallback((nextSource) => {
     onRequestBurialDataLoad?.();
 
-    if (!nextSource) {
+    if (!nextSource || nextSource === "all") {
       setBrowseSource("all");
+      if (sectionFilter || lotTierFilter) {
+        onClearSectionFilters();
+      }
+      if (selectedTour) {
+        onTourChange(null);
+      }
       expandMobileSheet();
       return;
     }
@@ -2005,7 +2049,10 @@ function BurialSidebar({
       return;
     }
 
-    if (isMobileSearchPanelCollapsedByControl) {
+    const isCurrentlyCollapsed = isMobileSearchPanelCollapsedByControl
+      || resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED;
+
+    if (isCurrentlyCollapsed) {
       setIsMobileSearchPanelCollapsedByControl(false);
       expandMobileSheet();
       return;
@@ -2024,6 +2071,7 @@ function BurialSidebar({
     isMobile,
     isMobileSearchPanelCollapsedByControl,
     onRequestHideChrome,
+    resolvedMobileSheetState,
   ]);
 
   const handleClearAllBrowseState = useCallback(() => {
@@ -2042,9 +2090,9 @@ function BurialSidebar({
     }
 
     onClearSelectedBurials();
-    collapseMobileSheet();
+    expandMobileSheet();
   }, [
-    collapseMobileSheet,
+    expandMobileSheet,
     lotTierFilter,
     onClearSectionFilters,
     onClearSelectedBurials,
@@ -2177,6 +2225,23 @@ function BurialSidebar({
     sectionFilter,
     selectedTour,
   ]);
+  const visitStatus = useMemo(() => buildVisitStatus({
+    activeBurialId,
+    activeRouteBurialId,
+    browseQuery,
+    burialRecordsById,
+    sectionFilter,
+    selectedBurials,
+    selectedTour,
+  }), [
+    activeBurialId,
+    activeRouteBurialId,
+    browseQuery,
+    burialRecordsById,
+    sectionFilter,
+    selectedBurials,
+    selectedTour,
+  ]);
   const desktopMoreButton = !isMobile ? (
     <Button
       variant="text"
@@ -2203,7 +2268,9 @@ function BurialSidebar({
       <MoreHorizIcon fontSize="small" />
     </IconButton>
   ) : null;
-  const mobileSearchPanelToggleLabel = isMobileSearchPanelCollapsedByControl
+  const isMobileSearchPanelCollapsed = isMobileSearchPanelCollapsedByControl
+    || resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED;
+  const mobileSearchPanelToggleLabel = isMobileSearchPanelCollapsed
     ? "Show search panel"
     : "Hide search panel";
   const mobileSearchPanelToggleButton = isMobile ? (
@@ -2213,7 +2280,7 @@ function BurialSidebar({
       onClick={handleToggleMobileSearchPanel}
       aria-label={mobileSearchPanelToggleLabel}
       title={mobileSearchPanelToggleLabel}
-      aria-pressed={isMobileSearchPanelCollapsedByControl}
+      aria-pressed={isMobileSearchPanelCollapsed}
       sx={{
         color: "var(--muted-text)",
         border: "1px solid rgba(20, 33, 43, 0.08)",
@@ -2223,7 +2290,7 @@ function BurialSidebar({
       <ArrowDropDownIcon
         fontSize="small"
         sx={{
-          transform: isMobileSearchPanelCollapsedByControl ? "rotate(180deg)" : "rotate(0deg)",
+          transform: isMobileSearchPanelCollapsed ? "rotate(180deg)" : "rotate(0deg)",
           transition: "transform 0.2s ease",
         }}
       />
@@ -2278,10 +2345,8 @@ function BurialSidebar({
       onClearSelectedBurials={onClearSelectedBurials}
       onFocusSelectedBurial={onFocusSelectedBurial}
       onHoverBurialChange={onHoverBurialChange}
-      onOpenExternalDirections={onOpenExternalDirections}
-      onOpenDirectionsMenu={onOpenDirectionsMenu}
+      onNavigateToBurial={onNavigateToBurial}
       onRemoveSelectedBurial={onRemoveSelectedBurial}
-      onStartRouting={onStartRouting}
       onStopRouting={onStopRouting}
       onToggleExpanded={toggleSelectedSummary}
       selectedBurialRefs={selectedBurialRefs}
@@ -2383,6 +2448,23 @@ function BurialSidebar({
           </Box>
         </Box>
         {mobileHeaderActions}
+      </Box>
+
+      <Box
+        className={`left-sidebar__visit-status left-sidebar__visit-status--${visitStatus.tone}`}
+      >
+        <Typography
+          component="span"
+          className="left-sidebar__visit-status-label"
+        >
+          {visitStatus.label}
+        </Typography>
+        <Typography
+          component="span"
+          className="left-sidebar__visit-status-detail"
+        >
+          {visitStatus.detail}
+        </Typography>
       </Box>
 
       {(burialDataError || mapDataError || tourLayerError) && (

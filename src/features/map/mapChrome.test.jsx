@@ -142,9 +142,20 @@ describe("mapChrome", () => {
       <RouteStatusOverlay isCalculating routingError="" />
     );
 
-    expect(screen.getByText("Calculating route...")).toBeInTheDocument();
+    expect(screen.getByText("Starting on-site navigation...")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveAttribute("aria-live", "polite");
     expect(screen.getByRole("status")).toHaveAttribute("data-placement", "desktop-bottom");
+
+    rerender(
+      <RouteStatusOverlay
+        isCalculating={false}
+        isMobile
+        routingError=""
+        routingNotice="On-site navigation will begin when you arrive."
+      />
+    );
+
+    expect(screen.getByText("On-site navigation will begin when you arrive.")).toBeInTheDocument();
 
     rerender(
       <RouteStatusOverlay isCalculating={false} isMobile routingError="Route unavailable" />

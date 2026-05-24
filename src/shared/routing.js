@@ -20,12 +20,29 @@ const isValidCoordinate = (value, min, max) => (
 
 const formatLatLng = (latitude, longitude) => `${latitude},${longitude}`;
 
+const DIRECTIONS_MODE_BY_TRAVEL_MODE = Object.freeze({
+  driving: {
+    apple: "d",
+    google: "driving",
+  },
+  walking: {
+    apple: "w",
+    google: "walking",
+  },
+});
+
+const resolveDirectionsMode = (travelMode) => (
+  DIRECTIONS_MODE_BY_TRAVEL_MODE[String(travelMode || "").toLowerCase()] ||
+  DIRECTIONS_MODE_BY_TRAVEL_MODE.walking
+);
+
 export const buildDirectionsLink = ({
   latitude,
   longitude,
   label = "",
   originLatitude,
   originLongitude,
+  travelMode = "walking",
   userAgent = "",
 } = {}) => {
   if (!isValidCoordinate(latitude, -90, 90) || !isValidCoordinate(longitude, -180, 180)) {
@@ -40,6 +57,7 @@ export const buildDirectionsLink = ({
     : "";
   const normalizedUserAgent = userAgent.toLowerCase();
   const cleanedLabel = String(label || "").trim();
+  const directionsMode = resolveDirectionsMode(travelMode);
 
   // Apple Maps gives the best same-device handoff on iOS/macOS; other clients
   // use Google Maps URLs so desktop browsers open a normal tab.
@@ -49,7 +67,7 @@ export const buildDirectionsLink = ({
   ) {
     const params = new URLSearchParams({
       daddr: formattedLatLng,
-      dirflg: "w",
+      dirflg: directionsMode.apple,
     });
 
     if (hasOrigin) {
@@ -70,7 +88,7 @@ export const buildDirectionsLink = ({
   const googleMapsDirectionsParams = new URLSearchParams({
     api: "1",
     destination: formattedLatLng,
-    travelmode: "walking",
+    travelmode: directionsMode.google,
   });
 
   if (hasOrigin) {

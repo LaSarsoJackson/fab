@@ -63,6 +63,36 @@ describe("routing contracts", () => {
     });
   });
 
+  test("builds driving directions for the external navigation handoff", () => {
+    const result = buildDirectionsLink({
+      latitude: 42.710119,
+      longitude: -73.730294,
+      travelMode: "driving",
+      userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 8)",
+    });
+
+    expect(result).toEqual({
+      href: "https://www.google.com/maps/dir/?api=1&destination=42.710119%2C-73.730294&travelmode=driving",
+      platform: "android",
+      target: "self",
+    });
+  });
+
+  test("maps driving mode to Apple Maps", () => {
+    const result = buildDirectionsLink({
+      latitude: 42.710119,
+      longitude: -73.730294,
+      travelMode: "driving",
+      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
+    });
+
+    expect(result).toEqual({
+      href: "https://maps.apple.com/?daddr=42.710119%2C-73.730294&dirflg=d",
+      platform: "apple",
+      target: "self",
+    });
+  });
+
   test("includes a source location in Google Maps links when one is provided", () => {
     const result = buildDirectionsLink({
       latitude: 42.710119,

@@ -16,6 +16,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import PinDropIcon from "@mui/icons-material/PinDrop";
+import AltRouteIcon from "@mui/icons-material/AltRoute";
+import MapIcon from "@mui/icons-material/Map";
 
 import { getSearchShellNoticeStyles } from "./sidebarPresentation";
 
@@ -79,9 +81,9 @@ function SearchNoticeStack({ notices }) {
   );
 }
 
-const getBrowseContextButtonClassName = (isActive = false) => [
-  "left-sidebar__browse-context-button",
-  isActive ? "left-sidebar__browse-context-button--active" : "",
+const getVisitTaskClassName = (isActive = false) => [
+  "left-sidebar__visit-task",
+  isActive ? "left-sidebar__visit-task--active" : "",
 ].filter(Boolean).join(" ");
 
 const getMarkerToggleClassName = (showAllBurials = false) => [
@@ -145,56 +147,89 @@ function BrowseSearchField({
   );
 }
 
+function VisitTaskSelector({
+  browseSource,
+  hasTourBrowse,
+  onBrowseSourceChange,
+}) {
+  const taskSpecs = [
+    {
+      key: "grave",
+      source: "all",
+      label: "Find a grave",
+      detail: "Search by name or lot",
+      icon: <SearchIcon fontSize="small" />,
+    },
+    hasTourBrowse ? {
+      key: "tour",
+      source: "tour",
+      label: "Start a tour",
+      detail: "Follow guided stops",
+      icon: <AltRouteIcon fontSize="small" />,
+    } : null,
+    {
+      key: "section",
+      source: "section",
+      label: "Explore section",
+      detail: "Browse one area",
+      icon: <MapIcon fontSize="small" />,
+    },
+  ].filter(Boolean);
+
+  return (
+    <Box
+      className="left-sidebar__visit-flow"
+      role="group"
+      aria-label="Choose visit task"
+    >
+      <Typography variant="caption" className="left-sidebar__visit-flow-label">
+        Start here
+      </Typography>
+      <Box className="left-sidebar__visit-tasks">
+        {taskSpecs.map((task) => {
+          const isActive = browseSource === task.source;
+
+          return (
+            <Button
+              key={task.key}
+              color="inherit"
+              variant="text"
+              aria-label={task.label}
+              aria-pressed={isActive}
+              className={getVisitTaskClassName(isActive)}
+              onClick={() => onBrowseSourceChange(task.source)}
+              startIcon={task.icon}
+            >
+              <span className="left-sidebar__visit-task-copy">
+                <span className="left-sidebar__visit-task-label">{task.label}</span>
+                <span className="left-sidebar__visit-task-detail">{task.detail}</span>
+              </span>
+            </Button>
+          );
+        })}
+      </Box>
+    </Box>
+  );
+}
+
 function BrowseToolbar({
   desktopMoreButton,
   hasGlobalResetState,
-  hasTourBrowse,
   isMobile,
-  isSectionBrowseVisible,
-  isTourBrowseVisible,
-  onBrowseSourceChange,
   onClearAllBrowseState,
   onLocateUser,
-  tourLabel,
 }) {
   return (
     <Box
-      className="left-sidebar__browse-toolbar"
+      className="left-sidebar__browse-toolbar left-sidebar__browse-toolbar--utilities"
       sx={{
         display: "flex",
         flexWrap: "wrap",
-        alignItems: "flex-start",
+        alignItems: "center",
         justifyContent: "space-between",
         gap: 1,
       }}
     >
-      <Box
-        aria-label="Browse the map"
-        className="left-sidebar__browse-contexts"
-        role="group"
-        sx={{ flex: isMobile ? "1 1 100%" : "0 1 auto" }}
-      >
-        <Button
-          color="inherit"
-          variant="text"
-          aria-pressed={isSectionBrowseVisible}
-          className={getBrowseContextButtonClassName(isSectionBrowseVisible)}
-          onClick={() => onBrowseSourceChange("section")}
-        >
-          Sections
-        </Button>
-        {hasTourBrowse && (
-          <Button
-            color="inherit"
-            variant="text"
-            aria-pressed={isTourBrowseVisible}
-            className={getBrowseContextButtonClassName(isTourBrowseVisible)}
-            onClick={() => onBrowseSourceChange("tour")}
-          >
-            {`${tourLabel}s`}
-          </Button>
-        )}
-      </Box>
       <Box
         className="left-sidebar__browse-actions"
         sx={{
@@ -210,8 +245,9 @@ function BrowseToolbar({
           color="inherit"
           size="small"
           startIcon={<PinDropIcon />}
+          aria-label="Locate me"
         >
-          My location
+          Locate me
         </Button>
         {hasGlobalResetState && (
           <Button
@@ -222,11 +258,11 @@ function BrowseToolbar({
             startIcon={<CloseIcon />}
             aria-label="Clear all browse filters"
           >
-            Reset all
+            Reset
           </Button>
         )}
-        {desktopMoreButton}
       </Box>
+      {desktopMoreButton}
     </Box>
   );
 }
@@ -243,9 +279,9 @@ function BrowseWorkspaceHeader() {
       }}
     >
       <Box sx={{ minWidth: 0 }}>
-        <Typography variant="subtitle2">Browse</Typography>
+        <Typography variant="subtitle2">Find your way</Typography>
         <Typography variant="body2" sx={{ color: "var(--muted-text)", mt: 0.5 }}>
-          Search directly, or narrow the map with one section or one curated tour.
+          Search, choose a tour, or explore one cemetery section.
         </Typography>
       </Box>
     </Box>
@@ -636,15 +672,6 @@ export default function BrowseWorkspacePanel({
         minHeight: 0,
       }}
     >
-      {shouldPromotePriorityContent ? (
-        <>
-          <Box className="left-sidebar__browse-priority left-sidebar__browse-priority--mobile">
-            {priorityContent}
-          </Box>
-          <Divider className="left-sidebar__browse-workspace-divider" sx={{ my: 1.2 }} />
-        </>
-      ) : null}
-
       <Box
         className="left-sidebar__browse-composer left-sidebar__browse-composer--embedded"
         sx={{
@@ -665,17 +692,24 @@ export default function BrowseWorkspacePanel({
           searchPlaceholder={searchPlaceholder}
         />
 
+        {shouldPromotePriorityContent ? (
+          <Box className="left-sidebar__browse-priority left-sidebar__browse-priority--mobile">
+            {priorityContent}
+          </Box>
+        ) : (
+          <VisitTaskSelector
+            browseSource={isTourBrowseVisible ? "tour" : isSectionBrowseVisible ? "section" : "all"}
+            hasTourBrowse={hasTourBrowse}
+            onBrowseSourceChange={onBrowseSourceChange}
+          />
+        )}
+
         <BrowseToolbar
           desktopMoreButton={desktopMoreButton}
           hasGlobalResetState={hasGlobalResetState}
-          hasTourBrowse={hasTourBrowse}
           isMobile={isMobile}
-          isSectionBrowseVisible={isSectionBrowseVisible}
-          isTourBrowseVisible={isTourBrowseVisible}
-          onBrowseSourceChange={onBrowseSourceChange}
           onClearAllBrowseState={onClearAllBrowseState}
           onLocateUser={onLocateUser}
-          tourLabel={tourLabel}
         />
 
         <BrowseControlPanels

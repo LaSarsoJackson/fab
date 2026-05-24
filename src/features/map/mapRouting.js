@@ -565,14 +565,28 @@ export const calculateWalkingRoute = async ({
   to,
 });
 
+export const isCoordinateNearRoadNetwork = (
+  coordinate,
+  roadGraph,
+  { maxSnapDistanceMeters = DEFAULT_MAX_SNAP_DISTANCE_METERS } = {}
+) => {
+  if (!Array.isArray(coordinate) || !roadGraph?.nodes?.size || !roadGraph?.segments?.length) {
+    return false;
+  }
+
+  return Boolean(snapPointToRoadNetwork(coordinate[0], coordinate[1], roadGraph, {
+    maxSnapDistanceMeters,
+  }));
+};
+
 export const getRoutingErrorMessage = (error) => {
   if (error?.code === "LOCAL_ROUTING_OUT_OF_RANGE") {
-    return "Local road routing only works near the cemetery road network.";
+    return "Continue with Maps for now. On-site navigation will start when you arrive.";
   }
 
   if (typeof error?.message === "string" && error.message.trim()) {
     return error.message.trim();
   }
 
-  return "Unable to calculate route. The locations might be inaccessible by foot or too far apart.";
+  return "Unable to start on-site navigation. Try Navigate again.";
 };

@@ -59,10 +59,11 @@ REACT_APP_DEV_IMAGE_SERVER_ORIGIN=http://127.0.0.1:8000
 
 Notes:
 
-- `Route on Map` uses the bundled cemetery road network in the browser, with no
-  hosted routing API or local routing proxy.
-- `Open in Maps` builds external Apple Maps or Google Maps walking links from
-  `src/shared/routing.js`.
+- `Navigate` automatically hands far-away users to Apple Maps or Google Maps
+  and starts bundled cemetery-road routing when the user is on site.
+- External directions links are built from `src/shared/routing.js`; in-app
+  cemetery routing still runs in the browser with no hosted routing API or
+  local routing proxy.
 - `bun run start` defaults `REACT_APP_DEV_IMAGE_SERVER_ORIGIN` to the local
   companion image server on `http://127.0.0.1:8000`.
 - Development-only surfaces such as the static admin studio, custom renderer,

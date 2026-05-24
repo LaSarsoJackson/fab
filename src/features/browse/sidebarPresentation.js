@@ -38,11 +38,11 @@ export const formatLocationNoticeLabel = ({
   }
 
   if (status === unsupportedStatus) {
-    return "GPS is not supported in this browser. Search by name or section, or use Open in Maps.";
+    return "GPS is not supported in this browser. Search by name or section, then tap Navigate.";
   }
 
   if (status === outOfBoundsStatus) {
-    return "Location is outside cemetery range. Search still works; use Open in Maps for off-site directions.";
+    return status || "Search still works. Tap Navigate for driving directions.";
   }
 
   return status;

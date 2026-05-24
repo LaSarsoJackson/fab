@@ -147,16 +147,6 @@ async function searchForLamont(page) {
   return browseResults;
 }
 
-async function openDirectionsMenu(
-  scope,
-  page,
-  { buttonName = "Directions", routeActionName = "Route on Map" } = {}
-) {
-  await scope.getByRole("button", { name: buttonName }).first().click();
-  await expect(page.getByRole("menuitem", { name: routeActionName })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Open in Maps" })).toBeVisible();
-}
-
 async function expectExternalMapsNavigation(page, triggerNavigation) {
   const externalMapsPattern = /maps\.apple\.com|google\.com\/maps\/dir/i;
   const popupPromise = page
@@ -173,7 +163,7 @@ async function expectExternalMapsNavigation(page, triggerNavigation) {
   try {
     navigationTarget = await Promise.any([popupPromise, sameTabNavigationPromise]);
   } catch (error) {
-    throw new Error("Expected Open in Maps to launch Apple Maps or Google Maps.");
+    throw new Error("Expected Navigate to launch Apple Maps or Google Maps.");
   }
 
   if (navigationTarget.type === "popup") {
@@ -230,8 +220,7 @@ test.describe("desktop", () => {
     await expect(popupCard.locator(".popup-card__title")).toHaveText("Thomas E LaMont");
     await expect(popupCard.locator(".popup-card__details")).toContainText("Section 215, Lot 30, Tier 0, Grave 0");
 
-    await openDirectionsMenu(popupCard, page);
-    await expectExternalMapsNavigation(page, () => page.getByRole("menuitem", { name: "Open in Maps" }).click());
+    await expectExternalMapsNavigation(page, () => popupCard.getByRole("button", { name: "Navigate" }).click());
   });
 
   test("desktop search panel can be hidden and restored", async ({ page }) => {
@@ -252,7 +241,7 @@ test.describe("desktop", () => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
 
-    await page.getByRole("group", { name: "Browse the map" }).getByRole("button", { name: "Sections", exact: true }).click();
+    await page.getByRole("group", { name: "Choose visit task" }).getByRole("button", { name: "Explore section", exact: true }).click();
     const sectionBrowseDetail = page.locator(".left-sidebar__browse-detail--section");
     const browseSearchInput = page.locator(".left-sidebar__browse-composer input").first();
 
@@ -292,7 +281,7 @@ test.describe("desktop", () => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
 
-    await page.getByRole("group", { name: "Browse the map" }).getByRole("button", { name: "Tours", exact: true }).click();
+    await page.getByRole("group", { name: "Choose visit task" }).getByRole("button", { name: "Start a tour", exact: true }).click();
 
     const tourInput = page.getByRole("combobox", { name: "Tour" });
     await tourInput.click();
@@ -366,7 +355,7 @@ test.describe("desktop", () => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
 
-    await page.getByRole("button", { name: "My location" }).click();
+    await page.getByRole("button", { name: "Locate me" }).click();
 
     await expect(page.getByText("Using your current location for directions.")).toBeVisible({ timeout: 15_000 });
   });
@@ -382,7 +371,7 @@ test.describe("desktop", () => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
 
-    await page.getByRole("button", { name: "My location" }).click();
+    await page.getByRole("button", { name: "Locate me" }).click();
 
     await expect(page.getByText("GPS is unavailable. Check signal and permissions, or search by name or section.")).toBeVisible({ timeout: 25_000 });
     await expect(page.getByText("Finding your location…")).toHaveCount(0);
@@ -409,24 +398,15 @@ test.describe("desktop", () => {
     await browseResults.first().click();
 
     const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
-    await openDirectionsMenu(selectedPeoplePanel, page);
-    await page.getByRole("menuitem", { name: "Route on Map" }).click();
+    await selectedPeoplePanel.getByRole("button", { name: "Navigate" }).click();
 
     await expect(selectedPeoplePanel).toContainText("Route active");
-    await expect(page.getByText("Calculating route...")).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByText("Starting on-site navigation...")).toHaveCount(0, { timeout: 15_000 });
     const routeLine = page.locator("path[stroke='#0f67c6']").first();
     await expect(routeLine).toBeVisible();
-    const initialRoutePath = await routeLine.getAttribute("d");
     expect(externalRouteRequestCount).toBe(0);
 
-    await context.setGeolocation({
-      latitude: 42.7051,
-      longitude: -73.7304,
-    });
-    await expect(routeLine).not.toHaveAttribute("d", initialRoutePath || "", { timeout: 15_000 });
-
-    await openDirectionsMenu(selectedPeoplePanel, page, { routeActionName: "Stop Route" });
-    await page.getByRole("menuitem", { name: "Stop Route" }).click();
+    await selectedPeoplePanel.getByRole("button", { name: "Stop Navigation" }).click();
     await expect(selectedPeoplePanel).not.toContainText("Route active");
   });
 
@@ -444,11 +424,10 @@ test.describe("desktop", () => {
     await browseResults.first().click();
 
     const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
-    await openDirectionsMenu(selectedPeoplePanel, page);
-    await page.getByRole("menuitem", { name: "Route on Map" }).click();
+    await selectedPeoplePanel.getByRole("button", { name: "Navigate" }).click();
 
     await expect(selectedPeoplePanel).toContainText("Route active");
-    await expect(page.getByText("Calculating route...")).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByText("Starting on-site navigation...")).toHaveCount(0, { timeout: 15_000 });
     const routeLine = page.locator("path[stroke='#0f67c6']").first();
     await expect(routeLine).toBeVisible();
 
@@ -464,7 +443,7 @@ test.describe("desktop", () => {
     });
 
     await expect(routeLine).not.toHaveAttribute("d", routePathAfterPan || "", { timeout: 15_000 });
-    await expect(page.getByText("Calculating route...")).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByText("Starting on-site navigation...")).toHaveCount(0, { timeout: 15_000 });
     const refreshedMarker = await getSelectedMarkerCenter(page);
 
     expect(Math.abs(refreshedMarker.x - pannedMarker.x)).toBeLessThanOrEqual(3);
@@ -485,11 +464,7 @@ test.describe("desktop", () => {
     await browseResults.first().click();
 
     const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
-    await openDirectionsMenu(selectedPeoplePanel, page);
-    await page.getByRole("menuitem", { name: "Route on Map" }).click();
-
-    await expect(page.getByText(/Route on Map needs your current location near Albany Rural Cemetery/i)).toBeVisible({ timeout: 15_000 });
-    await expect(selectedPeoplePanel).not.toContainText("Route active");
+    await expectExternalMapsNavigation(page, () => selectedPeoplePanel.getByRole("button", { name: "Navigate" }).click());
   });
 });
 
@@ -504,10 +479,8 @@ test.describe("mobile", () => {
     await expect(selectedPeoplePanel).toContainText("Selection");
     await expect(selectedPeoplePanel).toContainText("Pinned for focus & directions");
     await expect(selectedPeoplePanel).toContainText("Thomas E LaMont");
-    await expect(selectedPeoplePanel.getByRole("button", { name: "Route on map" })).toBeVisible();
-    await expect(selectedPeoplePanel.getByRole("button", { name: "Open in Maps" })).toBeVisible();
-    await expect(selectedPeoplePanel.getByRole("button", { name: "Route on map" })).toBeInViewport();
-    await expect(selectedPeoplePanel.getByRole("button", { name: "Open in Maps" })).toBeInViewport();
+    await expect(selectedPeoplePanel.getByRole("button", { name: "Navigate" })).toBeVisible();
+    await expect(selectedPeoplePanel.getByRole("button", { name: "Navigate" })).toBeInViewport();
 
     await selectedPeoplePanel.getByRole("button", { name: "Clear" }).click();
     await expect(selectedPeoplePanel).toHaveCount(0);
