@@ -90,10 +90,12 @@ import {
   removeMapSelectionRecord,
   replaceMapSelectionRecords,
   resolveClusterExpansionZoom,
+  resolvePointSelectionFocusZoom,
   getClusterIconCount,
   getSameCoordinateMarkerBurialRecords,
   resolveMapPresentationPolicy,
   selectBestRecentLocationCandidate,
+  SELECTION_SOURCES,
   selectRouteTrackingLocationCandidate,
   shouldResetRouteGeometryForRequest,
   shouldShowPersistentSectionTooltips,
@@ -111,6 +113,7 @@ import {
   CustomZoomControl,
   DefaultExtentButton,
   fitBoundsInVisibleViewport,
+  isLatLngInsideVisibleViewport,
   LeafletGeoJsonLayer,
   MapBounds,
   MapControlStack,
@@ -614,6 +617,7 @@ const MapStaticLayers = memo(function MapStaticLayers({
   isLayerControlOpen,
   isMobile,
   isSearchPanelVisible,
+  locationStatus,
   mapRef,
   onBasemapChange,
   onEachSectionFeature,
@@ -662,7 +666,12 @@ const MapStaticLayers = memo(function MapStaticLayers({
           />
         )}
         <CustomZoomControl isMobile={isMobile} />
-        <MobileLocateButton isMobile={isMobile} onLocate={onLocateMarker} />
+        <MobileLocateButton
+          isMobile={isMobile}
+          locationMessages={LOCATION_MESSAGES}
+          locationStatus={locationStatus}
+          onLocate={onLocateMarker}
+        />
       </MapControlStack>
       <ActiveLeafletBasemap basemap={activeBasemap} />
       <MapBounds
@@ -766,13 +775,14 @@ const createOnEachTourFeature = (
     layer.on('mouseout', () => {
       onHoverEnd?.(browseResult.id);
     });
-    layer.on('click', () => {
-      onSelect(browseResult, {
-        animate: false,
-        openTourPopup: true,
-        preserveViewport: true,
-      });
-    });
+	    layer.on('click', () => {
+	      onSelect(browseResult, {
+	        animate: false,
+	        openTourPopup: true,
+	        preserveViewport: true,
+	        selectionSource: SELECTION_SOURCES.TOUR_STOP,
+	      });
+	    });
   }
 };
 
@@ -1252,6 +1262,33 @@ export default function BurialMap() {
       schedulePopupLayout(openPopup);
     }
   }, [getMapInstance, schedulePopupLayout]);
+
+  const keepActiveSelectionInVisibleViewport = useCallback(({
+    animate = false,
+  } = {}) => {
+    const map = getMapInstance();
+    const activeBurial = selectedBurials.find((burial) => (
+      cleanRecordValue(burial?.id) === activeBurialIdRef.current
+    ));
+
+    if (!map || !activeBurial || !Array.isArray(activeBurial.coordinates)) {
+      return false;
+    }
+
+    return panMapIntoViewport(map, {
+      lat: activeBurial.coordinates[1],
+      lng: activeBurial.coordinates[0],
+    }, {
+      animate,
+      ignoreViewportIntent: true,
+    });
+  }, [getMapInstance, panMapIntoViewport, selectedBurials]);
+
+  const handleMobileSheetViewportChange = useCallback(() => {
+    scheduleActivePopupLayout();
+    keepActiveSelectionInVisibleViewport();
+  }, [keepActiveSelectionInVisibleViewport, scheduleActivePopupLayout]);
+
   useEffect(() => {
     if (!isSearchPanelVisible || typeof ResizeObserver === "undefined") {
       return undefined;
@@ -1265,7 +1302,7 @@ export default function BurialMap() {
     let frame = null;
     const observer = new ResizeObserver(() => {
       if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
-        scheduleActivePopupLayout();
+        handleMobileSheetViewportChange();
         return;
       }
 
@@ -1274,7 +1311,7 @@ export default function BurialMap() {
       }
       frame = window.requestAnimationFrame(() => {
         frame = null;
-        scheduleActivePopupLayout();
+        handleMobileSheetViewportChange();
       });
     });
 
@@ -1286,7 +1323,7 @@ export default function BurialMap() {
         window.cancelAnimationFrame(frame);
       }
     };
-  }, [isSearchPanelVisible, scheduleActivePopupLayout]);
+  }, [handleMobileSheetViewportChange, isSearchPanelVisible]);
   const canIdlePrefetchTours = useMemo(() => {
     if (typeof navigator === 'undefined') {
       return !isMobile;
@@ -2114,6 +2151,7 @@ export default function BurialMap() {
       isExplicitFocus = false,
       openTourPopup = true,
       preserveViewport = false,
+      selectionSource = SELECTION_SOURCES.MAP_TAP,
     } = {}
   ) => {
     if (!burial) return;
@@ -2128,6 +2166,10 @@ export default function BurialMap() {
       };
 
       if (preserveViewport) {
+        panMapIntoViewport(map, targetLatLng, {
+          animate: false,
+          ignoreViewportIntent: true,
+        });
         if (openTourPopup) {
           focusBurialPopup(burial);
         }
@@ -2138,13 +2180,23 @@ export default function BurialMap() {
         return;
       }
 
-      const targetZoom = Math.min(
-        getMapMaxZoom(activeBasemap),
-        Math.max(map.getZoom(), FOCUS_ZOOM_LEVEL)
-      );
+      const currentZoom = map.getZoom();
+      const targetZoom = resolvePointSelectionFocusZoom({
+        currentZoom,
+        maxZoom: getMapMaxZoom(activeBasemap),
+        selectionSource,
+        sourceFocusMinZoom: FOCUS_ZOOM_LEVEL,
+      });
+      const shouldChangeZoom = targetZoom > currentZoom;
+      const isInsideVisibleViewport = isLatLngInsideVisibleViewport(map, targetLatLng, {
+        getOverlayElement,
+      });
+      const isInsideMapViewport = isLatLngInsideVisibleViewport(map, targetLatLng, {
+        basePadding: 0,
+      });
       const currentCenter = map.getCenter();
       const distance = map.distance(currentCenter, targetLatLng);
-      const shouldAnimate = animate && distance > 24;
+      const shouldAnimate = animate && (distance > 24 || shouldChangeZoom);
       const finalizeViewport = () => {
         panMapIntoViewport(map, targetLatLng, {
           animate: false,
@@ -2154,6 +2206,23 @@ export default function BurialMap() {
           focusBurialPopup(burial);
         }
       };
+
+      if (!shouldChangeZoom && isInsideVisibleViewport) {
+        if (openTourPopup) {
+          focusBurialPopup(burial);
+        }
+        return;
+      }
+
+      if (!shouldChangeZoom && isInsideMapViewport) {
+        finalizeViewport();
+        return;
+      }
+
+      if (!shouldChangeZoom && distance <= 24) {
+        finalizeViewport();
+        return;
+      }
 
       if (!shouldAnimate) {
         runProgrammaticViewportMove(map, () => {
@@ -2188,6 +2257,7 @@ export default function BurialMap() {
     dispatchSelectionAction,
     focusBurialPopup,
     getMapInstance,
+    getOverlayElement,
     panMapIntoViewport,
     runProgrammaticViewportMove,
   ]);
@@ -2469,11 +2539,17 @@ export default function BurialMap() {
    * allowed to move the viewport even after manual panning.
    */
   const handleResultClick = useCallback((burial) => {
-    focusBurial(burial, { isExplicitFocus: true });
+    focusBurial(burial, {
+      isExplicitFocus: true,
+      selectionSource: SELECTION_SOURCES.SEARCH_RESULT,
+    });
   }, [focusBurial]);
 
   const handleBrowseResultSelect = useCallback((burial) => {
-    selectBurial(burial, { isExplicitFocus: true });
+    selectBurial(burial, {
+      isExplicitFocus: true,
+      selectionSource: SELECTION_SOURCES.SEARCH_RESULT,
+    });
   }, [selectBurial]);
 
   /**
@@ -2531,16 +2607,9 @@ export default function BurialMap() {
         }
 
         markExplicitViewportFocus();
-        if (targetZoom > map.getZoom()) {
-          runProgrammaticViewportMove(map, () => {
-            map.setView(targetLatLng, targetZoom, { animate: !shouldReduceMapMotion });
-          });
-          return;
-        }
-
         panMapIntoViewport(map, targetLatLng, {
           animate: !shouldReduceMapMotion,
-          isExplicitFocus: true,
+          ignoreViewportIntent: true,
         });
         return;
       }
@@ -2974,11 +3043,12 @@ export default function BurialMap() {
     resetLocationCandidateWindow();
     ensureLocationWatchActive();
 
-    selectBurial(routeBurial, {
-      animate: false,
-      isExplicitFocus: true,
-      openTourPopup: true,
-    });
+	    selectBurial(routeBurial, {
+	      animate: false,
+	      isExplicitFocus: true,
+	      openTourPopup: true,
+	      selectionSource: SELECTION_SOURCES.NAVIGATION_START,
+	    });
 
     setRouteError("");
     setRoutingOrigin([usableLocation.latitude, usableLocation.longitude]);
@@ -3606,6 +3676,7 @@ export default function BurialMap() {
         animate: false,
         openTourPopup: true,
         preserveViewport: true,
+        selectionSource: SELECTION_SOURCES.MAP_TAP,
       });
     });
     marker.on('mouseover', () => {
@@ -4047,11 +4118,12 @@ export default function BurialMap() {
           if (isLatLngBoundsExpressionValid(packetMapBounds)) {
             fitMapBoundsInViewport(map, packetMapBounds);
           } else if (nextActiveRecord?.coordinates) {
-            focusBurial(nextActiveRecord, {
-              addToSelection: false,
-              animate: false,
-              openTourPopup: false,
-            });
+	            focusBurial(nextActiveRecord, {
+	              addToSelection: false,
+	              animate: false,
+	              openTourPopup: false,
+	              selectionSource: SELECTION_SOURCES.DEEP_LINK,
+	            });
           }
         }
       }
@@ -4076,9 +4148,11 @@ export default function BurialMap() {
         index: searchIndex,
         getTourName,
       });
-      if (matches.length > 0) {
-        selectBurial(matches[0]);
-      }
+	      if (matches.length > 0) {
+	        selectBurial(matches[0], {
+	          selectionSource: SELECTION_SOURCES.DEEP_LINK,
+	        });
+	      }
     }
 
     didApplyUrlStateRef.current = true;
@@ -4422,11 +4496,11 @@ export default function BurialMap() {
           isOnline={isOnline}
           isSearchIndexReady={isSearchIndexReady}
           loadingTourName={loadingTourName}
-          lotTierFilter={lotTierFilter}
-          mapDataError={mapDataError}
-          markerColors={MARKER_COLORS}
-          onMobileSheetViewportChange={scheduleActivePopupLayout}
-          rootRef={sidebarOverlayRef}
+	          lotTierFilter={lotTierFilter}
+	          mapDataError={mapDataError}
+	          markerColors={MARKER_COLORS}
+	          onMobileSheetViewportChange={handleMobileSheetViewportChange}
+	          rootRef={sidebarOverlayRef}
           onBrowseResultSelect={handleBrowseResultSelect}
           onClearSectionFilters={clearSectionFilters}
           onClearSelectedBurials={clearSelectedBurials}
@@ -4549,6 +4623,7 @@ export default function BurialMap() {
             isLayerControlOpen={isLayerControlOpen}
             isMobile={isMobile}
             isSearchPanelVisible={isSearchPanelVisible}
+            locationStatus={status}
             mapRef={mapRef}
             onBasemapChange={handleBasemapChange}
             onEachSectionFeature={onEachSectionFeature}
@@ -4672,11 +4747,12 @@ export default function BurialMap() {
                         records={records}
                         activeRecordId={activeBurialId}
                         onSelectRecord={(record) => {
-                          selectMapBurial(record, {
-                            animate: false,
-                            openTourPopup: false,
-                            preserveViewport: true,
-                          });
+	                          selectMapBurial(record, {
+	                            animate: false,
+	                            openTourPopup: false,
+	                            preserveViewport: true,
+	                            selectionSource: SELECTION_SOURCES.MAP_TAP,
+	                          });
                         }}
                         onNavigate={(event, record) => {
                           handleNavigateToBurial(event, record);
@@ -4713,11 +4789,12 @@ export default function BurialMap() {
                 eventHandlers={{
                   mouseover: () => handleHoverBurialChange(burial.id),
                   mouseout: () => clearHoveredBurialIfCurrent(burial.id),
-                  click: () => selectMapBurial(burial, {
-                    animate: false,
-                    openTourPopup: true,
-                    preserveViewport: true,
-                  }),
+	                  click: () => selectMapBurial(burial, {
+	                    animate: false,
+	                    openTourPopup: true,
+	                    preserveViewport: true,
+	                    selectionSource: SELECTION_SOURCES.MAP_TAP,
+	                  }),
                   popupopen: ({ popup }) => {
                     handlePopupBurialOpen(burial);
                     schedulePopupLayout(popup);

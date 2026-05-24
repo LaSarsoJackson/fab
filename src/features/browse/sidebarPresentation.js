@@ -34,15 +34,15 @@ export const formatLocationNoticeLabel = ({
   }
 
   if (status === unavailableStatus) {
-    return "GPS is unavailable. Check signal and permissions, or search by name or section.";
+    return "Location is unavailable. Search by name or section, or open directions.";
   }
 
   if (status === unsupportedStatus) {
-    return "GPS is not supported in this browser. Search by name or section, then tap Navigate.";
+    return "Location is not available in this browser. Search by name or section, then tap Navigate.";
   }
 
   if (status === outOfBoundsStatus) {
-    return status || "Search still works. Tap Navigate for driving directions.";
+    return status || "Search by name or section, then tap Navigate for directions.";
   }
 
   return status;
@@ -100,7 +100,7 @@ export const buildSearchShellNotices = ({
   locatingLocationStatus = "Locating...",
   outOfBoundsLocationStatus = "Location outside cemetery range",
   unavailableLocationStatus = "GPS unavailable",
-  unsupportedLocationStatus = "GPS unsupported",
+  unsupportedLocationStatus = "Location unavailable",
   approximateLocationStatus,
   weakSignalLocationStatus,
   hasActiveBrowseQuery = false,
@@ -197,7 +197,7 @@ export const getSearchPlaceholder = ({
     return selectedTour ? "Search this tour" : "Select a tour to browse";
   }
 
-  return "Search by name, section, or lot";
+  return "Search name, section, lot, or landmark";
 };
 
 export const getBrowseEmptyState = ({
@@ -227,7 +227,7 @@ export const getBrowseEmptyState = ({
   }
 
   if (browseSource === "all" && query.trim().length < minBrowseQueryLength) {
-    return `Type at least ${minBrowseQueryLength} characters to search.`;
+    return "Keep typing.";
   }
 
   if (browseSource === "section") {
@@ -238,7 +238,7 @@ export const getBrowseEmptyState = ({
     return `No results in ${selectedTour}${query.trim() ? ` for "${query.trim()}"` : ""}.`;
   }
 
-  return `No results for "${query.trim()}".`;
+  return `No matches for "${query.trim()}". Check spelling or try a section number.`;
 };
 
 export const buildBrowseScopeChips = ({

@@ -597,7 +597,7 @@ export const MOBILE_SHEET_STATES = {
 const SNAP_COLLAPSED_FRACTION = 0.08;
 const SNAP_COLLAPSED_MIN_HEIGHT = 76;
 const SNAP_CONTENT_MEASUREMENT_MIN_HEIGHT = SNAP_COLLAPSED_MIN_HEIGHT + 56;
-const SNAP_PEEK_FRACTION = 0.62;
+const SNAP_PEEK_FRACTION = 0.36;
 const SNAP_FULL_FRACTION = 0.92;
 
 export const getEffectiveMobileSheetMaxHeight = ({ maxHeight, visualViewportHeight } = {}) => {
@@ -645,8 +645,8 @@ export const getDefaultMobileSheetState = ({
   isMobile,
 }) => {
   if (!isMobile) return MOBILE_SHEET_STATES.FULL;
-  // Mobile should open on the guided visit controls. Collapsed is still
-  // available as a deliberate map-only state, but not as the first impression.
+  // Mobile opens as a compact map companion. Collapsed remains available as a
+  // deliberate map-only state, while full height is user-initiated.
   return MOBILE_SHEET_STATES.PEEK;
 };
 

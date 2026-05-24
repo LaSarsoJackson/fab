@@ -262,6 +262,43 @@ export const fitBoundsInVisibleViewport = (
   });
 };
 
+export const isLatLngInsideVisibleViewport = (
+  map,
+  latLng,
+  {
+    basePadding = 24,
+    getOverlayElement,
+  } = {}
+) => {
+  if (!map || !latLng) return false;
+  if (
+    typeof map.latLngToContainerPoint !== "function" ||
+    typeof map.getSize !== "function"
+  ) {
+    return false;
+  }
+
+  const point = map.latLngToContainerPoint(latLng);
+  const size = map.getSize();
+  if (!point || !size) return false;
+
+  const { paddingTopLeft, paddingBottomRight } = getLeafletViewportPadding(map, {
+    basePadding,
+    getOverlayElement,
+  });
+  const minX = paddingTopLeft.x;
+  const minY = paddingTopLeft.y;
+  const maxX = size.x - paddingBottomRight.x;
+  const maxY = size.y - paddingBottomRight.y;
+
+  return (
+    point.x >= minX &&
+    point.x <= maxX &&
+    point.y >= minY &&
+    point.y <= maxY
+  );
+};
+
 export const panIntoVisibleViewport = (
   map,
   latLng,
@@ -714,7 +751,7 @@ export function MapZoomControl({ isMobile, onZoomIn, onZoomOut }) {
 }
 
 export function SidebarToggleControl({ isSearchPanelVisible = true, onToggle }) {
-  const label = isSearchPanelVisible ? "Hide search panel" : "Show search panel";
+  const label = isSearchPanelVisible ? "Collapse" : "Search";
   const ToggleIcon = isSearchPanelVisible ? MenuOpenIcon : SearchIcon;
 
   return (
@@ -950,10 +987,31 @@ export function DefaultExtentButton({ defaultViewBounds, fitMapBounds }) {
   );
 }
 
-export function MobileLocateButton({ isMobile, onLocate }) {
+export function MobileLocateButton({
+  isMobile,
+  locationMessages = {},
+  locationStatus = "",
+  onLocate,
+}) {
   if (!isMobile) {
     return null;
   }
+
+  const normalizedStatus = String(locationStatus || "").trim();
+  const isLocating = Boolean(locationMessages.locating && normalizedStatus === locationMessages.locating);
+  const isActive = Boolean(
+    normalizedStatus &&
+    [
+      locationMessages.active,
+      locationMessages.approximate,
+      locationMessages.weakSignal,
+    ].filter(Boolean).includes(normalizedStatus)
+  );
+  const label = isLocating
+    ? "Finding location"
+    : isActive
+      ? "Recenter"
+      : "Locate";
 
   return (
     <Paper elevation={0} sx={mapControlShellSx}>
@@ -962,9 +1020,14 @@ export function MobileLocateButton({ isMobile, onLocate }) {
           void onLocate?.();
         }}
         size="small"
-        title="Use my location"
-        aria-label="Use my location"
-        sx={mapControlButtonSx}
+        title={label}
+        aria-label={label}
+        aria-pressed={isActive}
+        sx={{
+          ...mapControlButtonSx,
+          color: isActive ? "var(--accent-strong)" : mapControlButtonSx.color,
+          backgroundColor: isActive ? "var(--accent-soft)" : mapControlButtonSx.backgroundColor,
+        }}
       >
         <MyLocationIcon fontSize="small" />
       </IconButton>

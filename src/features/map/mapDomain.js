@@ -37,6 +37,14 @@ export const MAP_PRESENTATION_POLICY = Object.freeze({
   sectionBurialIndividualMinZoom: 20,
   sectionBurialClusterRadius: 64,
 });
+export const SELECTION_SOURCES = Object.freeze({
+  MAP_TAP: "map_tap",
+  SEARCH_RESULT: "search_result",
+  SECTION_LIST: "section_list",
+  TOUR_STOP: "tour_stop",
+  NAVIGATION_START: "navigation_start",
+  DEEP_LINK: "deep_link",
+});
 export const SECTION_AFFORDANCE_MARKER_SIZE_RANGE = Object.freeze({
   min: 25,
   max: 31,
@@ -162,6 +170,41 @@ export const shouldPreserveSectionClickViewport = ({
     Number.isFinite(normalizedSectionDetailMinZoom) &&
     normalizedCurrentZoom >= normalizedSectionDetailMinZoom
   );
+};
+
+const ZOOM_ELEVATING_SELECTION_SOURCES = new Set([
+  SELECTION_SOURCES.SEARCH_RESULT,
+  SELECTION_SOURCES.SECTION_LIST,
+  SELECTION_SOURCES.TOUR_STOP,
+  SELECTION_SOURCES.NAVIGATION_START,
+  SELECTION_SOURCES.DEEP_LINK,
+]);
+
+export const resolvePointSelectionFocusZoom = ({
+  currentZoom = 0,
+  maxZoom = MAP_PRESENTATION_POLICY.burialFocusMinZoom,
+  selectionSource = SELECTION_SOURCES.MAP_TAP,
+  sourceFocusMinZoom = MAP_PRESENTATION_POLICY.burialFocusMinZoom,
+} = {}) => {
+  const normalizedCurrentZoom = Number(currentZoom);
+  const normalizedMaxZoom = Number(maxZoom);
+  const normalizedSourceFocusMinZoom = Number(sourceFocusMinZoom);
+  const current = Number.isFinite(normalizedCurrentZoom)
+    ? Math.max(0, normalizedCurrentZoom)
+    : 0;
+  const upperBound = Number.isFinite(normalizedMaxZoom)
+    ? Math.max(0, normalizedMaxZoom)
+    : MAP_PRESENTATION_POLICY.burialFocusMinZoom;
+
+  if (!ZOOM_ELEVATING_SELECTION_SOURCES.has(selectionSource)) {
+    return Math.min(current, upperBound);
+  }
+
+  const sourceMinimum = Number.isFinite(normalizedSourceFocusMinZoom)
+    ? Math.max(0, normalizedSourceFocusMinZoom)
+    : current;
+
+  return Math.min(upperBound, Math.max(current, sourceMinimum));
 };
 
 export const shouldApplyViewportFocus = ({

@@ -37,7 +37,7 @@ describe("mobile sheet state helpers", () => {
     expect(getMobileSheetSnapHeight({
       maxHeight: 1000,
       state: MOBILE_SHEET_STATES.PEEK,
-    })).toBeCloseTo(620);
+    })).toBeCloseTo(360);
     expect(getMobileSheetSnapHeight({
       maxHeight: 1000,
       state: MOBILE_SHEET_STATES.FULL,
@@ -62,7 +62,7 @@ describe("mobile sheet state helpers", () => {
       maxHeight: 1000,
       minHeight: 104,
       state: MOBILE_SHEET_STATES.PEEK,
-    })).toBeCloseTo(620);
+    })).toBeCloseTo(360);
     expect(getMobileSheetSnapHeight({
       maxHeight: 1000,
       minHeight: 104,
@@ -86,7 +86,7 @@ describe("mobile sheet state helpers", () => {
       maxHeight: 875,
       visualViewportHeight: 810,
       state: MOBILE_SHEET_STATES.PEEK,
-    })).toBeCloseTo(502.2);
+    })).toBeCloseTo(291.6);
   });
 
   test("maps spring-end heights back onto the nearest sheet state", () => {

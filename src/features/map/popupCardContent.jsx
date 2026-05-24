@@ -19,6 +19,8 @@ export function PopupCardContent({
   onRemove,
   getPopup,
   schedulePopupLayout,
+  showActions = false,
+  showDetails = false,
   stackDescription = "",
   stackPositionLabel = "",
   onPreviousRecord,
@@ -27,6 +29,8 @@ export function PopupCardContent({
   const popupView = buildPopupViewModel(record);
   const popupKey = createMapRecordKey(record, 0);
   const [mediaUrl, setMediaUrl] = useState(() => popupView.imageUrl || "");
+  const locationRow = popupView.rows.find(({ label }) => label === "Location");
+  const shouldShowActions = showActions && (onNavigate || onRemove);
 
   const handlePopupInteraction = useCallback((event) => {
     // Popup controls sit inside the Leaflet map container. Stop propagation so
@@ -133,7 +137,17 @@ export function PopupCardContent({
           {popupView.subtitle}
         </Box>
       )}
-      {popupView.paragraphs?.length > 0 && (
+      {!popupView.subtitle && locationRow?.value && (
+        <Box component="p" className="popup-card__subtitle">
+          {locationRow.value}
+        </Box>
+      )}
+      {stackPositionLabel && (
+        <Box component="p" className="popup-card__hint">
+          Multiple graves here.
+        </Box>
+      )}
+      {showDetails && popupView.paragraphs?.length > 0 && (
         <Box className="popup-card__body">
           {popupView.paragraphs.map((paragraph, index) => (
             <Box
@@ -146,7 +160,7 @@ export function PopupCardContent({
           ))}
         </Box>
       )}
-      {popupView.rows.length > 0 && (
+      {showDetails && popupView.rows.length > 0 && (
         <Box component="dl" className="popup-card__details">
           {popupView.rows.map(({ label, value }) => (
             <Box key={`${popupKey}-${label}`} className="popup-card__row">
@@ -156,7 +170,7 @@ export function PopupCardContent({
           ))}
         </Box>
       )}
-      {mediaUrl && (
+      {showDetails && mediaUrl && (
         <Box className="popup-card__media">
           {popupView.imageHint && (
             <Box component="p" className="popup-card__hint">
@@ -192,28 +206,34 @@ export function PopupCardContent({
           )}
         </Box>
       )}
-      <Box className="popup-card__actions">
-        <button
-          type="button"
-          className="popup-card__action popup-card__action--primary"
-          onClick={(event) => {
-            stopMapInteractionPropagation(event);
-            onNavigate?.(event);
-          }}
-        >
-          Navigate
-        </button>
-        <button
-          type="button"
-          className="popup-card__action popup-card__action--secondary"
-          onClick={(event) => {
-            stopMapInteractionPropagation(event);
-            onRemove?.();
-          }}
-        >
-          Remove
-        </button>
-      </Box>
+      {shouldShowActions && (
+        <Box className="popup-card__actions">
+          {onNavigate && (
+            <button
+              type="button"
+              className="popup-card__action popup-card__action--primary"
+              onClick={(event) => {
+                stopMapInteractionPropagation(event);
+                onNavigate(event);
+              }}
+            >
+              Navigate
+            </button>
+          )}
+          {onRemove && (
+            <button
+              type="button"
+              className="popup-card__action popup-card__action--secondary"
+              onClick={(event) => {
+                stopMapInteractionPropagation(event);
+                onRemove();
+              }}
+            >
+              Close
+            </button>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }

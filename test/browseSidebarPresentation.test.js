@@ -48,7 +48,7 @@ describe("browse sidebar presentation helpers", () => {
       sectionFilter: "",
       selectedTour: "",
       minBrowseQueryLength: 2,
-    })).toBe("Type at least 2 characters to search.");
+    })).toBe("Keep typing.");
   });
 
   test("keeps location notices and tone mapping together", () => {

@@ -29,6 +29,7 @@ import {
   LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS,
   LOCATION_MAX_ACCEPTABLE_ACCURACY_METERS,
   normalizeLocationPosition,
+  resolvePointSelectionFocusZoom,
   resolveSectionAffordanceMarkerSize,
   resolveSectionClusterMarkerVisibility,
   resolveClusterExpansionZoom,
@@ -38,6 +39,7 @@ import {
   resolveSectionOverlayVisibility,
   ROAD_LAYER_STYLES,
   ROAD_LAYER_STYLE,
+  SELECTION_SOURCES,
   shouldApplyViewportFocus,
   shouldTreatViewportMoveAsUserIntent,
   selectBestRecentLocationCandidate,
@@ -492,6 +494,32 @@ describe("mapDomain", () => {
       expect(resolveClusterExpansionZoom()).toBe(
         MAP_PRESENTATION_POLICY.sectionBurialIndividualMinZoom
       );
+    });
+
+    test("keeps point selection camera behavior source-aware", () => {
+      expect(resolvePointSelectionFocusZoom({
+        currentZoom: 15,
+        maxZoom: 20,
+        selectionSource: SELECTION_SOURCES.MAP_TAP,
+      })).toBe(15);
+
+      expect(resolvePointSelectionFocusZoom({
+        currentZoom: 15,
+        maxZoom: 20,
+        selectionSource: SELECTION_SOURCES.SEARCH_RESULT,
+      })).toBe(MAP_PRESENTATION_POLICY.burialFocusMinZoom);
+
+      expect(resolvePointSelectionFocusZoom({
+        currentZoom: 18,
+        maxZoom: 20,
+        selectionSource: SELECTION_SOURCES.SEARCH_RESULT,
+      })).toBe(18);
+
+      expect(resolvePointSelectionFocusZoom({
+        currentZoom: 15,
+        maxZoom: 16,
+        selectionSource: SELECTION_SOURCES.NAVIGATION_START,
+      })).toBe(16);
     });
 
     test("keeps cluster badges tied to underlying burial records", () => {

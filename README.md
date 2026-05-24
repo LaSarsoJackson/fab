@@ -120,6 +120,9 @@ Test split:
 - `bun run test:bun`: module and data tests
 - `bun run test:dom`: React DOM and component tests
 - `bun run test:e2e`: Playwright browser coverage
+- `bun run smoke:mobile-pwa:ngrok`: optional production-build smoke server
+  for checking real Mobile Safari install, standalone, and service-worker
+  behavior through an HTTPS ngrok tunnel
 
 ## Data pipeline
 

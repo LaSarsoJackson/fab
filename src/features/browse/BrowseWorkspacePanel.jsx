@@ -15,7 +15,6 @@ import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
-import PinDropIcon from "@mui/icons-material/PinDrop";
 import AltRouteIcon from "@mui/icons-material/AltRoute";
 import MapIcon from "@mui/icons-material/Map";
 
@@ -153,25 +152,18 @@ function VisitTaskSelector({
   onBrowseSourceChange,
 }) {
   const taskSpecs = [
-    {
-      key: "grave",
-      source: "all",
-      label: "Find a grave",
-      detail: "Search by name or lot",
-      icon: <SearchIcon fontSize="small" />,
-    },
     hasTourBrowse ? {
       key: "tour",
       source: "tour",
-      label: "Start a tour",
-      detail: "Follow guided stops",
+      label: "Start a Tour",
+      detail: "Guided route",
       icon: <AltRouteIcon fontSize="small" />,
     } : null,
     {
       key: "section",
       source: "section",
-      label: "Explore section",
-      detail: "Browse one area",
+      label: "Explore Sections",
+      detail: "Section map",
       icon: <MapIcon fontSize="small" />,
     },
   ].filter(Boolean);
@@ -182,9 +174,6 @@ function VisitTaskSelector({
       role="group"
       aria-label="Choose visit task"
     >
-      <Typography variant="caption" className="left-sidebar__visit-flow-label">
-        Start here
-      </Typography>
       <Box className="left-sidebar__visit-tasks">
         {taskSpecs.map((task) => {
           const isActive = browseSource === task.source;
@@ -217,8 +206,11 @@ function BrowseToolbar({
   hasGlobalResetState,
   isMobile,
   onClearAllBrowseState,
-  onLocateUser,
 }) {
+  if (!hasGlobalResetState && !desktopMoreButton) {
+    return null;
+  }
+
   return (
     <Box
       className="left-sidebar__browse-toolbar left-sidebar__browse-toolbar--utilities"
@@ -239,16 +231,6 @@ function BrowseToolbar({
           width: isMobile ? "100%" : "auto",
         }}
       >
-        <Button
-          onClick={onLocateUser}
-          variant="text"
-          color="inherit"
-          size="small"
-          startIcon={<PinDropIcon />}
-          aria-label="Locate me"
-        >
-          Locate me
-        </Button>
         {hasGlobalResetState && (
           <Button
             onClick={onClearAllBrowseState}
@@ -263,27 +245,6 @@ function BrowseToolbar({
         )}
       </Box>
       {desktopMoreButton}
-    </Box>
-  );
-}
-
-function BrowseWorkspaceHeader() {
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: 1.5,
-        flexWrap: "wrap",
-      }}
-    >
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="subtitle2">Find your way</Typography>
-        <Typography variant="body2" sx={{ color: "var(--muted-text)", mt: 0.5 }}>
-          Search, choose a tour, or explore one cemetery section.
-        </Typography>
-      </Box>
     </Box>
   );
 }
@@ -358,7 +319,7 @@ function SectionRefinementControls({
           onClick={onToggleSectionMarkers}
           startIcon={showAllBurials ? <RemoveIcon /> : <AddIcon />}
         >
-          {showAllBurials ? "Hide section markers" : "Show section markers"}
+          {showAllBurials ? "Hide graves in this section" : "Show graves in this section"}
         </Button>
       </Box>
     </Box>
@@ -646,7 +607,7 @@ export default function BrowseWorkspacePanel({
   lotTierFilter,
   onBrowseQueryChange, onBrowseSourceChange, onClearAllBrowseState, onClearBrowseQuery,
   onClearSectionFilters, onClearTourSelection, onFilterTypeSelection,
-  onLocateUser, onLotTierChange, onRequestBurialDataLoad, onSectionSelection,
+  onLotTierChange, onRequestBurialDataLoad, onSectionSelection,
   onToggleSectionMarkers, onTourSelection,
   priorityContent = null,
   resultsContent = null,
@@ -679,8 +640,6 @@ export default function BrowseWorkspacePanel({
           gap: 1.1,
         }}
       >
-        <BrowseWorkspaceHeader />
-
         <BrowseSearchField
           browseQuery={browseQuery}
           burialDataError={burialDataError}
@@ -709,7 +668,6 @@ export default function BrowseWorkspacePanel({
           hasGlobalResetState={hasGlobalResetState}
           isMobile={isMobile}
           onClearAllBrowseState={onClearAllBrowseState}
-          onLocateUser={onLocateUser}
         />
 
         <BrowseControlPanels

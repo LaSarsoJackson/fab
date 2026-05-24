@@ -47,6 +47,8 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
+    "smoke:mobile-pwa": "bash ./scripts/smoke-mobile-pwa.sh",
+    "smoke:mobile-pwa:ngrok": "FAB_MOBILE_PWA_TUNNEL=ngrok bash ./scripts/smoke-mobile-pwa.sh",
     "test:watch": "rg --files src test -g '*.test.js' -0 | xargs -0 bun test --watch",
     "test:coverage": "rg --files src test -g '*.test.js' -0 | xargs -0 bun test --coverage && node_modules/.bin/jest --config ./jest.dom.config.cjs --runInBand --coverage",
     "eject": "react-scripts eject"

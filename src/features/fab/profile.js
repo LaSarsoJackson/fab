@@ -434,10 +434,10 @@ export const APP_PROFILE = {
       // Surfaced when only a coarse (network/Wi-Fi or low-accuracy GPS) fix
       // has been accepted. The shell continues watching for a better fix.
       approximate: "Approximate location (improving signal...)",
-      unsupported: "GPS is not supported in this browser. Search by name or section, then tap Navigate.",
-      unavailable: "GPS is unavailable. Check signal and permissions, or search by name or section.",
-      permissionDenied: "Location permission denied. Enable it in your browser/OS settings, or search by name or section.",
-      outOfBounds: `Search still works. Tap Navigate for driving directions to ${FAB_SITE_NAME}.`,
+      unsupported: "Location is not available in this browser. Search by name or section, then tap Navigate.",
+      unavailable: "Location is unavailable. Search by name or section, or open directions.",
+      permissionDenied: "Location is off. Enable it in settings, or search by name or section.",
+      outOfBounds: `Search by name or section, then tap Navigate for directions to ${FAB_SITE_NAME}.`,
       routeLocationRequired: `Continue with Maps for now. On-site navigation will start when you arrive.`,
     },
     defaultBasemapId: "imagery",

@@ -174,14 +174,14 @@ describe("mapChrome", () => {
       <SidebarToggleControl isSearchPanelVisible onToggle={onToggle} />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Hide search panel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Collapse" }));
     expect(onToggle).toHaveBeenCalledTimes(1);
 
     rerender(
       <SidebarToggleControl isSearchPanelVisible={false} onToggle={onToggle} />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Show search panel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
     expect(onToggle).toHaveBeenCalledTimes(2);
   });
 

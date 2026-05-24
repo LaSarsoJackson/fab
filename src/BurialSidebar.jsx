@@ -124,82 +124,6 @@ const buildSelectionBadgeSx = ({ color, isLead = false }) => ({
   mt: 0.2,
 });
 
-const getRecordFromLookup = (recordsById, id) => {
-  if (!id) return null;
-  if (recordsById && typeof recordsById.get === "function") {
-    return recordsById.get(id) || null;
-  }
-  return recordsById?.[id] || null;
-};
-
-const buildVisitStatus = ({
-  activeBurialId,
-  activeRouteBurialId,
-  browseQuery,
-  burialRecordsById,
-  sectionFilter,
-  selectedBurials,
-  selectedTour,
-}) => {
-  const routeRecord = getRecordFromLookup(burialRecordsById, activeRouteBurialId)
-    || selectedBurials.find((record) => record.id === activeRouteBurialId)
-    || null;
-
-  if (activeRouteBurialId) {
-    return {
-      label: "Navigating",
-      detail: routeRecord
-        ? `Continue to ${formatBrowseResultName(routeRecord)}.`
-        : "Continue to grave location.",
-      tone: "active",
-    };
-  }
-
-  const activeRecord = getRecordFromLookup(burialRecordsById, activeBurialId)
-    || selectedBurials.find((record) => record.id === activeBurialId)
-    || selectedBurials[0]
-    || null;
-
-  if (activeRecord) {
-    return {
-      label: "Grave selected",
-      detail: formatBrowseResultName(activeRecord),
-      tone: "selected",
-    };
-  }
-
-  if (selectedTour) {
-    return {
-      label: "Tour selected",
-      detail: selectedTour,
-      tone: "selected",
-    };
-  }
-
-  if (sectionFilter) {
-    return {
-      label: "Exploring section",
-      detail: `Section ${sectionFilter}`,
-      tone: "selected",
-    };
-  }
-
-  const trimmedQuery = browseQuery.trim();
-  if (trimmedQuery) {
-    return {
-      label: "Searching",
-      detail: trimmedQuery,
-      tone: "selected",
-    };
-  }
-
-  return {
-    label: "Ready",
-    detail: "Find a grave, start a tour, or explore a section.",
-    tone: "idle",
-  };
-};
-
 const panelSurfaceStyles = {
   position: "relative",
   overflow: "hidden",
@@ -222,13 +146,14 @@ const DEFAULT_LOCATION_STATUS = APP_PROFILE.map.locationMessages?.inactive || "L
 const LOCATION_ACTIVE_STATUS = APP_PROFILE.map.locationMessages?.active || "Location active";
 const LOCATION_LOCATING_STATUS = APP_PROFILE.map.locationMessages?.locating || "Locating...";
 const LOCATION_OUT_OF_BOUNDS_STATUS = APP_PROFILE.map.locationMessages?.outOfBounds || "Tap Navigate for driving directions.";
-const LOCATION_UNAVAILABLE_STATUS = APP_PROFILE.map.locationMessages?.unavailable || "GPS unavailable";
-const LOCATION_UNSUPPORTED_STATUS = APP_PROFILE.map.locationMessages?.unsupported || "GPS unsupported";
+const LOCATION_UNAVAILABLE_STATUS = APP_PROFILE.map.locationMessages?.unavailable || "Location unavailable";
+const LOCATION_UNSUPPORTED_STATUS = APP_PROFILE.map.locationMessages?.unsupported || "Location unavailable";
 const LOCATION_APPROXIMATE_STATUS = APP_PROFILE.map.locationMessages?.approximate || "";
 const LOCATION_WEAK_SIGNAL_STATUS = APP_PROFILE.map.locationMessages?.weakSignal || "";
 const EMPTY_PACKET_RECORDS = [];
 const EMPTY_ACTIONS = [];
-const SELECTION_PANEL_TITLE = "Selection";
+const SINGLE_SELECTION_PANEL_TITLE = "Selected grave";
+const STACK_SELECTION_PANEL_TITLE = "Graves at this spot";
 
 function BrowseResultPortraitThumbnail({ result }) {
   const portraitImageName = cleanRecordValue(resolvePortraitImageName(result));
@@ -260,6 +185,76 @@ function BrowseResultPortraitThumbnail({ result }) {
         loading="lazy"
         onError={handleImageError}
       />
+    </Box>
+  );
+}
+
+const buildSelectedPlaceInitials = (heading = "") => {
+  const words = cleanRecordValue(heading).split(/\s+/).filter(Boolean);
+  const initials = words.slice(0, 2).map((word) => word[0]?.toUpperCase()).join("");
+  return initials || "AR";
+};
+
+const getSelectedPlaceTypeLabel = (record = {}) => {
+  if (record.source === "tour" || cleanRecordValue(record.tourName)) {
+    return "Tour stop";
+  }
+
+  return "Grave";
+};
+
+const getSelectedPlaceDetailRows = (rows = []) => (
+  rows.filter(({ label }) => !["Location", "Born", "Died"].includes(label)).slice(0, 4)
+);
+
+function SelectedPlaceVisual({
+  fallbackLabel,
+  heading,
+  imageAlt,
+  imageLinkUrl,
+  mediaUrl,
+  markerColor,
+  onImageError,
+}) {
+  if (mediaUrl) {
+    const image = (
+      <img
+        className="left-sidebar__selected-place-visual-image"
+        src={mediaUrl}
+        alt={imageAlt}
+        loading="lazy"
+        onError={onImageError}
+      />
+    );
+
+    return (
+      <Box className="left-sidebar__selected-place-visual left-sidebar__selected-place-visual--image">
+        {imageLinkUrl ? (
+          <a
+            className="left-sidebar__selected-place-visual-link"
+            href={imageLinkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {image}
+          </a>
+        ) : image}
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      className="left-sidebar__selected-place-visual left-sidebar__selected-place-visual--fallback"
+      aria-label={`${fallbackLabel} visual for ${heading}`}
+      sx={{ "--selected-place-accent": markerColor || "var(--accent)" }}
+    >
+      <span className="left-sidebar__selected-place-visual-initials">
+        {buildSelectedPlaceInitials(heading)}
+      </span>
+      <span className="left-sidebar__selected-place-visual-label">
+        {fallbackLabel}
+      </span>
     </Box>
   );
 }
@@ -850,7 +845,7 @@ function SelectedPeopleList({
                     onRemoveSelectedBurial(burial.id);
                   }}
                 >
-                  Remove
+                  Close
                 </Button>
               </Box>
             </Box>
@@ -1018,7 +1013,7 @@ function SelectionLeadCard({
             onRemoveSelectedBurial(burial.id);
           }}
         >
-          Remove
+          Close
         </Button>
       </Box>
     </Box>
@@ -1040,6 +1035,9 @@ function SelectedPlaceCard({
   const popupKey = burial?.id || popupView.heading;
   const locationSummary = buildLocationSummary(burial);
   const lifeSummary = buildLifeDatesSummary(burial);
+  const placeTypeLabel = getSelectedPlaceTypeLabel(burial);
+  const detailRows = getSelectedPlaceDetailRows(popupView.rows);
+  const detailLinkUrl = cleanRecordValue(popupView.biographyLink || popupView.imageLinkUrl);
   const [mediaUrl, setMediaUrl] = useState(() => popupView.imageUrl || "");
 
   useEffect(() => {
@@ -1104,45 +1102,48 @@ function SelectedPlaceCard({
         }}
       >
         <Box className="popup-card left-sidebar__selected-place-card left-sidebar__selected-place-card--compact">
-          {popupView.sourceLabel && (
-            <Box component="p" className="popup-card__eyebrow">
-              {popupView.sourceLabel}
+          <Box className="left-sidebar__selected-place-hero">
+            <SelectedPlaceVisual
+              fallbackLabel={placeTypeLabel}
+              heading={popupView.heading}
+              imageAlt={popupView.imageAlt}
+              imageLinkUrl={popupView.imageLinkUrl}
+              mediaUrl={mediaUrl}
+              markerColor={markerColor}
+              onImageError={handleImageError}
+            />
+            <Box className="left-sidebar__selected-place-copy">
+              <Box component="p" className="popup-card__eyebrow">
+                {placeTypeLabel}
+              </Box>
+              <Box component="h3" className="popup-card__title">
+                {popupView.heading}
+              </Box>
+              {popupView.sourceLabel && popupView.sourceLabel !== placeTypeLabel && (
+                <Box component="p" className="left-sidebar__selected-place-source">
+                  {popupView.sourceLabel}
+                </Box>
+              )}
+              {locationSummary && (
+                <Box component="p" className="popup-card__subtitle">
+                  {locationSummary}
+                </Box>
+              )}
+              {lifeSummary && (
+                <Box component="p" className="popup-card__hint">
+                  {lifeSummary}
+                </Box>
+              )}
             </Box>
-          )}
-          <Box component="h3" className="popup-card__title">
-            {popupView.heading}
           </Box>
-          <Box className="popup-card__actions left-sidebar__selected-place-card-actions">
-            <button
-              type="button"
-              className="popup-card__action popup-card__action--primary"
-              onClick={() => {
-                if (isRouteActive) {
-                  onStopRouting?.();
-                  return;
-                }
-
-                onNavigateToBurial?.(burial);
-              }}
-            >
-              {isRouteActive ? "Stop Navigation" : "Navigate"}
-            </button>
-            <button
-              type="button"
-              className="popup-card__action popup-card__action--ghost"
-              onClick={() => onRemoveSelectedBurial(burial.id)}
-            >
-              Remove
-            </button>
-          </Box>
-          {locationSummary && (
-            <Box component="p" className="popup-card__subtitle">
-              {locationSummary}
-            </Box>
-          )}
-          {lifeSummary && (
-            <Box component="p" className="popup-card__hint">
-              {lifeSummary}
+          {detailRows.length > 0 && (
+            <Box component="dl" className="left-sidebar__selected-place-facts">
+              {detailRows.map(({ label, value }) => (
+                <Box key={`${popupKey}-compact-${label}`} className="left-sidebar__selected-place-fact">
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </Box>
+              ))}
             </Box>
           )}
           {hasCompactMeta && (
@@ -1169,7 +1170,39 @@ function SelectedPlaceCard({
               )}
             </Box>
           )}
-          {mediaContent}
+          <Box className="popup-card__actions left-sidebar__selected-place-card-actions">
+            <button
+              type="button"
+              className="popup-card__action popup-card__action--primary"
+              onClick={() => {
+                if (isRouteActive) {
+                  onStopRouting?.();
+                  return;
+                }
+
+                onNavigateToBurial?.(burial);
+              }}
+            >
+              {isRouteActive ? "Stop Navigation" : "Navigate"}
+            </button>
+            {detailLinkUrl && (
+              <a
+                className="popup-card__action popup-card__action--secondary"
+                href={detailLinkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Details
+              </a>
+            )}
+            <button
+              type="button"
+              className="popup-card__action popup-card__action--ghost"
+              onClick={() => onRemoveSelectedBurial(burial.id)}
+            >
+              Close
+            </button>
+          </Box>
         </Box>
       </Box>
     );
@@ -1274,7 +1307,7 @@ function SelectedPlaceCard({
             className="popup-card__action popup-card__action--ghost"
             onClick={() => onRemoveSelectedBurial(burial.id)}
           >
-            Remove
+            Close
           </button>
         </Box>
       </Box>
@@ -1313,7 +1346,12 @@ function SelectedSummaryPanel({
   const isRouteActive = activeRouteBurialId === leadBurial.id;
   const leadTourStyle = tourStyles[leadBurial.tourKey];
   const selectedBurialOrderById = new Map(selectedBurials.map((burial, index) => [burial.id, index]));
-  const selectionSummaryLabel = "Pinned for focus & directions";
+  const selectionSummaryTitle = hasMultipleSelectedBurials
+    ? STACK_SELECTION_PANEL_TITLE
+    : SINGLE_SELECTION_PANEL_TITLE;
+  const selectionSummaryLabel = hasMultipleSelectedBurials
+    ? `${selectedBurials.length} graves share this map location.`
+    : "";
   const shouldShowSelectionToggle = isMobile && hasMultipleSelectedBurials;
   const shouldShowSecondarySelections = secondarySelectedBurials.length > 0 && (!isMobile || isExpanded);
 
@@ -1332,21 +1370,23 @@ function SelectedSummaryPanel({
         }}
       >
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="subtitle2">{SELECTION_PANEL_TITLE}</Typography>
+          <Typography variant="subtitle2">{selectionSummaryTitle}</Typography>
         </Box>
         <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
           <Chip size="small" color="primary" label={selectedBurials.length} />
         </Box>
-        <Typography
-          variant="body2"
-          sx={{
-            gridColumn: "1 / -1",
-            color: "var(--muted-text)",
-            lineHeight: 1.45,
-          }}
-        >
-          {selectionSummaryLabel}
-        </Typography>
+        {selectionSummaryLabel && (
+          <Typography
+            variant="body2"
+            sx={{
+              gridColumn: "1 / -1",
+              color: "var(--muted-text)",
+              lineHeight: 1.45,
+            }}
+          >
+            {selectionSummaryLabel}
+          </Typography>
+        )}
         <Box
           sx={{
             gridColumn: "1 / -1",
@@ -1371,7 +1411,7 @@ function SelectedSummaryPanel({
                 />
               )}
             >
-              {isExpanded ? "Hide list" : "Show list"}
+              {isExpanded ? "Hide choices" : "Choose grave"}
             </Button>
           )}
           <Button size="small" color="inherit" onClick={onClearSelectedBurials}>
@@ -1673,7 +1713,6 @@ function BurialSidebar({
   onFilterTypeChange,
   onFocusSelectedBurial,
   onHoverBurialChange,
-  onLocateMarker,
   onLotTierFilterChange,
   onClearFieldPacket,
   onCopyFieldPacketLink,
@@ -2040,10 +2079,6 @@ function BurialSidebar({
     }
   }, [browseSource, hasTourBrowse, setBrowseSource]);
 
-  const handleLocateUser = useCallback(() => {
-    onLocateMarker();
-  }, [onLocateMarker]);
-
   const handleToggleMobileSearchPanel = useCallback(() => {
     if (!isMobile) {
       return;
@@ -2225,23 +2260,6 @@ function BurialSidebar({
     sectionFilter,
     selectedTour,
   ]);
-  const visitStatus = useMemo(() => buildVisitStatus({
-    activeBurialId,
-    activeRouteBurialId,
-    browseQuery,
-    burialRecordsById,
-    sectionFilter,
-    selectedBurials,
-    selectedTour,
-  }), [
-    activeBurialId,
-    activeRouteBurialId,
-    browseQuery,
-    burialRecordsById,
-    sectionFilter,
-    selectedBurials,
-    selectedTour,
-  ]);
   const desktopMoreButton = !isMobile ? (
     <Button
       variant="text"
@@ -2271,8 +2289,8 @@ function BurialSidebar({
   const isMobileSearchPanelCollapsed = isMobileSearchPanelCollapsedByControl
     || resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED;
   const mobileSearchPanelToggleLabel = isMobileSearchPanelCollapsed
-    ? "Show search panel"
-    : "Hide search panel";
+    ? "Search"
+    : "Collapse";
   const mobileSearchPanelToggleButton = isMobile ? (
     <IconButton
       size="small"
@@ -2380,7 +2398,6 @@ function BurialSidebar({
       onClearSectionFilters={handleClearSectionFilters}
       onClearTourSelection={handleClearTourSelection}
       onFilterTypeSelection={handleFilterTypeSelection}
-      onLocateUser={handleLocateUser}
       onLotTierChange={handleLotTierChange}
       onRequestBurialDataLoad={onRequestBurialDataLoad}
       onSectionSelection={handleSectionSelection}
@@ -2448,23 +2465,6 @@ function BurialSidebar({
           </Box>
         </Box>
         {mobileHeaderActions}
-      </Box>
-
-      <Box
-        className={`left-sidebar__visit-status left-sidebar__visit-status--${visitStatus.tone}`}
-      >
-        <Typography
-          component="span"
-          className="left-sidebar__visit-status-label"
-        >
-          {visitStatus.label}
-        </Typography>
-        <Typography
-          component="span"
-          className="left-sidebar__visit-status-detail"
-        >
-          {visitStatus.detail}
-        </Typography>
       </Box>
 
       {(burialDataError || mapDataError || tourLayerError) && (

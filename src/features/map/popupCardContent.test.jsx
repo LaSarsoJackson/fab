@@ -51,6 +51,8 @@ test("cluster popup navigation advances the active record without losing the sta
 
   expect(screen.getByText("1/3")).toBeInTheDocument();
   expect(screen.getByText("Anna Stack")).toBeInTheDocument();
+  expect(screen.getByText("Multiple graves here.")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Navigate" })).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Next burial record at this marker" }));
 
