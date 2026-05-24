@@ -37,6 +37,7 @@ import {
   MIN_BROWSE_QUERY_LENGTH,
 } from "./features/browse/browseResults";
 import { buildSharedSelectionPresentation } from "./features/fieldPackets";
+import { PopupCardStackNavigation } from "./features/map/popupCardContent";
 import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordPresentation";
 import { resolvePortraitImageName } from "./features/tours/tourDerivedData";
 import {
@@ -1029,6 +1030,7 @@ function SelectedPlaceCard({
   onNavigateToBurial,
   onRemoveSelectedBurial,
   onStopRouting,
+  stackNavigation = null,
   tourStyle,
 }) {
   const popupView = useMemo(() => buildPopupViewModel(burial), [burial]);
@@ -1136,6 +1138,14 @@ function SelectedPlaceCard({
               )}
             </Box>
           </Box>
+          {stackNavigation && (
+            <PopupCardStackNavigation
+              stackDescription={stackNavigation.description}
+              stackPositionLabel={stackNavigation.positionLabel}
+              onPreviousRecord={stackNavigation.onPrevious}
+              onNextRecord={stackNavigation.onNext}
+            />
+          )}
           {detailRows.length > 0 && (
             <Box component="dl" className="left-sidebar__selected-place-facts">
               {detailRows.map(({ label, value }) => (
@@ -1332,6 +1342,7 @@ function SelectedSummaryPanel({
   onRemoveSelectedBurial,
   onStopRouting,
   onToggleExpanded,
+  selectedBurialCoordinateGroups = [],
   selectedBurialRefs,
   selectedBurials,
   tourStyles,
@@ -1354,6 +1365,25 @@ function SelectedSummaryPanel({
     : "";
   const shouldShowSelectionToggle = isMobile && hasMultipleSelectedBurials;
   const shouldShowSecondarySelections = secondarySelectedBurials.length > 0 && (!isMobile || isExpanded);
+  const leadCoordinateGroup = selectedBurialCoordinateGroups.find((group) => (
+    group.recordIds.includes(leadBurial.id)
+  ));
+  const leadStackRecords = leadCoordinateGroup?.records || [];
+  const activeStackIndex = leadStackRecords.findIndex((record) => record.id === leadBurial.id);
+  const leadStackNavigation = isMobile && leadStackRecords.length > 1 && activeStackIndex >= 0
+    ? {
+        description: `${leadStackRecords.length} burial records at this marker`,
+        positionLabel: `${activeStackIndex + 1}/${leadStackRecords.length}`,
+        onPrevious: () => {
+          const previousIndex = (activeStackIndex - 1 + leadStackRecords.length) % leadStackRecords.length;
+          onFocusSelectedBurial(leadStackRecords[previousIndex]);
+        },
+        onNext: () => {
+          const nextIndex = (activeStackIndex + 1) % leadStackRecords.length;
+          onFocusSelectedBurial(leadStackRecords[nextIndex]);
+        },
+      }
+    : null;
 
   return (
     <Box
@@ -1430,6 +1460,7 @@ function SelectedSummaryPanel({
           onNavigateToBurial={onNavigateToBurial}
           onRemoveSelectedBurial={onRemoveSelectedBurial}
           onStopRouting={onStopRouting}
+          stackNavigation={leadStackNavigation}
           tourStyle={leadTourStyle}
         />
       ) : (
@@ -1734,6 +1765,7 @@ function BurialSidebar({
   sectionRecordsOverride,
   sectionIndex,
   sectionFilter,
+  selectedBurialCoordinateGroups = [],
   selectedBurialRefs,
   selectedBurials,
   selectedTour,
@@ -2367,6 +2399,7 @@ function BurialSidebar({
       onRemoveSelectedBurial={onRemoveSelectedBurial}
       onStopRouting={onStopRouting}
       onToggleExpanded={toggleSelectedSummary}
+      selectedBurialCoordinateGroups={selectedBurialCoordinateGroups}
       selectedBurialRefs={selectedBurialRefs}
       selectedBurials={selectedBurials}
       tourStyles={tourStyles}

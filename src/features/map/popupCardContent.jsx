@@ -13,6 +13,52 @@ export const createMapRecordKey = (record, index = 0) => (
   record?.id || `${record?.OBJECTID}_${record?.Section}_${record?.Lot}_${record?.Grave}_${index}`
 );
 
+export function PopupCardStackNavigation({
+  stackDescription = "",
+  stackPositionLabel = "",
+  onPreviousRecord,
+  onNextRecord,
+}) {
+  if (!stackPositionLabel) {
+    return null;
+  }
+
+  return (
+    <Box
+      className="popup-card__stack-nav"
+      aria-label={stackDescription || "Burial records at this marker"}
+    >
+      <span className="popup-card__stack-count" aria-live="polite">
+        {stackPositionLabel}
+      </span>
+      <span className="popup-card__stack-actions">
+        <button
+          type="button"
+          className="popup-card__stack-action"
+          aria-label="Previous burial record at this marker"
+          onClick={(event) => {
+            stopMapInteractionPropagation(event);
+            onPreviousRecord?.(event);
+          }}
+        >
+          &lt;
+        </button>
+        <button
+          type="button"
+          className="popup-card__stack-action"
+          aria-label="Next burial record at this marker"
+          onClick={(event) => {
+            stopMapInteractionPropagation(event);
+            onNextRecord?.(event);
+          }}
+        >
+          &gt;
+        </button>
+      </span>
+    </Box>
+  );
+}
+
 export function PopupCardContent({
   record,
   onNavigate,
@@ -95,40 +141,12 @@ export function PopupCardContent({
           {popupView.sourceLabel}
         </Box>
       )}
-      {stackPositionLabel && (
-        <Box
-          className="popup-card__stack-nav"
-          aria-label={stackDescription || "Burial records at this marker"}
-        >
-          <span className="popup-card__stack-count" aria-live="polite">
-            {stackPositionLabel}
-          </span>
-          <span className="popup-card__stack-actions">
-            <button
-              type="button"
-              className="popup-card__stack-action"
-              aria-label="Previous burial record at this marker"
-              onClick={(event) => {
-                stopMapInteractionPropagation(event);
-                onPreviousRecord?.(event);
-              }}
-            >
-              &lt;
-            </button>
-            <button
-              type="button"
-              className="popup-card__stack-action"
-              aria-label="Next burial record at this marker"
-              onClick={(event) => {
-                stopMapInteractionPropagation(event);
-                onNextRecord?.(event);
-              }}
-            >
-              &gt;
-            </button>
-          </span>
-        </Box>
-      )}
+      <PopupCardStackNavigation
+        stackDescription={stackDescription}
+        stackPositionLabel={stackPositionLabel}
+        onPreviousRecord={onPreviousRecord}
+        onNextRecord={onNextRecord}
+      />
       <Box component="h3" className="popup-card__title">
         {popupView.heading}
       </Box>

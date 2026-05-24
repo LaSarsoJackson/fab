@@ -293,6 +293,23 @@ describe("map routing helpers", () => {
     });
   });
 
+  test("routes from an off-network origin to the nearest road by default", async () => {
+    const roadGraph = buildRoadRoutingGraph(SIMPLE_ROADS);
+    const route = await calculateWalkingRoute({
+      roadGraph,
+      from: [42.7005, -73.7375],
+      to: [42.70908, -73.72157],
+    });
+
+    const coordinates = route.geojson.features[0].geometry.coordinates;
+
+    expect(route.provider).toBe("local");
+    expect(coordinates[0]).toEqual([-73.7375, 42.7005]);
+    expect(coordinates.at(-1)).toEqual([-73.72157, 42.70908]);
+    expect(coordinates.length).toBeGreaterThanOrEqual(4);
+    expect(route.distance).toBeGreaterThan(250);
+  });
+
   test("reports a local routing error when the road graph is unavailable", async () => {
     await expect(calculateWalkingRoute({
       roadGraph: null,

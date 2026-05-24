@@ -135,9 +135,9 @@ import {
   createMapRecordKey,
 } from "./features/map/popupCardContent";
 import {
+  buildRoadRoutingGraph,
   calculateWalkingRoute,
   getRoutingErrorMessage,
-  buildRoadRoutingGraph,
   isCoordinateNearRoadNetwork,
 } from "./features/map/mapRouting";
 import {
@@ -4530,6 +4530,7 @@ export default function BurialMap() {
           sectionRecordsOverride={sectionRecordsOverride}
           sectionIndex={burialSectionIndex}
           sectionFilter={sectionFilter}
+          selectedBurialCoordinateGroups={selectedBurialCoordinateGroups}
           selectedBurialRefs={selectedBurialRefs}
           selectedBurials={selectedBurials}
           selectedTour={selectedTour}

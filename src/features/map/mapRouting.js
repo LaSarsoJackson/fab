@@ -24,6 +24,7 @@ const WALKING_SPEED_METERS_PER_SECOND = 1.4;
 const DEFAULT_NEARBY_NODE_CONNECTION_TOLERANCE_METERS = 1;
 
 export const DEFAULT_MAX_SNAP_DISTANCE_METERS = 250;
+export const DEFAULT_MAX_ORIGIN_SNAP_DISTANCE_METERS = 1600;
 
 const createRoutingError = (message, { code = "", provider = "local", status = 0 } = {}) => {
   const error = new Error(message);
@@ -451,6 +452,8 @@ export const snapPointToRoadNetwork = (lat, lng, roadGraph, options = {}) => {
 
 const calculateClientSideWalkingRoute = ({
   from,
+  maxDestinationSnapDistanceMeters,
+  maxOriginSnapDistanceMeters,
   roadGraph,
   to,
   maxSnapDistanceMeters = DEFAULT_MAX_SNAP_DISTANCE_METERS,
@@ -473,11 +476,18 @@ const calculateClientSideWalkingRoute = ({
     });
   }
 
+  const resolvedOriginSnapDistanceMeters = Number.isFinite(Number(maxOriginSnapDistanceMeters))
+    ? Number(maxOriginSnapDistanceMeters)
+    : DEFAULT_MAX_ORIGIN_SNAP_DISTANCE_METERS;
+  const resolvedDestinationSnapDistanceMeters = Number.isFinite(Number(maxDestinationSnapDistanceMeters))
+    ? Number(maxDestinationSnapDistanceMeters)
+    : maxSnapDistanceMeters;
+
   const startSnap = snapPointToRoadNetwork(from[0], from[1], roadGraph, {
-    maxSnapDistanceMeters,
+    maxSnapDistanceMeters: resolvedOriginSnapDistanceMeters,
   });
   const endSnap = snapPointToRoadNetwork(to[0], to[1], roadGraph, {
-    maxSnapDistanceMeters,
+    maxSnapDistanceMeters: resolvedDestinationSnapDistanceMeters,
   });
 
   if (!startSnap || !endSnap) {
@@ -535,6 +545,9 @@ const calculateClientSideWalkingRoute = ({
 
   const rawFromCoordinate = [Number(from[1]), Number(from[0])];
   const rawToCoordinate = [Number(to[1]), Number(to[0])];
+  const endpointConnectorDistanceMeters =
+    haversineDistanceMeters(rawFromCoordinate, startSnap.coordinate) +
+    haversineDistanceMeters(endSnap.coordinate, rawToCoordinate);
   // Include the unsnapped start/end coordinates so the drawn line visibly
   // begins at the user's fix and ends at the selected burial, while the middle
   // still follows the nearest cemetery roads.
@@ -546,8 +559,8 @@ const calculateClientSideWalkingRoute = ({
 
   return {
     provider: "local",
-    distance: distanceMeters,
-    time: (distanceMeters / WALKING_SPEED_METERS_PER_SECOND) * 1000,
+    distance: distanceMeters + endpointConnectorDistanceMeters,
+    time: ((distanceMeters + endpointConnectorDistanceMeters) / WALKING_SPEED_METERS_PER_SECOND) * 1000,
     geojson,
     bounds: getGeoJsonBounds(geojson),
   };
@@ -555,11 +568,15 @@ const calculateClientSideWalkingRoute = ({
 
 export const calculateWalkingRoute = async ({
   from,
+  maxDestinationSnapDistanceMeters,
+  maxOriginSnapDistanceMeters,
   maxSnapDistanceMeters,
   roadGraph,
   to,
 } = {}) => calculateClientSideWalkingRoute({
   from,
+  maxDestinationSnapDistanceMeters,
+  maxOriginSnapDistanceMeters,
   maxSnapDistanceMeters,
   roadGraph,
   to,
