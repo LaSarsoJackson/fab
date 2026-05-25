@@ -27,8 +27,10 @@ jest.mock("react-spring-bottom-sheet", () => {
 
       return (
         <div data-testid="mock-bottom-sheet" data-rsbs-overlay>
-          <div data-testid="mock-bottom-sheet-header">{props.header}</div>
-          <div data-testid="mock-bottom-sheet-body">{props.children}</div>
+          <div data-testid="mock-bottom-sheet-scroll" data-rsbs-scroll>
+            <div data-testid="mock-bottom-sheet-header">{props.header}</div>
+            <div data-testid="mock-bottom-sheet-body">{props.children}</div>
+          </div>
         </div>
       );
     }),
@@ -257,7 +259,7 @@ describe("BurialSidebar", () => {
   domTest("supports mobile query entry and clearing from the guided peek sheet", () => {
     renderSidebar({ isMobile: true });
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(360);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(390);
     expect(screen.getByRole("button", { name: "Explore Sections" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start a Tour" })).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Section" })).not.toBeInTheDocument();
@@ -279,7 +281,7 @@ describe("BurialSidebar", () => {
     fireEvent.click(screen.getByLabelText("Clear search query"));
 
     expect(input).toHaveValue("");
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(360);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(390);
     expect(mockBottomSheetState.snapTo).not.toHaveBeenCalled();
   });
 
@@ -292,7 +294,7 @@ describe("BurialSidebar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(2);
-    expect(mockBottomSheetState.snapTo.mock.calls[1][0]({ maxHeight: 1000 })).toBeCloseTo(360);
+    expect(mockBottomSheetState.snapTo.mock.calls[1][0]({ maxHeight: 1000 })).toBeCloseTo(390);
   });
 
   domTest("lets mobile users reopen the search panel after dragging the sheet closed", () => {
@@ -308,7 +310,7 @@ describe("BurialSidebar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
 
     expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(1);
-    expect(mockBottomSheetState.snapTo.mock.calls[0][0]({ maxHeight: 1000 })).toBeCloseTo(360);
+    expect(mockBottomSheetState.snapTo.mock.calls[0][0]({ maxHeight: 1000 })).toBeCloseTo(390);
   });
 
   domTest("lets the map shell fully hide mobile chrome when that control is available", () => {
@@ -336,7 +338,7 @@ describe("BurialSidebar", () => {
     const rerenderProps = createBaseProps();
     const { rerender } = renderSidebar({ isMobile: true });
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(360);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(390);
 
     rerender(
       <BurialSidebar
@@ -347,7 +349,7 @@ describe("BurialSidebar", () => {
       />
     );
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(360);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(390);
     expect(mockBottomSheetState.snapTo).not.toHaveBeenCalled();
   });
 
@@ -372,7 +374,7 @@ describe("BurialSidebar", () => {
     );
 
     expect(mockBottomSheetState.snapTo.mock.calls.length).toBeLessThanOrEqual(1);
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(360);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(390);
   });
 
   domTest("keeps map-driven section browse at mobile peek height", () => {
@@ -396,7 +398,7 @@ describe("BurialSidebar", () => {
     );
 
     expect(mockBottomSheetState.snapTo.mock.calls.length).toBeLessThanOrEqual(1);
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(360);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(390);
   });
 
   domTest("uses one direct mobile preview action for navigation", () => {
@@ -435,7 +437,7 @@ describe("BurialSidebar", () => {
       onFocusSelectedBurial,
     });
 
-    const selectedSummary = screen.getByText("Graves at this spot").closest(".left-sidebar__panel");
+    const selectedSummary = screen.getByText("2 graves here").closest(".left-sidebar__panel");
 
     expect(within(selectedSummary).getByText("1/2")).toBeInTheDocument();
 
@@ -446,6 +448,36 @@ describe("BurialSidebar", () => {
     expect(onFocusSelectedBurial).toHaveBeenCalledWith(expect.objectContaining({
       id: stackedSecondRecord.id,
     }));
+  });
+
+  domTest("keeps the mobile sheet in place when paging through graves at the same marker", () => {
+    const stackedSecondRecord = {
+      ...burialRecords[1],
+      coordinates: burialRecords[0].coordinates,
+    };
+    const selectedBurials = [burialRecords[0], stackedSecondRecord];
+    const selectedBurialCoordinateGroups = buildRecordCoordinateGroups(selectedBurials);
+    const { rerender } = renderSidebar({
+      isMobile: true,
+      activeBurialId: burialRecords[0].id,
+      selectedBurialCoordinateGroups,
+      selectedBurials,
+    });
+    const scrollContainer = screen.getByTestId("mock-bottom-sheet-scroll");
+    const rerenderProps = createBaseProps();
+
+    scrollContainer.scrollTop = 180;
+    rerender(
+      <BurialSidebar
+        {...rerenderProps}
+        isMobile
+        activeBurialId={stackedSecondRecord.id}
+        selectedBurialCoordinateGroups={selectedBurialCoordinateGroups}
+        selectedBurials={selectedBurials}
+      />
+    );
+
+    expect(scrollContainer.scrollTop).toBe(180);
   });
 
   domTest("renders tour portrait media in the compact mobile selection card", () => {
@@ -521,7 +553,7 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(360);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(390);
 
     fireEvent.click(screen.getByText("Anna Tracy"));
 
@@ -532,7 +564,7 @@ describe("BurialSidebar", () => {
         Lot: "18",
       })
     );
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(360);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(390);
   });
 
   domTest("keeps the section results visible when a point selection arrives on mobile", () => {
@@ -559,7 +591,7 @@ describe("BurialSidebar", () => {
 
     const nextBrowseWorkspace = getBrowseWorkspace();
     expect(within(nextBrowseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(360);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(390);
   });
 
   domTest("uses contextual clear controls without duplicating browse state", () => {
@@ -869,10 +901,11 @@ describe("BurialSidebar", () => {
 
     const browseWorkspace = getBrowseWorkspace();
     const selectedChip = within(browseWorkspace).getByText("2 selected");
-    const selectionPanel = within(browseWorkspace).getByText("Graves at this spot").closest(".left-sidebar__panel--selected-summary");
+    const selectionPanel = within(browseWorkspace).getByText("2 graves here").closest(".left-sidebar__panel--selected-summary");
 
     expect(selectionPanel).not.toBeNull();
-    expect(within(selectionPanel).getByText("2 graves share this map location.")).toBeInTheDocument();
+    expect(within(selectionPanel).queryByText("2 graves share this map location.")).not.toBeInTheDocument();
+    expect(selectionPanel.querySelector(".MuiChip-root")).toBeNull();
     expect(within(selectionPanel).getAllByRole("button", { name: "Navigate" }).length).toBeGreaterThan(0);
     expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
 
@@ -909,7 +942,7 @@ describe("BurialSidebar", () => {
       selectedBurials: [burialRecords[0]],
     });
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(360);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(390);
     expect(mockBottomSheetState.snapTo).not.toHaveBeenCalled();
   });
 
@@ -997,10 +1030,10 @@ describe("BurialSidebar", () => {
     expect(within(selectionPanel).getByRole("button", { name: "Navigate" })).toBeInTheDocument();
     expect(within(selectedChip.closest(".left-sidebar__results-header")).getByRole("button", { name: "Clear selected" })).toBeInTheDocument();
     expect(
-      searchInput.compareDocumentPosition(selectionHeading) & Node.DOCUMENT_POSITION_FOLLOWING
+      selectionHeading.compareDocumentPosition(selectedChip) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
     expect(
-      selectionHeading.compareDocumentPosition(selectedChip) & Node.DOCUMENT_POSITION_FOLLOWING
+      selectionHeading.compareDocumentPosition(searchInput) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
   });
 
@@ -1087,7 +1120,7 @@ describe("BurialSidebar", () => {
       />
     );
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(360);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(390);
     expect(mockBottomSheetState.snapTo).not.toHaveBeenCalled();
   });
 

@@ -618,8 +618,8 @@ export default function BrowseWorkspacePanel({
 }) {
   const selectedTourDefinition = tourDefinitions.find((definition) => definition.name === selectedTour) || null;
   const shouldPromotePriorityContent = Boolean(isMobile && priorityContent);
-  // On mobile, selected-record controls should appear immediately below the
-  // drawer header. Desktop has enough room to keep them below browse controls.
+  // On mobile, selected-record controls should appear before search and filters
+  // so the current grave remains the first task in the drawer.
   const inlinePriorityContent = shouldPromotePriorityContent ? null : priorityContent;
 
   return (
@@ -640,6 +640,12 @@ export default function BrowseWorkspacePanel({
           gap: 1.1,
         }}
       >
+        {shouldPromotePriorityContent && (
+          <Box className="left-sidebar__browse-priority left-sidebar__browse-priority--mobile">
+            {priorityContent}
+          </Box>
+        )}
+
         <BrowseSearchField
           browseQuery={browseQuery}
           burialDataError={burialDataError}
@@ -651,11 +657,7 @@ export default function BrowseWorkspacePanel({
           searchPlaceholder={searchPlaceholder}
         />
 
-        {shouldPromotePriorityContent ? (
-          <Box className="left-sidebar__browse-priority left-sidebar__browse-priority--mobile">
-            {priorityContent}
-          </Box>
-        ) : (
+        {!shouldPromotePriorityContent && (
           <VisitTaskSelector
             browseSource={isTourBrowseVisible ? "tour" : isSectionBrowseVisible ? "section" : "all"}
             hasTourBrowse={hasTourBrowse}

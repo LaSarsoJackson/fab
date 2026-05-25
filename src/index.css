@@ -1260,13 +1260,8 @@ select,
 }
 
 .selected-burial-cluster {
-  --cluster-fill: rgba(47, 107, 87, 0.92);
   --cluster-stroke: rgba(255, 255, 255, 0.96);
   --cluster-detail: rgba(255, 255, 255, 0.92);
-  --cluster-shadow: rgba(20, 33, 43, 0.26);
-  --cluster-count-bg: rgba(255, 255, 255, 0.98);
-  --cluster-count-border: rgba(47, 107, 87, 0.36);
-  --cluster-count-color: var(--accent-strong);
   filter: drop-shadow(0 10px 18px rgba(20, 33, 43, 0.24));
 }
 
@@ -1725,6 +1720,50 @@ select,
   margin-top: 0;
 }
 
+.left-sidebar__selection-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.left-sidebar__selection-summary-title {
+  min-width: 0;
+  color: var(--text-main);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.left-sidebar__selection-summary-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  gap: 0.42rem;
+}
+
+.left-sidebar__selection-summary-actions .MuiButton-root {
+  min-height: 32px;
+  border-radius: 999px;
+  padding: 0.15rem 0.62rem;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.left-sidebar__selection-summary-actions .MuiButton-endIcon {
+  margin-left: 0.12rem;
+}
+
+.left-sidebar__selection-summary-actions .MuiSvgIcon-root {
+  font-size: 1rem;
+}
+
 /* Third-party Leaflet controls and MUI autocomplete overlays. */
 .leaflet-top.leaflet-right .leaflet-control {
   margin-top: 12px;
@@ -1972,6 +2011,52 @@ select,
 
 .left-sidebar--mobile .selected-person-actions--mobile {
   align-items: stretch;
+}
+
+.left-sidebar--mobile .left-sidebar__panel--selected-summary {
+  border-radius: 18px;
+}
+
+.left-sidebar--mobile .left-sidebar__selection-summary-header--mobile {
+  min-height: 32px;
+}
+
+.left-sidebar--mobile .left-sidebar__selected-place-card--compact {
+  padding: 0.74rem 0.78rem 0.78rem;
+}
+
+.left-sidebar--mobile .left-sidebar__selected-place-hero {
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 0.72rem;
+}
+
+.left-sidebar--mobile .left-sidebar__selected-place-visual {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+}
+
+.left-sidebar--mobile .left-sidebar__selected-place-source {
+  margin-top: 0.22rem;
+}
+
+.left-sidebar--mobile .left-sidebar__selected-place-card--compact .popup-card__subtitle {
+  margin-top: 0.32rem;
+  font-size: 0.86rem;
+  line-height: 1.28;
+}
+
+.left-sidebar--mobile .left-sidebar__selected-place-card--compact .popup-card__hint {
+  margin-top: 0.32rem;
+}
+
+.left-sidebar--mobile .left-sidebar__selected-place-card--compact .popup-card__stack-nav {
+  margin: 0.58rem 0 0;
+}
+
+.left-sidebar--mobile .left-sidebar__selected-place-card--compact .popup-card__actions {
+  margin-top: 0.62rem;
+  gap: 0.5rem;
 }
 
 /* Autocomplete popper should sit above the sheet */

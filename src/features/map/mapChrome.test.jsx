@@ -434,6 +434,17 @@ describe("mapChrome", () => {
     expect(icon.options.html).not.toContain("M16.5 9.4V15");
   });
 
+  test("keeps selected stack cluster density color classes", () => {
+    const icon = createCemeteryClusterIcon({
+      count: 23,
+      wrapperClassName: "cemetery-cluster selected-burial-cluster",
+    });
+
+    expect(icon.options.html).toContain("selected-burial-cluster");
+    expect(icon.options.html).toContain("cemetery-cluster--dense");
+    expect(icon.options.html).toContain('data-density-label="20 to 49 records"');
+  });
+
   test("scales burial cluster icons by close-range density", () => {
     expect(createCemeteryClusterIcon({ count: 4 }).options).toMatchObject({
       iconSize: [31, 31],

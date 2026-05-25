@@ -597,7 +597,7 @@ export const MOBILE_SHEET_STATES = {
 const SNAP_COLLAPSED_FRACTION = 0.08;
 const SNAP_COLLAPSED_MIN_HEIGHT = 76;
 const SNAP_CONTENT_MEASUREMENT_MIN_HEIGHT = SNAP_COLLAPSED_MIN_HEIGHT + 56;
-const SNAP_PEEK_FRACTION = 0.36;
+const SNAP_PEEK_FRACTION = 0.39;
 const SNAP_FULL_FRACTION = 0.92;
 
 export const getEffectiveMobileSheetMaxHeight = ({ maxHeight, visualViewportHeight } = {}) => {

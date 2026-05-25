@@ -432,7 +432,6 @@ const createSelectedBurialStackIcon = ({ count = 0, isHighlighted = false } = {}
       isHighlighted ? "selected-burial-cluster--highlighted" : "",
     ].filter(Boolean).join(" "),
     className: "custom-cluster-icon selected-burial-cluster-icon",
-    densityClassName: "",
   })
 );
 

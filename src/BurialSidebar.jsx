@@ -1096,7 +1096,7 @@ function SelectedPlaceCard({
     return (
       <Box
         sx={{
-          mt: 1,
+          mt: 0,
           borderRadius: 2,
           border: "1px solid var(--panel-border)",
           backgroundColor: "rgba(255, 255, 255, 0.92)",
@@ -1360,6 +1360,9 @@ function SelectedSummaryPanel({
   const selectionSummaryTitle = hasMultipleSelectedBurials
     ? STACK_SELECTION_PANEL_TITLE
     : SINGLE_SELECTION_PANEL_TITLE;
+  const mobileSelectionSummaryTitle = hasMultipleSelectedBurials
+    ? `${selectedBurials.length} graves here`
+    : selectionSummaryTitle;
   const selectionSummaryLabel = hasMultipleSelectedBurials
     ? `${selectedBurials.length} graves share this map location.`
     : "";
@@ -1388,67 +1391,99 @@ function SelectedSummaryPanel({
   return (
     <Box
       className="left-sidebar__panel left-sidebar__panel--selected-summary left-sidebar__panel--surface"
-      sx={{ ...panelSurfaceStyles, p: isMobile ? 1.85 : 2 }}
+      sx={{
+        ...panelSurfaceStyles,
+        p: isMobile ? 1.15 : 2,
+        display: "grid",
+        gap: isMobile ? 0.75 : 0,
+      }}
     >
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) auto",
-          columnGap: 1,
-          rowGap: 0.85,
-          alignItems: "start",
-        }}
-      >
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="subtitle2">{selectionSummaryTitle}</Typography>
-        </Box>
-        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-          <Chip size="small" color="primary" label={selectedBurials.length} />
-        </Box>
-        {selectionSummaryLabel && (
+      {isMobile ? (
+        <Box
+          className="left-sidebar__selection-summary-header left-sidebar__selection-summary-header--mobile"
+        >
           <Typography
-            variant="body2"
-            sx={{
-              gridColumn: "1 / -1",
-              color: "var(--muted-text)",
-              lineHeight: 1.45,
-            }}
+            variant="subtitle2"
+            className="left-sidebar__selection-summary-title"
           >
-            {selectionSummaryLabel}
+            {mobileSelectionSummaryTitle}
           </Typography>
-        )}
+          <Box className="left-sidebar__selection-summary-actions">
+            {shouldShowSelectionToggle && (
+              <Button
+                className="left-sidebar__selection-summary-list-button"
+                size="small"
+                variant={isExpanded ? "outlined" : "contained"}
+                onClick={onToggleExpanded}
+                aria-label={isExpanded ? "Hide grave list" : "Show all graves at this spot"}
+                endIcon={(
+                  <ArrowDropDownIcon
+                    sx={{
+                      transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform 0.2s ease",
+                    }}
+                  />
+                )}
+              >
+                {isExpanded ? "Hide" : "List"}
+              </Button>
+            )}
+            {hasMultipleSelectedBurials && (
+              <Button
+                className="left-sidebar__selection-summary-clear"
+                size="small"
+                color="inherit"
+                onClick={onClearSelectedBurials}
+              >
+                Clear all
+              </Button>
+            )}
+          </Box>
+        </Box>
+      ) : (
         <Box
           sx={{
-            gridColumn: "1 / -1",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-            flexWrap: "wrap",
-            gap: 0.75,
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) auto",
+            columnGap: 1,
+            rowGap: 0.85,
+            alignItems: "start",
           }}
         >
-          {shouldShowSelectionToggle && (
-            <Button
-              size="small"
-              variant={isExpanded ? "outlined" : "contained"}
-              onClick={onToggleExpanded}
-              endIcon={(
-                <ArrowDropDownIcon
-                  sx={{
-                    transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
-                    transition: "transform 0.2s ease",
-                  }}
-                />
-              )}
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle2">{selectionSummaryTitle}</Typography>
+          </Box>
+          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <Chip size="small" color="primary" label={selectedBurials.length} />
+          </Box>
+          {selectionSummaryLabel && (
+            <Typography
+              variant="body2"
+              sx={{
+                gridColumn: "1 / -1",
+                color: "var(--muted-text)",
+                lineHeight: 1.45,
+              }}
             >
-              {isExpanded ? "Hide choices" : "Choose grave"}
-            </Button>
+              {selectionSummaryLabel}
+            </Typography>
           )}
-          <Button size="small" color="inherit" onClick={onClearSelectedBurials}>
-            Clear
-          </Button>
+          <Box
+            sx={{
+              gridColumn: "1 / -1",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              flexWrap: "wrap",
+              gap: 0.75,
+            }}
+          >
+            <Button size="small" color="inherit" onClick={onClearSelectedBurials}>
+              Clear
+            </Button>
+          </Box>
         </Box>
-      </Box>
+      )}
 
       {isMobile ? (
         <SelectedPlaceCard
@@ -1966,7 +2001,9 @@ function BurialSidebar({
       expandMobileSheet();
     }
 
-    scrollMobileSheetToTop("auto");
+    if (didSelectionChange || shouldRevealBrowseContext) {
+      scrollMobileSheetToTop("auto");
+    }
   }, [
     activeBurialId,
     expandMobileSheet,
