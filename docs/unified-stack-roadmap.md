@@ -1,4 +1,4 @@
-# Unified Stack Roadmap
+# Unified stack roadmap
 
 This is the current staged plan for the next round of `fab` work.
 
@@ -9,7 +9,7 @@ The goals are:
 - reduce contributor friction for new maintainers
 - keep development-only tools isolated on `dev-features`
 
-## Current State
+## Current state
 
 The repo has the right major seams:
 
@@ -35,7 +35,7 @@ Status: active
 - document which files own which decisions
 - make validation expectations explicit by change type
 
-## Stage 2: Shared Contracts For Web + Native
+## Stage 2: Shared contracts for web + native
 
 Status: next
 
@@ -46,7 +46,7 @@ Status: next
 Decision rule:
 do contract cleanup before any large framework migration
 
-## Stage 3: UI System Refresh
+## Stage 3: UI system refresh
 
 Status: active
 
@@ -55,7 +55,7 @@ Status: active
   clearer hierarchy, bigger touch targets, simpler gestures, visible focus, restrained motion
 - keep safe-area and mobile sheet behavior first-class
 
-## Stage 4: Production Map Simplification
+## Stage 4: Production map simplification
 
 Status: active
 
@@ -63,7 +63,7 @@ Status: active
 - move renderer experiments, operator tooling, and artifact previews to `dev-features`
 - promote only focused, production-ready contracts back to `master`
 
-## Stage 5: Toolchain Modernization
+## Stage 5: Toolchain modernization
 
 Status: later
 

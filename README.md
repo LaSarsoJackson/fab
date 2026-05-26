@@ -14,7 +14,7 @@ directly on the web and inside `FABFG`, the native wrapper app.
 
 ## Project layout
 
-The broader product surface is split across three systems:
+The product is split across three systems:
 
 - `fab`: this repository, which owns the shared web app, data pipeline, map
   behavior, and deep-link handling

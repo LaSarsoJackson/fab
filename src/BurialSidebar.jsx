@@ -275,6 +275,51 @@ const hasFieldPacketContent = (fieldPacket) => {
   );
 };
 
+function SelectedRecordActionButtons({
+  burial,
+  isMobile,
+  isRouteActive,
+  onNavigateToBurial,
+  onRemoveSelectedBurial,
+}) {
+  return (
+    <Box
+      className={isMobile
+        ? "selected-person-actions selected-person-actions--mobile"
+        : "selected-person-actions"}
+      sx={buildSelectionActionLayoutSx()}
+    >
+      <Button
+        className="left-sidebar__selection-action left-sidebar__selection-action--primary"
+        fullWidth
+        size="small"
+        variant="contained"
+        startIcon={<DirectionsIcon />}
+        onClick={(event) => {
+          event.stopPropagation();
+          onNavigateToBurial(event, burial);
+        }}
+      >
+        {isRouteActive ? "Stop Navigation" : "Navigate"}
+      </Button>
+      <Button
+        className="left-sidebar__selection-action left-sidebar__selection-action--secondary"
+        fullWidth
+        size="small"
+        variant="text"
+        color="inherit"
+        startIcon={<CloseIcon />}
+        onClick={(event) => {
+          event.stopPropagation();
+          onRemoveSelectedBurial(burial.id);
+        }}
+      >
+        Close
+      </Button>
+    </Box>
+  );
+}
+
 /**
  * Result list shared by search, section browse, and tour browse. Map.jsx owns
  * the selected/hovered ids; this panel only renders the current scope and sends
@@ -693,6 +738,8 @@ function SelectedPeopleList({
         const isRouteActive = activeRouteBurialId === burial.id;
         const isHovered = hoveredBurialId === burial.id;
         const tourStyle = tourStyles[burial.tourKey];
+        const locationSummary = buildLocationSummary(burial);
+        const lifeSummary = buildLifeDatesSummary(burial);
 
         return (
           <ListItem key={burial.id} disablePadding sx={{ display: "block", pb: 1.5 }}>
@@ -761,24 +808,22 @@ function SelectedPeopleList({
                     >
                       {formatBrowseResultName(burial)}
                     </Typography>
-                    {buildLocationSummary(burial) && (
+                    {locationSummary && (
                       <Typography
                         variant="body2"
                         color="text.secondary"
                         sx={{ mt: 0.5, ...selectionTextWrapSx }}
                       >
-                        {buildLocationSummary(burial)}
+                        {locationSummary}
                       </Typography>
                     )}
-                    {([burial.Birth && `Born ${burial.Birth}`, burial.Death && `Died ${burial.Death}`].filter(Boolean).length > 0) && (
+                    {lifeSummary && (
                       <Typography
                         variant="body2"
                         color="text.secondary"
                         sx={selectionTextWrapSx}
                       >
-                        {[burial.Birth && `Born ${burial.Birth}`, burial.Death && `Died ${burial.Death}`]
-                          .filter(Boolean)
-                          .join(" • ")}
+                        {lifeSummary}
                       </Typography>
                     )}
                     {(isActive || isRouteActive) && (
@@ -815,40 +860,13 @@ function SelectedPeopleList({
                   </Box>
                 </Box>
               </ButtonBase>
-              <Box
-                className={isMobile
-                  ? "selected-person-actions selected-person-actions--mobile"
-                  : "selected-person-actions"}
-                sx={buildSelectionActionLayoutSx()}
-              >
-                <Button
-                  className="left-sidebar__selection-action left-sidebar__selection-action--primary"
-                  fullWidth
-                  size="small"
-                  variant="contained"
-                  startIcon={<DirectionsIcon />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onNavigateToBurial(event, burial);
-                  }}
-                >
-                  {isRouteActive ? "Stop Navigation" : "Navigate"}
-                </Button>
-                <Button
-                  className="left-sidebar__selection-action left-sidebar__selection-action--secondary"
-                  fullWidth
-                  size="small"
-                  variant="text"
-                  color="inherit"
-                  startIcon={<CloseIcon />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onRemoveSelectedBurial(burial.id);
-                  }}
-                >
-                  Close
-                </Button>
-              </Box>
+              <SelectedRecordActionButtons
+                burial={burial}
+                isMobile={isMobile}
+                isRouteActive={isRouteActive}
+                onNavigateToBurial={onNavigateToBurial}
+                onRemoveSelectedBurial={onRemoveSelectedBurial}
+              />
             </Box>
           </ListItem>
         );
@@ -875,6 +893,9 @@ function SelectionLeadCard({
   onRemoveSelectedBurial,
   tourStyle,
 }) {
+  const locationSummary = buildLocationSummary(burial);
+  const lifeSummary = buildLifeDatesSummary(burial);
+
   return (
     <Box
       className="left-sidebar__selected-row left-sidebar__selected-row--lead"
@@ -937,24 +958,22 @@ function SelectionLeadCard({
             >
               {formatBrowseResultName(burial)}
             </Typography>
-            {buildLocationSummary(burial) && (
+            {locationSummary && (
               <Typography
                 variant="body2"
                 color="text.secondary"
                 sx={{ mt: 0.35, ...selectionTextWrapSx }}
               >
-                {buildLocationSummary(burial)}
+                {locationSummary}
               </Typography>
             )}
-            {([burial.Birth && `Born ${burial.Birth}`, burial.Death && `Died ${burial.Death}`].filter(Boolean).length > 0) && (
+            {lifeSummary && (
               <Typography
                 variant="body2"
                 color="text.secondary"
                 sx={selectionTextWrapSx}
               >
-                {[burial.Birth && `Born ${burial.Birth}`, burial.Death && `Died ${burial.Death}`]
-                  .filter(Boolean)
-                  .join(" • ")}
+                {lifeSummary}
               </Typography>
             )}
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.7, mt: 0.85 }}>
@@ -983,40 +1002,13 @@ function SelectionLeadCard({
           </Box>
         </Box>
       </ButtonBase>
-      <Box
-        className={isMobile
-          ? "selected-person-actions selected-person-actions--mobile"
-          : "selected-person-actions"}
-        sx={buildSelectionActionLayoutSx()}
-      >
-        <Button
-          className="left-sidebar__selection-action left-sidebar__selection-action--primary"
-          fullWidth
-          size="small"
-          variant="contained"
-          startIcon={<DirectionsIcon />}
-          onClick={(event) => {
-            event.stopPropagation();
-            onNavigateToBurial(event, burial);
-          }}
-        >
-          {isRouteActive ? "Stop Navigation" : "Navigate"}
-        </Button>
-        <Button
-          className="left-sidebar__selection-action left-sidebar__selection-action--secondary"
-          fullWidth
-          size="small"
-          variant="text"
-          color="inherit"
-          startIcon={<CloseIcon />}
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemoveSelectedBurial(burial.id);
-          }}
-        >
-          Close
-        </Button>
-      </Box>
+      <SelectedRecordActionButtons
+        burial={burial}
+        isMobile={isMobile}
+        isRouteActive={isRouteActive}
+        onNavigateToBurial={onNavigateToBurial}
+        onRemoveSelectedBurial={onRemoveSelectedBurial}
+      />
     </Box>
   );
 }

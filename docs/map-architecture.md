@@ -1,4 +1,4 @@
-# Map Architecture
+# Map architecture
 
 This note exists to keep `src/Map.jsx` maintainable.
 
@@ -15,12 +15,14 @@ It should not be the long-term home for pure formatting or dataset-reconciliatio
 Development-only map experiments live on `dev-features`; `master` should keep a
 single production map path unless an experiment is being promoted.
 
-## Supporting Modules
+## Supporting modules
 
 - [`docs/codebase-structure.md`](./codebase-structure.md): repo ownership map and directory responsibilities
 - [`docs/routing-architecture.md`](./routing-architecture.md): client route, shared-link, in-app road routing, and directions-link ownership
 - [`src/features/map/mapChrome.jsx`](../src/features/map/mapChrome.jsx): production Leaflet map controls, overlays, section-marker adapters, and route-status chrome
+- [`src/features/map/mapMarkerIcons.js`](../src/features/map/mapMarkerIcons.js): cached Leaflet div icons for selected records, burial clusters, section clusters, and section affordance markers
 - [`src/features/map/mapDomain.js`](../src/features/map/mapDomain.js): the single home for pure map business rules such as selection-state actions/reduction, section grouping, location filtering, hover guards, viewport-intent control, and popup viewport geometry
+- [`src/features/map/mapNavigationDestination.js`](../src/features/map/mapNavigationDestination.js): saved navigation-destination record shaping and localStorage persistence
 - [`src/features/map/mapRouting.js`](../src/features/map/mapRouting.js): the single home for walking-route calculation and local road-graph routing
 - [`src/features/tours/tourDerivedData.js`](../src/features/tours/tourDerivedData.js): canonical biography/portrait inference for uneven tour datasets and the helpers used to generate alias metadata
 - [`src/features/map/mapRecordPresentation.js`](../src/features/map/mapRecordPresentation.js): shared record cleanup, popup view-model generation, ARCE biography/image link normalization, and defensive date formatting
@@ -28,7 +30,7 @@ single production map path unless an experiment is being promoted.
 - [`src/features/browse/browseResults.js`](../src/features/browse/browseResults.js): record shaping used by both the sidebar and map
 - [`docs/tour-popup-data.md`](./tour-popup-data.md): focused guide to the tour popup data flow, build guards, and change process
 
-## Editing Guidelines
+## Editing guidelines
 
 When adding new behavior:
 
@@ -43,7 +45,7 @@ Examples:
 - Good fit for `src/features/map/mapRecordPresentation.js`: "normalize biography links because the source data mixes bare slugs and full URLs"
 - Bad fit for `Map.jsx`: another 100-line record formatting helper that never touches React or Leaflet
 
-## High-Risk Areas
+## High-risk areas
 
 Changes in these areas should be tested together because the code paths converge on the same record model:
 

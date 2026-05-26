@@ -3,7 +3,7 @@
 This file is the fast orientation guide for automated maintainers working in
 `fab`.
 
-## Read This First
+## Read this first
 
 1. [`README.md`](./README.md) for the product/runtime overview and core commands
 2. [`CONTRIBUTING.md`](./CONTRIBUTING.md) for setup, validation, and review expectations
@@ -20,7 +20,7 @@ Then read only the task-specific note you need:
 - [`docs/ui-principles.md`](./docs/ui-principles.md) before changing shared UI patterns
 - [`docs/unified-stack-roadmap.md`](./docs/unified-stack-roadmap.md) when planning work that affects FABFG or the shared stack
 
-## Repo Rules Of Thumb
+## Repo rules of thumb
 
 - Keep React state, refs, and Leaflet lifecycle work in [`src/Map.jsx`](./src/Map.jsx) and the top-level app shells.
 - Put pure record transforms in the owning feature folder under [`src/features/`](./src/features).
@@ -30,7 +30,7 @@ Then read only the task-specific note you need:
   that only re-export nearby helpers.
 - Do not add new helpers back into the retired flat `src/lib` layout.
 
-## High-Value Entry Points
+## High-value entry points
 
 - [`src/Map.jsx`](./src/Map.jsx): map orchestration, selections, routing, overlays
 - [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx): search, browse, selected-record UI, mobile drawer
@@ -38,7 +38,7 @@ Then read only the task-specific note you need:
 - [`src/features/tours/`](./src/features/tours): tour definitions, alias generation, burial-tour reconciliation
 - [`src/features/map/`](./src/features/map): popup presentation, viewport helpers, selection reducer/actions
 
-## Source Vs Generated Files
+## Source vs generated files
 
 Treat these as source-of-truth inputs:
 
@@ -62,7 +62,7 @@ bun run build:tour-data
 bun run build:data
 ```
 
-## Validation Expectations
+## Validation expectations
 
 If you change source data:
 
@@ -90,14 +90,14 @@ If you change runtime/profile wiring:
 - `bun run check`: doctor plus the default automated test suite
 - `bun run deploy`: production build plus GitHub Pages publish
 
-## Contributor Priorities
+## Contributor priorities
 
 - Keep moves additive when possible. The worktree may contain in-flight architecture cleanup already.
 - Keep development-only surfaces on `dev-features` unless they are being promoted into the shipped app.
 - Treat FABFG alignment as shared-contract work first and wrapper-specific work second.
 - Favor clearer Apple-HIG-inspired interaction patterns over decorative UI churn: safer spacing, fewer gestures, stronger hierarchy, and obvious states.
 
-## Known Constraints
+## Known constraints
 
 - GitHub Pages serves the app under `/fab`, so public asset URLs must respect `process.env.PUBLIC_URL`.
 - The native wrapper app (`FABFG`) consumes hosted `fab` URLs, so deep-link changes can affect both web and native flows.

@@ -1,4 +1,4 @@
-# App Profile Architecture
+# App profile architecture
 
 This repo now treats FAB as a single concrete app, not as a hypothetical
 multi-profile shell.
@@ -8,13 +8,13 @@ multi-profile shell.
 Keep FAB-specific behavior obvious without layering extra indirection on top of
 the one app that actually ships.
 
-## Current Split
+## Current split
 
 - [`src/features/fab/profile.js`](../src/features/fab/profile.js): direct source of truth for FAB-only hosted URL roots, branding, shell copy, record presentation callbacks, bundled data modules and data-module lookup helpers, map defaults, basemap/source registries, optimization-artifact metadata, field aliases, and feature registrations.
 - [`src/features/fab/tours.js`](../src/features/fab/tours.js): FAB tour definitions, styling, and tour-record enrichment.
 - [`src/features/browse/browseResults.js`](../src/features/browse/browseResults.js): reads field aliases from the profile so source-field assumptions are not embedded directly in the browse pipeline.
 
-## Runtime Features
+## Runtime features
 
 Only shipped product toggles belong in `RUNTIME_FEATURE_FLAGS` inside
 [`src/shared/runtimeEnv.js`](../src/shared/runtimeEnv.js):
@@ -29,7 +29,7 @@ Development-only surfaces are kept off `master`. Static admin, custom renderer,
 PMTiles previews, site-twin tooling, and similar DevEx/DevOps surfaces live on
 `dev-features`; see [`dev-branch-workflow.md`](./dev-branch-workflow.md).
 
-## Editing Guidance
+## Editing guidance
 
 When adding generic asset-management behavior:
 

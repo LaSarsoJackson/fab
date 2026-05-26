@@ -1,10 +1,10 @@
-# Maintainability Playbook
+# Maintainability playbook
 
 Use this note when a change is broad, architectural, or easy to scatter across
 the app. It complements the subsystem notes in the architecture index by making
 the current source-of-truth boundaries explicit.
 
-## Working Standard
+## Working standard
 
 - Find the owner before adding code. If no owner is obvious, update
   [codebase-structure.md](./codebase-structure.md) before creating a new helper.
@@ -17,7 +17,7 @@ the current source-of-truth boundaries explicit.
 - After consolidation, search docs and tests for the old module names before
   treating the cleanup as done.
 
-## Current Owners
+## Current owners
 
 | Concern | Owner | Keep Out |
 | --- | --- | --- |
@@ -27,8 +27,10 @@ the current source-of-truth boundaries explicit.
 | Map orchestration, React state, Leaflet refs and effects | [`src/Map.jsx`](../src/Map.jsx) | Pure domain rules and record formatting helpers |
 | Pure map rules, selection reducer, viewport intent, popup geometry | [`src/features/map/mapDomain.js`](../src/features/map/mapDomain.js) | DOM, React hooks, Leaflet layer lifecycles |
 | Local cemetery road routing | [`src/features/map/mapRouting.js`](../src/features/map/mapRouting.js) | URL query contracts, external Maps handoff |
+| Saved navigation-destination records | [`src/features/map/mapNavigationDestination.js`](../src/features/map/mapNavigationDestination.js) | Routing side effects, Leaflet refs |
 | Popup record view models | [`src/features/map/mapRecordPresentation.js`](../src/features/map/mapRecordPresentation.js) | Cemetery-specific row labels and URL roots |
-| Leaflet controls, layer adapters, map chrome | [`src/features/map/mapChrome.jsx`](../src/features/map/mapChrome.jsx) | Top-level state ownership |
+| Leaflet controls, layer adapters, map chrome | [`src/features/map/mapChrome.jsx`](../src/features/map/mapChrome.jsx) | Top-level state ownership, marker icon markup |
+| Numbered, burial, and section marker icons | [`src/features/map/mapMarkerIcons.js`](../src/features/map/mapMarkerIcons.js) | Map state and layer lifecycle |
 | Sidebar composition | [`src/BurialSidebar.jsx`](../src/BurialSidebar.jsx) | Search scoring, section/tour result shaping |
 | Browse result normalization and section indexes | [`src/features/browse/browseResults.js`](../src/features/browse/browseResults.js) | React state and Leaflet concerns |
 | Search scoring and search indexes | [`src/features/browse/burialSearch.js`](../src/features/browse/burialSearch.js) | UI copy and component state |
@@ -42,7 +44,7 @@ the current source-of-truth boundaries explicit.
 | Root shell fallback styling | [`src/App.css`](../src/App.css) | Map/sidebar workflow styling |
 | PWA cache policy | [`public/service-worker.js`](../public/service-worker.js) | Development caching behavior |
 
-## Comment Policy
+## Comment policy
 
 Good comments explain why a boundary exists or why a seemingly simple change is
 risky. Examples worth keeping:
@@ -65,7 +67,7 @@ Comments to avoid:
 When a comment becomes false, fix the code or delete the comment in the same
 change.
 
-## Source And Generated Data
+## Source and generated data
 
 Source inputs:
 
@@ -89,7 +91,7 @@ bun run build:tour-data
 bun run build:data
 ```
 
-## Change Checklist
+## Change checklist
 
 1. Read the architecture note for the subsystem you are touching.
 2. Search for existing owners before adding a file or helper.
@@ -99,7 +101,7 @@ bun run build:data
 5. Update docs in the same change when ownership or commands move.
 6. Run the narrow test first, then widen to the appropriate gate.
 
-## Validation Matrix
+## Validation matrix
 
 | Change Type | Minimum Gate |
 | --- | --- |
@@ -111,7 +113,7 @@ bun run build:data
 | Runtime/profile/public URL behavior | `bun run check` and verify production path assumptions |
 | Release-ready or cross-cutting work | `bun run build` and `bun run check` |
 
-## Review Hotspots
+## Review hotspots
 
 - `Map.jsx` and `BurialSidebar.jsx` should stay orchestration/composition files,
   not new homes for pure rules.

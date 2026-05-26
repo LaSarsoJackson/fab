@@ -1,4 +1,4 @@
-# Dev Branch Workflow
+# Dev branch workflow
 
 `master` is the production-facing web and native-wrapper surface. Keep it
 focused on the shipped Leaflet map, search, browse, tours, routing, deep links,
@@ -12,7 +12,7 @@ The `dev-features` branch preserves experimental and operator-only surfaces:
 - site-twin and digital-twin debug tooling
 - similar DevEx or DevOps tools that should not ship as dormant runtime paths
 
-## Working Model
+## Working model
 
 Use `dev-features` when building or operating those surfaces. In GitHub Desktop,
 choose the `dev-features` branch before editing them. In the CLI:
@@ -28,7 +28,7 @@ separate worktree so the `master` checkout stays available:
 git worktree add ../fab-dev-features dev-features
 ```
 
-## Promoting Work Back
+## Promoting work back
 
 Promote code from `dev-features` to `master` only when it is part of the shipped
 app. Keep those PRs focused:

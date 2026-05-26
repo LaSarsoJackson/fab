@@ -1,14 +1,14 @@
-# Architecture Index
+# Architecture index
 
 Use this file to decide which note to read before making a change.
 
-## Start Here
+## Start here
 
 1. [README.md](../README.md) for product/runtime overview and commands
 2. [CONTRIBUTING.md](../CONTRIBUTING.md) for workflow and validation expectations
 3. [AGENTS.md](../AGENTS.md) for quick repo rules
 
-## By Task
+## By task
 
 - Touching `src/Map.jsx` or map selection flow:
   [map-architecture.md](./map-architecture.md)
@@ -40,7 +40,7 @@ Use this file to decide which note to read before making a change.
 - Working on tour popup normalization or tour-derived presentation:
   [tour-popup-data.md](./tour-popup-data.md)
 
-## Current High-Risk Cross-Cutting Areas
+## Current high-risk cross-cutting areas
 
 - deep links and selected-record restoration
 - section browse and section marker parity

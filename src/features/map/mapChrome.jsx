@@ -1,5 +1,4 @@
 import React, { memo, useEffect } from "react";
-import L from "leaflet";
 import { CircleMarker, GeoJSON, ImageOverlay, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 import {
   Box,
@@ -20,8 +19,13 @@ import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import RemoveIcon from "@mui/icons-material/Remove";
 import SearchIcon from "@mui/icons-material/Search";
+import {
+  getSectionAffordanceIcon,
+  getSectionClusterIcon,
+} from "./mapMarkerIcons";
 import { getPopupViewportPadding } from "./mapDomain";
 import { buildPublicAssetUrl } from "../../shared/runtimeEnv";
+export { createCemeteryClusterIcon } from "./mapMarkerIcons";
 
 /**
  * Leaflet chrome and React-Leaflet adapters.
@@ -38,170 +42,14 @@ const MAP_CONTROL_BUTTON_SIZE = 44;
 const DEFAULT_BASEMAP_KEEP_BUFFER = 4;
 const GEOJSON_DATA_KEYS = new WeakMap();
 let nextGeoJsonDataKey = 1;
-const SECTION_MARKER_GLYPH = `
-  <svg class="section-marker-glyph" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-    <path
-      d="M10 27V12.5C10 8.91 12.91 6 16.5 6S23 8.91 23 12.5V27H25.5V29H7.5V27H10Z"
-      class="section-marker-glyph__body"
-      stroke-width="1.35"
-      stroke-linejoin="round"
-    />
-    <circle class="section-marker-glyph__dot" cx="16.5" cy="14.8" r="2.15" />
-    <path
-      class="section-marker-glyph__base"
-      d="M12.25 24.75H20.75"
-      stroke-width="1.2"
-      stroke-linecap="round"
-    />
-  </svg>
-`;
-const sectionClusterIcons = new Map();
-const sectionAffordanceIcons = new Map();
 
 const buildPaddingPoint = (x, y) => [x, y];
-
-const formatSectionClusterCountLabel = (count = 0) => {
-  const normalizedCount = Math.max(0, Number(count) || 0);
-  if (normalizedCount >= 1000) {
-    return `${(normalizedCount / 1000).toFixed(normalizedCount >= 10000 ? 0 : 1).replace(/\.0$/, "")}k`;
-  }
-
-  return String(normalizedCount);
-};
 
 const getSectionOverviewMarkerRadius = (count = 0) => {
   if (count >= 2000) return 9;
   if (count >= 1000) return 8;
   if (count >= 300) return 7;
   return 6;
-};
-
-const getSectionClusterIconSize = (count = 0) => {
-  const normalizedCount = Math.max(0, Number(count) || 0);
-  if (normalizedCount >= 3000) return 34;
-  if (normalizedCount >= 1500) return 32;
-  if (normalizedCount >= 700) return 31;
-  return 30;
-};
-
-const getBurialClusterIconSize = (count = 0) => {
-  const normalizedCount = Math.max(0, Number(count) || 0);
-  if (normalizedCount >= 50) return 40;
-  if (normalizedCount >= 20) return 37;
-  if (normalizedCount >= 10) return 34;
-  if (normalizedCount >= 6) return 32;
-  if (normalizedCount >= 3) return 31;
-  return 30;
-};
-
-const getCemeteryClusterDensityClass = (count = 0, { scale = "field" } = {}) => {
-  const normalizedCount = Math.max(0, Number(count) || 0);
-  if (scale === "section") {
-    if (normalizedCount >= 1000) return "cemetery-cluster--massive";
-    if (normalizedCount >= 250) return "cemetery-cluster--dense";
-    if (normalizedCount >= 75) return "cemetery-cluster--full";
-    if (normalizedCount >= 20) return "cemetery-cluster--clustered";
-    return "cemetery-cluster--small";
-  }
-
-  if (normalizedCount >= 50) return "cemetery-cluster--massive";
-  if (normalizedCount >= 20) return "cemetery-cluster--dense";
-  if (normalizedCount >= 10) return "cemetery-cluster--full";
-  if (normalizedCount >= 6) return "cemetery-cluster--clustered";
-  if (normalizedCount >= 3) return "cemetery-cluster--paired";
-  return "cemetery-cluster--small";
-};
-
-const getCemeteryClusterDensityLabel = (count = 0) => {
-  const normalizedCount = Math.max(0, Number(count) || 0);
-  if (normalizedCount >= 50) return "50 or more records";
-  if (normalizedCount >= 20) return "20 to 49 records";
-  if (normalizedCount >= 10) return "10 to 19 records";
-  if (normalizedCount >= 6) return "6 to 9 records";
-  if (normalizedCount >= 3) return "3 to 5 records";
-  return "1 to 2 records";
-};
-
-const getSectionClusterDensityClass = (count = 0) => (
-  getCemeteryClusterDensityClass(count, { scale: "section" })
-);
-
-const getSectionClusterDensityLabel = (count = 0) => {
-  const normalizedCount = Math.max(0, Number(count) || 0);
-  if (normalizedCount >= 1000) return "1000 or more records";
-  if (normalizedCount >= 250) return "250 to 999 records";
-  if (normalizedCount >= 75) return "75 to 249 records";
-  if (normalizedCount >= 20) return "20 to 74 records";
-  return "fewer than 20 records";
-};
-
-export const createCemeteryClusterIcon = ({
-  count = 0,
-  label = String(Math.max(0, Number(count) || 0)),
-  size,
-  wrapperClassName = "cemetery-cluster cemetery-cluster--burial",
-  className = "custom-cluster-icon",
-  densityClassName,
-  densityLabel,
-} = {}) => {
-  const normalizedCount = Math.max(0, Number(count) || 0);
-  const normalizedSize = Number.isFinite(Number(size))
-    ? Number(size)
-    : getBurialClusterIconSize(normalizedCount);
-  const resolvedDensityClass = densityClassName === undefined
-    ? getCemeteryClusterDensityClass(normalizedCount)
-    : densityClassName;
-  const wrapperClasses = [wrapperClassName, resolvedDensityClass].filter(Boolean).join(" ");
-  const resolvedDensityLabel = densityLabel || getCemeteryClusterDensityLabel(normalizedCount);
-
-  return L.divIcon({
-    html: `
-      <div class="${wrapperClasses}" data-density-label="${resolvedDensityLabel}">
-        ${SECTION_MARKER_GLYPH}
-        <span class="cemetery-cluster__count">${label}</span>
-      </div>
-    `,
-    className,
-    iconSize: [normalizedSize, normalizedSize],
-    iconAnchor: [normalizedSize / 2, normalizedSize / 2],
-  });
-};
-
-const getSectionClusterIcon = (count = 0) => {
-  const normalizedSize = getSectionClusterIconSize(count);
-  const label = formatSectionClusterCountLabel(count);
-  const cacheKey = `${normalizedSize}:${label}`;
-
-  if (!sectionClusterIcons.has(cacheKey)) {
-    sectionClusterIcons.set(cacheKey, createCemeteryClusterIcon({
-      count,
-      label,
-      size: normalizedSize,
-      wrapperClassName: "cemetery-cluster section-cluster",
-      className: "custom-cluster-icon section-cluster-icon",
-      densityClassName: getSectionClusterDensityClass(count),
-      densityLabel: getSectionClusterDensityLabel(count),
-    }));
-  }
-
-  return sectionClusterIcons.get(cacheKey);
-};
-
-const getSectionAffordanceIcon = (size = 28) => {
-  const normalizedSize = Number.isFinite(Number(size))
-    ? Math.round(Number(size))
-    : 28;
-
-  if (!sectionAffordanceIcons.has(normalizedSize)) {
-    sectionAffordanceIcons.set(normalizedSize, L.divIcon({
-      html: `<div class="section-affordance">${SECTION_MARKER_GLYPH}</div>`,
-      className: "section-affordance-icon",
-      iconSize: [normalizedSize, normalizedSize],
-      iconAnchor: [normalizedSize / 2, normalizedSize / 2],
-    }));
-  }
-
-  return sectionAffordanceIcons.get(normalizedSize);
 };
 
 const getOverlayRect = (getOverlayElement) => {

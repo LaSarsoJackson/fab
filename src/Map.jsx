@@ -11,32 +11,21 @@
  * imperative Leaflet refs, then render sidebar, popups, routes, and map layers.
  */
 
-//=============================================================================
-// External Dependencies
-//=============================================================================
-
-// React and Core Dependencies
 import React, { memo, useState, useEffect, useMemo, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
-
-// Leaflet and Map-related Dependencies
 import { MapContainer, Popup, Marker, GeoJSON, CircleMarker, useMap } from "react-leaflet";
-import L from 'leaflet';  // Core Leaflet library for map functionality
+import L from "leaflet";
 import "./index.css";
-import 'leaflet.markercluster/dist/leaflet.markercluster';  // Clustering support for markers
-import 'leaflet.markercluster/dist/MarkerCluster.css';
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
-import { point } from '@turf/helpers';
-
-// Material-UI Components and Icons
+import "leaflet.markercluster/dist/leaflet.markercluster";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
+import { point } from "@turf/helpers";
 import {
   Menu,
   MenuItem,
   useMediaQuery,
 } from "@mui/material";
-
-// Local Data and Styles
 import {
   APP_PROFILE,
   getEmptyCoreMapData,
@@ -109,7 +98,6 @@ import {
 } from "./features/map/mapDomain";
 import {
   ActiveLeafletBasemap,
-  createCemeteryClusterIcon,
   CustomZoomControl,
   DefaultExtentButton,
   fitBoundsInVisibleViewport,
@@ -128,6 +116,19 @@ import {
   panIntoVisibleViewport,
   schedulePopupInView,
 } from "./features/map/mapChrome";
+import {
+  createCemeteryClusterIcon,
+  createNumberedMarkerIcon,
+  createSelectedBurialStackIcon,
+  MAP_MARKER_COLORS,
+} from "./features/map/mapMarkerIcons";
+import {
+  clearStoredNavigationDestination,
+  createNavigationDestinationRecord,
+  hasBurialNavigationCoordinates,
+  readStoredNavigationDestination,
+  writeStoredNavigationDestination,
+} from "./features/map/mapNavigationDestination";
 import { cleanRecordValue } from "./features/map/mapRecordPresentation";
 import {
   PopupCardContent,
@@ -162,23 +163,6 @@ import {
   scheduleIdleTask,
   syncDocumentMetadata,
 } from "./shared/runtimeEnv";
-
-//=============================================================================
-// Constants and Configuration
-//=============================================================================
-
-/**
- * Colors used for numbered markers in search results
- * Cycles through these colors for multiple markers
- */
-const MARKER_COLORS = [
-  "#2f6b57",
-  "#547487",
-  "#8a6848",
-  "#6f5c78",
-  "#63745d",
-  "#885c56",
-];
 
 const FOCUS_ZOOM_LEVEL = MAP_PRESENTATION_POLICY.burialFocusMinZoom;
 
@@ -220,7 +204,6 @@ const MAP_ZOOM = APP_PROFILE.map.zoom;
 const LOCATION_BUFFER_BOUNDARY = APP_PROFILE.map.locationBufferBoundary;
 const LOCATION_MESSAGES = APP_PROFILE.map.locationMessages;
 const SLOW_CONNECTION_TYPES = new Set(['slow-2g', '2g', '3g']);
-const NUMBERED_ICON_CACHE = new Map();
 const GEOLOCATION_REQUEST_OPTIONS = {
   enableHighAccuracy: true,
   maximumAge: 0,
@@ -238,7 +221,6 @@ const GEOLOCATION_FALLBACK_REQUEST_OPTIONS = {
 const GEOLOCATION_PERMISSION_DENIED = 1;
 const ROUTING_LOCATION_REQUIRED_MESSAGE = LOCATION_MESSAGES.routeLocationRequired ||
   "Continue with Maps for now. On-site navigation will start when you arrive.";
-const NAVIGATION_DESTINATION_STORAGE_KEY = "fab.navigationDestination.v1";
 const NAVIGATION_NOTICE_AUTO_HIDE_MS = 6000;
 const NAVIGATION_LOCATION_DECISION_WAIT_MS = 1400;
 const ROUTE_LOCATION_REFRESH_INTERVAL_MS = 5000;
@@ -267,90 +249,6 @@ const DEFAULT_MAP_OVERLAY_VISIBILITY = MAP_OVERLAY_OPTIONS.reduce((visibility, o
   [option.id]: option.defaultVisible,
 }), {});
 
-const hasBurialNavigationCoordinates = (burial) => (
-  Array.isArray(burial?.coordinates) &&
-  Number.isFinite(Number(burial.coordinates[0])) &&
-  Number.isFinite(Number(burial.coordinates[1]))
-);
-
-const createNavigationDestinationRecord = (burial) => {
-  if (!hasBurialNavigationCoordinates(burial)) {
-    return null;
-  }
-
-  const displayName = formatBrowseResultName(burial);
-
-  return {
-    id: cleanRecordValue(burial.id) || `navigation:${burial.coordinates[0]},${burial.coordinates[1]}`,
-    source: burial.source || "navigation",
-    displayName,
-    label: burial.label || displayName,
-    fullName: burial.fullName || displayName,
-    First_Name: burial.First_Name || "",
-    Last_Name: burial.Last_Name || "",
-    Section: burial.Section || burial.section || "",
-    Lot: burial.Lot || burial.lot || "",
-    Tier: burial.Tier || burial.tier || "",
-    Grave: burial.Grave || burial.grave || "",
-    Birth: burial.Birth || burial.birth || "",
-    Death: burial.Death || burial.death || "",
-    coordinates: [Number(burial.coordinates[0]), Number(burial.coordinates[1])],
-    title: burial.title || burial.tourKey || "",
-    tourKey: burial.tourKey || burial.title || "",
-    tourName: burial.tourName || "",
-    savedAt: Number.isFinite(Number(burial.savedAt)) ? Number(burial.savedAt) : Date.now(),
-  };
-};
-
-const readStoredNavigationDestination = () => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const storedValue = window.localStorage.getItem(NAVIGATION_DESTINATION_STORAGE_KEY);
-    if (!storedValue) {
-      return null;
-    }
-
-    return createNavigationDestinationRecord(JSON.parse(storedValue));
-  } catch (error) {
-    console.warn("Unable to restore saved navigation destination:", error);
-    return null;
-  }
-};
-
-const writeStoredNavigationDestination = (burial) => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const destination = createNavigationDestinationRecord(burial);
-  if (!destination) {
-    return null;
-  }
-
-  try {
-    window.localStorage.setItem(NAVIGATION_DESTINATION_STORAGE_KEY, JSON.stringify(destination));
-  } catch (error) {
-    console.warn("Unable to save navigation destination:", error);
-  }
-
-  return destination;
-};
-
-const clearStoredNavigationDestination = () => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.localStorage.removeItem(NAVIGATION_DESTINATION_STORAGE_KEY);
-  } catch (error) {
-    console.warn("Unable to clear saved navigation destination:", error);
-  }
-};
-
 const isLocationCandidateWithinBuffer = (candidate) => {
   if (!candidate) {
     return false;
@@ -376,75 +274,6 @@ const getSectionBurialMarkerId = (burial) => {
   return burial?.id || properties.id || createMapRecordKey(properties);
 };
 
-//=============================================================================
-// React Components
-//=============================================================================
-
-//=============================================================================
-// Helper Functions
-//=============================================================================
-
-/**
- * Creates a numbered marker icon for search results.
- * The icon shell stays stable so hover/active states can be toggled with CSS
- * instead of replacing the DOM node under the pointer.
- *
- * @param {number} number - The number to display in the marker
- * @returns {L.DivIcon} A Leaflet div icon configured with the specified number
- */
-const createNumberedIcon = (number) => {
-  const cacheKey = String(number);
-  const cachedIcon = NUMBERED_ICON_CACHE.get(cacheKey);
-  if (cachedIcon) {
-    return cachedIcon;
-  }
-
-  const colorIndex = (number - 1) % MARKER_COLORS.length;
-  const color = MARKER_COLORS[colorIndex];
-
-  const icon = L.divIcon({
-    className: 'custom-div-icon',
-    html: `
-      <div
-        class="custom-div-icon__badge"
-        data-marker-number="${number}"
-        style="--marker-color: ${color};"
-      >
-        ${number}
-      </div>
-    `,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -16]
-  });
-
-  NUMBERED_ICON_CACHE.set(cacheKey, icon);
-  return icon;
-};
-
-const createSelectedBurialStackIcon = ({ count = 0, isHighlighted = false } = {}) => (
-  createCemeteryClusterIcon({
-    count,
-    size: 34,
-    wrapperClassName: [
-      "cemetery-cluster",
-      "selected-burial-cluster",
-      isHighlighted ? "selected-burial-cluster--highlighted" : "",
-    ].filter(Boolean).join(" "),
-    className: "custom-cluster-icon selected-burial-cluster-icon",
-  })
-);
-
-/**
- * Creates a unique key for a burial record
- * @param {Object} burial - The burial record object
- * @param {number} index - The index of the burial in the list
- * @returns {string} A unique identifier string
- */
-const createUniqueKey = (burial, index) => {
-  return createMapRecordKey(burial, index);
-};
-
 const createRouteGeoJsonRenderKey = (geojson) => {
   const coordinates = geojson?.features?.[0]?.geometry?.coordinates;
   if (!Array.isArray(coordinates) || coordinates.length === 0) {
@@ -458,19 +287,14 @@ const createRouteGeoJsonRenderKey = (geojson) => {
     .join("|");
 };
 
-/**
- * Creates the visual marker for a tour point.
- * @param {string} tourKey - The key identifying the tour
- * @returns {Function} A function that creates a Leaflet marker or circle marker
- */
 const createTourMarker = (tourKey, tourStyles) => {
   const tourInfo = tourStyles[tourKey] || null;
   if (!tourInfo) return null;
 
   return (feature, latlng) => {
-    if (feature.geometry.type === 'Point') {
+    if (feature.geometry?.type === "Point") {
       const icon = L.divIcon({
-        className: 'tour-marker',
+        className: "tour-marker",
         html: `<div style="
           width: 12px;
           height: 12px;
@@ -480,17 +304,18 @@ const createTourMarker = (tourKey, tourStyles) => {
           box-shadow: 0 0 4px rgba(0,0,0,0.4);
         "></div>`,
         iconSize: [12, 12],
-        iconAnchor: [6, 6]
+        iconAnchor: [6, 6],
       });
       return L.marker(latlng, { icon });
     }
+
     return L.circleMarker(latlng, {
       radius: 6,
       fillColor: tourInfo.color,
-      color: '#ffffff',
+      color: "#ffffff",
       weight: 2,
       opacity: 0.9,
-      fillOpacity: 0.7
+      fillOpacity: 0.7,
     });
   };
 };
@@ -556,12 +381,10 @@ const bindReactPopup = ({
   layer.on("remove", unmountPopup);
 };
 
-//=============================================================================
-// Data Structures
-//=============================================================================
-
 /**
- * Component that manages the visibility of tour layers on the map
+ * Leaflet layer control for the currently selected tour. Keeping it as a tiny
+ * React-Leaflet child lets the map shell update overlay membership without
+ * threading imperative map calls through the main render body.
  */
 function MapTourController({ selectedTour, overlayMaps, tourNames }) {
   const map = useMap();
@@ -569,7 +392,6 @@ function MapTourController({ selectedTour, overlayMaps, tourNames }) {
   useEffect(() => {
     if (!map || !overlayMaps) return;
 
-    // Remove all tour layers first
     tourNames.forEach((name) => {
       const layer = overlayMaps[name];
       if (layer) {
@@ -577,12 +399,13 @@ function MapTourController({ selectedTour, overlayMaps, tourNames }) {
       }
     });
 
-    // Add only the selected tour layer if it exists
-    if (selectedTour) {
-      const layer = overlayMaps[selectedTour];
-      if (layer) {
-        map.addLayer(layer);
-      }
+    if (!selectedTour) {
+      return;
+    }
+
+    const layer = overlayMaps[selectedTour];
+    if (layer) {
+      map.addLayer(layer);
     }
   }, [map, selectedTour, overlayMaps, tourNames]);
 
@@ -724,11 +547,6 @@ const MapStaticLayers = memo(function MapStaticLayers({
   );
 });
 
-/**
- * Creates event handlers for tour features
- * @param {string} tourKey - The key identifying the tour
- * @returns {Function} Event handler for the tour feature
- */
 const createOnEachTourFeature = (
   tourKey,
   tourName,
@@ -744,59 +562,49 @@ const createOnEachTourFeature = (
   schedulePopupLayout,
   shouldRenderPopup
 ) => (feature, layer) => {
-  if (feature.properties) {
-    feature.properties.title = tourKey;
-    const baseBrowseResult = buildTourBrowseResult(feature, { tourKey, tourName });
-    const browseResult = resolveTourBrowseResult
-      ? resolveTourBrowseResult(baseBrowseResult)
-      : baseBrowseResult;
-    bindReactPopup({
-      layer,
-      record: browseResult,
-      onNavigate: (event) => {
-        onNavigate(event, browseResult);
-      },
-      onPopupClose,
-      onPopupOpen,
-      onRemove: () => {
-        onRemoveResult(browseResult.id);
-        layer.closePopup();
-      },
-      schedulePopupLayout,
-      shouldRenderPopup,
-    });
-    if (onRegisterLayer) {
-      onRegisterLayer(browseResult, layer);
-    }
-    layer.on('mouseover', () => {
-      onHoverStart?.(browseResult.id);
-    });
-    layer.on('mouseout', () => {
-      onHoverEnd?.(browseResult.id);
-    });
-	    layer.on('click', () => {
-	      onSelect(browseResult, {
-	        animate: false,
-	        openTourPopup: true,
-	        preserveViewport: true,
-	        selectionSource: SELECTION_SOURCES.TOUR_STOP,
-	      });
-	    });
+  const baseBrowseResult = buildTourBrowseResult(feature, { tourKey, tourName });
+  const browseResult = resolveTourBrowseResult
+    ? resolveTourBrowseResult(baseBrowseResult)
+    : baseBrowseResult;
+
+  bindReactPopup({
+    layer,
+    record: browseResult,
+    onNavigate: (event) => {
+      onNavigate(event, browseResult);
+    },
+    onPopupClose,
+    onPopupOpen,
+    onRemove: () => {
+      onRemoveResult(browseResult.id);
+      layer.closePopup();
+    },
+    schedulePopupLayout,
+    shouldRenderPopup,
+  });
+
+  if (onRegisterLayer) {
+    onRegisterLayer(browseResult, layer);
   }
+
+  layer.on("mouseover", () => {
+    onHoverStart?.(browseResult.id);
+  });
+  layer.on("mouseout", () => {
+    onHoverEnd?.(browseResult.id);
+  });
+  layer.on("click", () => {
+    onSelect(browseResult, {
+      animate: false,
+      openTourPopup: true,
+      preserveViewport: true,
+      selectionSource: SELECTION_SOURCES.TOUR_STOP,
+    });
+  });
 };
 
-//=============================================================================
-// Main Map Component
-//=============================================================================
-
 /**
- * Main component for the Albany Rural Cemetery interactive map
- * Provides functionality for:
- * - Searching and displaying burial locations
- * - Filtering by section, lot, and tier
- * - Displaying themed cemetery tours
- * - Real-time location tracking
- * - Turn-by-turn navigation to burial sites
+ * Runtime map shell for search, browse, tours, location, and on-site routing.
  */
 export default function BurialMap() {
   const runtimeEnv = useMemo(() => getRuntimeEnv(), []);
@@ -813,10 +621,6 @@ export default function BurialMap() {
    * - explain lifecycle constraints in comments, especially around refs,
    *   popup timing, deep-link restoration, and programmatic viewport movement
    */
-  //-----------------------------------------------------------------------------
-  // State Management
-  //-----------------------------------------------------------------------------
-
   // Map and UI state. Add new state here only when it represents user/runtime
   // interaction; data derived from loaded records belongs in the memoized block.
   const [overlayMaps, setOverlayMaps] = useState({});
@@ -835,7 +639,7 @@ export default function BurialMap() {
   const [overlayVisibility, setOverlayVisibility] = useState(DEFAULT_MAP_OVERLAY_VISIBILITY);
   const [coreMapData, setCoreMapData] = useState(getEmptyCoreMapData);
 
-  // Search and Filter State
+  // Search and filter state.
   const { activeBurialId, hoveredBurialId, selectedBurials } = selectionState;
   const [showAllBurials, setShowAllBurials] = useState(false);
   const [sectionFilter, setSectionFilter] = useState('');
@@ -2554,7 +2358,7 @@ export default function BurialMap() {
   /**
    * Creates the section-burial cluster group. Same-coordinate stacks remain
    * clustered even at max zoom and select every record at that GIS point;
-   * broader clusters move to the next detail zoom band or spiderfy at max.
+   * larger clusters move to the next detail zoom band or spiderfy at max.
    */
   const createClusterGroup = useCallback(() => {
     const clusterGroup = L.markerClusterGroup({
@@ -3042,12 +2846,12 @@ export default function BurialMap() {
     resetLocationCandidateWindow();
     ensureLocationWatchActive();
 
-	    selectBurial(routeBurial, {
-	      animate: false,
-	      isExplicitFocus: true,
-	      openTourPopup: true,
-	      selectionSource: SELECTION_SOURCES.NAVIGATION_START,
-	    });
+    selectBurial(routeBurial, {
+      animate: false,
+      isExplicitFocus: true,
+      openTourPopup: true,
+      selectionSource: SELECTION_SOURCES.NAVIGATION_START,
+    });
 
     setRouteError("");
     setRoutingOrigin([usableLocation.latitude, usableLocation.longitude]);
@@ -4117,12 +3921,12 @@ export default function BurialMap() {
           if (isLatLngBoundsExpressionValid(packetMapBounds)) {
             fitMapBoundsInViewport(map, packetMapBounds);
           } else if (nextActiveRecord?.coordinates) {
-	            focusBurial(nextActiveRecord, {
-	              addToSelection: false,
-	              animate: false,
-	              openTourPopup: false,
-	              selectionSource: SELECTION_SOURCES.DEEP_LINK,
-	            });
+            focusBurial(nextActiveRecord, {
+              addToSelection: false,
+              animate: false,
+              openTourPopup: false,
+              selectionSource: SELECTION_SOURCES.DEEP_LINK,
+            });
           }
         }
       }
@@ -4147,11 +3951,11 @@ export default function BurialMap() {
         index: searchIndex,
         getTourName,
       });
-	      if (matches.length > 0) {
-	        selectBurial(matches[0], {
-	          selectionSource: SELECTION_SOURCES.DEEP_LINK,
-	        });
-	      }
+      if (matches.length > 0) {
+        selectBurial(matches[0], {
+          selectionSource: SELECTION_SOURCES.DEEP_LINK,
+        });
+      }
     }
 
     didApplyUrlStateRef.current = true;
@@ -4495,11 +4299,11 @@ export default function BurialMap() {
           isOnline={isOnline}
           isSearchIndexReady={isSearchIndexReady}
           loadingTourName={loadingTourName}
-	          lotTierFilter={lotTierFilter}
-	          mapDataError={mapDataError}
-	          markerColors={MARKER_COLORS}
-	          onMobileSheetViewportChange={handleMobileSheetViewportChange}
-	          rootRef={sidebarOverlayRef}
+          lotTierFilter={lotTierFilter}
+          mapDataError={mapDataError}
+          markerColors={MAP_MARKER_COLORS}
+          onMobileSheetViewportChange={handleMobileSheetViewportChange}
+          rootRef={sidebarOverlayRef}
           onBrowseResultSelect={handleBrowseResultSelect}
           onClearSectionFilters={clearSectionFilters}
           onClearSelectedBurials={clearSelectedBurials}
@@ -4747,12 +4551,12 @@ export default function BurialMap() {
                         records={records}
                         activeRecordId={activeBurialId}
                         onSelectRecord={(record) => {
-	                          selectMapBurial(record, {
-	                            animate: false,
-	                            openTourPopup: false,
-	                            preserveViewport: true,
-	                            selectionSource: SELECTION_SOURCES.MAP_TAP,
-	                          });
+                          selectMapBurial(record, {
+                            animate: false,
+                            openTourPopup: false,
+                            preserveViewport: true,
+                            selectionSource: SELECTION_SOURCES.MAP_TAP,
+                          });
                         }}
                         onNavigate={(event, record) => {
                           handleNavigateToBurial(event, record);
@@ -4774,7 +4578,7 @@ export default function BurialMap() {
 
             return (
               <Marker
-                key={createUniqueKey(burial, groupIndex)}
+                key={createMapRecordKey(burial, groupIndex)}
                 ref={(layer) => {
                   if (layer) {
                     selectedMarkerLayersRef.current.set(burial.id, layer);
@@ -4784,17 +4588,17 @@ export default function BurialMap() {
                   }
                 }}
                 position={[lat, lng]}
-                icon={createNumberedIcon(markerNumber)}
+                icon={createNumberedMarkerIcon(markerNumber)}
                 keyboard={false}
                 eventHandlers={{
                   mouseover: () => handleHoverBurialChange(burial.id),
                   mouseout: () => clearHoveredBurialIfCurrent(burial.id),
-	                  click: () => selectMapBurial(burial, {
-	                    animate: false,
-	                    openTourPopup: true,
-	                    preserveViewport: true,
-	                    selectionSource: SELECTION_SOURCES.MAP_TAP,
-	                  }),
+                  click: () => selectMapBurial(burial, {
+                    animate: false,
+                    openTourPopup: true,
+                    preserveViewport: true,
+                    selectionSource: SELECTION_SOURCES.MAP_TAP,
+                  }),
                   popupopen: ({ popup }) => {
                     handlePopupBurialOpen(burial);
                     schedulePopupLayout(popup);

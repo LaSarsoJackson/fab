@@ -1864,7 +1864,7 @@ select,
 }
 
 [data-rsbs-backdrop] {
-  /* No dimming tint—map always visible */
+  /* No dimming tint; the map stays visible. */
   background: transparent !important;
   pointer-events: none !important;
 }
