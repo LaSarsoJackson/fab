@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  buildFieldPacketPanelPresentation,
   buildSharedSelectionPresentation,
   buildFieldPacketShareUrl,
   buildFieldPacketState,
@@ -164,6 +165,105 @@ describe("fieldPackets", () => {
       sectionLabel: "Section 99",
       selectedTour: "",
       recordCount: 2,
+    });
+  });
+
+  test("builds saved field-packet panel presentation from packet content", () => {
+    const presentation = buildFieldPacketPanelPresentation({
+      fieldPacket: {
+        name: "Section 99 check",
+        note: "Verify the Tracy marker before the tour.",
+        selectedRecords,
+        sectionFilter: "99",
+        mapBounds: [
+          [42.70, -73.74],
+          [42.71, -73.73],
+        ],
+      },
+      fieldPacketNotice: {
+        tone: "warning",
+        message: "Link copied from an older selection.",
+      },
+      hasNativeShare: true,
+      installPromptEvent: { prompt: () => {} },
+      iosAppStoreUrl: "https://apps.example.test/fab",
+      isInstalled: false,
+      selectedBurials: [selectedRecords[0]],
+    });
+
+    expect(presentation).toMatchObject({
+      canCopyOrShare: true,
+      canInstallApp: true,
+      canOpenIosAppStore: true,
+      canUseNativeShare: true,
+      displayRecordCount: 2,
+      displayRecordCountLabel: "2 records",
+      hasMapContext: true,
+      hasPacket: true,
+      hasSelectedBurials: true,
+      hasSectionFilter: true,
+      hasSelectedTour: false,
+      noticeColor: "#9a6c19",
+      packetRecords: selectedRecords,
+      panelPadding: 1.75,
+      savedDetailsHint: "Copying or sharing updates the link to the current selection and map view.",
+    });
+    expect(presentation.sharedSelectionPresentation).toMatchObject({
+      title: "Section 99 check",
+      description: "Verify the Tracy marker before the tour.",
+      recordCount: 2,
+    });
+  });
+
+  test("builds draft field-packet panel presentation from current selections", () => {
+    expect(buildFieldPacketPanelPresentation({
+      fieldPacket: null,
+      fieldPacketNotice: {
+        tone: "success",
+        message: "Ready to copy.",
+      },
+      hasNativeShare: false,
+      installPromptEvent: null,
+      iosAppStoreUrl: "https://apps.example.test/fab",
+      isInstalled: true,
+      selectedBurials: [selectedRecords[0]],
+    })).toMatchObject({
+      canCopyOrShare: true,
+      canInstallApp: false,
+      canOpenIosAppStore: false,
+      canUseNativeShare: false,
+      displayRecordCount: 1,
+      displayRecordCountLabel: "1 record",
+      emptyStateMessage: "1 selected record ready to share.",
+      hasMapContext: false,
+      hasPacket: false,
+      hasSelectedBurials: true,
+      hasSectionFilter: false,
+      hasSelectedTour: false,
+      noticeColor: "var(--accent)",
+      panelPadding: 1.55,
+      savedDetailsHint: "",
+    });
+  });
+
+  test("builds empty field-packet panel presentation when nothing can be shared", () => {
+    expect(buildFieldPacketPanelPresentation({
+      fieldPacket: {},
+      fieldPacketNotice: {
+        tone: "neutral",
+        message: "No selection.",
+      },
+      hasNativeShare: true,
+      selectedBurials: [],
+    })).toMatchObject({
+      canCopyOrShare: false,
+      displayRecordCount: 0,
+      displayRecordCountLabel: "0 records",
+      emptyStateMessage: "Select one or more records to create a share link.",
+      hasPacket: false,
+      hasSelectedBurials: false,
+      noticeColor: "var(--muted-text)",
+      packetRecords: [],
     });
   });
 

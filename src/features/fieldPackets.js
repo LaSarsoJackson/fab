@@ -402,3 +402,55 @@ export const buildSharedSelectionPresentation = (packet = {}) => {
     recordCount,
   };
 };
+
+export const buildFieldPacketPanelPresentation = ({
+  fieldPacket = null,
+  fieldPacketNotice = null,
+  hasNativeShare = false,
+  installPromptEvent = null,
+  iosAppStoreUrl = "",
+  isInstalled = false,
+  selectedBurials = [],
+} = {}) => {
+  const packetRecords = Array.isArray(fieldPacket?.selectedRecords)
+    ? fieldPacket.selectedRecords
+    : [];
+  const selectedBurialCount = Array.isArray(selectedBurials) ? selectedBurials.length : 0;
+  const hasPacket = packetRecords.length > 0;
+  const hasSelectedBurials = selectedBurialCount > 0;
+  const displayRecordCount = hasPacket ? packetRecords.length : selectedBurialCount;
+  const noticeTone = cleanValue(fieldPacketNotice?.tone);
+  const noticeColor = noticeTone === "success"
+    ? "var(--accent)"
+    : noticeTone === "warning"
+      ? "#9a6c19"
+      : "var(--muted-text)";
+
+  return {
+    canCopyOrShare: hasPacket || hasSelectedBurials,
+    canInstallApp: Boolean(installPromptEvent) && !isInstalled,
+    canOpenIosAppStore: Boolean(cleanValue(iosAppStoreUrl)) && !isInstalled,
+    canUseNativeShare: Boolean(hasNativeShare),
+    displayRecordCount,
+    displayRecordCountLabel: `${displayRecordCount} record${displayRecordCount === 1 ? "" : "s"}`,
+    emptyStateMessage: hasSelectedBurials
+      ? `${selectedBurialCount} selected record${selectedBurialCount === 1 ? "" : "s"} ready to share.`
+      : "Select one or more records to create a share link.",
+    hasMapContext: Boolean(fieldPacket?.mapBounds),
+    hasPacket,
+    hasSectionFilter: Boolean(cleanValue(fieldPacket?.sectionFilter)),
+    hasSelectedBurials,
+    hasSelectedTour: Boolean(cleanValue(fieldPacket?.selectedTour)),
+    noticeColor,
+    packetRecords,
+    panelPadding: hasPacket ? 1.75 : 1.55,
+    savedDetailsHint: hasPacket
+      ? (
+        hasSelectedBurials
+          ? "Copying or sharing updates the link to the current selection and map view."
+          : "This link restores the saved selection and map view."
+      )
+      : "",
+    sharedSelectionPresentation: buildSharedSelectionPresentation(fieldPacket || {}),
+  };
+};
