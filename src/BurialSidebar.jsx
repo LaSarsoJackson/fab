@@ -29,6 +29,7 @@ import {
   buildBrowseScopeChips,
   buildMobileSearchPanelTogglePresentation,
   buildSearchShellNotices,
+  buildSidebarContentVisibility,
   getSearchPlaceholder,
   getSelectedSectionOption,
   getSidebarClassName,
@@ -2426,14 +2427,19 @@ function BurialSidebar({
       />
     </IconButton>
   ) : null;
-  const hasExplicitBrowseResultsContext = Boolean(browseQuery.trim())
-    || Boolean(sectionFilter)
-    || Boolean(selectedTour)
-    || isBrowsePending
-    || isCurrentTourLoading;
-  const shouldShowBrowseResults = hasExplicitBrowseResultsContext;
-  const shouldShowFieldPacketPanel = areFieldPacketsEnabled
-    && (selectedBurials.length > 0 || hasFieldPacketContent(fieldPacket));
+  const {
+    shouldShowBrowseResults,
+    shouldShowFieldPacketPanel,
+  } = buildSidebarContentVisibility({
+    areFieldPacketsEnabled,
+    browseQuery,
+    hasFieldPacketContent: hasFieldPacketContent(fieldPacket),
+    isBrowsePending,
+    isCurrentTourLoading,
+    sectionFilter,
+    selectedBurialsLength: selectedBurials.length,
+    selectedTour,
+  });
 
   const browseResultsContent = shouldShowBrowseResults ? (
     <BrowseResultsPanel

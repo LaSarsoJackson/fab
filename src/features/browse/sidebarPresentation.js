@@ -61,6 +61,30 @@ export const getSidebarClassName = ({
   isMobile ? "left-sidebar left-sidebar--mobile" : "left-sidebar left-sidebar--desktop"
 );
 
+export const buildSidebarContentVisibility = ({
+  areFieldPacketsEnabled = false,
+  browseQuery = "",
+  hasFieldPacketContent = false,
+  isBrowsePending = false,
+  isCurrentTourLoading = false,
+  sectionFilter = "",
+  selectedBurialsLength = 0,
+  selectedTour = "",
+} = {}) => {
+  const hasExplicitBrowseResultsContext = Boolean(browseQuery.trim())
+    || Boolean(sectionFilter)
+    || Boolean(selectedTour)
+    || Boolean(isBrowsePending)
+    || Boolean(isCurrentTourLoading);
+
+  return {
+    hasExplicitBrowseResultsContext,
+    shouldShowBrowseResults: hasExplicitBrowseResultsContext,
+    shouldShowFieldPacketPanel: Boolean(areFieldPacketsEnabled)
+      && (selectedBurialsLength > 0 || Boolean(hasFieldPacketContent)),
+  };
+};
+
 export const formatLocationNoticeLabel = ({
   status,
   activeStatus,
