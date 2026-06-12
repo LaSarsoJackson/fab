@@ -13,6 +13,7 @@ import {
   getLocationNoticeTone,
   getSearchPlaceholder,
   getSelectedSectionOption,
+  getSidebarClassName,
   getSearchShellNoticeStyles,
 } from "../src/features/browse/sidebarPresentation";
 
@@ -108,6 +109,11 @@ describe("browse sidebar presentation helpers", () => {
       sectionFilter: "99",
       uniqueSections: [8, 12, 16],
     })).toBeNull();
+  });
+
+  test("builds sidebar shell class names for desktop and mobile", () => {
+    expect(getSidebarClassName({ isMobile: true })).toBe("left-sidebar left-sidebar--mobile");
+    expect(getSidebarClassName({ isMobile: false })).toBe("left-sidebar left-sidebar--desktop");
   });
 
   test("builds browse placeholders from the current browse scope", () => {
