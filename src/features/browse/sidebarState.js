@@ -22,6 +22,19 @@ const ASYNC_BROWSE_RECORD_THRESHOLD = 5000;
 const BROWSE_RESULTS_CACHE_LIMIT = 24;
 let browseSearchWorkerFactoryPromise = null;
 
+export const buildBrowseResultSelectIntent = ({
+  isMobile = false,
+  selectedBurialsLength = 0,
+} = {}) => {
+  const shouldSetSelectedSummaryExpanded = Boolean(isMobile)
+    && Number(selectedBurialsLength) === 0;
+
+  return {
+    isSelectedSummaryExpandedToSet: shouldSetSelectedSummaryExpanded ? true : null,
+    shouldSetSelectedSummaryExpanded,
+  };
+};
+
 export const buildMobileSearchPanelToggleIntent = ({
   canRequestHideChrome = false,
   isMobile = false,

@@ -50,6 +50,7 @@ import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordP
 import { resolvePortraitImageName } from "./features/tours/tourDerivedData";
 import { MOBILE_SHEET_STATES } from "./features/browse/mobileSheetGeometry";
 import {
+  buildBrowseResultSelectIntent,
   buildBrowseSourceChangeIntent,
   buildClearAllBrowseStateIntent,
   buildMobileSearchPanelToggleIntent,
@@ -1992,11 +1993,15 @@ function BurialSidebar({
   }, [setBrowseQuery]);
 
   const handleBrowseResultSelect = useCallback((result) => {
+    const intent = buildBrowseResultSelectIntent({
+      isMobile,
+      selectedBurialsLength: selectedBurials.length,
+    });
+
     onBrowseResultSelect(result);
-    if (isMobile) {
-      if (selectedBurials.length === 0) {
-        setIsSelectedSummaryExpanded(true);
-      }
+
+    if (intent.shouldSetSelectedSummaryExpanded) {
+      setIsSelectedSummaryExpanded(intent.isSelectedSummaryExpandedToSet);
     }
   }, [
     isMobile,
