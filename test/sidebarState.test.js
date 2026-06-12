@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   buildBrowseSourceChangeIntent,
+  buildClearAllBrowseStateIntent,
   buildMobileSheetRevealIntent,
 } from "../src/features/browse/sidebarState";
 import { MOBILE_SHEET_STATES } from "../src/features/browse/mobileSheetGeometry";
@@ -173,6 +174,54 @@ describe("sidebar state helpers", () => {
       shouldExpandMobileSheet: false,
       shouldMaximizeMobileSheet: true,
       shouldRequestBurialDataLoad: true,
+    });
+  });
+
+  test("builds clear-all intent with section reset taking precedence over lot-tier reset", () => {
+    expect(buildClearAllBrowseStateIntent({
+      lotTierFilter: "A",
+      sectionFilter: "12",
+      selectedTour: "Notables Tour 2020",
+    })).toEqual({
+      browseQueryToSet: "",
+      browseSourceToSet: "all",
+      isSelectedSummaryExpandedToSet: false,
+      lotTierFilterToSet: "",
+      selectedTourToSet: null,
+      shouldClearSectionFilters: true,
+      shouldClearSelectedBurials: true,
+      shouldClearTourSelection: true,
+      shouldClearLotTierFilter: false,
+      shouldExpandMobileSheet: true,
+    });
+  });
+
+  test("builds clear-all intent that clears lot-tier directly when no section is active", () => {
+    expect(buildClearAllBrowseStateIntent({
+      lotTierFilter: "B",
+      sectionFilter: "",
+      selectedTour: "",
+    })).toMatchObject({
+      lotTierFilterToSet: "",
+      selectedTourToSet: null,
+      shouldClearSectionFilters: false,
+      shouldClearLotTierFilter: true,
+      shouldClearTourSelection: false,
+    });
+  });
+
+  test("builds clear-all intent for an already idle browse state", () => {
+    expect(buildClearAllBrowseStateIntent()).toEqual({
+      browseQueryToSet: "",
+      browseSourceToSet: "all",
+      isSelectedSummaryExpandedToSet: false,
+      lotTierFilterToSet: "",
+      selectedTourToSet: null,
+      shouldClearSectionFilters: false,
+      shouldClearSelectedBurials: true,
+      shouldClearTourSelection: false,
+      shouldClearLotTierFilter: false,
+      shouldExpandMobileSheet: true,
     });
   });
 });
