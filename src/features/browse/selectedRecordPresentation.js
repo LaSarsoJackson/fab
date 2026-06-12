@@ -1,5 +1,6 @@
 import { cleanRecordValue } from "../map/mapRecordPresentation";
 
+export const DEFAULT_SELECTED_PLACE_DETAIL_ROW_LIMIT = 4;
 const DETAIL_ROW_EXCLUDE_LABELS = ["Location", "Born", "Died"];
 const SINGLE_SELECTION_PANEL_TITLE = "Selected grave";
 const STACK_SELECTION_PANEL_TITLE = "Graves at this spot";
@@ -80,6 +81,30 @@ export const getSelectedPlaceTypeLabel = (record = {}) => {
 export const getSelectedPlaceDetailRows = (rows = []) => (
   rows.filter(({ label }) => !DETAIL_ROW_EXCLUDE_LABELS.includes(label))
 );
+
+export const buildSelectedPlaceDetailPresentation = ({
+  detailLinkUrl = "",
+  isExpanded = false,
+  rows = [],
+  visibleRowLimit = DEFAULT_SELECTED_PLACE_DETAIL_ROW_LIMIT,
+} = {}) => {
+  const allDetailRows = getSelectedPlaceDetailRows(rows);
+  const normalizedVisibleRowLimit = Number.isFinite(Number(visibleRowLimit)) && Number(visibleRowLimit) > 0
+    ? Number(visibleRowLimit)
+    : DEFAULT_SELECTED_PLACE_DETAIL_ROW_LIMIT;
+  const hiddenCount = Math.max(0, allDetailRows.length - normalizedVisibleRowLimit);
+
+  return {
+    allDetailRows,
+    detailLinkUrl: cleanRecordValue(detailLinkUrl),
+    hasDetailsContent: allDetailRows.length > 0 || Boolean(cleanRecordValue(detailLinkUrl)),
+    hasMoreRows: hiddenCount > 0,
+    hiddenCount,
+    visibleRows: isExpanded
+      ? allDetailRows
+      : allDetailRows.slice(0, normalizedVisibleRowLimit),
+  };
+};
 
 export const hasFieldPacketContent = (fieldPacket) => {
   if (!fieldPacket) {
