@@ -55,6 +55,12 @@ export const getSelectedSectionOption = ({
   uniqueSections.find((option) => `${option}` === `${sectionFilter}`) ?? null
 );
 
+export const getSidebarClassName = ({
+  isMobile = false,
+} = {}) => (
+  isMobile ? "left-sidebar left-sidebar--mobile" : "left-sidebar left-sidebar--desktop"
+);
+
 export const formatLocationNoticeLabel = ({
   status,
   activeStatus,
