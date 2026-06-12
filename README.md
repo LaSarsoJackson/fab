@@ -162,10 +162,10 @@ commands when release coverage is needed.
 
 ## Branches and Releases
 
-Production work goes through pull requests into `master`, the current remote
-default branch. CI also accepts `main` so the repo can be renamed without
-rewriting the pipeline. Short-lived branches should use prefixes such as
-`feature/`, `fix/`, `docs/`, `chore/`, `release/`, `hotfix/`, or `codex/`.
+Production work goes through pull requests into `main`, the remote default
+branch. `dev` is the integration branch for validated work headed toward
+production. Short-lived branches should use prefixes such as `feature/`,
+`fix/`, `docs/`, `chore/`, `release/`, `hotfix/`, or `codex/`.
 
 Versioned releases use SemVer in [`package.json`](./package.json), matching
 entries in [`CHANGELOG.md`](./CHANGELOG.md), and tags named `vX.Y.Z`. See
@@ -240,8 +240,8 @@ Common entry points:
 There are two relevant hosted environments:
 
 - GitHub Pages is the repo-controlled public validation target. Use
-  `bun run deploy` for manual fallback deploys; pushes to `master` or `main`
-  also build and deploy through GitHub Actions.
+  `bun run deploy` for manual fallback deploys; pushes to `main` also build
+  and deploy through GitHub Actions.
 - `albany.edu/arce` is the institutional production deployment. Promotion to
   that host is still manual.
 

@@ -7,24 +7,31 @@ import {
 describe("pull request branch policy", () => {
   test("allows prefixed feature branches into the production branch", () => {
     expect(validatePullRequestBranch({
-      baseRef: "master",
+      baseRef: "main",
       headRef: "codex/release-pipeline",
     })).toEqual([]);
   });
 
   test("allows the dev-features promotion branch into the production branch", () => {
     expect(validatePullRequestBranch({
-      baseRef: "master",
+      baseRef: "main",
       headRef: "dev-features",
+    })).toEqual([]);
+  });
+
+  test("allows the integration branch into the production branch", () => {
+    expect(validatePullRequestBranch({
+      baseRef: "main",
+      headRef: "dev",
     })).toEqual([]);
   });
 
   test("rejects direct production-branch pull requests", () => {
     expect(validatePullRequestBranch({
-      baseRef: "master",
-      headRef: "master",
+      baseRef: "main",
+      headRef: "main",
     })).toEqual([
-      "Pull requests into master must come from a short-lived branch, not master.",
+      "Pull requests into main must come from a short-lived branch, not main.",
     ]);
   });
 
@@ -33,7 +40,7 @@ describe("pull request branch policy", () => {
       baseRef: "main",
       headRef: "quick-change",
     })).toEqual([
-      "Pull request branch quick-change must use one of: dev-features, codex/, feature/, fix/, docs/, chore/, release/, hotfix/, dev-features/, dependabot/, renovate/.",
+      "Pull request branch quick-change must use one of: dev, dev-features, codex/, feature/, fix/, docs/, chore/, release/, hotfix/, dev-features/, dependabot/, renovate/.",
     ]);
   });
 

@@ -1,4 +1,5 @@
 import {
+  buildSelectedSummaryPresentation,
   buildSelectedPlaceInitials,
   getSelectedPlaceDetailRows,
   getSelectedPlaceTypeLabel,
@@ -6,6 +7,78 @@ import {
 } from "../src/features/browse/selectedRecordPresentation";
 
 describe("selected record presentation helpers", () => {
+  test("returns no selected-summary presentation when there is no lead record", () => {
+    expect(buildSelectedSummaryPresentation({
+      activeBurialId: "missing",
+      selectedBurials: [],
+    })).toBeNull();
+  });
+
+  test("builds mobile selected-summary metadata for a same-marker stack", () => {
+    const firstRecord = { id: "grave-a", displayName: "First Grave", tourKey: "tour-a" };
+    const secondRecord = { id: "grave-b", displayName: "Second Grave", tourKey: "tour-b" };
+    const presentation = buildSelectedSummaryPresentation({
+      activeBurialId: "grave-b",
+      activeRouteBurialId: "grave-b",
+      isExpanded: false,
+      isMobile: true,
+      selectedBurialCoordinateGroups: [
+        {
+          recordIds: ["grave-a", "grave-b"],
+          records: [firstRecord, secondRecord],
+        },
+      ],
+      selectedBurials: [firstRecord, secondRecord],
+    });
+
+    expect(presentation).toMatchObject({
+      hasMultipleSelectedBurials: true,
+      isLeadBurialActive: true,
+      isRouteActive: true,
+      leadBurial: secondRecord,
+      leadBurialIndex: 1,
+      mobileSelectionSummaryTitle: "2 graves here",
+      selectionSummaryLabel: "2 graves share this map location.",
+      selectionSummaryTitle: "Graves at this spot",
+      shouldShowSecondarySelections: false,
+      shouldShowSelectionToggle: true,
+      secondarySelectedBurials: [firstRecord],
+    });
+    expect(Array.from(presentation.selectedBurialOrderById.entries())).toEqual([
+      ["grave-a", 0],
+      ["grave-b", 1],
+    ]);
+    expect(presentation.leadStackList).toEqual({
+      activeRecordId: "grave-b",
+      description: "2 burial records at this marker",
+      records: [firstRecord, secondRecord],
+    });
+  });
+
+  test("builds desktop selected-summary metadata with secondary records visible", () => {
+    const firstRecord = { id: "grave-a", displayName: "First Grave" };
+    const secondRecord = { id: "grave-b", displayName: "Second Grave" };
+
+    expect(buildSelectedSummaryPresentation({
+      activeBurialId: "",
+      activeRouteBurialId: "",
+      isExpanded: false,
+      isMobile: false,
+      selectedBurials: [firstRecord, secondRecord],
+    })).toMatchObject({
+      isLeadBurialActive: false,
+      isRouteActive: false,
+      leadBurial: firstRecord,
+      leadBurialIndex: 0,
+      leadStackList: null,
+      mobileSelectionSummaryTitle: "2 graves here",
+      selectionSummaryTitle: "Graves at this spot",
+      shouldShowSecondarySelections: true,
+      shouldShowSelectionToggle: false,
+      secondarySelectedBurials: [secondRecord],
+    });
+  });
+
   test("builds compact fallback initials from cleaned selected-place headings", () => {
     expect(buildSelectedPlaceInitials("  Ada   Lovelace  Byron  ")).toBe("AL");
     expect(buildSelectedPlaceInitials("rural cemetery")).toBe("RC");

@@ -141,7 +141,7 @@ Initial repo-side enforcement now lives in `.github/workflows/`. Every future
 cleanup item should either add a fast automated check or explain why it remains
 manual.
 
-- [x] `ci.yml` on PR + push to master/main:
+- [x] `ci.yml` on PR + push to main/dev:
       1. `oven-sh/setup-bun` (pin 1.3.8) + `bun install`
       2. `bun run lint`
       3. `bun run release:check`
@@ -152,7 +152,7 @@ manual.
          is huge and will be slow/flaky as a PR gate.
 - [x] Generated-file drift check (from Phase 3): run `sync:profile-shell`,
       fail on `git diff --exit-code public/index.html public/manifest.json`.
-- [x] `deploy.yml` on push to master/main: replace the manual
+- [x] `deploy.yml` on push to main: replace the manual
       `deploy-production.sh` / gh-pages flow with the official GitHub Pages
       actions, so deploys are reproducible and don't depend on one laptop.
       Keep the shell script for emergencies until the workflow has shipped a
@@ -160,7 +160,7 @@ manual.
 - [x] `release.yml` on `v*.*.*` tags: validate package/changelog/tag metadata,
       build the production app, and create a GitHub Release.
 
-**Done when:** a PR cannot merge with failing lint/tests, and master deploys
+**Done when:** a PR cannot merge with failing lint/tests, and main deploys
 itself.
 
 ## Phase 6 — Shrink the god components (ongoing, PR-sized chunks)

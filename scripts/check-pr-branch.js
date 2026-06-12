@@ -2,8 +2,8 @@
 
 import { pathToFileURL } from "node:url";
 
-const PRODUCTION_BRANCHES = new Set(["master", "main"]);
-const ALLOWED_EXACT_BRANCHES = new Set(["dev-features"]);
+const PRODUCTION_BRANCHES = new Set(["main"]);
+const ALLOWED_EXACT_BRANCHES = new Set(["dev", "dev-features"]);
 const ALLOWED_BRANCH_PREFIXES = [
   "codex/",
   "feature/",
