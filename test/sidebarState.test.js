@@ -6,6 +6,7 @@ import {
   buildBrowseResultSelectIntent,
   buildMobileSearchPanelToggleIntent,
   buildMobileSheetRevealIntent,
+  buildTourSelectionIntent,
 } from "../src/features/browse/sidebarState";
 import { MOBILE_SHEET_STATES } from "../src/features/browse/mobileSheetGeometry";
 
@@ -323,6 +324,30 @@ describe("sidebar state helpers", () => {
     })).toEqual({
       isSelectedSummaryExpandedToSet: null,
       shouldSetSelectedSummaryExpanded: false,
+    });
+  });
+
+  test("builds tour-selection intent only when tour browse is available", () => {
+    expect(buildTourSelectionIntent({
+      hasTourBrowse: false,
+      tourName: "Notables Tour 2020",
+    })).toEqual({
+      browseSourceToSet: "",
+      selectedTourToSet: null,
+      shouldMaximizeMobileSheet: false,
+      shouldSetBrowseSource: false,
+      shouldSetTourSelection: false,
+    });
+
+    expect(buildTourSelectionIntent({
+      hasTourBrowse: true,
+      tourName: "Notables Tour 2020",
+    })).toEqual({
+      browseSourceToSet: "tour",
+      selectedTourToSet: "Notables Tour 2020",
+      shouldMaximizeMobileSheet: true,
+      shouldSetBrowseSource: true,
+      shouldSetTourSelection: true,
     });
   });
 });

@@ -35,6 +35,21 @@ export const buildBrowseResultSelectIntent = ({
   };
 };
 
+export const buildTourSelectionIntent = ({
+  hasTourBrowse = false,
+  tourName = "",
+} = {}) => {
+  const shouldSelectTour = Boolean(hasTourBrowse);
+
+  return {
+    browseSourceToSet: shouldSelectTour ? "tour" : "",
+    selectedTourToSet: shouldSelectTour ? tourName : null,
+    shouldMaximizeMobileSheet: shouldSelectTour,
+    shouldSetBrowseSource: shouldSelectTour,
+    shouldSetTourSelection: shouldSelectTour,
+  };
+};
+
 export const buildMobileSearchPanelToggleIntent = ({
   canRequestHideChrome = false,
   isMobile = false,
