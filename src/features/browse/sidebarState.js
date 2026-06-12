@@ -22,6 +22,29 @@ const ASYNC_BROWSE_RECORD_THRESHOLD = 5000;
 const BROWSE_RESULTS_CACHE_LIMIT = 24;
 let browseSearchWorkerFactoryPromise = null;
 
+export const buildClearAllBrowseStateIntent = ({
+  lotTierFilter = "",
+  sectionFilter = "",
+  selectedTour = "",
+} = {}) => {
+  const hasSectionFilter = Boolean(sectionFilter);
+  const hasLotTierFilter = Boolean(lotTierFilter);
+  const hasSelectedTour = Boolean(selectedTour);
+
+  return {
+    browseQueryToSet: "",
+    browseSourceToSet: "all",
+    isSelectedSummaryExpandedToSet: false,
+    lotTierFilterToSet: "",
+    selectedTourToSet: null,
+    shouldClearSectionFilters: hasSectionFilter,
+    shouldClearSelectedBurials: true,
+    shouldClearTourSelection: hasSelectedTour,
+    shouldClearLotTierFilter: !hasSectionFilter && hasLotTierFilter,
+    shouldExpandMobileSheet: true,
+  };
+};
+
 export const buildBrowseSourceChangeIntent = ({
   browseSource = "all",
   hasSectionFilters = false,

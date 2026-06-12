@@ -51,6 +51,7 @@ import { resolvePortraitImageName } from "./features/tours/tourDerivedData";
 import { MOBILE_SHEET_STATES } from "./features/browse/mobileSheetGeometry";
 import {
   buildBrowseSourceChangeIntent,
+  buildClearAllBrowseStateIntent,
   buildMobileSheetRevealIntent,
   useBurialSidebarBrowseState,
   useBurialSidebarMobileSheetState,
@@ -2128,22 +2129,33 @@ function BurialSidebar({
   ]);
 
   const handleClearAllBrowseState = useCallback(() => {
-    setBrowseQuery("");
-    setBrowseSource("all");
-    setIsSelectedSummaryExpanded(false);
+    const intent = buildClearAllBrowseStateIntent({
+      lotTierFilter,
+      sectionFilter,
+      selectedTour,
+    });
 
-    if (sectionFilter) {
+    setBrowseQuery(intent.browseQueryToSet);
+    setBrowseSource(intent.browseSourceToSet);
+    setIsSelectedSummaryExpanded(intent.isSelectedSummaryExpandedToSet);
+
+    if (intent.shouldClearSectionFilters) {
       onClearSectionFilters();
-    } else if (lotTierFilter) {
-      onLotTierFilterChange("");
+    } else if (intent.shouldClearLotTierFilter) {
+      onLotTierFilterChange(intent.lotTierFilterToSet);
     }
 
-    if (selectedTour) {
-      onTourChange(null);
+    if (intent.shouldClearTourSelection) {
+      onTourChange(intent.selectedTourToSet);
     }
 
-    onClearSelectedBurials();
-    expandMobileSheet();
+    if (intent.shouldClearSelectedBurials) {
+      onClearSelectedBurials();
+    }
+
+    if (intent.shouldExpandMobileSheet) {
+      expandMobileSheet();
+    }
   }, [
     expandMobileSheet,
     lotTierFilter,
