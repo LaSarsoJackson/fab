@@ -1,18 +1,19 @@
 # Release workflow
 
 FAB uses a small SemVer release model with pull requests as the production
-gate. The current production branch is `master` because the remote is still
-configured that way. If the repository is renamed to `main`, keep both branch
-names in CI until GitHub Pages and local clones have moved.
+gate. The current production branch is `main`; the old `master` branch has been
+retired.
 
 ## Branch model
 
-- Start production work from `master`.
+- Start production work from `main`.
+- Use `dev` as the integration branch for validated work that is ready to
+  batch toward production.
 - Use short-lived branches named `codex/*`, `feature/*`, `fix/*`, `docs/*`,
   `chore/*`, `release/*`, or `hotfix/*`.
 - Keep experimental and operator-only tooling on `dev-features`; promote it to
-  production only through a focused pull request into `master`.
-- Do not push directly to `master` except for an emergency rollback. Protect
+  production only through a focused pull request into `dev` or `main`.
+- Do not push directly to `main` except for an emergency rollback. Protect
   the branch in GitHub and require the CI checks in this repo before merge.
 
 ## Version policy
@@ -32,25 +33,26 @@ promotes it.
 
 ## Pipeline
 
-1. Create a short-lived branch from `master`.
-2. Make the smallest coherent change, including tests and docs.
-3. Run `bun run check` locally for cross-cutting work.
-4. Open a pull request into `master`.
-5. CI runs lint, tests, generated-shell drift, release metadata, and branch
+1. Create a short-lived branch from `main`.
+2. Merge validated work into `dev` when you want an integration checkpoint.
+3. Make the smallest coherent production change, including tests and docs.
+4. Run `bun run check` locally for cross-cutting work.
+5. Open a pull request into `main`.
+6. CI runs lint, tests, generated-shell drift, release metadata, and branch
    policy checks.
-6. Merge after the required checks pass.
-7. For a numbered release, tag the merge commit as `vX.Y.Z` where `X.Y.Z`
+7. Merge after the required checks pass.
+8. For a numbered release, tag the merge commit as `vX.Y.Z` where `X.Y.Z`
    exactly matches `package.json`.
 
 GitHub Actions then:
 
-- deploys `master` to GitHub Pages from a reproducible build;
+- deploys `main` to GitHub Pages from a reproducible build;
 - validates release tags with `bun run release:check`;
 - creates a GitHub Release for SemVer tags.
 
 ## GitHub branch protection
 
-Configure `master` or `main` in GitHub with these protections:
+Configure `main` in GitHub with these protections:
 
 - Require a pull request before merging.
 - Require status checks to pass before merging:

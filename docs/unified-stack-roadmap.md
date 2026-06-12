@@ -59,9 +59,9 @@ Status: active
 
 Status: active
 
-- keep `master` on the shipped Leaflet map path
+- keep `main` on the shipped Leaflet map path
 - move renderer experiments, operator tooling, and artifact previews to `dev-features`
-- promote only focused, production-ready contracts back to `master`
+- promote only focused, production-ready contracts back to `main`
 
 ## Stage 5: Toolchain modernization
 

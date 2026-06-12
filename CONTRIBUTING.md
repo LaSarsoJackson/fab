@@ -56,11 +56,12 @@ PMTiles previews, and site-twin tooling live on `dev-features`; see
 
 ## Branches and releases
 
-Use short-lived work branches for production changes. Branches into `master`
-or future `main` should use `codex/`, `feature/`, `fix/`, `docs/`, `chore/`,
-`release/`, or `hotfix/`. The `dev-features` branch is reserved for
-experimental and operator-only surfaces and should only be promoted through a
-focused pull request.
+Use short-lived work branches for production changes. Branches into `main`
+should use `codex/`, `feature/`, `fix/`, `docs/`, `chore/`, `release/`, or
+`hotfix/`. Use `dev` as the integration branch for validated work headed toward
+production. The `dev-features` branch is reserved for experimental and
+operator-only surfaces and should only be promoted through a focused pull
+request.
 
 FAB versions are SemVer values in [`package.json`](./package.json). Any
 production release must also update [`CHANGELOG.md`](./CHANGELOG.md) with a

@@ -30,13 +30,14 @@ import {
   getSearchPlaceholder,
 } from "./features/browse/sidebarPresentation";
 import {
-  buildLocationParts,
   buildLocationSummary,
   formatBrowseResultName,
   getBrowseSourceMode,
   MIN_BROWSE_QUERY_LENGTH,
 } from "./features/browse/browseResults";
+import { buildBrowseResultCardPresentation } from "./features/browse/browseResultPresentation";
 import {
+  buildSelectedSummaryPresentation,
   buildSelectedPlaceInitials,
   getSelectedPlaceDetailRows,
   getSelectedPlaceTypeLabel,
@@ -159,8 +160,6 @@ const LOCATION_APPROXIMATE_STATUS = APP_PROFILE.map.locationMessages?.approximat
 const LOCATION_WEAK_SIGNAL_STATUS = APP_PROFILE.map.locationMessages?.weakSignal || "";
 const EMPTY_PACKET_RECORDS = [];
 const EMPTY_ACTIONS = [];
-const SINGLE_SELECTION_PANEL_TITLE = "Selected grave";
-const STACK_SELECTION_PANEL_TITLE = "Graves at this spot";
 
 function BrowseResultPortraitThumbnail({ result }) {
   const portraitImageName = cleanRecordValue(resolvePortraitImageName(result));
@@ -314,20 +313,12 @@ const BrowseResultCard = memo(function BrowseResultCard({
   onSelect,
   onHoverChange,
 }) {
-  const lifeSummary = buildLifeDatesSummary(result);
-  const locationSummary = buildLocationParts(result)
-    .filter((part) => !(scopedSectionLabel && part === scopedSectionLabel))
-    .join(", ");
-  const shouldShowSectionChip = Boolean(result.Section)
-    && `Section ${result.Section}` !== scopedSectionLabel;
-  const metadataSummary = [
-    shouldShowSectionChip ? `Section ${result.Section}` : "",
-    result.Lot ? `Lot ${result.Lot}` : "",
-    result.Tier ? `Tier ${result.Tier}` : "",
-  ].filter(Boolean).join(" • ");
-  const resultTourLabel = result.tourName || tourStyleName || "";
-  const shouldShowTourChip = Boolean(resultTourLabel)
-    && !(scopedTourLabel && resultTourLabel === scopedTourLabel);
+  const presentation = buildBrowseResultCardPresentation({
+    result,
+    scopedSectionLabel,
+    scopedTourLabel,
+    tourStyleName,
+  });
 
   return (
     <ListItem disablePadding sx={{ display: "block", pb: 1 }}>
@@ -374,7 +365,7 @@ const BrowseResultCard = memo(function BrowseResultCard({
           ].filter(Boolean).join(" ")}
         >
           <Box className="left-sidebar__result-card-copy">
-            {metadataSummary && (
+            {presentation.metadataSummary && (
               <Typography
                 variant="caption"
                 sx={{
@@ -388,25 +379,25 @@ const BrowseResultCard = memo(function BrowseResultCard({
                   textTransform: "uppercase",
                 }}
               >
-                {metadataSummary}
+                {presentation.metadataSummary}
               </Typography>
             )}
             <Typography variant="subtitle2" sx={{ position: "relative", zIndex: 1, lineHeight: 1.25 }}>
-              {formatBrowseResultName(result)}
+              {presentation.displayName}
             </Typography>
-            {locationSummary && (
+            {presentation.locationSummary && (
               <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.5 }}>
-                {locationSummary}
+                {presentation.locationSummary}
               </Typography>
             )}
-            {!locationSummary && result.secondaryText && (
+            {presentation.secondarySummary && (
               <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.5 }}>
-                {result.secondaryText}
+                {presentation.secondarySummary}
               </Typography>
             )}
-            {lifeSummary && (
+            {presentation.lifeSummary && (
               <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.35 }}>
-                {lifeSummary}
+                {presentation.lifeSummary}
               </Typography>
             )}
             <Box sx={{ position: "relative", zIndex: 1, display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1 }}>
@@ -421,10 +412,10 @@ const BrowseResultCard = memo(function BrowseResultCard({
                   }}
                 />
               )}
-              {shouldShowTourChip && (
+              {presentation.tourChipLabel && (
                 <Chip
                   size="small"
-                  label={resultTourLabel}
+                  label={presentation.tourChipLabel}
                   sx={{
                     color: "white",
                     backgroundColor: tourColor || "var(--accent)",
@@ -1312,47 +1303,46 @@ function SelectedSummaryPanel({
   selectedBurials,
   tourStyles,
 }) {
-  const leadBurial = useMemo(
-    () => selectedBurials.find((burial) => burial.id === activeBurialId) || selectedBurials[0] || null,
-    [activeBurialId, selectedBurials]
-  );
-  const secondarySelectedBurials = useMemo(
-    () => selectedBurials.filter((burial) => burial.id !== leadBurial?.id),
-    [leadBurial?.id, selectedBurials]
-  );
-  const selectedBurialOrderById = useMemo(
-    () => new Map(selectedBurials.map((burial, index) => [burial.id, index])),
-    [selectedBurials]
+  const summaryPresentation = useMemo(
+    () => buildSelectedSummaryPresentation({
+      activeBurialId,
+      activeRouteBurialId,
+      isExpanded,
+      isMobile,
+      selectedBurialCoordinateGroups,
+      selectedBurials,
+    }),
+    [
+      activeBurialId,
+      activeRouteBurialId,
+      isExpanded,
+      isMobile,
+      selectedBurialCoordinateGroups,
+      selectedBurials,
+    ]
   );
 
-  if (!leadBurial) return null;
+  if (!summaryPresentation) return null;
 
-  const leadBurialIndex = selectedBurialOrderById.get(leadBurial.id) ?? 0;
-  const isLeadBurialActive = leadBurial.id === activeBurialId;
-  const hasMultipleSelectedBurials = selectedBurials.length > 1;
-  const isRouteActive = activeRouteBurialId === leadBurial.id;
+  const {
+    hasMultipleSelectedBurials,
+    isLeadBurialActive,
+    isRouteActive,
+    leadBurial,
+    leadBurialIndex,
+    leadStackList,
+    mobileSelectionSummaryTitle,
+    secondarySelectedBurials,
+    selectedBurialOrderById,
+    selectionSummaryLabel,
+    selectionSummaryTitle,
+    shouldShowSecondarySelections,
+    shouldShowSelectionToggle,
+  } = summaryPresentation;
   const leadTourStyle = tourStyles[leadBurial.tourKey];
-  const selectionSummaryTitle = hasMultipleSelectedBurials
-    ? STACK_SELECTION_PANEL_TITLE
-    : SINGLE_SELECTION_PANEL_TITLE;
-  const mobileSelectionSummaryTitle = hasMultipleSelectedBurials
-    ? `${selectedBurials.length} graves here`
-    : selectionSummaryTitle;
-  const selectionSummaryLabel = hasMultipleSelectedBurials
-    ? `${selectedBurials.length} graves share this map location.`
-    : "";
-  const shouldShowSelectionToggle = isMobile && hasMultipleSelectedBurials;
-  const shouldShowSecondarySelections = secondarySelectedBurials.length > 0 && (!isMobile || isExpanded);
-  const leadCoordinateGroup = selectedBurialCoordinateGroups.find((group) => (
-    group.recordIds.includes(leadBurial.id)
-  ));
-  const leadStackRecords = leadCoordinateGroup?.records || [];
-  const activeStackIndex = leadStackRecords.findIndex((record) => record.id === leadBurial.id);
-  const leadStackList = isMobile && leadStackRecords.length > 1 && activeStackIndex >= 0
+  const interactiveLeadStackList = leadStackList
     ? {
-        records: leadStackRecords,
-        activeRecordId: leadBurial.id,
-        description: `${leadStackRecords.length} burial records at this marker`,
+        ...leadStackList,
         onSelectRecord: (record) => onFocusSelectedBurial(record),
       }
     : null;
@@ -1462,7 +1452,7 @@ function SelectedSummaryPanel({
           onNavigateToBurial={onNavigateToBurial}
           onRemoveSelectedBurial={onRemoveSelectedBurial}
           onStopRouting={onStopRouting}
-          stackList={leadStackList}
+          stackList={interactiveLeadStackList}
           tourStyle={leadTourStyle}
         />
       ) : (

@@ -25,7 +25,7 @@ Stable FAB product features such as tours and record presentation should stay in
 [`APP_PROFILE.features`](../src/features/fab/profile.js) instead of pretending to
 be rollout flags.
 
-Development-only surfaces are kept off `master`. Static admin, custom renderer,
+Development-only surfaces are kept off `main`. Static admin, custom renderer,
 PMTiles previews, site-twin tooling, and similar DevEx/DevOps surfaces live on
 `dev-features`; see [`dev-branch-workflow.md`](./dev-branch-workflow.md).
 
@@ -50,4 +50,4 @@ For map work specifically:
 - put basemap declarations, overlay-source declarations, and static optimization
   artifact metadata in `APP_PROFILE.map`
 - document branch-only experiment formats on `dev-features`, and promote only
-  production-ready profile fields back to `master`
+  production-ready profile fields back to `main`
