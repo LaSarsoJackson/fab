@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildBrowseSourceChangeIntent,
   buildClearAllBrowseStateIntent,
+  buildBrowseResultSelectIntent,
   buildMobileSearchPanelToggleIntent,
   buildMobileSheetRevealIntent,
 } from "../src/features/browse/sidebarState";
@@ -294,6 +295,34 @@ describe("sidebar state helpers", () => {
       shouldExpandMobileSheet: false,
       shouldRequestHideChrome: false,
       shouldSetMobileSearchPanelCollapsedByControl: true,
+    });
+  });
+
+  test("builds browse-result select intent to reveal an empty mobile selection summary", () => {
+    expect(buildBrowseResultSelectIntent({
+      isMobile: true,
+      selectedBurialsLength: 0,
+    })).toEqual({
+      isSelectedSummaryExpandedToSet: true,
+      shouldSetSelectedSummaryExpanded: true,
+    });
+  });
+
+  test("does not expand selected summary for desktop or existing mobile selections", () => {
+    expect(buildBrowseResultSelectIntent({
+      isMobile: false,
+      selectedBurialsLength: 0,
+    })).toEqual({
+      isSelectedSummaryExpandedToSet: null,
+      shouldSetSelectedSummaryExpanded: false,
+    });
+
+    expect(buildBrowseResultSelectIntent({
+      isMobile: true,
+      selectedBurialsLength: 2,
+    })).toEqual({
+      isSelectedSummaryExpandedToSet: null,
+      shouldSetSelectedSummaryExpanded: false,
     });
   });
 });
