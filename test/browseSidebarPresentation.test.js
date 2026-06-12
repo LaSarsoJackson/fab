@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   buildBrowseEmptyActionSpecs,
+  buildBrowseResultsPanelPresentation,
   buildBrowseScopeChips,
   buildLifeDatesSummary,
   buildSearchShellNotices,
@@ -219,6 +220,117 @@ describe("browse sidebar presentation helpers", () => {
         variant: "text",
       },
     ]);
+  });
+
+  test("builds global search result panel presentation with pagination metadata", () => {
+    const browseResults = [
+      { id: "grave-1" },
+      { id: "grave-2" },
+      { id: "grave-3" },
+    ];
+
+    expect(buildBrowseResultsPanelPresentation({
+      batchSize: 2,
+      browseResults,
+      browseSource: "all",
+      isBurialDataLoading: false,
+      isCurrentTourLoading: false,
+      query: "  Ada  ",
+      scopeChips: [{ key: "markers", label: "Markers visible" }],
+      sectionFilter: "",
+      selectedTour: "",
+      visibleCount: 2,
+    })).toEqual({
+      canShowFewerResults: false,
+      displayedResultCount: 3,
+      emptyMessage: "",
+      hasMoreResults: true,
+      hasScopeChips: true,
+      isScopedBrowse: false,
+      resultSummary: "3 results",
+      resultSummaryLabel: "3 results for \"Ada\".",
+      resultsEyebrow: "Search",
+      resultsTitle: "Search results",
+      scopedSectionLabel: "",
+      scopedTourLabel: "",
+      shouldPageResults: true,
+      shouldRenderEmptyState: false,
+      trimmedQuery: "Ada",
+      visibleResults: [
+        { id: "grave-1" },
+        { id: "grave-2" },
+      ],
+    });
+  });
+
+  test("keeps scoped browse results unpaged with scoped labels", () => {
+    const browseResults = [
+      { id: "tour-1" },
+      { id: "tour-2" },
+    ];
+
+    expect(buildBrowseResultsPanelPresentation({
+      batchSize: 1,
+      browseResults,
+      browseSource: "tour",
+      isBurialDataLoading: false,
+      isCurrentTourLoading: false,
+      query: "",
+      sectionFilter: "12",
+      selectedTour: "Notables Tour 2020",
+      visibleCount: 1,
+    })).toMatchObject({
+      canShowFewerResults: false,
+      displayedResultCount: 2,
+      hasMoreResults: false,
+      isScopedBrowse: true,
+      resultSummaryLabel: "2 results",
+      resultsEyebrow: "",
+      resultsTitle: "Results",
+      scopedSectionLabel: "",
+      scopedTourLabel: "Notables Tour 2020",
+      shouldPageResults: false,
+      visibleResults: browseResults,
+    });
+  });
+
+  test("builds browse result panel empty-state metadata", () => {
+    expect(buildBrowseResultsPanelPresentation({
+      batchSize: 10,
+      browseResults: [],
+      browseSource: "section",
+      isBurialDataLoading: false,
+      isCurrentTourLoading: false,
+      query: "Smith",
+      sectionFilter: "8",
+      selectedTour: "",
+      visibleCount: 10,
+    })).toMatchObject({
+      displayedResultCount: 0,
+      emptyMessage: "No results in Section 8 for \"Smith\".",
+      hasMoreResults: false,
+      resultSummaryLabel: "0 results",
+      resultsEyebrow: "",
+      resultsTitle: "Results",
+      scopedSectionLabel: "Section 8",
+      shouldRenderEmptyState: true,
+      visibleResults: [],
+    });
+  });
+
+  test("uses the configured tour label in browse result panel empty states", () => {
+    expect(buildBrowseResultsPanelPresentation({
+      browseResults: [],
+      browseSource: "tour",
+      isBurialDataLoading: false,
+      isCurrentTourLoading: false,
+      query: "",
+      selectedTour: "",
+      tourLabel: "Route",
+    })).toMatchObject({
+      emptyMessage: "Choose a route above.",
+      shouldRenderEmptyState: true,
+    });
   });
 
   test("builds a compact life-dates summary when dates exist", () => {
