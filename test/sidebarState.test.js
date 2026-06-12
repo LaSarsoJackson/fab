@@ -1,15 +1,22 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  buildBrowseQueryChangeIntent,
   buildBrowseSourceChangeIntent,
   buildClearAllBrowseStateIntent,
+  buildClearBrowseQueryIntent,
+  buildClearSectionFiltersIntent,
   buildClearTourSelectionIntent,
   buildBrowseResultSelectIntent,
+  buildFilterTypeSelectionIntent,
+  buildLotTierChangeIntent,
   buildMobileSearchPanelCollapseResetIntent,
   buildMobileSearchPanelToggleIntent,
   buildMobileSheetRevealIntent,
   buildSectionSelectionIntent,
+  buildToggleSectionMarkersIntent,
   buildTourSelectionIntent,
+  buildUnavailableTourBrowseResetIntent,
 } from "../src/features/browse/sidebarState";
 import { MOBILE_SHEET_STATES } from "../src/features/browse/mobileSheetGeometry";
 
@@ -231,6 +238,19 @@ describe("sidebar state helpers", () => {
     });
   });
 
+  test("builds browse query intents", () => {
+    expect(buildBrowseQueryChangeIntent({ nextQuery: "Ada" })).toEqual({
+      browseQueryToSet: "Ada",
+      shouldRequestBurialDataLoad: true,
+      shouldSetBrowseQuery: true,
+    });
+
+    expect(buildClearBrowseQueryIntent()).toEqual({
+      browseQueryToSet: "",
+      shouldSetBrowseQuery: true,
+    });
+  });
+
   test("builds mobile search-panel toggle intent as a desktop no-op", () => {
     expect(buildMobileSearchPanelToggleIntent({
       canRequestHideChrome: true,
@@ -404,6 +424,51 @@ describe("sidebar state helpers", () => {
       browseSourceToSet: "section",
       sectionFilterToSet: "",
       shouldRequestBurialDataLoad: true,
+    });
+  });
+
+  test("builds section marker and scoped filter intents", () => {
+    expect(buildToggleSectionMarkersIntent()).toEqual({
+      shouldMaximizeMobileSheet: true,
+      shouldRequestBurialDataLoad: true,
+      shouldToggleSectionMarkers: true,
+    });
+
+    expect(buildFilterTypeSelectionIntent({ nextFilterType: "tier" })).toEqual({
+      filterTypeToSet: "tier",
+      shouldMaximizeMobileSheet: true,
+      shouldSetFilterType: true,
+    });
+
+    expect(buildLotTierChangeIntent({ nextValue: "A" })).toEqual({
+      lotTierFilterToSet: "A",
+      shouldMaximizeMobileSheet: true,
+      shouldSetLotTierFilter: true,
+    });
+  });
+
+  test("builds clear-section and unavailable-tour reset intents", () => {
+    expect(buildClearSectionFiltersIntent()).toEqual({
+      browseSourceToSet: "section",
+      shouldClearSectionFilters: true,
+      shouldMaximizeMobileSheet: true,
+      shouldSetBrowseSource: true,
+    });
+
+    expect(buildUnavailableTourBrowseResetIntent({
+      browseSource: "tour",
+      hasTourBrowse: false,
+    })).toEqual({
+      browseSourceToSet: "all",
+      shouldSetBrowseSource: true,
+    });
+
+    expect(buildUnavailableTourBrowseResetIntent({
+      browseSource: "section",
+      hasTourBrowse: false,
+    })).toEqual({
+      browseSourceToSet: "",
+      shouldSetBrowseSource: false,
     });
   });
 });

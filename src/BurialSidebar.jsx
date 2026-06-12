@@ -50,15 +50,22 @@ import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordP
 import { resolvePortraitImageName } from "./features/tours/tourDerivedData";
 import { MOBILE_SHEET_STATES } from "./features/browse/mobileSheetGeometry";
 import {
+  buildBrowseQueryChangeIntent,
   buildBrowseResultSelectIntent,
   buildBrowseSourceChangeIntent,
   buildClearAllBrowseStateIntent,
+  buildClearBrowseQueryIntent,
+  buildClearSectionFiltersIntent,
   buildClearTourSelectionIntent,
+  buildFilterTypeSelectionIntent,
+  buildLotTierChangeIntent,
   buildMobileSearchPanelCollapseResetIntent,
   buildMobileSearchPanelToggleIntent,
   buildMobileSheetRevealIntent,
   buildSectionSelectionIntent,
+  buildToggleSectionMarkersIntent,
   buildTourSelectionIntent,
+  buildUnavailableTourBrowseResetIntent,
   useBurialSidebarBrowseState,
   useBurialSidebarMobileSheetState,
 } from "./features/browse/sidebarState";
@@ -1990,12 +1997,25 @@ function BurialSidebar({
   ]);
 
   const handleBrowseQueryChange = useCallback((event) => {
-    onRequestBurialDataLoad?.();
-    setBrowseQuery(event.target.value);
+    const intent = buildBrowseQueryChangeIntent({
+      nextQuery: event.target.value,
+    });
+
+    if (intent.shouldRequestBurialDataLoad) {
+      onRequestBurialDataLoad?.();
+    }
+
+    if (intent.shouldSetBrowseQuery) {
+      setBrowseQuery(intent.browseQueryToSet);
+    }
   }, [onRequestBurialDataLoad, setBrowseQuery]);
 
   const handleClearBrowseQuery = useCallback(() => {
-    setBrowseQuery("");
+    const intent = buildClearBrowseQueryIntent();
+
+    if (intent.shouldSetBrowseQuery) {
+      setBrowseQuery(intent.browseQueryToSet);
+    }
   }, [setBrowseQuery]);
 
   const handleBrowseResultSelect = useCallback((result) => {
@@ -2037,25 +2057,59 @@ function BurialSidebar({
   }, [maximizeMobileSheet, onRequestBurialDataLoad, onSectionChange, setBrowseSource]);
 
   const handleToggleSectionMarkers = useCallback(() => {
-    onRequestBurialDataLoad?.();
-    onToggleSectionMarkers();
-    maximizeMobileSheet();
+    const intent = buildToggleSectionMarkersIntent();
+
+    if (intent.shouldRequestBurialDataLoad) {
+      onRequestBurialDataLoad?.();
+    }
+
+    if (intent.shouldToggleSectionMarkers) {
+      onToggleSectionMarkers();
+    }
+
+    if (intent.shouldMaximizeMobileSheet) {
+      maximizeMobileSheet();
+    }
   }, [maximizeMobileSheet, onRequestBurialDataLoad, onToggleSectionMarkers]);
 
   const handleFilterTypeSelection = useCallback((nextFilterType) => {
-    onFilterTypeChange(nextFilterType);
-    maximizeMobileSheet();
+    const intent = buildFilterTypeSelectionIntent({ nextFilterType });
+
+    if (intent.shouldSetFilterType) {
+      onFilterTypeChange(intent.filterTypeToSet);
+    }
+
+    if (intent.shouldMaximizeMobileSheet) {
+      maximizeMobileSheet();
+    }
   }, [maximizeMobileSheet, onFilterTypeChange]);
 
   const handleLotTierChange = useCallback((nextValue) => {
-    onLotTierFilterChange(nextValue);
-    maximizeMobileSheet();
+    const intent = buildLotTierChangeIntent({ nextValue });
+
+    if (intent.shouldSetLotTierFilter) {
+      onLotTierFilterChange(intent.lotTierFilterToSet);
+    }
+
+    if (intent.shouldMaximizeMobileSheet) {
+      maximizeMobileSheet();
+    }
   }, [maximizeMobileSheet, onLotTierFilterChange]);
 
   const handleClearSectionFilters = useCallback(() => {
-    setBrowseSource("section");
-    onClearSectionFilters();
-    maximizeMobileSheet();
+    const intent = buildClearSectionFiltersIntent();
+
+    if (intent.shouldSetBrowseSource) {
+      setBrowseSource(intent.browseSourceToSet);
+    }
+
+    if (intent.shouldClearSectionFilters) {
+      onClearSectionFilters();
+    }
+
+    if (intent.shouldMaximizeMobileSheet) {
+      maximizeMobileSheet();
+    }
   }, [maximizeMobileSheet, onClearSectionFilters, setBrowseSource]);
 
   const handleTourSelection = useCallback((tourName) => {
@@ -2139,8 +2193,13 @@ function BurialSidebar({
   ]);
 
   useEffect(() => {
-    if (!hasTourBrowse && browseSource === "tour") {
-      setBrowseSource("all");
+    const intent = buildUnavailableTourBrowseResetIntent({
+      browseSource,
+      hasTourBrowse,
+    });
+
+    if (intent.shouldSetBrowseSource) {
+      setBrowseSource(intent.browseSourceToSet);
     }
   }, [browseSource, hasTourBrowse, setBrowseSource]);
 
