@@ -57,6 +57,7 @@ import { MOBILE_SHEET_STATES } from "./features/browse/mobileSheetGeometry";
 import {
   buildBrowseQueryChangeIntent,
   buildBrowseResultSelectIntent,
+  buildSidebarBrowseFlags,
   buildBrowseSourceChangeIntent,
   buildClearAllBrowseStateIntent,
   buildClearBrowseQueryIntent,
@@ -1871,20 +1872,25 @@ function BurialSidebar({
     selectedBurialsLength: selectedBurials.length,
   });
   const [isMobileSearchPanelCollapsedByControl, setIsMobileSearchPanelCollapsedByControl] = useState(false);
-  const hasGlobalResetState = Boolean(
-    browseQuery.trim() ||
-    sectionFilter ||
-    lotTierFilter ||
-    selectedTour ||
-    selectedBurials.length > 0
-  );
-  const hasSectionFilters = Boolean(sectionFilter || lotTierFilter);
-  const hasTourSelection = Boolean(selectedTour);
-  const isSectionBrowseVisible = browseSource === "section";
-  const isTourBrowseVisible = browseSource === "tour" && hasTourBrowse;
-  const isCurrentTourLoading = Boolean(
-    selectedTour && loadingTourName === selectedTour && tourResults.length === 0
-  );
+  const {
+    hasGlobalResetState,
+    hasMinimumBrowseQuery,
+    hasSectionFilters,
+    hasTourSelection,
+    isCurrentTourLoading,
+    isSectionBrowseVisible,
+    isTourBrowseVisible,
+  } = buildSidebarBrowseFlags({
+    browseQuery,
+    browseSource,
+    hasTourBrowse,
+    loadingTourName,
+    lotTierFilter,
+    sectionFilter,
+    selectedBurialsLength: selectedBurials.length,
+    selectedTour,
+    tourResultCount: tourResults.length,
+  });
   const sidebarScrollRef = useRef(null);
   const previousActiveBurialIdRef = useRef(null);
   const previousSectionFilterRef = useRef("");
@@ -2302,7 +2308,6 @@ function BurialSidebar({
     sectionFilter,
     selectedTour,
   });
-  const hasMinimumBrowseQuery = browseQuery.trim().length >= MIN_BROWSE_QUERY_LENGTH;
   const searchShellNotices = useMemo(() => {
     return buildSearchShellNotices({
       burialRecordCount: burialRecords.length,
