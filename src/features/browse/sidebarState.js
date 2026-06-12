@@ -22,6 +22,63 @@ const ASYNC_BROWSE_RECORD_THRESHOLD = 5000;
 const BROWSE_RESULTS_CACHE_LIMIT = 24;
 let browseSearchWorkerFactoryPromise = null;
 
+export const buildBrowseSourceChangeIntent = ({
+  browseSource = "all",
+  hasSectionFilters = false,
+  hasTourBrowse = true,
+  hasTourSelection = false,
+  nextSource = "",
+} = {}) => {
+  const normalizedNextSource = nextSource || "all";
+  const defaultIntent = {
+    browseSourceToSet: "",
+    shouldClearSectionFilters: false,
+    shouldClearTourSelection: false,
+    shouldExpandMobileSheet: false,
+    shouldMaximizeMobileSheet: false,
+    shouldRequestBurialDataLoad: true,
+  };
+
+  if (normalizedNextSource === "all") {
+    return {
+      ...defaultIntent,
+      browseSourceToSet: "all",
+      shouldClearSectionFilters: Boolean(hasSectionFilters),
+      shouldClearTourSelection: Boolean(hasTourSelection),
+      shouldExpandMobileSheet: true,
+    };
+  }
+
+  if (normalizedNextSource === "tour" && !hasTourBrowse) {
+    return {
+      ...defaultIntent,
+      shouldExpandMobileSheet: true,
+    };
+  }
+
+  if (
+    normalizedNextSource === browseSource &&
+    (
+      (normalizedNextSource === "section" && !hasSectionFilters) ||
+      (normalizedNextSource === "tour" && !hasTourSelection)
+    )
+  ) {
+    return {
+      ...defaultIntent,
+      browseSourceToSet: "all",
+      shouldExpandMobileSheet: true,
+    };
+  }
+
+  return {
+    ...defaultIntent,
+    browseSourceToSet: normalizedNextSource,
+    shouldClearSectionFilters: normalizedNextSource !== "section" && Boolean(hasSectionFilters),
+    shouldClearTourSelection: normalizedNextSource === "section" && Boolean(hasTourSelection),
+    shouldMaximizeMobileSheet: true,
+  };
+};
+
 export const buildMobileSheetRevealIntent = ({
   activeBurialId = "",
   isMobile = false,

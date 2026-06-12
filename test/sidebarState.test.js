@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  buildBrowseSourceChangeIntent,
   buildMobileSheetRevealIntent,
 } from "../src/features/browse/sidebarState";
 import { MOBILE_SHEET_STATES } from "../src/features/browse/mobileSheetGeometry";
@@ -90,6 +91,88 @@ describe("sidebar state helpers", () => {
       shouldExpandMobileSheet: false,
       shouldRevealBrowseContext: true,
       shouldScrollMobileSheetToTop: true,
+    });
+  });
+
+  test("builds browse-source intent for returning to all results", () => {
+    expect(buildBrowseSourceChangeIntent({
+      hasSectionFilters: true,
+      hasTourSelection: true,
+      nextSource: "all",
+    })).toEqual({
+      browseSourceToSet: "all",
+      shouldClearSectionFilters: true,
+      shouldClearTourSelection: true,
+      shouldExpandMobileSheet: true,
+      shouldMaximizeMobileSheet: false,
+      shouldRequestBurialDataLoad: true,
+    });
+  });
+
+  test("builds browse-source intent for unavailable tour browse", () => {
+    expect(buildBrowseSourceChangeIntent({
+      hasTourBrowse: false,
+      nextSource: "tour",
+    })).toEqual({
+      browseSourceToSet: "",
+      shouldClearSectionFilters: false,
+      shouldClearTourSelection: false,
+      shouldExpandMobileSheet: true,
+      shouldMaximizeMobileSheet: false,
+      shouldRequestBurialDataLoad: true,
+    });
+  });
+
+  test("toggles an empty active scoped browse source back to all", () => {
+    expect(buildBrowseSourceChangeIntent({
+      browseSource: "section",
+      hasSectionFilters: false,
+      nextSource: "section",
+    })).toEqual({
+      browseSourceToSet: "all",
+      shouldClearSectionFilters: false,
+      shouldClearTourSelection: false,
+      shouldExpandMobileSheet: true,
+      shouldMaximizeMobileSheet: false,
+      shouldRequestBurialDataLoad: true,
+    });
+
+    expect(buildBrowseSourceChangeIntent({
+      browseSource: "tour",
+      hasTourBrowse: true,
+      hasTourSelection: false,
+      nextSource: "tour",
+    })).toMatchObject({
+      browseSourceToSet: "all",
+      shouldExpandMobileSheet: true,
+      shouldMaximizeMobileSheet: false,
+    });
+  });
+
+  test("builds browse-source intent for entering section and tour scopes", () => {
+    expect(buildBrowseSourceChangeIntent({
+      hasTourSelection: true,
+      nextSource: "section",
+    })).toEqual({
+      browseSourceToSet: "section",
+      shouldClearSectionFilters: false,
+      shouldClearTourSelection: true,
+      shouldExpandMobileSheet: false,
+      shouldMaximizeMobileSheet: true,
+      shouldRequestBurialDataLoad: true,
+    });
+
+    expect(buildBrowseSourceChangeIntent({
+      hasSectionFilters: true,
+      hasTourBrowse: true,
+      nextSource: "tour",
+    })).toEqual({
+      browseSourceToSet: "tour",
+      shouldClearSectionFilters: true,
+      shouldClearTourSelection: false,
+      shouldExpandMobileSheet: false,
+      shouldMaximizeMobileSheet: true,
+      shouldRequestBurialDataLoad: true,
     });
   });
 });

@@ -50,6 +50,7 @@ import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordP
 import { resolvePortraitImageName } from "./features/tours/tourDerivedData";
 import { MOBILE_SHEET_STATES } from "./features/browse/mobileSheetGeometry";
 import {
+  buildBrowseSourceChangeIntent,
   buildMobileSheetRevealIntent,
   useBurialSidebarBrowseState,
   useBurialSidebarMobileSheetState,
@@ -2046,63 +2047,47 @@ function BurialSidebar({
   }, [maximizeMobileSheet, onTourChange, setBrowseSource]);
 
   const handleBrowseSourceChange = useCallback((nextSource) => {
-    onRequestBurialDataLoad?.();
+    const intent = buildBrowseSourceChangeIntent({
+      browseSource,
+      hasSectionFilters,
+      hasTourBrowse,
+      hasTourSelection,
+      nextSource,
+    });
 
-    if (!nextSource || nextSource === "all") {
-      setBrowseSource("all");
-      if (sectionFilter || lotTierFilter) {
-        onClearSectionFilters();
-      }
-      if (selectedTour) {
-        onTourChange(null);
-      }
-      expandMobileSheet();
-      return;
+    if (intent.shouldRequestBurialDataLoad) {
+      onRequestBurialDataLoad?.();
     }
 
-    if (nextSource === "tour" && !hasTourBrowse) {
-      expandMobileSheet();
-      return;
+    if (intent.browseSourceToSet) {
+      setBrowseSource(intent.browseSourceToSet);
     }
 
-    if (
-      nextSource === browseSource &&
-      ((nextSource === "section" && !hasSectionFilters) ||
-      (nextSource === "tour" && !hasTourSelection))
-    ) {
-      setBrowseSource("all");
-      expandMobileSheet();
-      return;
-    }
-
-    setBrowseSource(nextSource);
-
-    if (nextSource === "section") {
-      if (selectedTour) {
-        onTourChange(null);
-      }
-      maximizeMobileSheet();
-      return;
-    }
-
-    if (sectionFilter || lotTierFilter) {
+    if (intent.shouldClearSectionFilters) {
       onClearSectionFilters();
     }
 
-    maximizeMobileSheet();
+    if (intent.shouldClearTourSelection) {
+      onTourChange(null);
+    }
+
+    if (intent.shouldExpandMobileSheet) {
+      expandMobileSheet();
+    }
+
+    if (intent.shouldMaximizeMobileSheet) {
+      maximizeMobileSheet();
+    }
   }, [
     browseSource,
     expandMobileSheet,
     hasSectionFilters,
     hasTourSelection,
     hasTourBrowse,
-    maximizeMobileSheet,
-    lotTierFilter,
     onClearSectionFilters,
     onRequestBurialDataLoad,
     onTourChange,
-    sectionFilter,
-    selectedTour,
+    maximizeMobileSheet,
     setBrowseSource,
   ]);
 
