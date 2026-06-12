@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildBrowseSourceChangeIntent,
   buildClearAllBrowseStateIntent,
+  buildClearTourSelectionIntent,
   buildBrowseResultSelectIntent,
   buildMobileSearchPanelCollapseResetIntent,
   buildMobileSearchPanelToggleIntent,
@@ -372,6 +373,16 @@ describe("sidebar state helpers", () => {
     })).toEqual({
       browseSourceToSet: "tour",
       selectedTourToSet: "Notables Tour 2020",
+      shouldMaximizeMobileSheet: true,
+      shouldSetBrowseSource: true,
+      shouldSetTourSelection: true,
+    });
+  });
+
+  test("builds clear-tour-selection intent that keeps tour browse active", () => {
+    expect(buildClearTourSelectionIntent()).toEqual({
+      browseSourceToSet: "tour",
+      selectedTourToSet: null,
       shouldMaximizeMobileSheet: true,
       shouldSetBrowseSource: true,
       shouldSetTourSelection: true,

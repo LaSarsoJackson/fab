@@ -53,6 +53,7 @@ import {
   buildBrowseResultSelectIntent,
   buildBrowseSourceChangeIntent,
   buildClearAllBrowseStateIntent,
+  buildClearTourSelectionIntent,
   buildMobileSearchPanelCollapseResetIntent,
   buildMobileSearchPanelToggleIntent,
   buildMobileSheetRevealIntent,
@@ -2063,9 +2064,19 @@ function BurialSidebar({
   }, [hasTourBrowse, maximizeMobileSheet, onTourChange, setBrowseSource]);
 
   const handleClearTourSelection = useCallback(() => {
-    setBrowseSource("tour");
-    onTourChange(null);
-    maximizeMobileSheet();
+    const intent = buildClearTourSelectionIntent();
+
+    if (intent.shouldSetBrowseSource) {
+      setBrowseSource(intent.browseSourceToSet);
+    }
+
+    if (intent.shouldSetTourSelection) {
+      onTourChange(intent.selectedTourToSet);
+    }
+
+    if (intent.shouldMaximizeMobileSheet) {
+      maximizeMobileSheet();
+    }
   }, [maximizeMobileSheet, onTourChange, setBrowseSource]);
 
   const handleBrowseSourceChange = useCallback((nextSource) => {

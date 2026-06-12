@@ -50,6 +50,14 @@ export const buildTourSelectionIntent = ({
   };
 };
 
+export const buildClearTourSelectionIntent = () => ({
+  browseSourceToSet: "tour",
+  selectedTourToSet: null,
+  shouldMaximizeMobileSheet: true,
+  shouldSetBrowseSource: true,
+  shouldSetTourSelection: true,
+});
+
 export const buildMobileSearchPanelCollapseResetIntent = ({
   isMobile = false,
   resolvedMobileSheetState = MOBILE_SHEET_STATES.PEEK,
