@@ -110,6 +110,50 @@ describe("service worker runtime caching", () => {
     await expect(responsePromise).resolves.toBe(cachedResponse);
   });
 
+  test("serves cached public search payload immediately while refreshing in the background", async () => {
+    const cachedResponse = { ok: true, source: "runtime-cache" };
+    const networkResponse = {
+      ok: true,
+      source: "network",
+      headers: {
+        get: (name) => (name.toLowerCase() === "content-length" ? "36000000" : null),
+      },
+      clone: () => networkResponse,
+    };
+    const cachedRequests = [];
+    const cache = {
+      match: async () => cachedResponse,
+      put: async (request) => {
+        cachedRequests.push(request.url);
+      },
+    };
+    const fetchListener = loadServiceWorkerFetchListener({
+      fetchImpl: async () => networkResponse,
+      cacheImpl: {
+        open: async () => cache,
+        match: async () => undefined,
+        keys: async () => [],
+        delete: async () => true,
+      },
+    });
+
+    let responsePromise;
+    fetchListener({
+      request: {
+        method: "GET",
+        mode: "same-origin",
+        url: "https://example.test/data/Search_Burials.json",
+      },
+      respondWith: (promise) => {
+        responsePromise = Promise.resolve(promise);
+      },
+    });
+
+    await expect(responsePromise).resolves.toBe(cachedResponse);
+    await Promise.resolve();
+    expect(cachedRequests).toEqual(["https://example.test/data/Search_Burials.json"]);
+  });
+
   test("does not runtime-cache the full burial source dataset", async () => {
     const response = { ok: true };
     let openedRuntimeCache = false;

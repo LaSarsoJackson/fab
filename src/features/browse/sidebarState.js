@@ -4,6 +4,12 @@ import {
   getBrowseSourceMode,
   MIN_BROWSE_QUERY_LENGTH,
 } from "./browseResults";
+import {
+  getDefaultMobileSheetState,
+  getMobileSheetSnapHeight,
+  getMobileSheetStateFromHeight,
+  MOBILE_SHEET_STATES,
+} from "./mobileSheetGeometry";
 import { cancelIdleTask, scheduleIdleTask } from "../../shared/runtimeEnv";
 
 /**
@@ -583,127 +589,10 @@ export function useBurialSidebarBrowseState({
   };
 }
 
-/**
- * Centralizes the mobile bottom-sheet state machine so the sidebar component
- * only decides when context changes, not how snap points and drawer expansion
- * should translate into pixel heights.
- */
-export const MOBILE_SHEET_STATES = {
-  COLLAPSED: "collapsed",
-  PEEK: "peek",
-  FULL: "full",
-};
-
-const SNAP_COLLAPSED_FRACTION = 0.08;
-const SNAP_COLLAPSED_MIN_HEIGHT = 76;
-const SNAP_CONTENT_MEASUREMENT_MIN_HEIGHT = SNAP_COLLAPSED_MIN_HEIGHT + 56;
-const SNAP_PEEK_FRACTION = 0.39;
-const SNAP_FULL_FRACTION = 0.92;
-
-export const getEffectiveMobileSheetMaxHeight = ({ maxHeight, visualViewportHeight } = {}) => {
-  const normalizedMaxHeight = Number(maxHeight);
-  const normalizedVisualViewportHeight = Number(visualViewportHeight);
-  const hasMaxHeight = Number.isFinite(normalizedMaxHeight) && normalizedMaxHeight > 0;
-  const hasVisualViewportHeight = Number.isFinite(normalizedVisualViewportHeight)
-    && normalizedVisualViewportHeight > 0;
-
-  if (!hasVisualViewportHeight) {
-    return hasMaxHeight ? normalizedMaxHeight : 0;
-  }
-
-  if (!hasMaxHeight) {
-    return normalizedVisualViewportHeight;
-  }
-
-  return Math.min(normalizedMaxHeight, normalizedVisualViewportHeight);
-};
-
 const getCurrentVisualViewportHeight = () => {
   if (typeof window === "undefined") return null;
 
   return window.visualViewport?.height || window.innerHeight || null;
-};
-
-const getSheetContentCeilingHeight = ({ maxHeight, minHeight }) => {
-  const fullHeight = maxHeight * SNAP_FULL_FRACTION;
-  const measuredContentHeight = Number.isFinite(minHeight) && minHeight > SNAP_CONTENT_MEASUREMENT_MIN_HEIGHT
-    ? minHeight
-    : fullHeight;
-
-  return Math.min(
-    fullHeight,
-    Math.max(measuredContentHeight, SNAP_COLLAPSED_MIN_HEIGHT)
-  );
-};
-
-// Fractions are intentionally relative to the available sheet max height; that
-// keeps the drawer usable across Safari's changing toolbar sizes and standalone
-// PWA mode.
-export const getDefaultMobileSheetState = ({
-  hasBrowseContext = false,
-  hasSelectedBurials = false,
-  isMobile,
-}) => {
-  if (!isMobile) return MOBILE_SHEET_STATES.FULL;
-  // Mobile opens as a compact map companion. Collapsed remains available as a
-  // deliberate map-only state, while full height is user-initiated.
-  return MOBILE_SHEET_STATES.PEEK;
-};
-
-export const getMobileSheetSnapHeight = ({
-  maxHeight,
-  minHeight,
-  state,
-  visualViewportHeight,
-}) => {
-  const effectiveMaxHeight = getEffectiveMobileSheetMaxHeight({ maxHeight, visualViewportHeight });
-  const contentCeilingHeight = getSheetContentCeilingHeight({
-    maxHeight: effectiveMaxHeight,
-    minHeight,
-  });
-
-  if (state === MOBILE_SHEET_STATES.COLLAPSED) {
-    return Math.min(
-      contentCeilingHeight,
-      Math.max(effectiveMaxHeight * SNAP_COLLAPSED_FRACTION, SNAP_COLLAPSED_MIN_HEIGHT)
-    );
-  }
-
-  if (state === MOBILE_SHEET_STATES.FULL) {
-    return contentCeilingHeight;
-  }
-
-  return Math.min(effectiveMaxHeight * SNAP_PEEK_FRACTION, contentCeilingHeight);
-};
-
-export const getMobileSheetStateFromHeight = ({ height, windowHeight, visualViewportHeight }) => {
-  const collapsedHeight = getMobileSheetSnapHeight({
-    maxHeight: windowHeight,
-    state: MOBILE_SHEET_STATES.COLLAPSED,
-    visualViewportHeight,
-  });
-  const peekHeight = getMobileSheetSnapHeight({
-    maxHeight: windowHeight,
-    state: MOBILE_SHEET_STATES.PEEK,
-    visualViewportHeight,
-  });
-  const fullHeight = getMobileSheetSnapHeight({
-    maxHeight: windowHeight,
-    state: MOBILE_SHEET_STATES.FULL,
-    visualViewportHeight,
-  });
-  const collapsedThreshold = (collapsedHeight + peekHeight) / 2;
-  const peekThreshold = (peekHeight + fullHeight) / 2;
-
-  if (height < collapsedThreshold) {
-    return MOBILE_SHEET_STATES.COLLAPSED;
-  }
-
-  if (height < peekThreshold) {
-    return MOBILE_SHEET_STATES.PEEK;
-  }
-
-  return MOBILE_SHEET_STATES.FULL;
 };
 
 export function useBurialSidebarMobileSheetState({
@@ -727,6 +616,10 @@ export function useBurialSidebarMobileSheetState({
   );
   const sheetRef = useRef(null);
   const requestedMobileSheetStateRef = useRef(null);
+  // Last layout metrics reported by the bottom sheet. Spring-end bucketing must
+  // use the same inputs the snap points were computed from, otherwise a short
+  // content measurement gets mistaken for a collapsed drawer.
+  const sheetLayoutMetricsRef = useRef({ headerHeight: null, maxHeight: null, minHeight: null });
   const previousSelectedCountRef = useRef(selectedBurialsLength);
   const previousIsMobileRef = useRef(isMobile);
   const previousHasActiveBrowseContextRef = useRef(hasActiveBrowseContext);
@@ -742,24 +635,29 @@ export function useBurialSidebarMobileSheetState({
     ? currentMobileSheetState
     : mobileSheetState;
 
-  const mobileSnapPoints = useCallback(({ maxHeight, minHeight }) => {
+  const mobileSnapPoints = useCallback(({ headerHeight, maxHeight, minHeight }) => {
+    sheetLayoutMetricsRef.current = { headerHeight, maxHeight, minHeight };
+
     // Deduplicate because constrained viewports can collapse peek/full heights
     // into the same physical snap point.
     const visualViewportHeight = getCurrentVisualViewportHeight();
     const snapPoints = [
       getMobileSheetSnapHeight({
+        headerHeight,
         maxHeight,
         minHeight,
         state: MOBILE_SHEET_STATES.COLLAPSED,
         visualViewportHeight,
       }),
       getMobileSheetSnapHeight({
+        headerHeight,
         maxHeight,
         minHeight,
         state: MOBILE_SHEET_STATES.PEEK,
         visualViewportHeight,
       }),
       getMobileSheetSnapHeight({
+        headerHeight,
         maxHeight,
         minHeight,
         state: MOBILE_SHEET_STATES.FULL,
@@ -770,11 +668,12 @@ export function useBurialSidebarMobileSheetState({
     return Array.from(new Set(snapPoints)).sort((a, b) => a - b);
   }, []);
 
-  const mobileDefaultSnap = useCallback(({ maxHeight, minHeight, snapPoints }) => {
+  const mobileDefaultSnap = useCallback(({ headerHeight, maxHeight, minHeight, snapPoints }) => {
     const visualViewportHeight = getCurrentVisualViewportHeight();
 
     if (resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
       return snapPoints[0] || getMobileSheetSnapHeight({
+        headerHeight,
         maxHeight,
         minHeight,
         state: MOBILE_SHEET_STATES.COLLAPSED,
@@ -784,6 +683,7 @@ export function useBurialSidebarMobileSheetState({
 
     if (resolvedMobileSheetState === MOBILE_SHEET_STATES.FULL) {
       return snapPoints[snapPoints.length - 1] || getMobileSheetSnapHeight({
+        headerHeight,
         maxHeight,
         minHeight,
         state: MOBILE_SHEET_STATES.FULL,
@@ -792,21 +692,13 @@ export function useBurialSidebarMobileSheetState({
     }
 
     return snapPoints[Math.min(1, snapPoints.length - 1)] || getMobileSheetSnapHeight({
+      headerHeight,
       maxHeight,
       minHeight,
       state: MOBILE_SHEET_STATES.PEEK,
       visualViewportHeight,
     });
   }, [resolvedMobileSheetState]);
-
-  const snapMobileSheet = useCallback((state, maxHeight, minHeight) => {
-    return getMobileSheetSnapHeight({
-      maxHeight,
-      minHeight,
-      state,
-      visualViewportHeight: getCurrentVisualViewportHeight(),
-    });
-  }, []);
 
   const setAndSnapMobileSheet = useCallback((state) => {
     if (!isMobile) return;
@@ -815,9 +707,15 @@ export function useBurialSidebarMobileSheetState({
     requestedMobileSheetStateRef.current = state;
     setMobileSheetState(state);
     if (sheetRef.current) {
-      sheetRef.current.snapTo(({ maxHeight, minHeight }) => snapMobileSheet(state, maxHeight, minHeight));
+      sheetRef.current.snapTo(({ headerHeight, maxHeight, minHeight }) => getMobileSheetSnapHeight({
+        headerHeight,
+        maxHeight,
+        minHeight,
+        state,
+        visualViewportHeight: getCurrentVisualViewportHeight(),
+      }));
     }
-  }, [isMobile, snapMobileSheet]);
+  }, [isMobile]);
 
   const maximizeMobileSheet = useCallback(() => {
     setAndSnapMobileSheet(MOBILE_SHEET_STATES.FULL);
@@ -832,12 +730,46 @@ export function useBurialSidebarMobileSheetState({
   }, [setAndSnapMobileSheet]);
 
   const handleSheetSpringEnd = useCallback((event) => {
-    if (event.type !== "SNAP" && event.type !== "OPEN") return;
     if (!sheetRef.current || typeof window === "undefined") return;
 
+    if (event.type === "RESIZE") {
+      // Content growth (e.g. search results streaming in) makes the sheet
+      // re-settle on the nearest snap point, which can silently undo a
+      // requested expansion. Re-assert the requested state instead.
+      const requestedState = requestedMobileSheetStateRef.current;
+      if (!requestedState) return;
+
+      const metrics = sheetLayoutMetricsRef.current;
+      const targetHeight = getMobileSheetSnapHeight({
+        headerHeight: metrics.headerHeight,
+        maxHeight: metrics.maxHeight || window.innerHeight,
+        minHeight: metrics.minHeight,
+        state: requestedState,
+        visualViewportHeight: getCurrentVisualViewportHeight(),
+      });
+
+      if (Math.abs((sheetRef.current.height || 0) - targetHeight) > 8) {
+        sheetRef.current.snapTo(({ headerHeight, maxHeight, minHeight }) => getMobileSheetSnapHeight({
+          headerHeight,
+          maxHeight,
+          minHeight,
+          state: requestedState,
+          visualViewportHeight: getCurrentVisualViewportHeight(),
+        }));
+      }
+      return;
+    }
+
+    if (event.type !== "SNAP" && event.type !== "OPEN") return;
+
+    // Bucket against the same measured layout the snap points came from, so a
+    // short content measurement can never get misread as a collapsed drawer.
+    const { headerHeight, maxHeight, minHeight } = sheetLayoutMetricsRef.current;
     const nextState = getMobileSheetStateFromHeight({
+      headerHeight,
       height: sheetRef.current.height,
-      windowHeight: window.innerHeight,
+      minHeight,
+      windowHeight: maxHeight || window.innerHeight,
       visualViewportHeight: getCurrentVisualViewportHeight(),
     });
     requestedMobileSheetStateRef.current = nextState;

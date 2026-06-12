@@ -1,8 +1,10 @@
 # Dev branch workflow
 
-`master` is the production-facing web and native-wrapper surface. Keep it
-focused on the shipped Leaflet map, search, browse, tours, routing, deep links,
-and deployable static assets.
+`master` is the current production-facing web and native-wrapper surface. Keep
+it focused on the shipped Leaflet map, search, browse, tours, routing, deep
+links, and deployable static assets. If the remote default branch is renamed to
+`main`, apply the same rules there; the CI/CD workflows already accept both
+branch names.
 
 The `dev-features` branch preserves experimental and operator-only surfaces:
 
@@ -39,6 +41,8 @@ app. Keep those PRs focused:
   command surface
 - run the same validation gate expected for production-facing map or routing
   changes
+- follow [`release-workflow.md`](./release-workflow.md) for version, changelog,
+  branch-policy, and CI/CD requirements
 
 Do not keep master-side feature flags, query params, routes, scripts, or
 dependencies solely to make dev-only tools reachable. The branch is the

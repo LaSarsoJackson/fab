@@ -7,7 +7,7 @@
  */
 import fs from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 
 import { FAB_BASEMAP_IMAGE_EXPORTS } from "../src/features/fab/profile.js";
 
@@ -16,6 +16,7 @@ const ROOT_DIR = path.join(__dirname, "..");
 const WEB_MERCATOR_RADIUS = 6378137;
 const WEB_MERCATOR_MAX_LATITUDE = 85.0511287798066;
 const WEB_MERCATOR_WKID = 3857;
+const MAX_BASEMAP_DOWNLOAD_BYTES = 25 * 1024 * 1024;
 
 const clampLatitudeForWebMercator = (latitude) => (
   Math.max(-WEB_MERCATOR_MAX_LATITUDE, Math.min(WEB_MERCATOR_MAX_LATITUDE, latitude))
@@ -92,17 +93,46 @@ const fetchJson = async (url) => {
   return response.json();
 };
 
-const fetchBuffer = async (url) => {
+export const assertBasemapDownloadUrlAllowed = (downloadUrl, sourceExportUrl) => {
+  const parsedDownloadUrl = new URL(downloadUrl);
+  const parsedSourceUrl = new URL(sourceExportUrl);
+
+  if (
+    parsedDownloadUrl.protocol !== "https:" ||
+    parsedDownloadUrl.origin !== parsedSourceUrl.origin
+  ) {
+    throw new Error(`Basemap export returned an unexpected download URL: ${downloadUrl}`);
+  }
+};
+
+const fetchBuffer = async (url, definition) => {
   const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error(`Basemap image download failed (${response.status}) for ${url}`);
   }
 
-  return Buffer.from(await response.arrayBuffer());
+  assertBasemapDownloadUrlAllowed(response.url || url, definition.sourceExportUrl);
+
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.toLowerCase().startsWith("image/")) {
+    throw new Error(`Basemap image download returned ${contentType || "an unknown content type"} for ${url}`);
+  }
+
+  const contentLength = Number(response.headers.get("content-length") || 0);
+  if (contentLength > MAX_BASEMAP_DOWNLOAD_BYTES) {
+    throw new Error(`Basemap image download is too large (${contentLength} bytes) for ${url}`);
+  }
+
+  const image = Buffer.from(await response.arrayBuffer());
+  if (image.byteLength > MAX_BASEMAP_DOWNLOAD_BYTES) {
+    throw new Error(`Basemap image download exceeded ${MAX_BASEMAP_DOWNLOAD_BYTES} bytes for ${url}`);
+  }
+
+  return image;
 };
 
-const normalizeDownloadUrl = (value) => String(value || "").replace(/^http:\/\//i, "https://");
+export const normalizeDownloadUrl = (value) => String(value || "").replace(/^http:\/\//i, "https://");
 
 const generateBasemap = async (definition) => {
   const requestUrl = buildExportRequestUrl(definition);
@@ -113,8 +143,10 @@ const generateBasemap = async (definition) => {
     throw new Error(`Basemap export did not return an image URL for ${definition.id}.`);
   }
 
+  assertBasemapDownloadUrlAllowed(imageUrl, definition.sourceExportUrl);
+
   const outputPath = path.join(ROOT_DIR, definition.outputPath);
-  const image = await fetchBuffer(imageUrl);
+  const image = await fetchBuffer(imageUrl, definition);
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, image);
@@ -132,7 +164,9 @@ const main = async () => {
   }
 };
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

@@ -1,3 +1,11 @@
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "requests>=2.32.0",
+# ]
+# ///
+
 import os
 import requests
 from urllib.parse import urljoin
@@ -46,4 +54,4 @@ for filename in files_to_download:
     except requests.exceptions.RequestException as e:
         print(f"Error downloading {filename}: {e}")
 
-print("\nDownload complete! Files have been saved to the data directory.") 
+print("\nDownload complete! Files have been saved to the data directory.")

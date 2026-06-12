@@ -20,10 +20,9 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import RemoveIcon from "@mui/icons-material/Remove";
 import SearchIcon from "@mui/icons-material/Search";
 import {
-  getSectionAffordanceIcon,
-  getSectionClusterIcon,
+  getSectionPoiIcon,
 } from "./mapMarkerIcons";
-import { getPopupViewportPadding } from "./mapDomain";
+import { formatSectionOverviewMarkerLabel, getPopupViewportPadding } from "./mapDomain";
 import { buildPublicAssetUrl } from "../../shared/runtimeEnv";
 export { createCemeteryClusterIcon } from "./mapMarkerIcons";
 
@@ -348,6 +347,7 @@ const mapControlOptionButtonSx = {
   alignItems: "center",
   columnGap: "10px",
   width: "100%",
+  minHeight: "44px",
   border: 0,
   borderRadius: "10px",
   padding: "8px 6px",
@@ -359,6 +359,10 @@ const mapControlOptionButtonSx = {
   transition: "background-color 0.16s ease",
   "&:hover": {
     backgroundColor: "rgba(18, 47, 40, 0.06)",
+  },
+  "&:focus-visible": {
+    outline: "2px solid var(--accent-strong, rgba(47, 107, 87, 0.55))",
+    outlineOffset: "-2px",
   },
 };
 
@@ -712,7 +716,12 @@ export const MapSectionClusterMarkers = memo(function MapSectionClusterMarkers({
         <Marker
           key={`cluster-${marker.id}`}
           position={[marker.lat, marker.lng]}
-          icon={getSectionClusterIcon(marker.count)}
+          icon={getSectionPoiIcon({
+            sectionValue: marker.sectionValue,
+            size: 30,
+            variant: "detail",
+            withLabel: true,
+          })}
           eventHandlers={{
             click: () => onSelectSection?.(marker.sectionValue, marker.bounds),
           }}
@@ -722,7 +731,7 @@ export const MapSectionClusterMarkers = memo(function MapSectionClusterMarkers({
             offset={[0, -8]}
             className="section-label section-label--overview"
           >
-            {`Section ${marker.sectionValue}`}
+            {formatSectionOverviewMarkerLabel(marker)}
           </Tooltip>
         </Marker>
       ))}
@@ -744,7 +753,12 @@ export const MapSectionAffordanceMarkers = memo(function MapSectionAffordanceMar
         <Marker
           key={marker.id}
           position={[marker.lat, marker.lng]}
-          icon={getSectionAffordanceIcon(marker.size)}
+          icon={getSectionPoiIcon({
+            sectionValue: marker.sectionValue,
+            size: marker.size,
+            variant: "overview",
+            withLabel: true,
+          })}
           eventHandlers={{
             click: () => onSelectSection?.(marker.sectionValue, marker.bounds),
           }}

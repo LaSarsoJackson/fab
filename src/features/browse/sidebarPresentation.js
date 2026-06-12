@@ -182,6 +182,7 @@ export const buildSearchShellNotices = ({
 export const getSearchPlaceholder = ({
   browseSource,
   isBurialDataLoading,
+  isCompact = false,
   sectionFilter,
   selectedTour,
 }) => {
@@ -197,7 +198,8 @@ export const getSearchPlaceholder = ({
     return selectedTour ? "Search this tour" : "Select a tour to browse";
   }
 
-  return "Search name, section, lot, or landmark";
+  // Narrow mobile sheets truncate the long-form hint, which reads as broken.
+  return isCompact ? "Search graves & landmarks" : "Search name, section, lot, or landmark";
 };
 
 export const getBrowseEmptyState = ({

@@ -21,6 +21,35 @@ status_fail() {
   exit 1
 }
 
+version_gte() {
+  node - "$1" "$2" <<'NODE'
+const actual = process.argv[2].replace(/^v/, "");
+const expected = process.argv[3].replace(/^v/, "");
+
+const parseVersion = (value) =>
+  value.split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
+
+const actualParts = parseVersion(actual);
+const expectedParts = parseVersion(expected);
+const width = Math.max(actualParts.length, expectedParts.length);
+
+for (let index = 0; index < width; index += 1) {
+  const actualPart = actualParts[index] || 0;
+  const expectedPart = expectedParts[index] || 0;
+
+  if (actualPart > expectedPart) {
+    process.exit(0);
+  }
+
+  if (actualPart < expectedPart) {
+    process.exit(1);
+  }
+}
+
+process.exit(0);
+NODE
+}
+
 has_env_key() {
   local key="$1"
 
@@ -39,21 +68,28 @@ if ! command -v node >/dev/null 2>&1; then
   status_fail "Node.js is not installed. Install Node 20 or newer."
 fi
 
+REQUIRED_NODE_MAJOR="$(tr -d '[:space:]' < .nvmrc)"
+REQUIRED_NODE_MAJOR="${REQUIRED_NODE_MAJOR#v}"
+REQUIRED_NODE_MAJOR="${REQUIRED_NODE_MAJOR%%.*}"
 NODE_VERSION="$(node -p "process.versions.node")"
-if ! node -e "process.exit(Number(process.versions.node.split('.')[0]) >= 20 ? 0 : 1)"; then
-  status_fail "Node ${NODE_VERSION} detected. Need Node 20 or newer."
+if ! node -e "process.exit(Number(process.versions.node.split('.')[0]) >= Number(process.argv[1]) ? 0 : 1)" "$REQUIRED_NODE_MAJOR"; then
+  status_fail "Node ${NODE_VERSION} detected. Need Node ${REQUIRED_NODE_MAJOR} or newer from .nvmrc."
 fi
-status_ok "Node ${NODE_VERSION}"
+status_ok "Node ${NODE_VERSION} (.nvmrc baseline ${REQUIRED_NODE_MAJOR})"
 
 if ! command -v bun >/dev/null 2>&1; then
-  status_fail "Bun is not installed. Install Bun 1.3 or newer."
+  status_fail "Bun is not installed. Install the version declared by packageManager."
 fi
 
+PACKAGE_MANAGER="$(node -e "const pkg = require('./package.json'); process.stdout.write(pkg.packageManager || '')")"
+REQUIRED_BUN_VERSION="${PACKAGE_MANAGER#bun@}"
 BUN_VERSION="$(bun --version)"
-if ! bun -e "const [major, minor] = Bun.version.split('.').map(Number); process.exit(major > 1 || (major === 1 && minor >= 3) ? 0 : 1)"; then
-  status_fail "Bun ${BUN_VERSION} detected. Need Bun 1.3 or newer."
+if [ "$PACKAGE_MANAGER" = "$REQUIRED_BUN_VERSION" ] || [ -z "$REQUIRED_BUN_VERSION" ]; then
+  status_warn "packageManager does not declare a Bun version. Current Bun: ${BUN_VERSION}."
+elif ! version_gte "$BUN_VERSION" "$REQUIRED_BUN_VERSION"; then
+  status_fail "Bun ${BUN_VERSION} detected. Need Bun ${REQUIRED_BUN_VERSION} or newer from packageManager."
 fi
-status_ok "Bun ${BUN_VERSION}"
+status_ok "Bun ${BUN_VERSION} (packageManager ${PACKAGE_MANAGER})"
 
 if ! command -v python3 >/dev/null 2>&1; then
   status_fail "python3 is not installed. It is required for the local image server."
@@ -62,6 +98,13 @@ fi
 PYTHON_VERSION="$(python3 -c 'import platform; print(platform.python_version())')"
 status_ok "Python ${PYTHON_VERSION}"
 
+if command -v uv >/dev/null 2>&1; then
+  UV_VERSION="$(uv --version)"
+  status_ok "${UV_VERSION}"
+else
+  status_warn "uv is not installed. Optional Python data download scripts use 'uv run'."
+fi
+
 if GEOSPATIAL_PYTHON="$("$GEOSPATIAL_PYTHON_RESOLVER" 2>/dev/null)"; then
   GEOSPATIAL_PYTHON_VERSION="$("$GEOSPATIAL_PYTHON" -c 'import platform; print(platform.python_version())')"
   status_ok "GeoParquet toolchain ready (${GEOSPATIAL_PYTHON} / Python ${GEOSPATIAL_PYTHON_VERSION})"
@@ -69,10 +112,32 @@ else
   status_warn "GeoParquet toolchain not installed. 'build:geoparquet' and 'validate:geoparquet' need a Python with geopandas, pyarrow, and shapely."
 fi
 
-if [ -d node_modules/react-scripts ]; then
-  status_ok "Dependencies installed"
+if [ ! -d node_modules ]; then
+  status_fail "Dependencies are missing. Run 'bun install'."
+fi
+
+MISSING_BINARIES=()
+for REQUIRED_BINARY in eslint jest playwright react-scripts; do
+  if [ ! -e "node_modules/.bin/${REQUIRED_BINARY}" ]; then
+    MISSING_BINARIES+=("$REQUIRED_BINARY")
+  fi
+done
+
+if [ "${#MISSING_BINARIES[@]}" -gt 0 ]; then
+  status_fail "Dependencies are incomplete; missing ${MISSING_BINARIES[*]}. Run 'bun install'."
+fi
+status_ok "Dependencies installed"
+
+if node - <<'NODE' >/dev/null 2>&1
+const fs = require("node:fs");
+const { chromium } = require("playwright");
+
+process.exit(fs.existsSync(chromium.executablePath()) ? 0 : 1);
+NODE
+then
+  status_ok "Playwright Chromium browser installed"
 else
-  status_warn "Dependencies are missing or incomplete. Run 'bun install'."
+  status_warn "Playwright Chromium browser missing. Run 'bunx playwright install chromium' before Playwright or icon-generation workflows."
 fi
 
 if [ -f src/data/TourBiographyAliases.json ]; then

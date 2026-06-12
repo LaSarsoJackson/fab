@@ -1093,32 +1093,28 @@ export const shouldShowPersistentSectionTooltips = ({
   currentZoom >= sectionDetailMinZoom
 );
 
+export const createLeafletTextContent = (
+  value = "",
+  documentRef = typeof document === "undefined" ? null : document
+) => {
+  const text = String(value ?? "");
+
+  if (documentRef && typeof documentRef.createTextNode === "function") {
+    return documentRef.createTextNode(text);
+  }
+
+  return text;
+};
+
 //=============================================================================
 // Presentation Rules
 //=============================================================================
 
-const SECTION_BURIAL_MARKER_PALETTE = [
-  {
-    fillColor: "#708177",
-    hoverFillColor: "#607069",
-    strokeColor: "#e7eee9",
-  },
-  {
-    fillColor: "#7c7f88",
-    hoverFillColor: "#686e78",
-    strokeColor: "#edf1f4",
-  },
-  {
-    fillColor: "#8a715f",
-    hoverFillColor: "#765f50",
-    strokeColor: "#f2eae4",
-  },
-  {
-    fillColor: "#657884",
-    hoverFillColor: "#556772",
-    strokeColor: "#e8eff2",
-  },
-];
+const SECTION_BURIAL_MARKER_TONE = {
+  fillColor: "#2f6b57",
+  hoverFillColor: "#26594a",
+  strokeColor: "#f4f9f6",
+};
 
 const ACTIVE_SECTION_BURIAL_MARKER_STYLE = {
   radius: 7.25,
@@ -1161,35 +1157,6 @@ export const ROAD_LAYER_STYLES = [
 
 export const ROAD_LAYER_STYLE = ROAD_LAYER_STYLES[ROAD_LAYER_STYLES.length - 1];
 
-const normalizeSectionBurialMarkerKey = (record = {}) => {
-  if (record.id) {
-    return String(record.id);
-  }
-
-  return [
-    record.Section,
-    record.Lot,
-    record.Grave,
-    record.Tier,
-  ].filter((value) => value !== null && value !== undefined && value !== "").join(":");
-};
-
-const hashMarkerKey = (value = "") => {
-  let hash = 0;
-
-  for (let index = 0; index < value.length; index += 1) {
-    hash = ((hash << 5) - hash) + value.charCodeAt(index);
-    hash |= 0;
-  }
-
-  return Math.abs(hash);
-};
-
-const getSectionBurialMarkerTone = (record = {}) => {
-  const markerKey = normalizeSectionBurialMarkerKey(record);
-  const paletteIndex = hashMarkerKey(markerKey) % SECTION_BURIAL_MARKER_PALETTE.length;
-  return SECTION_BURIAL_MARKER_PALETTE[paletteIndex];
-};
 
 export const getSectionBurialMarkerStyle = (record, options = {}) => {
   const {
@@ -1222,15 +1189,15 @@ export const getSectionBurialMarkerStyle = (record, options = {}) => {
     };
   }
 
-  const tone = getSectionBurialMarkerTone(record);
+  const tone = SECTION_BURIAL_MARKER_TONE;
 
   return {
     radius: isHovered ? 6.25 : isPreviewMarker ? 3.75 : 5.25,
     fillColor: isHovered ? tone.hoverFillColor : tone.fillColor,
-    fillOpacity: isHovered ? 0.62 : isPreviewMarker ? 0.24 : 0.44,
+    fillOpacity: isHovered ? 0.66 : isPreviewMarker ? 0.26 : 0.48,
     color: tone.strokeColor,
     weight: isHovered ? 1.8 : isPreviewMarker ? 0.85 : 1.15,
-    opacity: isHovered ? 0.92 : isPreviewMarker ? 0.48 : 0.76,
+    opacity: isHovered ? 0.95 : isPreviewMarker ? 0.5 : 0.8,
     hitRadius: isHovered ? 16 : isPreviewMarker ? 10 : 14,
   };
 };

@@ -93,10 +93,25 @@ const buildFabImageUrl = (fileName = "") => (
 );
 
 const FAB_NO_IMAGE_URL = buildFabImageUrl(FAB_NO_IMAGE_FILE_NAME);
+const FAB_SITE_URL = new URL(FAB_SITE_ROOT_URL);
+const FAB_SITE_ROOT_PATH = stripTrailingSlash(FAB_SITE_URL.pathname);
 
 const cleanFabValue = (value) => {
   if (value === null || value === undefined) return "";
   return String(value).trim();
+};
+
+const isFabSitePageUrl = (value = "") => {
+  try {
+    const url = new URL(value);
+    const isFabOrigin = url.protocol === "https:" && url.origin === FAB_SITE_URL.origin;
+    const isFabPath = url.pathname === FAB_SITE_ROOT_PATH ||
+      url.pathname.startsWith(`${FAB_SITE_ROOT_PATH}/`);
+
+    return isFabOrigin && isFabPath;
+  } catch (_error) {
+    return false;
+  }
 };
 
 const normalizeFabPageLink = (value = "") => {
@@ -106,7 +121,7 @@ const normalizeFabPageLink = (value = "") => {
   }
 
   if (/^https?:\/\//i.test(normalized)) {
-    return normalized;
+    return isFabSitePageUrl(normalized) ? normalized : "";
   }
 
   // Biography fields are inconsistent: some contain a full URL, some contain a
@@ -117,8 +132,8 @@ const normalizeFabPageLink = (value = "") => {
     return "";
   }
 
-  if (/^[a-z]+:/i.test(trimmed)) {
-    return trimmed;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+    return "";
   }
 
   if (/\.html?$/i.test(trimmed)) {

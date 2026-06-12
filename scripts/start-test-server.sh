@@ -35,7 +35,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 if [ ! -x "$REACT_SCRIPTS_BIN" ]; then
-  echo "react-scripts is required. Run 'bun install' or 'npm install'." >&2
+  echo "react-scripts is required. Run 'bun install'." >&2
   exit 1
 fi
 

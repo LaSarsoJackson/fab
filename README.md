@@ -1,5 +1,20 @@
 # FAB
 
+## Quickstart
+
+| Prerequisite | Source | Notes |
+| --- | --- | --- |
+| Bun 1.3.8 | `packageManager` in [package.json](./package.json) | Installs dependencies and runs package scripts. |
+| Node 20 | [.nvmrc](./.nvmrc) | Runtime baseline for React, Jest, and build tooling. |
+| Python 3 | System `python3` | Required for the local development image server. |
+| `uv` and Python data tooling | Optional | Used by data download and GeoParquet workflows; not required for ordinary web development. |
+
+```bash
+bun install
+bun run doctor
+bun run start
+```
+
 FAB is the web application behind the Albany Rural Cemetery burial finder. It
 is a React app and installable PWA for:
 
@@ -11,6 +26,12 @@ is a React app and installable PWA for:
 
 This repository owns the shared web experience. The same hosted URLs are used
 directly on the web and inside `FABFG`, the native wrapper app.
+
+## Product Snapshot
+
+![Desktop map search](./docs/assets/screenshots/fab-search-results.jpg)
+
+![Mobile map and drawer](./docs/assets/screenshots/fab-mobile-map.jpg)
 
 ## Project layout
 
@@ -34,12 +55,13 @@ Primary links:
 
 ### Requirements
 
-- Node `>= 20` from [.nvmrc](./.nvmrc)
-- Bun `>= 1.3`
+- Node 20 from [.nvmrc](./.nvmrc)
+- Bun 1.3.8 from `packageManager` in [package.json](./package.json)
 - Python 3 for the local image server used in development
 
 Optional tools:
 
+- `uv` for Python data download scripts
 - `geopandas`, `pyarrow`, and `shapely` for GeoParquet conversion and parity
   validation
 
@@ -105,7 +127,9 @@ Useful overrides:
 - `bun run doctor`: check local prerequisites and optional tooling
 - `bun run lint`: run the repository ESLint baseline across app, unit, and browser tests
 - `bun run test`: run the default automated test suite
-- `bun run check`: run `doctor`, `lint`, and the default test suite
+- `bun run check`: run `doctor`, `lint`, release metadata validation, and the default test suite
+- `bun run release:check`: verify SemVer, changelog, and release tag metadata
+- `bun run pr:check`: verify pull request branch policy when GitHub provides PR context
 - `bun run build`: create a production build
 - `bun run deploy`: build and publish the GitHub Pages deployment
 - `bun run build:tour-data`: regenerate tour biography aliases
@@ -123,6 +147,30 @@ Test split:
 - `bun run smoke:mobile-pwa:ngrok`: optional production-build smoke server
   for checking real Mobile Safari install, standalone, and service-worker
   behavior through an HTTPS ngrok tunnel
+
+## Which scripts are for me?
+
+Most contributors usually need `bun run start`, `bun run test`, and
+`bun run lint`. Run `bun run doctor` when setting up the repo or when a local
+command fails unexpectedly.
+
+Maintainer, data, and deploy work uses the more specialized commands:
+`bun run check`, `bun run build:data`, `bun run build:tour-data`,
+`bun run build:geoparquet`, `bun run validate:geoparquet`, `bun run build`,
+`bun run release:check`, `bun run deploy`, and the Playwright or mobile smoke
+commands when release coverage is needed.
+
+## Branches and Releases
+
+Production work goes through pull requests into `master`, the current remote
+default branch. CI also accepts `main` so the repo can be renamed without
+rewriting the pipeline. Short-lived branches should use prefixes such as
+`feature/`, `fix/`, `docs/`, `chore/`, `release/`, `hotfix/`, or `codex/`.
+
+Versioned releases use SemVer in [`package.json`](./package.json), matching
+entries in [`CHANGELOG.md`](./CHANGELOG.md), and tags named `vX.Y.Z`. See
+[`docs/release-workflow.md`](./docs/release-workflow.md) for the full branch,
+version, CI/CD, and GitHub branch-protection contract.
 
 ## Data pipeline
 
@@ -169,6 +217,8 @@ Start with these documents:
   route, deep-link, in-app road routing, and external directions-link ownership
 - [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md) for the branch
   workflow for development-only surfaces
+- [docs/release-workflow.md](./docs/release-workflow.md) for production branch,
+  versioning, release tags, and CI/CD rules
 
 Common entry points:
 
@@ -190,7 +240,8 @@ Common entry points:
 There are two relevant hosted environments:
 
 - GitHub Pages is the repo-controlled public validation target. Use
-  `bun run deploy` to publish that version.
+  `bun run deploy` for manual fallback deploys; pushes to `master` or `main`
+  also build and deploy through GitHub Actions.
 - `albany.edu/arce` is the institutional production deployment. Promotion to
   that host is still manual.
 

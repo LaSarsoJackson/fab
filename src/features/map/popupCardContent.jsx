@@ -13,52 +13,6 @@ export const createMapRecordKey = (record, index = 0) => (
   record?.id || `${record?.OBJECTID}_${record?.Section}_${record?.Lot}_${record?.Grave}_${index}`
 );
 
-export function PopupCardStackNavigation({
-  stackDescription = "",
-  stackPositionLabel = "",
-  onPreviousRecord,
-  onNextRecord,
-}) {
-  if (!stackPositionLabel) {
-    return null;
-  }
-
-  return (
-    <Box
-      className="popup-card__stack-nav"
-      aria-label={stackDescription || "Burial records at this marker"}
-    >
-      <span className="popup-card__stack-count" aria-live="polite">
-        {stackPositionLabel}
-      </span>
-      <span className="popup-card__stack-actions">
-        <button
-          type="button"
-          className="popup-card__stack-action"
-          aria-label="Previous burial record at this marker"
-          onClick={(event) => {
-            stopMapInteractionPropagation(event);
-            onPreviousRecord?.(event);
-          }}
-        >
-          &lt;
-        </button>
-        <button
-          type="button"
-          className="popup-card__stack-action"
-          aria-label="Next burial record at this marker"
-          onClick={(event) => {
-            stopMapInteractionPropagation(event);
-            onNextRecord?.(event);
-          }}
-        >
-          &gt;
-        </button>
-      </span>
-    </Box>
-  );
-}
-
 export function PopupCardContent({
   record,
   onNavigate,
@@ -67,10 +21,6 @@ export function PopupCardContent({
   schedulePopupLayout,
   showActions = false,
   showDetails = false,
-  stackDescription = "",
-  stackPositionLabel = "",
-  onPreviousRecord,
-  onNextRecord,
 }) {
   const popupView = buildPopupViewModel(record);
   const popupKey = createMapRecordKey(record, 0);
@@ -141,12 +91,6 @@ export function PopupCardContent({
           {popupView.sourceLabel}
         </Box>
       )}
-      <PopupCardStackNavigation
-        stackDescription={stackDescription}
-        stackPositionLabel={stackPositionLabel}
-        onPreviousRecord={onPreviousRecord}
-        onNextRecord={onNextRecord}
-      />
       <Box component="h3" className="popup-card__title">
         {popupView.heading}
       </Box>
@@ -158,11 +102,6 @@ export function PopupCardContent({
       {!popupView.subtitle && locationRow?.value && (
         <Box component="p" className="popup-card__subtitle">
           {locationRow.value}
-        </Box>
-      )}
-      {stackPositionLabel && (
-        <Box component="p" className="popup-card__hint">
-          Multiple graves here.
         </Box>
       )}
       {showDetails && popupView.paragraphs?.length > 0 && (
@@ -256,6 +195,84 @@ export function PopupCardContent({
   );
 }
 
+export function PopupCardStackList({
+  records = [],
+  activeRecordId = "",
+  onSelectRecord,
+  stackDescription = "",
+}) {
+  const validRecords = records.filter(Boolean);
+
+  const viewModels = useMemo(
+    () => validRecords.map((record) => buildPopupViewModel(record)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [validRecords.length, validRecords.map((r) => r?.id).join("|")]
+  );
+
+  if (validRecords.length < 2) {
+    return null;
+  }
+
+  const count = validRecords.length;
+
+  const handleListInteraction = (event) => {
+    stopMapInteractionPropagation(event);
+  };
+
+  return (
+    <div>
+      <p className="popup-card__stack-heading">{count} graves at this marker</p>
+      <ul
+        className="popup-card__stack-list"
+        aria-label={stackDescription || "Burial records at this marker"}
+        onMouseDown={handleListInteraction}
+        onPointerDown={handleListInteraction}
+        onTouchStart={handleListInteraction}
+      >
+        {validRecords.map((record, index) => {
+          const vm = viewModels[index];
+          const isActive = cleanRecordValue(record?.id) === cleanRecordValue(activeRecordId);
+          const bornRow = vm.rows.find(({ label }) => label === "Born");
+          const diedRow = vm.rows.find(({ label }) => label === "Died");
+          let metaText = "";
+          if (bornRow?.value && diedRow?.value) {
+            // Extract year portion from formatted date values (m/d/yyyy or raw year)
+            const bornYear = bornRow.value.match(/\d{4}/)?.[0] || bornRow.value;
+            const diedYear = diedRow.value.match(/\d{4}/)?.[0] || diedRow.value;
+            metaText = `${bornYear} – ${diedYear}`;
+          } else if (bornRow?.value) {
+            metaText = bornRow.value.match(/\d{4}/)?.[0] || bornRow.value;
+          } else if (diedRow?.value) {
+            metaText = diedRow.value.match(/\d{4}/)?.[0] || diedRow.value;
+          }
+
+          return (
+            <li key={createMapRecordKey(record, index)}>
+              <button
+                type="button"
+                className={[
+                  "popup-card__stack-option",
+                  isActive ? "popup-card__stack-option--active" : "",
+                ].filter(Boolean).join(" ")}
+                aria-current={isActive ? "true" : undefined}
+                onClick={(event) => {
+                  stopMapInteractionPropagation(event);
+                  onSelectRecord?.(record);
+                }}
+              >
+                <span className="popup-card__stack-option-name">{vm.heading}</span>
+                {metaText && (
+                  <span className="popup-card__stack-option-meta">{metaText}</span>
+                )}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 export function PopupCardStackContent({
   activeRecordId = "",
   getPopup,
@@ -299,23 +316,6 @@ export function PopupCardStackContent({
   );
   const activeRecord = stackRecords[activeIndex];
 
-  const selectRecordAt = useCallback((nextIndex, event) => {
-    stopMapInteractionPropagation(event);
-    if (stackRecords.length === 0) return;
-
-    const normalizedIndex = (nextIndex + stackRecords.length) % stackRecords.length;
-    const nextRecord = stackRecords[normalizedIndex];
-    const nextRecordId = cleanRecordValue(nextRecord?.id);
-    setCurrentRecordId(nextRecordId);
-    onSelectRecord?.(nextRecord);
-    schedulePopupLayout?.(getPopup?.());
-  }, [
-    getPopup,
-    onSelectRecord,
-    schedulePopupLayout,
-    stackRecords,
-  ]);
-
   useLayoutEffect(() => {
     schedulePopupLayout?.(getPopup?.());
   }, [activeIndex, getPopup, schedulePopupLayout]);
@@ -324,17 +324,29 @@ export function PopupCardStackContent({
     return null;
   }
 
+  const handleSelectRecord = (record) => {
+    const nextRecordId = cleanRecordValue(record?.id);
+    setCurrentRecordId(nextRecordId);
+    onSelectRecord?.(record);
+    schedulePopupLayout?.(getPopup?.());
+  };
+
   return (
-    <PopupCardContent
-      record={activeRecord}
-      onNavigate={(event) => onNavigate?.(event, activeRecord)}
-      onRemove={() => onRemove?.(activeRecord)}
-      getPopup={getPopup}
-      schedulePopupLayout={schedulePopupLayout}
-      stackDescription={`${stackRecords.length} burial records at this marker`}
-      stackPositionLabel={`${activeIndex + 1}/${stackRecords.length}`}
-      onPreviousRecord={(event) => selectRecordAt(activeIndex - 1, event)}
-      onNextRecord={(event) => selectRecordAt(activeIndex + 1, event)}
-    />
+    <>
+      <PopupCardStackList
+        records={stackRecords}
+        activeRecordId={currentRecordId}
+        onSelectRecord={handleSelectRecord}
+        stackDescription={`${stackRecords.length} burial records at this marker`}
+      />
+      <PopupCardContent
+        record={activeRecord}
+        onNavigate={(event) => onNavigate?.(event, activeRecord)}
+        onRemove={() => onRemove?.(activeRecord)}
+        showActions={Boolean(onNavigate || onRemove)}
+        getPopup={getPopup}
+        schedulePopupLayout={schedulePopupLayout}
+      />
+    </>
   );
 }

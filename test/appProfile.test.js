@@ -43,6 +43,23 @@ describe("app profile", () => {
     expect(typeof APP_PROFILE.features.recordPresentation.resolveImageUrl).toBe("function");
   });
 
+  test("rejects executable biography URL schemes from record fields", () => {
+    const { resolveBiographyLink } = APP_PROFILE.features.recordPresentation;
+    const executableScheme = ["java", "script:alert(1)"].join("");
+
+    expect(resolveBiographyLink({ biographyLink: "Schuyler70" })).toBe(
+      "https://www.albany.edu/arce/Schuyler70.html"
+    );
+    expect(resolveBiographyLink({ biographyLink: executableScheme })).toBe("");
+    expect(resolveBiographyLink({ Tour_Bio: "data:text/html,<script>alert(1)</script>" })).toBe("");
+    expect(resolveBiographyLink({ biographyLink: "mailto:person@example.com" })).toBe("");
+    expect(resolveBiographyLink({ biographyLink: "https://example.com/Schuyler70.html" })).toBe("");
+    expect(resolveBiographyLink({ biographyLink: "https://www.albany.edu/not-arce/Schuyler70.html" })).toBe("");
+    expect(resolveBiographyLink({ biographyLink: "https://www.albany.edu/arce/Schuyler70.html" })).toBe(
+      "https://www.albany.edu/arce/Schuyler70.html"
+    );
+  });
+
   test("exposes the iPhone app listing used by shared-link install prompts", () => {
     expect(APP_PROFILE.distribution.iosAppStoreUrl).toBe(
       "https://apps.apple.com/us/app/albany-grave-finder/id6746413050"

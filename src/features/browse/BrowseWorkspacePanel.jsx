@@ -90,13 +90,14 @@ const getMarkerToggleClassName = (showAllBurials = false) => [
   showAllBurials ? "left-sidebar__marker-toggle--active" : "",
 ].filter(Boolean).join(" ");
 
-function BrowseSearchField({
+export function BrowseSearchField({
   browseQuery,
   burialDataError,
   isBrowsePending,
   isBurialDataLoading,
   onBrowseQueryChange,
   onClearBrowseQuery,
+  onFocus,
   onRequestBurialDataLoad,
   searchPlaceholder,
 }) {
@@ -107,8 +108,11 @@ function BrowseSearchField({
       variant="outlined"
       size="small"
       value={browseQuery}
-      disabled={isBurialDataLoading || !!burialDataError}
-      onFocus={() => onRequestBurialDataLoad?.()}
+      error={Boolean(burialDataError)}
+      onFocus={() => {
+        onRequestBurialDataLoad?.();
+        onFocus?.();
+      }}
       onChange={onBrowseQueryChange}
       autoComplete="off"
       inputProps={{
@@ -613,6 +617,7 @@ export default function BrowseWorkspacePanel({
   resultsContent = null,
   searchPlaceholder, searchShellNotices = [],
   sectionFilter, selectedSectionOption, selectedTour, showAllBurials,
+  showSearchField = true,
   surfaceSx = {},
   tourDefinitions = [], tourLabel = "Tour", tourStyles = {}, uniqueSections = [],
 }) {
@@ -621,6 +626,10 @@ export default function BrowseWorkspacePanel({
   // On mobile, selected-record controls should appear before search and filters
   // so the current grave remains the first task in the drawer.
   const inlinePriorityContent = shouldPromotePriorityContent ? null : priorityContent;
+  // While a query is active on mobile, drop the visit-task shortcuts so results
+  // land directly under the pinned search bar, the way Maps switches modes.
+  const shouldShowVisitTasks = !shouldPromotePriorityContent
+    && !(isMobile && browseQuery.trim());
 
   return (
     <Box
@@ -646,18 +655,20 @@ export default function BrowseWorkspacePanel({
           </Box>
         )}
 
-        <BrowseSearchField
-          browseQuery={browseQuery}
-          burialDataError={burialDataError}
-          isBrowsePending={isBrowsePending}
-          isBurialDataLoading={isBurialDataLoading}
-          onBrowseQueryChange={onBrowseQueryChange}
-          onClearBrowseQuery={onClearBrowseQuery}
-          onRequestBurialDataLoad={onRequestBurialDataLoad}
-          searchPlaceholder={searchPlaceholder}
-        />
+        {showSearchField && (
+          <BrowseSearchField
+            browseQuery={browseQuery}
+            burialDataError={burialDataError}
+            isBrowsePending={isBrowsePending}
+            isBurialDataLoading={isBurialDataLoading}
+            onBrowseQueryChange={onBrowseQueryChange}
+            onClearBrowseQuery={onClearBrowseQuery}
+            onRequestBurialDataLoad={onRequestBurialDataLoad}
+            searchPlaceholder={searchPlaceholder}
+          />
+        )}
 
-        {!shouldPromotePriorityContent && (
+        {shouldShowVisitTasks && (
           <VisitTaskSelector
             browseSource={isTourBrowseVisible ? "tour" : isSectionBrowseVisible ? "section" : "all"}
             hasTourBrowse={hasTourBrowse}

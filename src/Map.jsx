@@ -53,6 +53,7 @@ import {
   buildRecordCoordinateGroups,
   clearMapSelectionFocus,
   clearMapSelectionFocusForRecord,
+  createLeafletTextContent,
   createViewportIntentController,
   createMapSelectionState,
   buildSectionAffordanceMarkers,
@@ -122,6 +123,7 @@ import {
   createSelectedBurialStackIcon,
   MAP_MARKER_COLORS,
 } from "./features/map/mapMarkerIcons";
+import { quantizeZoom, selectDecollidedMarkers } from "./features/map/mapMarkerDeclutter";
 import {
   clearStoredNavigationDestination,
   createNavigationDestinationRecord,
@@ -350,6 +352,7 @@ const bindReactPopup = ({
           record={record}
           onNavigate={onNavigate}
           onRemove={onRemove}
+          showActions={Boolean(onNavigate || onRemove)}
           getPopup={() => layer.getPopup?.()}
           schedulePopupLayout={schedulePopupLayout}
         />
@@ -658,6 +661,7 @@ export default function BurialMap() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
   const [hasRequestedBurialData, setHasRequestedBurialData] = useState(false);
+  const [burialDataLoadAttempt, setBurialDataLoadAttempt] = useState(0);
   const [fieldPacket, setFieldPacket] = useState(null);
   const [fieldPacketNotice, setFieldPacketNotice] = useState(null);
   const [sharedLinkLandingState, setSharedLinkLandingState] = useState(null);
@@ -702,11 +706,16 @@ export default function BurialMap() {
   const canSectionHoverRef = useRef(true);
   const recentTouchSectionInteractionRef = useRef(false);
   const sectionTooltipSyncFrameRef = useRef(null);
+  const sectionMarkerPresentationFrameRef = useRef(null);
+  const sectionMarkerPresentationTimeoutRef = useRef(null);
   const didApplyUrlStateRef = useRef(false);
   const loadedTourNamesRef = useRef(new Set());
   const loadingTourNamesRef = useRef(new Set());
   const selectedBurialRefs = useRef(new Map());
   const selectedMarkerLayersRef = useRef(new Map());
+  const lastSyncedSelectedMarkerActiveIdRef = useRef(null);
+  const lastSyncedSelectedMarkerHoveredIdRef = useRef(null);
+  const lastSyncedSelectedMarkerOrderRef = useRef(null);
   const tourFeatureLayersRef = useRef(new Map());
   const pendingPopupBurialRef = useRef(null);
   const popupBurialIdRef = useRef(null);
@@ -1286,6 +1295,33 @@ export default function BurialMap() {
   const sectionAffordanceMarkers = useMemo(
     () => buildSectionAffordanceMarkers(sectionsData, sectionBurialCounts),
     [sectionBurialCounts, sectionsData]
+  );
+
+  // Apple-style progressive disclosure: only render section markers that fit
+  // without overlapping at the current zoom; higher burial counts win the spot.
+  const quantizedMarkerZoom = quantizeZoom(currentZoom);
+  const visibleSectionAffordanceMarkers = useMemo(
+    () => selectDecollidedMarkers(sectionAffordanceMarkers, {
+      zoom: quantizedMarkerZoom,
+      getHalfExtentsPx: (marker) => ({
+        halfWidth: Math.max(
+          (Number(marker.size) || 26) / 2,
+          (`Sec ${marker.sectionValue}`.length * 6.5) / 2
+        ) + 3,
+        halfHeight: ((Number(marker.size) || 26) + 16) / 2 + 3,
+      }),
+    }),
+    [quantizedMarkerZoom, sectionAffordanceMarkers]
+  );
+  const visibleSectionOverviewMarkers = useMemo(
+    () => selectDecollidedMarkers(sectionOverviewMarkers, {
+      zoom: quantizedMarkerZoom,
+      getHalfExtentsPx: (marker) => ({
+        halfWidth: Math.max(15, (`Sec ${marker.sectionValue}`.length * 6.5) / 2) + 3,
+        halfHeight: 24,
+      }),
+    }),
+    [quantizedMarkerZoom, sectionOverviewMarkers]
   );
 
   const burialLookup = useMemo(
@@ -2144,9 +2180,20 @@ export default function BurialMap() {
     setAppMenuAnchorEl(null);
   }, []);
 
-  const requestBurialDataLoad = useCallback(() => {
+  const retryBurialDataLoad = useCallback(() => {
+    setBurialDataError('');
     setHasRequestedBurialData(true);
+    setBurialDataLoadAttempt((attempt) => attempt + 1);
   }, []);
+
+  const requestBurialDataLoad = useCallback(() => {
+    if (burialDataError && !isBurialDataLoading) {
+      retryBurialDataLoad();
+      return;
+    }
+
+    setHasRequestedBurialData(true);
+  }, [burialDataError, isBurialDataLoading, retryBurialDataLoad]);
 
   // Field packets snapshot the selected records plus enough map context to
   // restore a shared link without mixing it with loose query/section params.
@@ -2421,7 +2468,7 @@ export default function BurialMap() {
         return;
       }
 
-      clusterGroup.eachLayer?.((marker) => {
+      childMarkers.forEach((marker) => {
         const burial = marker?.burialRecord;
         if (!marker || !burial || typeof marker.setStyle !== "function") {
           return;
@@ -2476,6 +2523,7 @@ export default function BurialMap() {
   // helpers instead of relying on React prop reconciliation.
   const syncInteractiveSectionMarkers = useCallback((nextActiveId, nextHoveredId) => {
     const sectionMarkers = sectionMarkersByIdRef.current;
+    const currentZoom = getSectionBurialPresentationZoom();
     const markerIdsToSync = new Set([
       activeSectionMarkerIdRef.current,
       hoveredSectionMarkerIdRef.current,
@@ -2495,7 +2543,7 @@ export default function BurialMap() {
       const isHovered = !isActive && markerId === nextHoveredId;
 
       marker.setStyle(getSectionBurialMarkerStyle(burial, {
-        currentZoom: getSectionBurialPresentationZoom(),
+        currentZoom,
         individualMarkerMinZoom: sectionBurialIndividualMarkerMinZoomRef.current,
         isActive,
         isHovered,
@@ -2511,6 +2559,7 @@ export default function BurialMap() {
   }, [getSectionBurialPresentationZoom]);
 
   const syncAllSectionMarkerPresentation = useCallback(() => {
+    const currentZoom = getSectionBurialPresentationZoom();
     const markersToSync = new Set(sectionMarkersByIdRef.current.values());
     markerClusterRef.current?.eachLayer?.((marker) => {
       markersToSync.add(marker);
@@ -2530,7 +2579,7 @@ export default function BurialMap() {
         hoveredBurialIdRef.current === markerId
       );
       marker.setStyle(getSectionBurialMarkerStyle(burial, {
-        currentZoom: getSectionBurialPresentationZoom(),
+        currentZoom,
         individualMarkerMinZoom: sectionBurialIndividualMarkerMinZoomRef.current,
         isActive,
         isHovered,
@@ -2538,8 +2587,39 @@ export default function BurialMap() {
     });
   }, [getSectionBurialPresentationZoom]);
 
+  const scheduleAllSectionMarkerPresentationSync = useCallback((options = {}) => {
+    const { includeDelayed = false } = options;
+
+    if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+      syncAllSectionMarkerPresentation();
+      return;
+    }
+
+    if (sectionMarkerPresentationFrameRef.current !== null) {
+      window.cancelAnimationFrame(sectionMarkerPresentationFrameRef.current);
+    }
+
+    sectionMarkerPresentationFrameRef.current = window.requestAnimationFrame(() => {
+      sectionMarkerPresentationFrameRef.current = null;
+      syncAllSectionMarkerPresentation();
+    });
+
+    if (!includeDelayed) {
+      return;
+    }
+
+    if (sectionMarkerPresentationTimeoutRef.current !== null) {
+      window.clearTimeout(sectionMarkerPresentationTimeoutRef.current);
+    }
+
+    sectionMarkerPresentationTimeoutRef.current = window.setTimeout(() => {
+      sectionMarkerPresentationTimeoutRef.current = null;
+      syncAllSectionMarkerPresentation();
+    }, 180);
+  }, [syncAllSectionMarkerPresentation]);
+
   const showSectionTooltip = useCallback((layer, tooltip, label) => {
-    tooltip.setContent(label);
+    tooltip.setContent(createLeafletTextContent(label));
     if (!layer.getTooltip()) {
       layer.bindTooltip(tooltip);
     }
@@ -2671,6 +2751,36 @@ export default function BurialMap() {
       syncLeafletSelectedMarkerIcon(burialId);
     });
   }, [selectedMarkerOrderById, syncLeafletSelectedMarkerIcon]);
+
+  const syncChangedLeafletSelectedMarkerIcons = useCallback(() => {
+    const nextActiveBurialId = activeBurialIdRef.current;
+    const nextHoveredBurialId = hoveredBurialIdRef.current;
+    const selectedMarkerOrderChanged =
+      lastSyncedSelectedMarkerOrderRef.current !== selectedMarkerOrderById;
+
+    if (selectedMarkerOrderChanged) {
+      syncLeafletSelectedMarkerIcons();
+    } else {
+      const markerIdsToSync = new Set([
+        lastSyncedSelectedMarkerActiveIdRef.current,
+        lastSyncedSelectedMarkerHoveredIdRef.current,
+        nextActiveBurialId,
+        nextHoveredBurialId,
+      ].filter(Boolean));
+
+      markerIdsToSync.forEach((burialId) => {
+        syncLeafletSelectedMarkerIcon(burialId);
+      });
+    }
+
+    lastSyncedSelectedMarkerActiveIdRef.current = nextActiveBurialId;
+    lastSyncedSelectedMarkerHoveredIdRef.current = nextHoveredBurialId;
+    lastSyncedSelectedMarkerOrderRef.current = selectedMarkerOrderById;
+  }, [
+    selectedMarkerOrderById,
+    syncLeafletSelectedMarkerIcon,
+    syncLeafletSelectedMarkerIcons,
+  ]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -3208,7 +3318,7 @@ export default function BurialMap() {
     return () => {
       ignore = true;
     };
-  }, [getTourName, hasRequestedBurialData]);
+  }, [burialDataLoadAttempt, getTourName, hasRequestedBurialData]);
 
   useEffect(() => {
     let cancelled = false;
@@ -3440,7 +3550,7 @@ export default function BurialMap() {
     };
   }, [continueNavigationDestinationOnSite, requestCurrentLocation]);
 
-  const buildSectionMarker = useCallback((burial) => {
+  const buildSectionMarker = useCallback((burial, currentZoom = getSectionBurialPresentationZoom()) => {
     if (!Array.isArray(burial.coordinates)) {
       return null;
     }
@@ -3450,7 +3560,7 @@ export default function BurialMap() {
     const marker = L.circleMarker(
       [burial.coordinates[1], burial.coordinates[0]],
       getSectionBurialMarkerStyle(burial, {
-        currentZoom: getSectionBurialPresentationZoom(),
+        currentZoom,
         individualMarkerMinZoom: sectionBurialIndividualMarkerMinZoomRef.current,
         isActive,
         isHovered,
@@ -3534,10 +3644,11 @@ export default function BurialMap() {
 
       const batchMarkers = [];
       const batchEnd = Math.min(nextIndex + SECTION_MARKER_BATCH_SIZE, sectionBurials.length);
+      const batchZoom = getSectionBurialPresentationZoom();
 
       for (; nextIndex < batchEnd; nextIndex += 1) {
         const burial = sectionBurials[nextIndex];
-        const marker = buildSectionMarker(burial);
+        const marker = buildSectionMarker(burial, batchZoom);
 
         if (!marker) {
           continue;
@@ -3593,6 +3704,7 @@ export default function BurialMap() {
     showAllBurials,
     syncInteractiveSectionMarkers,
     getMapInstance,
+    getSectionBurialPresentationZoom,
   ]);
 
   useEffect(() => {
@@ -3600,12 +3712,12 @@ export default function BurialMap() {
       return;
     }
 
-    syncAllSectionMarkerPresentation();
+    scheduleAllSectionMarkerPresentationSync();
   }, [
     currentZoom,
     sectionFilter,
     showAllBurials,
-    syncAllSectionMarkerPresentation,
+    scheduleAllSectionMarkerPresentationSync,
   ]);
 
   useEffect(() => {
@@ -3613,12 +3725,12 @@ export default function BurialMap() {
   }, [activeBurialId, hoveredBurialId, syncInteractiveSectionMarkers]);
 
   useEffect(() => {
-    syncLeafletSelectedMarkerIcons();
+    syncChangedLeafletSelectedMarkerIcons();
   }, [
     activeBurialId,
     hoveredBurialId,
     selectedMarkerOrderById,
-    syncLeafletSelectedMarkerIcons,
+    syncChangedLeafletSelectedMarkerIcons,
   ]);
 
   useEffect(() => {
@@ -3671,12 +3783,24 @@ export default function BurialMap() {
     const nextZoom = map.getZoom();
     currentZoomRef.current = nextZoom;
     setCurrentZoom(nextZoom);
-    syncAllSectionMarkerPresentation();
-    if (typeof window !== "undefined") {
-      window.requestAnimationFrame?.(syncAllSectionMarkerPresentation);
-      window.setTimeout(syncAllSectionMarkerPresentation, 180);
+    scheduleAllSectionMarkerPresentationSync({ includeDelayed: true });
+  }, [scheduleAllSectionMarkerPresentationSync]);
+
+  useEffect(() => () => {
+    if (typeof window === "undefined") {
+      return;
     }
-  }, [syncAllSectionMarkerPresentation]);
+
+    if (sectionMarkerPresentationFrameRef.current !== null) {
+      window.cancelAnimationFrame(sectionMarkerPresentationFrameRef.current);
+      sectionMarkerPresentationFrameRef.current = null;
+    }
+
+    if (sectionMarkerPresentationTimeoutRef.current !== null) {
+      window.clearTimeout(sectionMarkerPresentationTimeoutRef.current);
+      sectionMarkerPresentationTimeoutRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     scheduleSectionTooltipSync();
@@ -4320,6 +4444,7 @@ export default function BurialMap() {
           onRemoveSelectedBurial={removeFromResults}
           onRequestBurialDataLoad={requestBurialDataLoad}
           onRequestHideChrome={handleToggleSearchPanel}
+          onRetryBurialDataLoad={retryBurialDataLoad}
           onSectionChange={activateSectionBrowse}
           onShareFieldPacket={shareFieldPacket}
           onStopRouting={stopRouting}
@@ -4442,8 +4567,8 @@ export default function BurialMap() {
             roadsData={roadsData}
             onZoomChange={handleZoomEnd}
             sectionsData={sectionsData}
-            sectionAffordanceMarkers={sectionAffordanceMarkers}
-            sectionOverviewMarkers={sectionOverviewMarkers}
+            sectionAffordanceMarkers={visibleSectionAffordanceMarkers}
+            sectionOverviewMarkers={visibleSectionOverviewMarkers}
             selectedTour={selectedTour}
             showRoads={showRoads}
             showSectionAffordanceMarkers={overlayVisibility.sections && showSectionAffordanceMarkers}
@@ -4617,6 +4742,7 @@ export default function BurialMap() {
                       onRemove={() => {
                         removeFromResults(burial.id);
                       }}
+                      showActions
                       schedulePopupLayout={schedulePopupLayout}
                       getPopup={() => selectedMarkerLayersRef.current.get(burial.id)?.getPopup?.()}
                     />

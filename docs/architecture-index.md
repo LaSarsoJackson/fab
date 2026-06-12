@@ -31,6 +31,10 @@ Use this file to decide which note to read before making a change.
   PMTiles previews, or site-twin tooling:
   [dev-branch-workflow.md](./dev-branch-workflow.md)
 
+- Changing branch policy, version numbers, changelog rules, CI/CD, deploy, or
+  release tags:
+  [release-workflow.md](./release-workflow.md)
+
 - Changing shared UI patterns, spacing, interaction, or motion:
   [ui-principles.md](./ui-principles.md)
 
@@ -46,4 +50,5 @@ Use this file to decide which note to read before making a change.
 - section browse and section marker parity
 - tour stop matching and tour popup data
 - contributor-facing docs drifting away from current architecture
+- release metadata drifting away from shipped package versions
 - comments that describe old architecture after source consolidation

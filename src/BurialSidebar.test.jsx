@@ -8,6 +8,16 @@ import { APP_PROFILE } from "./features/fab/profile";
 import { buildBurialBrowseResult } from "./features/browse/browseResults";
 import { buildSearchIndex } from "./features/browse/burialSearch";
 import { buildRecordCoordinateGroups } from "./features/map/mapDomain";
+import { buildLifeDatesSummary } from "./features/browse/sidebarPresentation";
+
+jest.mock("./features/browse/sidebarPresentation", () => {
+  const actual = jest.requireActual("./features/browse/sidebarPresentation");
+
+  return {
+    ...actual,
+    buildLifeDatesSummary: jest.fn(actual.buildLifeDatesSummary),
+  };
+});
 
 const mockBottomSheetState = { currentHeight: 0, lastProps: null, snapTo: jest.fn() };
 
@@ -82,6 +92,15 @@ const burialRecords = [
     { getTourName }
   ),
 ];
+
+const tourBrowseRecords = burialRecords.map((record, index) => ({
+  ...record,
+  id: `tour:Notable:${index + 1}:99:18`,
+  source: "tour",
+  title: "Notable",
+  tourKey: "Notable",
+  tourName: "Notables Tour 2020",
+}));
 
 const createBaseProps = () => ({
   activeBurialId: null,
@@ -161,7 +180,9 @@ const getCurrentMobileSheetSnap = (maxHeight = 1000) => {
 };
 
 const renderSidebar = (props = {}) => render(<BurialSidebar {...createBaseProps()} {...props} />);
-const getBrowseWorkspace = () => screen.getByLabelText("Search burials").closest(".left-sidebar__panel");
+// The search field lives inside the browse panel on desktop but in the pinned
+// sheet header on mobile, so resolve the workspace panel by its own class.
+const getBrowseWorkspace = () => document.querySelector(".left-sidebar__browse-workspace");
 
 describe("BurialSidebar", () => {
   beforeEach(() => {
@@ -233,6 +254,38 @@ describe("BurialSidebar", () => {
     );
   });
 
+  domTest("keeps the search field interactive while burial records are loading", () => {
+    const onRequestBurialDataLoad = jest.fn();
+
+    renderSidebar({
+      isBurialDataLoading: true,
+      isSearchIndexReady: false,
+      onRequestBurialDataLoad,
+    });
+
+    const input = screen.getByLabelText("Search burials");
+
+    expect(input).not.toBeDisabled();
+    fireEvent.focus(input);
+    expect(onRequestBurialDataLoad).toHaveBeenCalled();
+  });
+
+  domTest("shows an actionable retry when burial records fail to load", () => {
+    const onRetryBurialDataLoad = jest.fn();
+
+    renderSidebar({
+      burialDataError: "Burial records failed to load.",
+      isSearchIndexReady: false,
+      onRetryBurialDataLoad,
+    });
+
+    const input = screen.getByLabelText("Search burials");
+    expect(input).not.toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+    expect(onRetryBurialDataLoad).toHaveBeenCalledTimes(1);
+  });
+
   domTest("shows section browse results when a section is selected after initial render", () => {
     const { rerender } = renderSidebar();
 
@@ -263,13 +316,17 @@ describe("BurialSidebar", () => {
     expect(screen.getByRole("button", { name: "Explore Sections" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start a Tour" })).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Section" })).not.toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Search name, section, lot, or landmark/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Search graves & landmarks/i)).toBeInTheDocument();
     expect(screen.queryByText("Start with a section")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "More options" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Clear all browse filters")).not.toBeInTheDocument();
 
-    const input = screen.getByPlaceholderText(/Search name, section, lot, or landmark/i);
+    const input = screen.getByPlaceholderText(/Search graves & landmarks/i);
     fireEvent.focus(input);
+
+    // Focusing search expands the drawer to full height, like Apple Maps.
+    expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(1);
+    expect(mockBottomSheetState.snapTo.mock.calls[0][0]({ maxHeight: 1000 })).toBeCloseTo(920);
 
     fireEvent.change(input, { target: { value: "anna" } });
     flushBrowseTimers();
@@ -281,8 +338,8 @@ describe("BurialSidebar", () => {
     fireEvent.click(screen.getByLabelText("Clear search query"));
 
     expect(input).toHaveValue("");
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(390);
-    expect(mockBottomSheetState.snapTo).not.toHaveBeenCalled();
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(920);
+    expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(1);
   });
 
   domTest("lets mobile users collapse and reopen the search panel", () => {
@@ -420,7 +477,7 @@ describe("BurialSidebar", () => {
     expect(within(selectedSummary).queryByRole("button", { name: "Get to road" })).not.toBeInTheDocument();
   });
 
-  domTest("shows same-marker stack navigation in the compact mobile selection card while browse results are visible", () => {
+  domTest("shows same-marker stack list in the compact mobile selection card while browse results are visible", () => {
     const stackedSecondRecord = {
       ...burialRecords[1],
       coordinates: burialRecords[0].coordinates,
@@ -439,11 +496,17 @@ describe("BurialSidebar", () => {
 
     const selectedSummary = screen.getByText("2 graves here").closest(".left-sidebar__panel");
 
-    expect(within(selectedSummary).getByText("1/2")).toBeInTheDocument();
+    expect(within(selectedSummary).getByText("2 graves at this marker")).toBeInTheDocument();
 
-    fireEvent.click(within(selectedSummary).getByRole("button", {
-      name: "Next burial record at this marker",
-    }));
+    // The active record (Anna Tracy) should have aria-current="true" in the stack list
+    const annaButtons = within(selectedSummary).getAllByRole("button", { name: /Anna Tracy/i });
+    const annaStackOption = annaButtons.find((btn) => btn.classList.contains("popup-card__stack-option"));
+    expect(annaStackOption).toHaveAttribute("aria-current", "true");
+
+    // Clicking the second record's stack-option calls onFocusSelectedBurial with that record
+    const thomasButtons = within(selectedSummary).getAllByRole("button", { name: /Thomas Tracy/i });
+    const thomasStackOption = thomasButtons.find((btn) => btn.classList.contains("popup-card__stack-option"));
+    fireEvent.click(thomasStackOption);
 
     expect(onFocusSelectedBurial).toHaveBeenCalledWith(expect.objectContaining({
       id: stackedSecondRecord.id,
@@ -779,6 +842,99 @@ describe("BurialSidebar", () => {
     expect(screen.queryByRole("button", { name: "View list" })).not.toBeInTheDocument();
   });
 
+  domTest("does not re-render unchanged search result cards when hover ids change", () => {
+    const stableProps = createBaseProps();
+    const { rerender } = render(
+      <BurialSidebar
+        {...stableProps}
+        initialQuery="tracy"
+      />
+    );
+
+    flushBrowseTimers();
+    buildLifeDatesSummary.mockClear();
+
+    rerender(
+      <BurialSidebar
+        {...stableProps}
+        initialQuery="tracy"
+        hoveredBurialId={burialRecords[0].id}
+        onBrowseResultSelect={jest.fn()}
+        onHoverBurialChange={jest.fn()}
+      />
+    );
+
+    expect(buildLifeDatesSummary).toHaveBeenCalledTimes(1);
+    expect(buildLifeDatesSummary).toHaveBeenCalledWith(
+      expect.objectContaining({ id: burialRecords[0].id })
+    );
+  });
+
+  domTest("does not re-render unchanged section result cards when hover and active ids change", () => {
+    const { rerender } = renderSidebar({
+      sectionFilter: "99",
+      showAllBurials: true,
+    });
+
+    flushBrowseTimers();
+    buildLifeDatesSummary.mockClear();
+
+    rerender(
+      <BurialSidebar
+        {...createBaseProps()}
+        sectionFilter="99"
+        showAllBurials
+        hoveredBurialId={burialRecords[0].id}
+      />
+    );
+
+    expect(buildLifeDatesSummary).toHaveBeenCalledTimes(1);
+    expect(buildLifeDatesSummary).toHaveBeenCalledWith(
+      expect.objectContaining({ id: burialRecords[0].id })
+    );
+
+    buildLifeDatesSummary.mockClear();
+
+    rerender(
+      <BurialSidebar
+        {...createBaseProps()}
+        sectionFilter="99"
+        showAllBurials
+        activeBurialId={burialRecords[1].id}
+        hoveredBurialId={burialRecords[0].id}
+      />
+    );
+
+    expect(buildLifeDatesSummary).toHaveBeenCalledTimes(1);
+    expect(buildLifeDatesSummary).toHaveBeenCalledWith(
+      expect.objectContaining({ id: burialRecords[1].id })
+    );
+  });
+
+  domTest("does not re-render unchanged tour result cards when hover ids change", () => {
+    const { rerender } = renderSidebar({
+      selectedTour: "Notables Tour 2020",
+      tourResults: tourBrowseRecords,
+    });
+
+    flushBrowseTimers();
+    buildLifeDatesSummary.mockClear();
+
+    rerender(
+      <BurialSidebar
+        {...createBaseProps()}
+        hoveredBurialId={tourBrowseRecords[0].id}
+        selectedTour="Notables Tour 2020"
+        tourResults={tourBrowseRecords}
+      />
+    );
+
+    expect(buildLifeDatesSummary).toHaveBeenCalledTimes(1);
+    expect(buildLifeDatesSummary).toHaveBeenCalledWith(
+      expect.objectContaining({ id: tourBrowseRecords[0].id })
+    );
+  });
+
   domTest("shows the share link panel and copies a link from the current selection", () => {
     const onCopyFieldPacketLink = jest.fn();
 
@@ -1021,7 +1177,7 @@ describe("BurialSidebar", () => {
     flushBrowseTimers();
 
     const browseWorkspace = getBrowseWorkspace();
-    const searchInput = within(browseWorkspace).getByLabelText("Search burials");
+    const searchInput = screen.getByLabelText("Search burials");
     const selectedChip = within(browseWorkspace).getByText("1 selected");
     const selectionHeading = within(browseWorkspace).getByText("Selected grave");
     const selectionPanel = selectionHeading.closest(".left-sidebar__panel--selected-summary");
@@ -1029,11 +1185,13 @@ describe("BurialSidebar", () => {
     expect(selectionPanel).not.toBeNull();
     expect(within(selectionPanel).getByRole("button", { name: "Navigate" })).toBeInTheDocument();
     expect(within(selectedChip.closest(".left-sidebar__results-header")).getByRole("button", { name: "Clear selected" })).toBeInTheDocument();
+    // Search lives in the pinned sheet header above the body; the selected
+    // grave stays the first card in the body, ahead of browse results.
     expect(
       selectionHeading.compareDocumentPosition(selectedChip) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
     expect(
-      selectionHeading.compareDocumentPosition(searchInput) & Node.DOCUMENT_POSITION_FOLLOWING
+      searchInput.compareDocumentPosition(selectionHeading) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
   });
 
@@ -1075,6 +1233,99 @@ describe("BurialSidebar", () => {
     expect(within(browseWorkspace).getByText("8 selected")).toBeInTheDocument();
     expect(browseWorkspace).not.toBeNull();
     expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
+  });
+
+  domTest("keeps navigation on the lead selection only when multiple desktop graves are selected", () => {
+    const onFocusSelectedBurial = jest.fn();
+    const onNavigateToBurial = jest.fn();
+    const onRemoveSelectedBurial = jest.fn();
+
+    renderSidebar({
+      activeBurialId: burialRecords[0].id,
+      selectedBurials: burialRecords,
+      onFocusSelectedBurial,
+      onNavigateToBurial,
+      onRemoveSelectedBurial,
+    });
+
+    const selectionPanel = screen.getByText("Graves at this spot").closest(".left-sidebar__panel--selected-summary");
+    const leadCard = within(selectionPanel).getByText("Current selection").closest(".left-sidebar__selected-row--lead");
+    const secondaryRow = within(selectionPanel).getByText("Thomas Tracy").closest(".left-sidebar__selected-row");
+
+    expect(within(selectionPanel).getAllByRole("button", { name: "Navigate" })).toHaveLength(1);
+    fireEvent.click(within(leadCard).getByRole("button", { name: "Navigate" }));
+    expect(onNavigateToBurial).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ id: burialRecords[0].id }));
+
+    expect(within(secondaryRow).queryByRole("button", { name: "Navigate" })).not.toBeInTheDocument();
+    fireEvent.click(within(secondaryRow).getByRole("button", { name: "Close" }));
+    expect(onRemoveSelectedBurial).toHaveBeenCalledWith(burialRecords[1].id);
+
+    fireEvent.click(within(secondaryRow).getByRole("button", { name: /Thomas Tracy/i }));
+    expect(onFocusSelectedBurial).toHaveBeenCalledWith(expect.objectContaining({ id: burialRecords[1].id }));
+  });
+
+  domTest("renders tour portrait media in the desktop lead selection card", () => {
+    const selectedTourRecord = {
+      ...burialRecords[0],
+      id: "tour:Notable:desktop:99:18",
+      source: "tour",
+      title: "Notable",
+      tourKey: "Notable",
+      tourName: "Notables Tour 2020",
+      portraitImageName: "Schuyler70a.jpg",
+      biographyLink: "Schuyler70",
+    };
+
+    renderSidebar({
+      activeBurialId: selectedTourRecord.id,
+      selectedBurials: [selectedTourRecord],
+    });
+
+    const selectedPanel = screen.getByText("Current selection").closest(".left-sidebar__selected-row--lead");
+    const portrait = within(selectedPanel).getByAltText("Anna Tracy portrait");
+
+    expect(portrait).toHaveAttribute("src", expect.stringContaining("Schuyler70a.jpg"));
+    expect(within(selectedPanel).queryByRole("link", { name: "Anna Tracy portrait" })).not.toBeInTheDocument();
+  });
+
+  domTest("renders scoped browse results as a single scrollable list without pagination buttons", () => {
+    const sectionRecords = Array.from({ length: 12 }, (_, index) => buildBurialBrowseResult(
+      {
+        properties: {
+          OBJECTID: 100 + index,
+          First_Name: `Result${index + 1}`,
+          Last_Name: "Person",
+          Section: "99",
+          Lot: `${index + 1}`,
+          Tier: "0",
+          Grave: "0",
+        },
+        geometry: {
+          coordinates: [-73.73367 + (index * 0.00001), 42.71193],
+        },
+      },
+      { getTourName }
+    ));
+
+    renderSidebar({
+      burialRecords: sectionRecords,
+      searchIndex: buildSearchIndex(sectionRecords, { getTourName }),
+      sectionFilter: "99",
+      showAllBurials: true,
+    });
+
+    flushBrowseTimers();
+
+    const browseWorkspace = getBrowseWorkspace();
+    const resultsList = within(browseWorkspace)
+      .getAllByRole("list")
+      .find((list) => !list.closest(".left-sidebar__selected-scroll"));
+
+    expect(within(browseWorkspace).getByText("12 results")).toBeInTheDocument();
+    expect(within(resultsList).getAllByRole("button")).toHaveLength(12);
+    expect(within(resultsList).getByText("Result12 Person")).toBeInTheDocument();
+    expect(within(browseWorkspace).queryByRole("button", { name: "Show more" })).not.toBeInTheDocument();
+    expect(within(browseWorkspace).queryByRole("button", { name: "Show fewer" })).not.toBeInTheDocument();
   });
 
   domTest("tracks selected row hover by burial id", () => {
@@ -1146,5 +1397,203 @@ describe("BurialSidebar", () => {
     expect(screen.getByText(
       "Offline. Cached searches and cemetery layers may still work after a prior load; live maps, links, and GPS can be limited."
     )).toBeInTheDocument();
+  });
+
+  // Build a burial record that produces >4 filtered detail rows (Role, Rank,
+  // Initial term, Subsequent term, Unit, Headstone, Service — minus Location/Born/Died).
+  const buildRichBurialRecord = () => buildBurialBrowseResult(
+    {
+      properties: {
+        OBJECTID: 99,
+        First_Name: "Margaret",
+        Last_Name: "Wellstone",
+        Section: "12",
+        Lot: "7",
+        Tier: "1",
+        Grave: "3",
+        Birth: "3/15/1880",
+        Death: "11/2/1955",
+        Titles: "Mayor",
+        Highest_Ra: "Colonel",
+        Initial_Te: "1920–1924",
+        Subsequent: "1928–1932",
+        Unit: "3rd Albany Volunteers",
+        Headstone_: "Present",
+        Service_Re: "Civil War veteran",
+      },
+      geometry: {
+        coordinates: [-73.733, 42.712],
+      },
+    },
+    { getTourName }
+  );
+
+  domTest("mobile compact card shows first 4 detail rows and a More-details toggle when record has more", () => {
+    const richRecord = buildRichBurialRecord();
+
+    renderSidebar({
+      isMobile: true,
+      activeBurialId: richRecord.id,
+      selectedBurials: [richRecord],
+    });
+
+    const selectedSummary = screen.getByText("Selected grave").closest(".left-sidebar__panel");
+
+    // Should show exactly the first 4 filtered rows (Role, Rank, Initial term, Subsequent term)
+    expect(within(selectedSummary).getByText("Mayor")).toBeInTheDocument();
+    expect(within(selectedSummary).getByText("Colonel")).toBeInTheDocument();
+    expect(within(selectedSummary).getByText("1920–1924")).toBeInTheDocument();
+    expect(within(selectedSummary).getByText("1928–1932")).toBeInTheDocument();
+
+    // The 5th+ rows (Unit, Headstone, Service) should be hidden initially
+    expect(within(selectedSummary).queryByText("3rd Albany Volunteers")).not.toBeInTheDocument();
+    expect(within(selectedSummary).queryByText(/Civil War veteran/i)).not.toBeInTheDocument();
+
+    // The hidden count is 3 (Unit, Headstone, Service)
+    const toggleButton = within(selectedSummary).getByRole("button", { name: /More details \(3\)/i });
+    expect(toggleButton).toBeInTheDocument();
+  });
+
+  domTest("mobile compact card toggle reveals hidden rows and then collapses them again", () => {
+    const richRecord = buildRichBurialRecord();
+
+    renderSidebar({
+      isMobile: true,
+      activeBurialId: richRecord.id,
+      selectedBurials: [richRecord],
+    });
+
+    const selectedSummary = screen.getByText("Selected grave").closest(".left-sidebar__panel");
+
+    // Expand
+    fireEvent.click(within(selectedSummary).getByRole("button", { name: /More details/i }));
+
+    expect(within(selectedSummary).getByText("3rd Albany Volunteers")).toBeInTheDocument();
+    expect(within(selectedSummary).getByText(/Civil War veteran/i)).toBeInTheDocument();
+    expect(within(selectedSummary).getByRole("button", { name: "Fewer details" })).toBeInTheDocument();
+
+    // Collapse
+    fireEvent.click(within(selectedSummary).getByRole("button", { name: "Fewer details" }));
+
+    expect(within(selectedSummary).queryByText("3rd Albany Volunteers")).not.toBeInTheDocument();
+    expect(within(selectedSummary).getByRole("button", { name: /More details/i })).toBeInTheDocument();
+  });
+
+  domTest("mobile compact card resets to collapsed when the selected burial changes", () => {
+    const richRecord = buildRichBurialRecord();
+    const rerenderProps = createBaseProps();
+    const { rerender } = renderSidebar({
+      isMobile: true,
+      activeBurialId: richRecord.id,
+      selectedBurials: [richRecord],
+    });
+
+    const selectedSummary = () => screen.getByText("Selected grave").closest(".left-sidebar__panel");
+
+    // Expand
+    fireEvent.click(within(selectedSummary()).getByRole("button", { name: /More details/i }));
+    expect(within(selectedSummary()).getByText("3rd Albany Volunteers")).toBeInTheDocument();
+
+    // Switch to a different burial
+    rerender(
+      <BurialSidebar
+        {...rerenderProps}
+        isMobile
+        activeBurialId={burialRecords[0].id}
+        selectedBurials={[burialRecords[0]]}
+      />
+    );
+
+    // The toggle should be gone (Anna Tracy has no extra detail rows)
+    expect(within(selectedSummary()).queryByRole("button", { name: /More details/i })).not.toBeInTheDocument();
+    expect(within(selectedSummary()).queryByText("3rd Albany Volunteers")).not.toBeInTheDocument();
+  });
+
+  domTest("desktop lead card shows Show-details toggle when record has detail rows", () => {
+    const richRecord = buildRichBurialRecord();
+
+    renderSidebar({
+      activeBurialId: richRecord.id,
+      selectedBurials: [richRecord],
+    });
+
+    const selectedPanel = screen.getByText("Current selection").closest(".left-sidebar__selected-row--lead");
+
+    expect(within(selectedPanel).getByRole("button", { name: "Show details" })).toBeInTheDocument();
+    // Detail rows should be hidden initially
+    expect(within(selectedPanel).queryByText("Mayor")).not.toBeInTheDocument();
+  });
+
+  domTest("desktop lead card toggle reveals all filtered detail rows", () => {
+    const richRecord = buildRichBurialRecord();
+
+    renderSidebar({
+      activeBurialId: richRecord.id,
+      selectedBurials: [richRecord],
+    });
+
+    const selectedPanel = screen.getByText("Current selection").closest(".left-sidebar__selected-row--lead");
+
+    fireEvent.click(within(selectedPanel).getByRole("button", { name: "Show details" }));
+
+    expect(within(selectedPanel).getByRole("button", { name: "Hide details" })).toBeInTheDocument();
+    expect(within(selectedPanel).getByText("Mayor")).toBeInTheDocument();
+    expect(within(selectedPanel).getByText("Colonel")).toBeInTheDocument();
+    expect(within(selectedPanel).getByText("1920–1924")).toBeInTheDocument();
+    expect(within(selectedPanel).getByText("3rd Albany Volunteers")).toBeInTheDocument();
+    expect(within(selectedPanel).getByText(/Civil War veteran/i)).toBeInTheDocument();
+  });
+
+  domTest("desktop lead card shows Details link when the record has a biography link", () => {
+    const tourRecordWithLink = {
+      ...burialRecords[0],
+      id: "tour:Notable:bio:99:18",
+      source: "tour",
+      title: "Notable",
+      tourKey: "Notable",
+      tourName: "Notables Tour 2020",
+      portraitImageName: "Schuyler70a.jpg",
+      biographyLink: "Schuyler70",
+    };
+
+    renderSidebar({
+      activeBurialId: tourRecordWithLink.id,
+      selectedBurials: [tourRecordWithLink],
+    });
+
+    const selectedPanel = screen.getByText("Current selection").closest(".left-sidebar__selected-row--lead");
+
+    fireEvent.click(within(selectedPanel).getByRole("button", { name: "Show details" }));
+
+    const detailsLink = within(selectedPanel).getByRole("link", { name: "Details" });
+    expect(detailsLink).toHaveAttribute("href", "https://www.albany.edu/arce/Schuyler70.html");
+    expect(detailsLink).toHaveAttribute("target", "_blank");
+    expect(detailsLink).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  domTest("desktop lead card resets to collapsed when the selected burial changes", () => {
+    const richRecord = buildRichBurialRecord();
+    const rerenderProps = createBaseProps();
+    const { rerender } = renderSidebar({
+      activeBurialId: richRecord.id,
+      selectedBurials: [richRecord],
+    });
+
+    const getLeadPanel = () => screen.getByText("Current selection").closest(".left-sidebar__selected-row--lead");
+
+    fireEvent.click(within(getLeadPanel()).getByRole("button", { name: "Show details" }));
+    expect(within(getLeadPanel()).getByText("Mayor")).toBeInTheDocument();
+
+    rerender(
+      <BurialSidebar
+        {...rerenderProps}
+        activeBurialId={burialRecords[0].id}
+        selectedBurials={[burialRecords[0]]}
+      />
+    );
+
+    // Anna Tracy has no additional detail rows — toggle should be absent
+    expect(screen.queryByRole("button", { name: "Show details" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Hide details" })).not.toBeInTheDocument();
   });
 });

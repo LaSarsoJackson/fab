@@ -410,20 +410,36 @@ describe("mapChrome", () => {
     const clusterHtml = clusterMarker.getAttribute("data-icon-html");
 
     expect(affordanceHtml).toContain("section-marker-glyph");
+    expect(affordanceHtml).toContain("section-poi--overview");
     expect(clusterHtml).toContain("section-marker-glyph");
-    expect(clusterHtml).toContain("section-cluster");
-    expect(clusterHtml).toContain("cemetery-cluster--massive");
-    expect(clusterHtml).not.toContain("cemetery-cluster--burial");
-    expect(clusterHtml).toContain("cemetery-cluster__count");
-    expect(clusterHtml).toContain("1.3k");
+    expect(clusterHtml).toContain("section-poi--detail");
     expect(`${affordanceHtml}${clusterHtml}`).not.toContain("M13.2 12.2H19.8");
     expect(`${affordanceHtml}${clusterHtml}`).not.toContain("M16.5 9.4V15");
+  });
+
+  test("escapes section marker labels rendered through Leaflet div icons", () => {
+    render(
+      <MapSectionClusterMarkers
+        markers={[{
+          id: "section-overview:xss",
+          sectionValue: '<img src=x onerror=alert(1)>',
+          count: 1,
+          lat: 42.7085,
+          lng: -73.7305,
+          bounds: [[42.708, -73.731], [42.709, -73.73]],
+        }]}
+      />
+    );
+
+    const markerHtml = screen.getByTestId("leaflet-marker").getAttribute("data-icon-html");
+
+    expect(markerHtml).toContain("Sec &lt;img src=x onerror=alert(1)&gt;");
+    expect(markerHtml).not.toContain("<img src=x onerror=alert(1)>");
   });
 
   test("keeps exact cemetery burial cluster counts on the foreground cluster icon", () => {
     const icon = createCemeteryClusterIcon({ count: 42 });
 
-    expect(icon.options.html).toContain("section-marker-glyph");
     expect(icon.options.html).toContain("cemetery-cluster--burial");
     expect(icon.options.html).toContain("cemetery-cluster--dense");
     expect(icon.options.html).toContain('data-density-label="20 to 49 records"');
@@ -432,6 +448,18 @@ describe("mapChrome", () => {
     expect(icon.options.iconSize).toEqual([37, 37]);
     expect(icon.options.html).not.toContain("M13.2 12.2H19.8");
     expect(icon.options.html).not.toContain("M16.5 9.4V15");
+  });
+
+  test("escapes custom cluster labels before rendering Leaflet div icon HTML", () => {
+    const icon = createCemeteryClusterIcon({
+      count: 1,
+      label: '<img src=x onerror=alert(1)>',
+      densityLabel: '"><img src=x onerror=alert(1)>',
+    });
+
+    expect(icon.options.html).toContain("&lt;img src=x onerror=alert(1)&gt;");
+    expect(icon.options.html).toContain("&quot;&gt;&lt;img src=x onerror=alert(1)&gt;");
+    expect(icon.options.html).not.toContain("<img src=x onerror=alert(1)>");
   });
 
   test("keeps selected stack cluster density color classes", () => {

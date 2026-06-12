@@ -4,7 +4,7 @@ import {
   getMobileSheetSnapHeight,
   getMobileSheetStateFromHeight,
   MOBILE_SHEET_STATES,
-} from "../src/features/browse/sidebarState";
+} from "../src/features/browse/mobileSheetGeometry";
 
 describe("mobile sheet state helpers", () => {
   test("treats selected burials as mobile context so selections stay visible", () => {
@@ -68,6 +68,38 @@ describe("mobile sheet state helpers", () => {
       minHeight: 104,
       state: MOBILE_SHEET_STATES.FULL,
     })).toBeCloseTo(920);
+  });
+
+  test("uses a pinned header as the exact collapsed snap height", () => {
+    expect(getMobileSheetSnapHeight({
+      headerHeight: 128,
+      maxHeight: 1000,
+      minHeight: 500,
+      state: MOBILE_SHEET_STATES.COLLAPSED,
+    })).toBe(128);
+
+    expect(getMobileSheetSnapHeight({
+      headerHeight: 48,
+      maxHeight: 1000,
+      minHeight: 500,
+      state: MOBILE_SHEET_STATES.COLLAPSED,
+    })).toBe(76);
+  });
+
+  test("adds pinned header and body measurements before capping full snap height", () => {
+    expect(getMobileSheetSnapHeight({
+      headerHeight: 120,
+      maxHeight: 1000,
+      minHeight: 360,
+      state: MOBILE_SHEET_STATES.FULL,
+    })).toBe(480);
+
+    expect(getMobileSheetSnapHeight({
+      headerHeight: 120,
+      maxHeight: 1000,
+      minHeight: 900,
+      state: MOBILE_SHEET_STATES.FULL,
+    })).toBe(920);
   });
 
   test("caps snap heights to the visible mobile viewport", () => {

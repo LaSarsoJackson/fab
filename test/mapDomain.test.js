@@ -11,6 +11,7 @@ import {
   buildSectionOverviewMarkers,
   calculateLocationDistanceMeters,
   clearLeafletSectionHover,
+  createLeafletTextContent,
   createLeafletSectionHoverState,
   createViewportIntentController,
   formatSectionOverviewMarkerLabel,
@@ -652,6 +653,25 @@ describe("mapDomain", () => {
         showAllBurials: true,
       })).toBe(false);
     });
+
+    test("creates text-only section tooltip content for Leaflet", () => {
+      const createdNodes = [];
+      const documentRef = {
+        createTextNode: (text) => {
+          const node = { nodeType: 3, textContent: text };
+          createdNodes.push(node);
+          return node;
+        },
+      };
+
+      const content = createLeafletTextContent("Section <img src=x onerror=alert(1)>", documentRef);
+
+      expect(content).toEqual({
+        nodeType: 3,
+        textContent: "Section <img src=x onerror=alert(1)>",
+      });
+      expect(createdNodes).toHaveLength(1);
+    });
   });
 
   describe("route geometry rules", () => {
@@ -764,10 +784,12 @@ describe("mapDomain", () => {
       const hoveredStyle = getSectionBurialMarkerStyle({ id: "grave-a" }, { isHovered: true });
       const activeStyle = getSectionBurialMarkerStyle({ id: "grave-a" }, { isActive: true });
 
-      expect(new Set(fills).size).toBe(4);
+      expect(new Set(fills).size).toBe(1);
+      expect(fills[0]).toBe("#2f6b57");
       expect(baseStyle).toEqual(getSectionBurialMarkerStyle({ id: "grave-a" }));
       expect(hoveredStyle.radius).toBeGreaterThan(baseStyle.radius);
       expect(hoveredStyle.fillOpacity).toBeGreaterThan(baseStyle.fillOpacity);
+      expect(hoveredStyle.fillColor).toBe("#26594a");
       expect(activeStyle.radius).toBeGreaterThan(hoveredStyle.radius);
       expect(activeStyle.fillOpacity).toBeGreaterThan(hoveredStyle.fillOpacity);
     });

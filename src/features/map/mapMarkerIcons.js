@@ -50,25 +50,14 @@ const SECTION_CLUSTER_DENSITY_FALLBACK = {
 };
 
 const numberedMarkerIcons = new Map();
-const sectionClusterIcons = new Map();
-const sectionAffordanceIcons = new Map();
+const sectionPoiIcons = new Map();
 
-const formatSectionClusterCountLabel = (count = 0) => {
-  const normalizedCount = Math.max(0, Number(count) || 0);
-  if (normalizedCount >= 1000) {
-    return `${(normalizedCount / 1000).toFixed(normalizedCount >= 10000 ? 0 : 1).replace(/\.0$/, "")}k`;
-  }
-
-  return String(normalizedCount);
-};
-
-const getSectionClusterIconSize = (count = 0) => {
-  const normalizedCount = Math.max(0, Number(count) || 0);
-  if (normalizedCount >= 3000) return 34;
-  if (normalizedCount >= 1500) return 32;
-  if (normalizedCount >= 700) return 31;
-  return 30;
-};
+const escapeHtml = (value = "") => String(value)
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#39;");
 
 const getBurialClusterIconSize = (count = 0) => {
   const normalizedCount = Math.max(0, Number(count) || 0);
@@ -107,13 +96,40 @@ const getCemeteryClusterDensityLabel = (count = 0) => {
   return resolveClusterDensity(count, steps, fallback).label;
 };
 
-const getSectionClusterDensityClass = (count = 0) => (
-  getCemeteryClusterDensityClass(count, { scale: "section" })
-);
+export const getSectionPoiIcon = ({
+  sectionValue = "",
+  size = 26,
+  variant = "overview",
+  withLabel = true,
+} = {}) => {
+  const badge = Math.round(size);
+  const label = sectionValue ? `Sec ${sectionValue}` : "";
+  const escapedLabel = escapeHtml(label);
+  const cacheKey = `${sectionValue}:${size}:${variant}:${withLabel}`;
 
-const getSectionClusterDensityLabel = (count = 0) => {
-  const { steps, fallback } = getClusterDensityRules("section");
-  return resolveClusterDensity(count, steps, fallback).label;
+  if (sectionPoiIcons.has(cacheKey)) {
+    return sectionPoiIcons.get(cacheKey);
+  }
+
+  const html = `
+    <div class="section-poi section-poi--${variant}">
+      <div class="section-poi__badge" style="width:${badge}px;height:${badge}px;">
+        ${SECTION_MARKER_GLYPH}
+      </div>
+      ${withLabel && label ? `<span class="section-poi__label">${escapedLabel}</span>` : ""}
+    </div>
+  `;
+
+  const icon = L.divIcon({
+    html,
+    className: "section-poi-icon",
+    iconSize: [72, badge + 18],
+    iconAnchor: [36, badge / 2],
+    popupAnchor: [0, -badge / 2],
+  });
+
+  sectionPoiIcons.set(cacheKey, icon);
+  return icon;
 };
 
 export const createNumberedMarkerIcon = (number) => {
@@ -164,12 +180,13 @@ export const createCemeteryClusterIcon = ({
     : densityClassName;
   const wrapperClasses = [wrapperClassName, resolvedDensityClass].filter(Boolean).join(" ");
   const resolvedDensityLabel = densityLabel || getCemeteryClusterDensityLabel(normalizedCount);
+  const escapedDensityLabel = escapeHtml(resolvedDensityLabel);
+  const escapedLabel = escapeHtml(label);
 
   return L.divIcon({
     html: `
-      <div class="${wrapperClasses}" data-density-label="${resolvedDensityLabel}">
-        ${SECTION_MARKER_GLYPH}
-        <span class="cemetery-cluster__count">${label}</span>
+      <div class="${wrapperClasses}" data-density-label="${escapedDensityLabel}">
+        <span class="cemetery-cluster__count">${escapedLabel}</span>
       </div>
     `,
     className,
@@ -192,38 +209,19 @@ export const createSelectedBurialStackIcon = ({ count = 0, isHighlighted = false
 );
 
 export const getSectionClusterIcon = (count = 0) => {
-  const normalizedSize = getSectionClusterIconSize(count);
-  const label = formatSectionClusterCountLabel(count);
-  const cacheKey = `${normalizedSize}:${label}`;
-
-  if (!sectionClusterIcons.has(cacheKey)) {
-    sectionClusterIcons.set(cacheKey, createCemeteryClusterIcon({
-      count,
-      label,
-      size: normalizedSize,
-      wrapperClassName: "cemetery-cluster section-cluster",
-      className: "custom-cluster-icon section-cluster-icon",
-      densityClassName: getSectionClusterDensityClass(count),
-      densityLabel: getSectionClusterDensityLabel(count),
-    }));
-  }
-
-  return sectionClusterIcons.get(cacheKey);
+  return getSectionPoiIcon({
+    sectionValue: "",
+    size: 30,
+    variant: "detail",
+    withLabel: false,
+  });
 };
 
 export const getSectionAffordanceIcon = (size = 28) => {
-  const normalizedSize = Number.isFinite(Number(size))
-    ? Math.round(Number(size))
-    : 28;
-
-  if (!sectionAffordanceIcons.has(normalizedSize)) {
-    sectionAffordanceIcons.set(normalizedSize, L.divIcon({
-      html: `<div class="section-affordance">${SECTION_MARKER_GLYPH}</div>`,
-      className: "section-affordance-icon",
-      iconSize: [normalizedSize, normalizedSize],
-      iconAnchor: [normalizedSize / 2, normalizedSize / 2],
-    }));
-  }
-
-  return sectionAffordanceIcons.get(normalizedSize);
+  return getSectionPoiIcon({
+    sectionValue: "",
+    size,
+    variant: "overview",
+    withLabel: false,
+  });
 };

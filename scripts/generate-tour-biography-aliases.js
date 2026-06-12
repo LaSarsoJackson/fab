@@ -26,6 +26,8 @@ const main = async () => {
 
   const aliases = buildTourBiographyAliases(records);
 
+  // Keep this artifact as a plain lookup object; tour enrichment reads the
+  // three alias maps directly from the top-level object.
   await fs.writeFile(OUTPUT_PATH, `${JSON.stringify(aliases, null, 2)}\n`);
   console.log(`Wrote biography aliases to ${OUTPUT_PATH}`);
 };

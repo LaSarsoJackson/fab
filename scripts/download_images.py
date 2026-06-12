@@ -1,3 +1,11 @@
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "requests>=2.32.0",
+# ]
+# ///
+
 import os
 import requests
 from urllib.parse import urljoin
@@ -126,4 +134,4 @@ for filename in images_to_download:
     except requests.exceptions.RequestException as e:
         print(f"Error downloading {filename}: {e}")
 
-print("\nDownload complete! Images have been saved to the data/images directory.") 
+print("\nDownload complete! Images have been saved to the data/images directory.")

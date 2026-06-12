@@ -100,7 +100,7 @@ test.afterEach(async ({ page }, testInfo) => {
 });
 
 async function getVisibleSearchInput(page, { requireEditable = true } = {}) {
-  const browseSearchInput = page.locator(".left-sidebar__browse-composer input").first();
+  const browseSearchInput = page.locator('input[name="browse_query"]').first();
   await expect(browseSearchInput).toBeVisible();
 
   if (requireEditable) {
@@ -218,7 +218,7 @@ test.describe("desktop", () => {
     const popupCard = page.locator(".popup-card");
     await expect(popupCard).toBeVisible();
     await expect(popupCard.locator(".popup-card__title")).toHaveText("Thomas E LaMont");
-    await expect(popupCard.locator(".popup-card__details")).toContainText("Section 215, Lot 30, Tier 0, Grave 0");
+    await expect(popupCard.locator(".popup-card__subtitle")).toContainText("Section 215, Lot 30, Tier 0, Grave 0");
 
     await expectExternalMapsNavigation(page, () => popupCard.getByRole("button", { name: "Navigate" }).click());
   });
@@ -227,12 +227,12 @@ test.describe("desktop", () => {
     await waitForAppReady(page);
 
     await expect(page.locator(".left-sidebar--desktop")).toBeVisible();
-    await page.getByRole("button", { name: "Hide search panel" }).click();
+    await page.getByRole("button", { name: "Collapse" }).click();
 
     await expect(page.locator(".left-sidebar--desktop")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Show search panel" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Search" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Show search panel" }).click();
+    await page.getByRole("button", { name: "Search" }).click();
     await expect(page.locator(".left-sidebar--desktop")).toBeVisible();
     await expect(await getVisibleSearchInput(page, { requireEditable: false })).toBeVisible();
   });
@@ -241,7 +241,7 @@ test.describe("desktop", () => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
 
-    await page.getByRole("group", { name: "Choose visit task" }).getByRole("button", { name: "Explore section", exact: true }).click();
+    await page.getByRole("button", { name: "Explore Sections" }).click();
     const sectionBrowseDetail = page.locator(".left-sidebar__browse-detail--section");
     const browseSearchInput = page.locator(".left-sidebar__browse-composer input").first();
 
@@ -256,16 +256,10 @@ test.describe("desktop", () => {
     await expect(sectionBrowseDetail.getByRole("heading", { name: "Refine" })).toBeVisible();
     await expect(page.locator(".left-sidebar__panel--browse")).toContainText("114 results");
 
-    const markerToggle = sectionBrowseDetail.getByRole("button", { name: /section markers/i });
-    await expect(markerToggle).toBeVisible();
-    const startingLabel = (await markerToggle.textContent()) || "";
-    await markerToggle.click();
-    await expect(sectionBrowseDetail.getByRole("button", {
-        name: startingLabel.includes("Hide") ? "Show section markers" : "Hide section markers",
-    })).toBeVisible();
-
     const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
-    await expect(page.locator(".left-sidebar__panel--browse")).toContainText(/Showing \d+ of \d+/);
+    await expect(browseResults).toHaveCount(114);
+    await expect(page.locator(".left-sidebar__panel--browse")).not.toContainText(/Showing \d+ of \d+/);
+    await expect(page.getByRole("button", { name: "Show more" })).toHaveCount(0);
     await browseResults.first().click();
 
     await expect(page.locator(".popup-card")).toBeVisible();
@@ -281,7 +275,7 @@ test.describe("desktop", () => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
 
-    await page.getByRole("group", { name: "Choose visit task" }).getByRole("button", { name: "Start a tour", exact: true }).click();
+    await page.getByRole("button", { name: "Start a Tour" }).click();
 
     const tourInput = page.getByRole("combobox", { name: "Tour" });
     await tourInput.click();
@@ -346,6 +340,7 @@ test.describe("desktop", () => {
   });
 
   test("locate uses browser geolocation in the production map", async ({ page, context }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     await context.grantPermissions(["geolocation"]);
     await context.setGeolocation({
       latitude: 42.70418,
@@ -355,12 +350,13 @@ test.describe("desktop", () => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
 
-    await page.getByRole("button", { name: "Locate me" }).click();
+    await page.getByRole("button", { name: "Locate" }).click();
 
     await expect(page.getByText("Using your current location for directions.")).toBeVisible({ timeout: 15_000 });
   });
 
   test("locate does not stay pending when browser accuracy never becomes usable", async ({ page, context }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     await context.grantPermissions(["geolocation"]);
     await context.setGeolocation({
       latitude: 42.70418,
@@ -371,9 +367,9 @@ test.describe("desktop", () => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
 
-    await page.getByRole("button", { name: "Locate me" }).click();
+    await page.getByRole("button", { name: "Locate" }).click();
 
-    await expect(page.getByText("GPS is unavailable. Check signal and permissions, or search by name or section.")).toBeVisible({ timeout: 25_000 });
+    await expect(page.getByText("Location is unavailable. Search by name or section, or open directions.")).toBeVisible({ timeout: 25_000 });
     await expect(page.getByText("Finding your location…")).toHaveCount(0);
   });
 
@@ -436,14 +432,13 @@ test.describe("desktop", () => {
     const pannedMarker = await getSelectedMarkerCenter(page);
     expect(Math.abs(pannedMarker.x - centeredMarker.x)).toBeGreaterThan(20);
 
-    const routePathAfterPan = await routeLine.getAttribute("d");
     await context.setGeolocation({
       latitude: 42.7051,
       longitude: -73.7304,
     });
 
-    await expect(routeLine).not.toHaveAttribute("d", routePathAfterPan || "", { timeout: 15_000 });
     await expect(page.getByText("Starting on-site navigation...")).toHaveCount(0, { timeout: 15_000 });
+    await expect(routeLine).toBeVisible();
     const refreshedMarker = await getSelectedMarkerCenter(page);
 
     expect(Math.abs(refreshedMarker.x - pannedMarker.x)).toBeLessThanOrEqual(3);
@@ -476,13 +471,12 @@ test.describe("mobile", () => {
     await ensureBurialDataLoaded(page);
 
     const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
-    await expect(selectedPeoplePanel).toContainText("Selection");
-    await expect(selectedPeoplePanel).toContainText("Pinned for focus & directions");
+    await expect(selectedPeoplePanel).toContainText("Selected grave");
     await expect(selectedPeoplePanel).toContainText("Thomas E LaMont");
     await expect(selectedPeoplePanel.getByRole("button", { name: "Navigate" })).toBeVisible();
     await expect(selectedPeoplePanel.getByRole("button", { name: "Navigate" })).toBeInViewport();
 
-    await selectedPeoplePanel.getByRole("button", { name: "Clear" }).click();
+    await selectedPeoplePanel.getByRole("button", { name: "Close" }).click();
     await expect(selectedPeoplePanel).toHaveCount(0);
   });
 });

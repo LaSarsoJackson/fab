@@ -40,9 +40,12 @@ bun run start
 Common commands:
 
 - `bun run lint`: run the repository ESLint baseline
-- `bun run test`: run the default automated test suite
-- `bun run test:e2e`: run Playwright coverage
-- `bun run check`: run `doctor`, `lint`, and the default test suite
+- `bun run test`: run the default automated test suite; use this as the
+  standard local test command for ordinary changes
+- `bun run check`: run `doctor`, `lint`, release metadata validation, and the
+  default test suite
+- `bun run release:check`: verify SemVer, changelog, and release tag metadata
+- `bun run pr:check`: verify pull request branch policy when GitHub provides PR context
 - `bun run build:data`: regenerate search data, tour matches, and generated
   bounds
 - `bun run deploy`: build and publish the GitHub Pages deployment
@@ -50,6 +53,20 @@ Common commands:
 Development-only surfaces such as static admin, custom renderer experiments,
 PMTiles previews, and site-twin tooling live on `dev-features`; see
 [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md).
+
+## Branches and releases
+
+Use short-lived work branches for production changes. Branches into `master`
+or future `main` should use `codex/`, `feature/`, `fix/`, `docs/`, `chore/`,
+`release/`, or `hotfix/`. The `dev-features` branch is reserved for
+experimental and operator-only surfaces and should only be promoted through a
+focused pull request.
+
+FAB versions are SemVer values in [`package.json`](./package.json). Any
+production release must also update [`CHANGELOG.md`](./CHANGELOG.md) with a
+matching `## [X.Y.Z] - YYYY-MM-DD` section before tagging `vX.Y.Z`.
+See [`docs/release-workflow.md`](./docs/release-workflow.md) for the full
+pipeline, CI/CD jobs, and GitHub branch-protection settings.
 
 ## Project structure
 
@@ -117,12 +134,36 @@ bun run build:data
 
 ## Validation
 
-Recommended automated checks:
+Default automated check:
 
-- pure helper or data-shaping changes: `bun run test:bun`
-- DOM/component changes: `bun run test:dom`
-- cross-cutting or release-ready changes: `bun run check`
-- narrow retest during iteration: `bun test <path-to-test>` or `node_modules/.bin/jest --config ./jest.dom.config.cjs <path-to-test>`
+- `bun run test`: run the standard local test suite, including Bun pure logic
+  tests and Jest/jsdom DOM tests.
+
+Test placement conventions for new or touched tests:
+
+- Pure logic tests belong in `test/<module>.test.js` and run under `bun test`
+  or `bun run test:bun`.
+- DOM and component tests belong beside the component as
+  `src/**/<Component>.test.jsx` and run under Jest/jsdom with
+  `bun run test:dom`.
+- Browser flows belong in `e2e/` and run under Playwright with
+  `bun run test:e2e`.
+
+Do not rename existing tests opportunistically. Keep test-file moves as a
+separate, reviewable pass because many tests may already be modified in active
+worktrees.
+
+Targeted and advanced checks:
+
+- Pure helper or data-shaping retest: `bun run test:bun`
+- DOM/component retest: `bun run test:dom`
+- Browser-flow retest: `bun run test:e2e`
+- Cross-cutting or release-ready gate: `bun run check`
+- Narrow iteration: `bun test <path-to-test>` or
+  `node_modules/.bin/jest --config ./jest.dom.config.cjs <path-to-test>`
+- Coverage: `bun run test:coverage`. Bun prints coverage for pure logic tests in
+  the terminal, and Jest writes DOM coverage files to the default root
+  `coverage/` directory.
 
 If you change map or selection behavior:
 
@@ -158,4 +199,6 @@ If you change shared UI:
 - Call out any effect on hosted URLs, deep links, or `FABFG` behavior.
 - Mention regenerated artifacts when source data changed.
 - List the commands you ran.
+- Pick the release impact in the pull request template: none, patch, minor, or
+  major.
 - Prefer additive refactors over broad moves unless the move is the work.

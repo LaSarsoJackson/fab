@@ -149,7 +149,7 @@ self.addEventListener('fetch', (event) => {
   if (JSON_ASSET_PATTERN.test(requestUrl.pathname)) {
     if (FIELD_SEARCH_PAYLOAD_PATTERN.test(requestUrl.pathname)) {
       event.respondWith(
-        networkFirst(request, {
+        staleWhileRevalidate(request, {
           cacheName: RUNTIME_CACHE,
           maxBytes: MAX_FIELD_DATA_CACHE_BYTES,
         })
