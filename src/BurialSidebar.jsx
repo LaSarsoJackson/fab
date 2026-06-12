@@ -44,7 +44,7 @@ import {
   getSelectedPlaceTypeLabel,
   hasFieldPacketContent,
 } from "./features/browse/selectedRecordPresentation";
-import { buildSharedSelectionPresentation } from "./features/fieldPackets";
+import { buildFieldPacketPanelPresentation } from "./features/fieldPackets";
 import { PopupCardStackList } from "./features/map/popupCardContent";
 import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordPresentation";
 import { resolvePortraitImageName } from "./features/tours/tourDerivedData";
@@ -1529,27 +1529,48 @@ function FieldPacketPanel({
   sharedLinkLandingState,
   showIosInstallHint,
 }) {
-  const packetRecords = fieldPacket?.selectedRecords || EMPTY_PACKET_RECORDS;
-  const hasPacket = packetRecords.length > 0;
-  const hasSelectedBurials = selectedBurials.length > 0;
-  const canUseNativeShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
-  const canInstallApp = Boolean(installPromptEvent) && !isInstalled;
-  const canOpenIosAppStore = Boolean(iosAppStoreUrl) && !isInstalled;
-  const displayRecordCount = hasPacket ? packetRecords.length : selectedBurials.length;
-  const fieldPacketPresentation = useMemo(
-    () => buildSharedSelectionPresentation(fieldPacket || {}),
-    [fieldPacket]
+  const hasNativeShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+  const panelPresentation = useMemo(
+    () => buildFieldPacketPanelPresentation({
+      fieldPacket,
+      fieldPacketNotice,
+      hasNativeShare,
+      installPromptEvent,
+      iosAppStoreUrl,
+      isInstalled,
+      selectedBurials,
+    }),
+    [
+      fieldPacket,
+      fieldPacketNotice,
+      hasNativeShare,
+      installPromptEvent,
+      iosAppStoreUrl,
+      isInstalled,
+      selectedBurials,
+    ]
   );
-  const noticeColor = fieldPacketNotice?.tone === "success"
-    ? "var(--accent)"
-    : fieldPacketNotice?.tone === "warning"
-      ? "#9a6c19"
-      : "var(--muted-text)";
+  const {
+    canCopyOrShare,
+    canInstallApp,
+    canOpenIosAppStore,
+    canUseNativeShare,
+    displayRecordCountLabel,
+    emptyStateMessage,
+    hasMapContext,
+    hasPacket,
+    hasSectionFilter,
+    hasSelectedTour,
+    noticeColor,
+    panelPadding,
+    savedDetailsHint,
+    sharedSelectionPresentation,
+  } = panelPresentation;
 
   return (
     <Box
       className="left-sidebar__panel left-sidebar__panel--field-packet left-sidebar__panel--surface"
-      sx={{ ...panelSurfaceStyles, p: hasPacket ? 1.75 : 1.55 }}
+      sx={{ ...panelSurfaceStyles, p: panelPadding }}
     >
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1.25, mb: 1 }}>
         <Box sx={{ minWidth: 0 }}>
@@ -1560,7 +1581,7 @@ function FieldPacketPanel({
         </Box>
         <Chip
           size="small"
-          label={`${displayRecordCount} record${displayRecordCount === 1 ? "" : "s"}`}
+          label={displayRecordCountLabel}
         />
       </Box>
 
@@ -1584,7 +1605,7 @@ function FieldPacketPanel({
             Opened from a shared link
           </Typography>
           <Typography variant="body2" sx={{ mt: 0.5, color: "var(--muted-text)" }}>
-            {fieldPacketPresentation.description}
+            {sharedSelectionPresentation.description}
           </Typography>
           {(canInstallApp || canOpenIosAppStore) && (
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1.15 }}>
@@ -1638,13 +1659,13 @@ function FieldPacketPanel({
             Anyone with the link can see this title, message, and saved view.
           </Typography>
           <Box className="left-sidebar__chip-row" sx={{ mt: 1.25 }}>
-            {fieldPacket?.sectionFilter && (
-              <Chip size="small" variant="outlined" label={`Section ${fieldPacket.sectionFilter}`} />
+            {hasSectionFilter && (
+              <Chip size="small" variant="outlined" label={sharedSelectionPresentation.sectionLabel} />
             )}
-            {fieldPacket?.selectedTour && (
-              <Chip size="small" variant="outlined" label={fieldPacket.selectedTour} />
+            {hasSelectedTour && (
+              <Chip size="small" variant="outlined" label={sharedSelectionPresentation.selectedTour} />
             )}
-            {fieldPacket?.mapBounds && (
+            {hasMapContext && (
               <Chip size="small" variant="outlined" label="Map context saved" />
             )}
           </Box>
@@ -1656,16 +1677,12 @@ function FieldPacketPanel({
               color: "var(--muted-text)",
             }}
           >
-            {hasSelectedBurials
-              ? "Copying or sharing updates the link to the current selection and map view."
-              : "This link restores the saved selection and map view."}
+            {savedDetailsHint}
           </Typography>
         </>
       ) : (
         <Typography variant="body2" sx={{ color: "var(--muted-text)" }}>
-          {hasSelectedBurials
-            ? `${selectedBurials.length} selected record${selectedBurials.length === 1 ? "" : "s"} ready to share.`
-            : "Select one or more records to create a share link."}
+          {emptyStateMessage}
         </Typography>
       )}
 
@@ -1680,7 +1697,7 @@ function FieldPacketPanel({
           size="small"
           variant="contained"
           onClick={onCopyFieldPacketLink}
-          disabled={!hasPacket && !hasSelectedBurials}
+          disabled={!canCopyOrShare}
         >
           Copy share link
         </Button>
@@ -1689,7 +1706,7 @@ function FieldPacketPanel({
             size="small"
             variant="outlined"
             onClick={onShareFieldPacket}
-            disabled={!hasPacket && !hasSelectedBurials}
+            disabled={!canCopyOrShare}
           >
             Share link
           </Button>
