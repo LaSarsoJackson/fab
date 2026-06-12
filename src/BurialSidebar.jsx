@@ -50,6 +50,7 @@ import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordP
 import { resolvePortraitImageName } from "./features/tours/tourDerivedData";
 import { MOBILE_SHEET_STATES } from "./features/browse/mobileSheetGeometry";
 import {
+  buildMobileSheetRevealIntent,
   useBurialSidebarBrowseState,
   useBurialSidebarMobileSheetState,
 } from "./features/browse/sidebarState";
@@ -1928,55 +1929,43 @@ function BurialSidebar({
   }, [isMobile, resolvedMobileSheetState]);
 
   useEffect(() => {
-    const currentSelectionSignature = selectedBurials.map((record) => record.id).sort().join("|");
     const previousActiveBurialId = previousActiveBurialIdRef.current;
     const previousSectionFilter = previousSectionFilterRef.current;
     const previousSelectedTour = previousSelectedTourRef.current;
     const previousSelectionSignature = previousSelectionSignatureRef.current;
+    const revealIntent = buildMobileSheetRevealIntent({
+      activeBurialId,
+      isMobile,
+      previousActiveBurialId,
+      previousSectionFilter,
+      previousSelectedTour,
+      previousSelectionSignature,
+      resolvedMobileSheetState,
+      sectionFilter,
+      selectedBurials,
+      selectedTour,
+    });
 
     previousActiveBurialIdRef.current = activeBurialId;
     previousSectionFilterRef.current = sectionFilter;
     previousSelectedTourRef.current = selectedTour;
-    previousSelectionSignatureRef.current = currentSelectionSignature;
+    previousSelectionSignatureRef.current = revealIntent.currentSelectionSignature;
 
     if (!isMobile) {
       return;
     }
 
-    const didSelectionChange = Boolean(currentSelectionSignature)
-      && currentSelectionSignature !== previousSelectionSignature;
-    const didActiveBurialChange = Boolean(activeBurialId)
-      && activeBurialId !== previousActiveBurialId;
-    const didSectionChange = Boolean(sectionFilter)
-      && sectionFilter !== previousSectionFilter;
-    const didTourChange = Boolean(selectedTour)
-      && selectedTour !== previousSelectedTour;
-    const shouldRevealSelectedRecord = selectedBurials.length > 0
-      && (didSelectionChange || didActiveBurialChange);
-    const shouldRevealBrowseContext = selectedBurials.length === 0
-      && (didSectionChange || didTourChange);
-
-    if (!shouldRevealSelectedRecord && !shouldRevealBrowseContext) {
+    if (!revealIntent.shouldRevealSelectedRecord && !revealIntent.shouldRevealBrowseContext) {
       return;
     }
 
     // Mobile keeps the map usable by default, then reveals the drawer when a
     // user action creates a result or selection worth inspecting.
-    if (
-      shouldRevealSelectedRecord
-      && resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED
-    ) {
+    if (revealIntent.shouldExpandMobileSheet) {
       expandMobileSheet();
     }
 
-    if (
-      shouldRevealBrowseContext
-      && resolvedMobileSheetState !== MOBILE_SHEET_STATES.FULL
-    ) {
-      expandMobileSheet();
-    }
-
-    if (didSelectionChange || shouldRevealBrowseContext) {
+    if (revealIntent.shouldScrollMobileSheetToTop) {
       scrollMobileSheetToTop("auto");
     }
   }, [

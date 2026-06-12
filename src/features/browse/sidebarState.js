@@ -22,6 +22,60 @@ const ASYNC_BROWSE_RECORD_THRESHOLD = 5000;
 const BROWSE_RESULTS_CACHE_LIMIT = 24;
 let browseSearchWorkerFactoryPromise = null;
 
+export const buildMobileSheetRevealIntent = ({
+  activeBurialId = "",
+  isMobile = false,
+  previousActiveBurialId = "",
+  previousSectionFilter = "",
+  previousSelectedTour = "",
+  previousSelectionSignature = "",
+  resolvedMobileSheetState = MOBILE_SHEET_STATES.PEEK,
+  sectionFilter = "",
+  selectedBurials = [],
+  selectedTour = "",
+} = {}) => {
+  const currentSelectionSignature = selectedBurials
+    .map((record) => record.id)
+    .sort()
+    .join("|");
+  const didSelectionChange = Boolean(currentSelectionSignature)
+    && currentSelectionSignature !== previousSelectionSignature;
+  const didActiveBurialChange = Boolean(activeBurialId)
+    && activeBurialId !== previousActiveBurialId;
+  const didSectionChange = Boolean(sectionFilter)
+    && sectionFilter !== previousSectionFilter;
+  const didTourChange = Boolean(selectedTour)
+    && selectedTour !== previousSelectedTour;
+  const shouldRevealSelectedRecord = Boolean(isMobile)
+    && selectedBurials.length > 0
+    && (didSelectionChange || didActiveBurialChange);
+  const shouldRevealBrowseContext = Boolean(isMobile)
+    && selectedBurials.length === 0
+    && (didSectionChange || didTourChange);
+
+  return {
+    currentSelectionSignature,
+    didActiveBurialChange,
+    didSectionChange,
+    didSelectionChange,
+    didTourChange,
+    shouldExpandMobileSheet: (
+      (
+        shouldRevealSelectedRecord
+        && resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED
+      ) ||
+      (
+        shouldRevealBrowseContext
+        && resolvedMobileSheetState !== MOBILE_SHEET_STATES.FULL
+      )
+    ),
+    shouldRevealBrowseContext,
+    shouldRevealSelectedRecord,
+    shouldScrollMobileSheetToTop: Boolean(isMobile)
+      && (didSelectionChange || shouldRevealBrowseContext),
+  };
+};
+
 const canUseBrowseSearchWorker = () => (
   typeof window !== "undefined" &&
   typeof window.Worker === "function"
