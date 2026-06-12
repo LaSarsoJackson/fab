@@ -52,6 +52,7 @@ import { MOBILE_SHEET_STATES } from "./features/browse/mobileSheetGeometry";
 import {
   buildBrowseSourceChangeIntent,
   buildClearAllBrowseStateIntent,
+  buildMobileSearchPanelToggleIntent,
   buildMobileSheetRevealIntent,
   useBurialSidebarBrowseState,
   useBurialSidebarMobileSheetState,
@@ -2099,26 +2100,30 @@ function BurialSidebar({
   }, [browseSource, hasTourBrowse, setBrowseSource]);
 
   const handleToggleMobileSearchPanel = useCallback(() => {
-    if (!isMobile) {
-      return;
+    const intent = buildMobileSearchPanelToggleIntent({
+      canRequestHideChrome: Boolean(onRequestHideChrome),
+      isMobile,
+      isMobileSearchPanelCollapsedByControl,
+      resolvedMobileSheetState,
+    });
+
+    if (intent.shouldSetMobileSearchPanelCollapsedByControl) {
+      setIsMobileSearchPanelCollapsedByControl(
+        intent.isMobileSearchPanelCollapsedByControlToSet
+      );
     }
 
-    const isCurrentlyCollapsed = isMobileSearchPanelCollapsedByControl
-      || resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED;
-
-    if (isCurrentlyCollapsed) {
-      setIsMobileSearchPanelCollapsedByControl(false);
+    if (intent.shouldExpandMobileSheet) {
       expandMobileSheet();
-      return;
     }
 
-    if (onRequestHideChrome) {
+    if (intent.shouldRequestHideChrome) {
       onRequestHideChrome();
-      return;
     }
 
-    setIsMobileSearchPanelCollapsedByControl(true);
-    collapseMobileSheet();
+    if (intent.shouldCollapseMobileSheet) {
+      collapseMobileSheet();
+    }
   }, [
     collapseMobileSheet,
     expandMobileSheet,

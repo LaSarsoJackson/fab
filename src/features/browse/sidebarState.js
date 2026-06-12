@@ -22,6 +22,51 @@ const ASYNC_BROWSE_RECORD_THRESHOLD = 5000;
 const BROWSE_RESULTS_CACHE_LIMIT = 24;
 let browseSearchWorkerFactoryPromise = null;
 
+export const buildMobileSearchPanelToggleIntent = ({
+  canRequestHideChrome = false,
+  isMobile = false,
+  isMobileSearchPanelCollapsedByControl = false,
+  resolvedMobileSheetState = MOBILE_SHEET_STATES.PEEK,
+} = {}) => {
+  const defaultIntent = {
+    isMobileSearchPanelCollapsedByControlToSet: null,
+    shouldCollapseMobileSheet: false,
+    shouldExpandMobileSheet: false,
+    shouldRequestHideChrome: false,
+    shouldSetMobileSearchPanelCollapsedByControl: false,
+  };
+
+  if (!isMobile) {
+    return defaultIntent;
+  }
+
+  const isCurrentlyCollapsed = Boolean(isMobileSearchPanelCollapsedByControl)
+    || resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED;
+
+  if (isCurrentlyCollapsed) {
+    return {
+      ...defaultIntent,
+      isMobileSearchPanelCollapsedByControlToSet: false,
+      shouldExpandMobileSheet: true,
+      shouldSetMobileSearchPanelCollapsedByControl: true,
+    };
+  }
+
+  if (canRequestHideChrome) {
+    return {
+      ...defaultIntent,
+      shouldRequestHideChrome: true,
+    };
+  }
+
+  return {
+    ...defaultIntent,
+    isMobileSearchPanelCollapsedByControlToSet: true,
+    shouldCollapseMobileSheet: true,
+    shouldSetMobileSearchPanelCollapsedByControl: true,
+  };
+};
+
 export const buildClearAllBrowseStateIntent = ({
   lotTierFilter = "",
   sectionFilter = "",

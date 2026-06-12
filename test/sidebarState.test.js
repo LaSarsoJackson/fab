@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildBrowseSourceChangeIntent,
   buildClearAllBrowseStateIntent,
+  buildMobileSearchPanelToggleIntent,
   buildMobileSheetRevealIntent,
 } from "../src/features/browse/sidebarState";
 import { MOBILE_SHEET_STATES } from "../src/features/browse/mobileSheetGeometry";
@@ -222,6 +223,77 @@ describe("sidebar state helpers", () => {
       shouldClearTourSelection: false,
       shouldClearLotTierFilter: false,
       shouldExpandMobileSheet: true,
+    });
+  });
+
+  test("builds mobile search-panel toggle intent as a desktop no-op", () => {
+    expect(buildMobileSearchPanelToggleIntent({
+      canRequestHideChrome: true,
+      isMobile: false,
+      isMobileSearchPanelCollapsedByControl: false,
+      resolvedMobileSheetState: MOBILE_SHEET_STATES.PEEK,
+    })).toEqual({
+      isMobileSearchPanelCollapsedByControlToSet: null,
+      shouldCollapseMobileSheet: false,
+      shouldExpandMobileSheet: false,
+      shouldRequestHideChrome: false,
+      shouldSetMobileSearchPanelCollapsedByControl: false,
+    });
+  });
+
+  test("builds mobile search-panel toggle intent to reopen a collapsed panel", () => {
+    expect(buildMobileSearchPanelToggleIntent({
+      canRequestHideChrome: true,
+      isMobile: true,
+      isMobileSearchPanelCollapsedByControl: true,
+      resolvedMobileSheetState: MOBILE_SHEET_STATES.PEEK,
+    })).toEqual({
+      isMobileSearchPanelCollapsedByControlToSet: false,
+      shouldCollapseMobileSheet: false,
+      shouldExpandMobileSheet: true,
+      shouldRequestHideChrome: false,
+      shouldSetMobileSearchPanelCollapsedByControl: true,
+    });
+
+    expect(buildMobileSearchPanelToggleIntent({
+      canRequestHideChrome: false,
+      isMobile: true,
+      isMobileSearchPanelCollapsedByControl: false,
+      resolvedMobileSheetState: MOBILE_SHEET_STATES.COLLAPSED,
+    })).toMatchObject({
+      isMobileSearchPanelCollapsedByControlToSet: false,
+      shouldExpandMobileSheet: true,
+      shouldSetMobileSearchPanelCollapsedByControl: true,
+    });
+  });
+
+  test("builds mobile search-panel toggle intent to request external chrome hiding first", () => {
+    expect(buildMobileSearchPanelToggleIntent({
+      canRequestHideChrome: true,
+      isMobile: true,
+      isMobileSearchPanelCollapsedByControl: false,
+      resolvedMobileSheetState: MOBILE_SHEET_STATES.PEEK,
+    })).toEqual({
+      isMobileSearchPanelCollapsedByControlToSet: null,
+      shouldCollapseMobileSheet: false,
+      shouldExpandMobileSheet: false,
+      shouldRequestHideChrome: true,
+      shouldSetMobileSearchPanelCollapsedByControl: false,
+    });
+  });
+
+  test("builds mobile search-panel toggle intent to locally collapse when chrome cannot hide", () => {
+    expect(buildMobileSearchPanelToggleIntent({
+      canRequestHideChrome: false,
+      isMobile: true,
+      isMobileSearchPanelCollapsedByControl: false,
+      resolvedMobileSheetState: MOBILE_SHEET_STATES.FULL,
+    })).toEqual({
+      isMobileSearchPanelCollapsedByControlToSet: true,
+      shouldCollapseMobileSheet: true,
+      shouldExpandMobileSheet: false,
+      shouldRequestHideChrome: false,
+      shouldSetMobileSearchPanelCollapsedByControl: true,
     });
   });
 });
