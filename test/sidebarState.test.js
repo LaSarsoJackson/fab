@@ -4,6 +4,7 @@ import {
   buildBrowseSourceChangeIntent,
   buildClearAllBrowseStateIntent,
   buildBrowseResultSelectIntent,
+  buildMobileSearchPanelCollapseResetIntent,
   buildMobileSearchPanelToggleIntent,
   buildMobileSheetRevealIntent,
   buildTourSelectionIntent,
@@ -296,6 +297,32 @@ describe("sidebar state helpers", () => {
       shouldExpandMobileSheet: false,
       shouldRequestHideChrome: false,
       shouldSetMobileSearchPanelCollapsedByControl: true,
+    });
+  });
+
+  test("builds mobile search-panel collapse reset intent outside the collapsed mobile state", () => {
+    expect(buildMobileSearchPanelCollapseResetIntent({
+      isMobile: false,
+      resolvedMobileSheetState: MOBILE_SHEET_STATES.COLLAPSED,
+    })).toEqual({
+      isMobileSearchPanelCollapsedByControlToSet: false,
+      shouldSetMobileSearchPanelCollapsedByControl: true,
+    });
+
+    expect(buildMobileSearchPanelCollapseResetIntent({
+      isMobile: true,
+      resolvedMobileSheetState: MOBILE_SHEET_STATES.PEEK,
+    })).toEqual({
+      isMobileSearchPanelCollapsedByControlToSet: false,
+      shouldSetMobileSearchPanelCollapsedByControl: true,
+    });
+
+    expect(buildMobileSearchPanelCollapseResetIntent({
+      isMobile: true,
+      resolvedMobileSheetState: MOBILE_SHEET_STATES.COLLAPSED,
+    })).toEqual({
+      isMobileSearchPanelCollapsedByControlToSet: null,
+      shouldSetMobileSearchPanelCollapsedByControl: false,
     });
   });
 

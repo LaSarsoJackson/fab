@@ -53,6 +53,7 @@ import {
   buildBrowseResultSelectIntent,
   buildBrowseSourceChangeIntent,
   buildClearAllBrowseStateIntent,
+  buildMobileSearchPanelCollapseResetIntent,
   buildMobileSearchPanelToggleIntent,
   buildMobileSheetRevealIntent,
   buildTourSelectionIntent,
@@ -1923,13 +1924,15 @@ function BurialSidebar({
   }, [handleSheetSpringEnd, onMobileSheetViewportChange]);
 
   useEffect(() => {
-    if (!isMobile) {
-      setIsMobileSearchPanelCollapsedByControl(false);
-      return;
-    }
+    const intent = buildMobileSearchPanelCollapseResetIntent({
+      isMobile,
+      resolvedMobileSheetState,
+    });
 
-    if (resolvedMobileSheetState !== MOBILE_SHEET_STATES.COLLAPSED) {
-      setIsMobileSearchPanelCollapsedByControl(false);
+    if (intent.shouldSetMobileSearchPanelCollapsedByControl) {
+      setIsMobileSearchPanelCollapsedByControl(
+        intent.isMobileSearchPanelCollapsedByControlToSet
+      );
     }
   }, [isMobile, resolvedMobileSheetState]);
 

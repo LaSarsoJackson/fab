@@ -50,6 +50,19 @@ export const buildTourSelectionIntent = ({
   };
 };
 
+export const buildMobileSearchPanelCollapseResetIntent = ({
+  isMobile = false,
+  resolvedMobileSheetState = MOBILE_SHEET_STATES.PEEK,
+} = {}) => {
+  const shouldResetCollapsedControl = !isMobile
+    || resolvedMobileSheetState !== MOBILE_SHEET_STATES.COLLAPSED;
+
+  return {
+    isMobileSearchPanelCollapsedByControlToSet: shouldResetCollapsedControl ? false : null,
+    shouldSetMobileSearchPanelCollapsedByControl: shouldResetCollapsedControl,
+  };
+};
+
 export const buildMobileSearchPanelToggleIntent = ({
   canRequestHideChrome = false,
   isMobile = false,
