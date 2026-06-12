@@ -22,6 +22,19 @@ const ASYNC_BROWSE_RECORD_THRESHOLD = 5000;
 const BROWSE_RESULTS_CACHE_LIMIT = 24;
 let browseSearchWorkerFactoryPromise = null;
 
+export const buildBrowseQueryChangeIntent = ({
+  nextQuery = "",
+} = {}) => ({
+  browseQueryToSet: nextQuery,
+  shouldRequestBurialDataLoad: true,
+  shouldSetBrowseQuery: true,
+});
+
+export const buildClearBrowseQueryIntent = () => ({
+  browseQueryToSet: "",
+  shouldSetBrowseQuery: true,
+});
+
 export const buildBrowseResultSelectIntent = ({
   isMobile = false,
   selectedBurialsLength = 0,
@@ -47,6 +60,66 @@ export const buildTourSelectionIntent = ({
     shouldMaximizeMobileSheet: shouldSelectTour,
     shouldSetBrowseSource: shouldSelectTour,
     shouldSetTourSelection: shouldSelectTour,
+  };
+};
+
+export const buildClearTourSelectionIntent = () => ({
+  browseSourceToSet: "tour",
+  selectedTourToSet: null,
+  shouldMaximizeMobileSheet: true,
+  shouldSetBrowseSource: true,
+  shouldSetTourSelection: true,
+});
+
+export const buildSectionSelectionIntent = ({
+  nextSection = "",
+} = {}) => ({
+  browseSourceToSet: "section",
+  sectionFilterToSet: nextSection || "",
+  shouldMaximizeMobileSheet: true,
+  shouldRequestBurialDataLoad: true,
+  shouldSetBrowseSource: true,
+  shouldSetSectionFilter: true,
+});
+
+export const buildToggleSectionMarkersIntent = () => ({
+  shouldMaximizeMobileSheet: true,
+  shouldRequestBurialDataLoad: true,
+  shouldToggleSectionMarkers: true,
+});
+
+export const buildFilterTypeSelectionIntent = ({
+  nextFilterType = "",
+} = {}) => ({
+  filterTypeToSet: nextFilterType,
+  shouldMaximizeMobileSheet: true,
+  shouldSetFilterType: true,
+});
+
+export const buildLotTierChangeIntent = ({
+  nextValue = "",
+} = {}) => ({
+  lotTierFilterToSet: nextValue,
+  shouldMaximizeMobileSheet: true,
+  shouldSetLotTierFilter: true,
+});
+
+export const buildClearSectionFiltersIntent = () => ({
+  browseSourceToSet: "section",
+  shouldClearSectionFilters: true,
+  shouldMaximizeMobileSheet: true,
+  shouldSetBrowseSource: true,
+});
+
+export const buildUnavailableTourBrowseResetIntent = ({
+  browseSource = "all",
+  hasTourBrowse = true,
+} = {}) => {
+  const shouldResetBrowseSource = !hasTourBrowse && browseSource === "tour";
+
+  return {
+    browseSourceToSet: shouldResetBrowseSource ? "all" : "",
+    shouldSetBrowseSource: shouldResetBrowseSource,
   };
 };
 
