@@ -1,4 +1,5 @@
 import {
+  buildSelectedPlaceDetailPresentation,
   buildSelectedSummaryPresentation,
   buildSelectedPlaceInitials,
   getSelectedPlaceDetailRows,
@@ -7,6 +8,79 @@ import {
 } from "../src/features/browse/selectedRecordPresentation";
 
 describe("selected record presentation helpers", () => {
+  test("builds compact selected-place detail presentation with hidden row count", () => {
+    const rows = [
+      { label: "Location", value: "Section 10" },
+      { label: "Born", value: "1815" },
+      { label: "Died", value: "1852" },
+      { label: "Section", value: "10" },
+      { label: "Lot", value: "4" },
+      { label: "Tier", value: "A" },
+      { label: "Grave", value: "8" },
+      { label: "Notes", value: "Founder" },
+    ];
+
+    expect(buildSelectedPlaceDetailPresentation({
+      detailLinkUrl: " https://example.test/details ",
+      isExpanded: false,
+      rows,
+      visibleRowLimit: 3,
+    })).toEqual({
+      allDetailRows: [
+        { label: "Section", value: "10" },
+        { label: "Lot", value: "4" },
+        { label: "Tier", value: "A" },
+        { label: "Grave", value: "8" },
+        { label: "Notes", value: "Founder" },
+      ],
+      detailLinkUrl: "https://example.test/details",
+      hasDetailsContent: true,
+      hasMoreRows: true,
+      hiddenCount: 2,
+      visibleRows: [
+        { label: "Section", value: "10" },
+        { label: "Lot", value: "4" },
+        { label: "Tier", value: "A" },
+      ],
+    });
+  });
+
+  test("returns every selected-place detail row when expanded", () => {
+    const rows = [
+      { label: "Section", value: "10" },
+      { label: "Lot", value: "4" },
+      { label: "Tier", value: "A" },
+      { label: "Grave", value: "8" },
+    ];
+
+    const presentation = buildSelectedPlaceDetailPresentation({
+      isExpanded: true,
+      rows,
+      visibleRowLimit: 2,
+    });
+
+    expect(presentation.visibleRows).toEqual(rows);
+    expect(presentation.hiddenCount).toBe(2);
+    expect(presentation.hasMoreRows).toBe(true);
+  });
+
+  test("treats a details link as content even when no detail rows remain", () => {
+    expect(buildSelectedPlaceDetailPresentation({
+      detailLinkUrl: "https://example.test/profile",
+      rows: [
+        { label: "Location", value: "Section 10" },
+        { label: "Born", value: "1815" },
+      ],
+    })).toMatchObject({
+      allDetailRows: [],
+      detailLinkUrl: "https://example.test/profile",
+      hasDetailsContent: true,
+      hasMoreRows: false,
+      hiddenCount: 0,
+      visibleRows: [],
+    });
+  });
+
   test("returns no selected-summary presentation when there is no lead record", () => {
     expect(buildSelectedSummaryPresentation({
       activeBurialId: "missing",

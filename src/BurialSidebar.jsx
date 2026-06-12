@@ -37,9 +37,10 @@ import {
 } from "./features/browse/browseResults";
 import { buildBrowseResultCardPresentation } from "./features/browse/browseResultPresentation";
 import {
+  DEFAULT_SELECTED_PLACE_DETAIL_ROW_LIMIT,
+  buildSelectedPlaceDetailPresentation,
   buildSelectedSummaryPresentation,
   buildSelectedPlaceInitials,
-  getSelectedPlaceDetailRows,
   getSelectedPlaceTypeLabel,
   hasFieldPacketContent,
 } from "./features/browse/selectedRecordPresentation";
@@ -912,9 +913,11 @@ function SelectionLeadCard({
   const lifeSummary = buildLifeDatesSummary(burial);
   const popupView = useMemo(() => buildPopupViewModel(burial), [burial]);
   const popupKey = burial?.id || popupView.heading;
-  const allDetailRows = getSelectedPlaceDetailRows(popupView.rows);
-  const detailLinkUrl = cleanRecordValue(popupView.biographyLink || popupView.imageLinkUrl);
-  const hasDetailsContent = allDetailRows.length > 0 || Boolean(detailLinkUrl);
+  const detailPresentation = buildSelectedPlaceDetailPresentation({
+    detailLinkUrl: popupView.biographyLink || popupView.imageLinkUrl,
+    isExpanded: true,
+    rows: popupView.rows,
+  });
   const [mediaUrl, setMediaUrl] = useState(() => popupView.imageUrl || "");
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
@@ -1051,7 +1054,7 @@ function SelectionLeadCard({
           </Box>
         </Box>
       </ButtonBase>
-      {hasDetailsContent && (
+      {detailPresentation.hasDetailsContent && (
         <>
           <button
             type="button"
@@ -1062,9 +1065,9 @@ function SelectionLeadCard({
           </button>
           {isDetailsOpen && (
             <Box sx={{ mt: 0.85 }}>
-              {allDetailRows.length > 0 && (
+              {detailPresentation.allDetailRows.length > 0 && (
                 <Box component="dl" className="left-sidebar__selected-place-facts">
-                  {allDetailRows.map(({ label, value }) => (
+                  {detailPresentation.allDetailRows.map(({ label, value }) => (
                     <Box key={`${popupKey}-lead-${label}`} className="left-sidebar__selected-place-fact">
                       <dt>{label}</dt>
                       <dd>{value}</dd>
@@ -1072,11 +1075,11 @@ function SelectionLeadCard({
                   ))}
                 </Box>
               )}
-              {detailLinkUrl && (
+              {detailPresentation.detailLinkUrl && (
                 <Box sx={{ mt: 0.85 }}>
                   <a
                     className="popup-card__action popup-card__action--secondary"
-                    href={detailLinkUrl}
+                    href={detailPresentation.detailLinkUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -1099,8 +1102,6 @@ function SelectionLeadCard({
   );
 }
 
-const COMPACT_DETAIL_ROWS_VISIBLE = 4;
-
 function SelectedPlaceCard({
   burial,
   isRouteActive,
@@ -1116,10 +1117,14 @@ function SelectedPlaceCard({
   const locationSummary = buildLocationSummary(burial);
   const lifeSummary = buildLifeDatesSummary(burial);
   const placeTypeLabel = getSelectedPlaceTypeLabel(burial);
-  const allDetailRows = getSelectedPlaceDetailRows(popupView.rows);
-  const detailLinkUrl = cleanRecordValue(popupView.biographyLink || popupView.imageLinkUrl);
   const [mediaUrl, setMediaUrl] = useState(() => popupView.imageUrl || "");
   const [isDetailExpanded, setIsDetailExpanded] = useState(false);
+  const detailPresentation = buildSelectedPlaceDetailPresentation({
+    detailLinkUrl: popupView.biographyLink || popupView.imageLinkUrl,
+    isExpanded: isDetailExpanded,
+    rows: popupView.rows,
+    visibleRowLimit: DEFAULT_SELECTED_PLACE_DETAIL_ROW_LIMIT,
+  });
 
   useEffect(() => {
     setMediaUrl(popupView.imageUrl || "");
@@ -1138,9 +1143,6 @@ function SelectedPlaceCard({
   }, [popupView.imageFallbackUrl]);
 
   const hasCompactMeta = Boolean(isRouteActive || tourStyle);
-  const visibleRows = isDetailExpanded ? allDetailRows : allDetailRows.slice(0, COMPACT_DETAIL_ROWS_VISIBLE);
-  const hiddenCount = allDetailRows.length - COMPACT_DETAIL_ROWS_VISIBLE;
-  const hasMoreRows = hiddenCount > 0;
   const actionGroup = (
     <Box className="popup-card__actions left-sidebar__selected-place-card-actions left-sidebar__selected-place-card-actions--inline">
       <button
@@ -1157,10 +1159,10 @@ function SelectedPlaceCard({
       >
         {isRouteActive ? "Stop Navigation" : "Navigate"}
       </button>
-      {detailLinkUrl && (
+      {detailPresentation.detailLinkUrl && (
         <a
           className="popup-card__action popup-card__action--secondary"
-          href={detailLinkUrl}
+          href={detailPresentation.detailLinkUrl}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -1231,9 +1233,9 @@ function SelectedPlaceCard({
             stackDescription={stackList.description}
           />
         )}
-        {visibleRows.length > 0 && (
+        {detailPresentation.visibleRows.length > 0 && (
           <Box component="dl" className="left-sidebar__selected-place-facts">
-            {visibleRows.map(({ label, value }) => (
+            {detailPresentation.visibleRows.map(({ label, value }) => (
               <Box key={`${popupKey}-compact-${label}`} className="left-sidebar__selected-place-fact">
                 <dt>{label}</dt>
                 <dd>{value}</dd>
@@ -1241,7 +1243,7 @@ function SelectedPlaceCard({
             ))}
           </Box>
         )}
-        {hasMoreRows && (
+        {detailPresentation.hasMoreRows && (
           <button
             type="button"
             className="popup-card__action popup-card__action--ghost left-sidebar__detail-toggle"
@@ -1249,7 +1251,7 @@ function SelectedPlaceCard({
           >
             {isDetailExpanded
               ? "Fewer details"
-              : `More details (${hiddenCount})`}
+              : `More details (${detailPresentation.hiddenCount})`}
           </button>
         )}
         {hasCompactMeta && (
