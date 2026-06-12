@@ -22,12 +22,15 @@ import "react-spring-bottom-sheet/dist/style.css";
 import { APP_PROFILE } from "./features/fab/profile";
 import BrowseWorkspacePanel, { BrowseSearchField } from "./features/browse/BrowseWorkspacePanel";
 import {
+  buildAutocompletePresentation,
   buildBrowseResultsPanelPresentation,
   buildLifeDatesSummary,
   buildBrowseEmptyActionSpecs,
   buildBrowseScopeChips,
+  buildMobileSearchPanelTogglePresentation,
   buildSearchShellNotices,
   getSearchPlaceholder,
+  getSelectedSectionOption,
 } from "./features/browse/sidebarPresentation";
 import {
   buildLocationSummary,
@@ -2285,33 +2288,14 @@ function BurialSidebar({
         "left-sidebar",
         "left-sidebar--desktop",
       ].join(" ");
-  const autocompleteListboxProps = isMobile
-    ? {
-      sx: {
-        maxHeight: "min(40svh, 320px)",
-        py: 0.75,
-      },
-    }
-    : {
-      sx: {
-        maxHeight: 240,
-      },
-    };
-  const autocompleteComponentsProps = useMemo(
-    () => ({
-      popper: {
-        className: "left-sidebar__autocomplete-popper",
-        placement: isMobile ? "auto-start" : "bottom-start",
-      },
-      paper: {
-        elevation: 8,
-        className: "left-sidebar__autocomplete-paper",
-      },
-    }),
+  const autocompletePresentation = useMemo(
+    () => buildAutocompletePresentation({ isMobile }),
     [isMobile]
   );
+  const autocompleteComponentsProps = autocompletePresentation.componentsProps;
+  const autocompleteListboxProps = autocompletePresentation.listboxProps;
   const selectedSectionOption = useMemo(
-    () => uniqueSections.find((option) => `${option}` === `${sectionFilter}`) ?? null,
+    () => getSelectedSectionOption({ sectionFilter, uniqueSections }),
     [sectionFilter, uniqueSections]
   );
   const searchPlaceholder = getSearchPlaceholder({
@@ -2422,27 +2406,27 @@ function BurialSidebar({
       <MoreHorizIcon fontSize="small" />
     </IconButton>
   ) : null;
-  const isMobileSearchPanelCollapsed = isMobileSearchPanelCollapsedByControl
-    || resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED;
-  const mobileSearchPanelToggleLabel = isMobileSearchPanelCollapsed
-    ? "Search"
-    : "Collapse";
+  const mobileSearchPanelTogglePresentation = useMemo(
+    () => buildMobileSearchPanelTogglePresentation({
+      collapsedSheetState: MOBILE_SHEET_STATES.COLLAPSED,
+      isMobileSearchPanelCollapsedByControl,
+      resolvedMobileSheetState,
+    }),
+    [isMobileSearchPanelCollapsedByControl, resolvedMobileSheetState]
+  );
   const mobileSearchPanelToggleButton = isMobile ? (
     <IconButton
       size="small"
       color="inherit"
       onClick={handleToggleMobileSearchPanel}
-      aria-label={mobileSearchPanelToggleLabel}
-      title={mobileSearchPanelToggleLabel}
-      aria-pressed={isMobileSearchPanelCollapsed}
+      aria-label={mobileSearchPanelTogglePresentation.label}
+      title={mobileSearchPanelTogglePresentation.label}
+      aria-pressed={mobileSearchPanelTogglePresentation.isCollapsed}
       className="mobile-sheet-header__icon-button"
     >
       <ArrowDropDownIcon
         fontSize="small"
-        sx={{
-          transform: isMobileSearchPanelCollapsed ? "rotate(180deg)" : "rotate(0deg)",
-          transition: "transform 0.2s ease",
-        }}
+        sx={mobileSearchPanelTogglePresentation.iconSx}
       />
     </IconButton>
   ) : null;
