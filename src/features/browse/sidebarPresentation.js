@@ -243,6 +243,85 @@ export const getBrowseEmptyState = ({
   return `No matches for "${query.trim()}". Check spelling or try a section number.`;
 };
 
+export const buildBrowseResultsPanelPresentation = ({
+  batchSize = 10,
+  browseResults = [],
+  browseSource = "all",
+  isBurialDataLoading = false,
+  isCurrentTourLoading = false,
+  minBrowseQueryLength = 2,
+  query = "",
+  scopeChips = [],
+  sectionFilter = "",
+  selectedTour = "",
+  tourLabel = "Tour",
+  visibleCount = batchSize,
+} = {}) => {
+  const displayedResults = Array.isArray(browseResults) ? browseResults : [];
+  const displayedResultCount = displayedResults.length;
+  const normalizedBatchSize = Number.isFinite(Number(batchSize)) && Number(batchSize) > 0
+    ? Number(batchSize)
+    : displayedResultCount;
+  const normalizedVisibleCount = Number.isFinite(Number(visibleCount)) && Number(visibleCount) > 0
+    ? Number(visibleCount)
+    : normalizedBatchSize;
+  const shouldPageResults = browseSource === "all";
+  const visibleResults = shouldPageResults
+    ? displayedResults.slice(0, normalizedVisibleCount)
+    : displayedResults;
+  const hasMoreResults = shouldPageResults && displayedResultCount > normalizedVisibleCount;
+  const canShowFewerResults = shouldPageResults && normalizedVisibleCount > normalizedBatchSize;
+  const resultSummary = `${displayedResultCount.toLocaleString()} result${displayedResultCount === 1 ? "" : "s"}`;
+  const trimmedQuery = String(query || "").trim();
+  const scopedSectionLabel = browseSource === "section" && sectionFilter
+    ? `Section ${sectionFilter}`
+    : "";
+  const scopedTourLabel = browseSource === "tour" ? selectedTour : "";
+  const shouldRenderEmptyState = displayedResultCount === 0;
+  const isScopedBrowse = browseSource === "section" || browseSource === "tour";
+  const resultsEyebrow = isScopedBrowse
+    ? ""
+    : trimmedQuery
+      ? "Search"
+      : "Browse";
+
+  return {
+    canShowFewerResults,
+    displayedResultCount,
+    emptyMessage: shouldRenderEmptyState
+      ? getBrowseEmptyState({
+        browseSource,
+        isBurialDataLoading,
+        isCurrentTourLoading,
+        minBrowseQueryLength,
+        query: trimmedQuery,
+        sectionFilter,
+        selectedTour,
+        tourLabel,
+      })
+      : "",
+    hasMoreResults,
+    hasScopeChips: Array.isArray(scopeChips) && scopeChips.length > 0,
+    isScopedBrowse,
+    resultSummary,
+    resultSummaryLabel: browseSource === "all" && trimmedQuery
+      ? `${resultSummary} for "${trimmedQuery}".`
+      : resultSummary,
+    resultsEyebrow,
+    resultsTitle: isScopedBrowse
+      ? "Results"
+      : trimmedQuery
+        ? "Search results"
+        : "Burials",
+    scopedSectionLabel,
+    scopedTourLabel,
+    shouldPageResults,
+    shouldRenderEmptyState,
+    trimmedQuery,
+    visibleResults,
+  };
+};
+
 export const buildBrowseScopeChips = ({
   browseSource,
   filterType,

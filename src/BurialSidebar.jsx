@@ -22,11 +22,11 @@ import "react-spring-bottom-sheet/dist/style.css";
 import { APP_PROFILE } from "./features/fab/profile";
 import BrowseWorkspacePanel, { BrowseSearchField } from "./features/browse/BrowseWorkspacePanel";
 import {
+  buildBrowseResultsPanelPresentation,
   buildLifeDatesSummary,
   buildBrowseEmptyActionSpecs,
   buildBrowseScopeChips,
   buildSearchShellNotices,
-  getBrowseEmptyState,
   getSearchPlaceholder,
 } from "./features/browse/sidebarPresentation";
 import {
@@ -459,16 +459,6 @@ function BrowseResultsPanel({
   scopeChips = EMPTY_PACKET_RECORDS,
   tourStyles,
 }) {
-  const emptyMessage = getBrowseEmptyState({
-    browseSource,
-    isBurialDataLoading,
-    isCurrentTourLoading,
-    minBrowseQueryLength: MIN_BROWSE_QUERY_LENGTH,
-    query,
-    sectionFilter,
-    selectedTour,
-    tourLabel: TOUR_LABEL,
-  });
   const selectedBurialIds = useMemo(
     () => new Set(selectedBurials.map((item) => item.id)),
     [selectedBurials]
@@ -476,10 +466,7 @@ function BrowseResultsPanel({
   const onBrowseResultSelectRef = useRef(onBrowseResultSelect);
   const onHoverBurialChangeRef = useRef(onHoverBurialChange);
   const selectedBurialCount = selectedBurials.length;
-  const displayedResults = browseResults;
-  const displayedResultCount = displayedResults.length;
   const [visibleCount, setVisibleCount] = useState(batchSize);
-  const shouldPageResults = browseSource === "all";
 
   onBrowseResultSelectRef.current = onBrowseResultSelect;
   onHoverBurialChangeRef.current = onHoverBurialChange;
@@ -506,35 +493,48 @@ function BrowseResultsPanel({
     selectedTour,
   ]);
 
-  const visibleResults = useMemo(
-    () => (
-      shouldPageResults
-        ? displayedResults.slice(0, visibleCount)
-        : displayedResults
-    ),
-    [displayedResults, shouldPageResults, visibleCount]
+  const panelPresentation = useMemo(
+    () => buildBrowseResultsPanelPresentation({
+      batchSize,
+      browseResults,
+      browseSource,
+      isBurialDataLoading,
+      isCurrentTourLoading,
+      minBrowseQueryLength: MIN_BROWSE_QUERY_LENGTH,
+      query,
+      scopeChips,
+      sectionFilter,
+      selectedTour,
+      tourLabel: TOUR_LABEL,
+      visibleCount,
+    }),
+    [
+      batchSize,
+      browseResults,
+      browseSource,
+      isBurialDataLoading,
+      isCurrentTourLoading,
+      query,
+      scopeChips,
+      sectionFilter,
+      selectedTour,
+      visibleCount,
+    ]
   );
-  const hasMoreResults = shouldPageResults && displayedResultCount > visibleCount;
-  const canShowFewerResults = shouldPageResults && visibleCount > batchSize;
-  const resultSummary = `${displayedResultCount.toLocaleString()} result${displayedResultCount === 1 ? "" : "s"}`;
-  const trimmedQuery = query.trim();
-  const scopedSectionLabel = browseSource === "section" && sectionFilter
-    ? `Section ${sectionFilter}`
-    : "";
-  const scopedTourLabel = browseSource === "tour" ? selectedTour : "";
-  const shouldRenderEmptyState = displayedResultCount === 0;
-  const hasScopeChips = scopeChips.length > 0;
-  const isScopedBrowse = browseSource === "section" || browseSource === "tour";
-  const resultsEyebrow = isScopedBrowse
-    ? ""
-    : trimmedQuery
-      ? "Search"
-      : "Browse";
-  const resultsTitle = isScopedBrowse
-    ? "Results"
-    : trimmedQuery
-      ? "Search results"
-      : "Burials";
+  const {
+    canShowFewerResults,
+    displayedResultCount,
+    emptyMessage,
+    hasMoreResults,
+    hasScopeChips,
+    resultSummaryLabel,
+    resultsEyebrow,
+    resultsTitle,
+    scopedSectionLabel,
+    scopedTourLabel,
+    shouldRenderEmptyState,
+    visibleResults,
+  } = panelPresentation;
 
   return (
     <Box
@@ -608,9 +608,7 @@ function BrowseResultsPanel({
           variant="body2"
           sx={{ color: "var(--muted-text)" }}
         >
-          {browseSource === "all" && trimmedQuery
-            ? `${resultSummary} for "${trimmedQuery}".`
-            : resultSummary}
+          {resultSummaryLabel}
         </Typography>
       )}
 
