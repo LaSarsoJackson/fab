@@ -31,6 +31,7 @@ import {
   buildSearchShellNotices,
   getSearchPlaceholder,
   getSelectedSectionOption,
+  getSidebarClassName,
 } from "./features/browse/sidebarPresentation";
 import {
   buildLocationSummary,
@@ -2282,12 +2283,7 @@ function BurialSidebar({
     setIsSelectedSummaryExpanded,
   ]);
 
-  const sidebarClassName = isMobile
-    ? "left-sidebar left-sidebar--mobile"
-    : [
-        "left-sidebar",
-        "left-sidebar--desktop",
-      ].join(" ");
+  const sidebarClassName = getSidebarClassName({ isMobile });
   const autocompletePresentation = useMemo(
     () => buildAutocompletePresentation({ isMobile }),
     [isMobile]
