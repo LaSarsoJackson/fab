@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  buildAutocompletePresentation,
   buildBrowseEmptyActionSpecs,
   buildBrowseResultsPanelPresentation,
   buildBrowseScopeChips,
   buildLifeDatesSummary,
+  buildMobileSearchPanelTogglePresentation,
   buildSearchShellNotices,
   formatLocationNoticeLabel,
   getBrowseEmptyState,
@@ -14,6 +16,82 @@ import {
 } from "../src/features/browse/sidebarPresentation";
 
 describe("browse sidebar presentation helpers", () => {
+  test("builds autocomplete overlay presentation for desktop and mobile", () => {
+    expect(buildAutocompletePresentation({ isMobile: false })).toEqual({
+      componentsProps: {
+        popper: {
+          className: "left-sidebar__autocomplete-popper",
+          placement: "bottom-start",
+        },
+        paper: {
+          elevation: 8,
+          className: "left-sidebar__autocomplete-paper",
+        },
+      },
+      listboxProps: {
+        sx: {
+          maxHeight: 240,
+        },
+      },
+    });
+
+    expect(buildAutocompletePresentation({ isMobile: true })).toEqual({
+      componentsProps: {
+        popper: {
+          className: "left-sidebar__autocomplete-popper",
+          placement: "auto-start",
+        },
+        paper: {
+          elevation: 8,
+          className: "left-sidebar__autocomplete-paper",
+        },
+      },
+      listboxProps: {
+        sx: {
+          maxHeight: "min(40svh, 320px)",
+          py: 0.75,
+        },
+      },
+    });
+  });
+
+  test("builds mobile search-panel toggle presentation from collapse state", () => {
+    expect(buildMobileSearchPanelTogglePresentation({
+      collapsedSheetState: "collapsed",
+      isMobileSearchPanelCollapsedByControl: false,
+      resolvedMobileSheetState: "peek",
+    })).toEqual({
+      iconSx: {
+        transform: "rotate(0deg)",
+        transition: "transform 0.2s ease",
+      },
+      isCollapsed: false,
+      label: "Collapse",
+    });
+
+    expect(buildMobileSearchPanelTogglePresentation({
+      collapsedSheetState: "collapsed",
+      isMobileSearchPanelCollapsedByControl: false,
+      resolvedMobileSheetState: "collapsed",
+    })).toEqual({
+      iconSx: {
+        transform: "rotate(180deg)",
+        transition: "transform 0.2s ease",
+      },
+      isCollapsed: true,
+      label: "Search",
+    });
+
+    expect(buildMobileSearchPanelTogglePresentation({
+      collapsedSheetState: "collapsed",
+      isMobileSearchPanelCollapsedByControl: true,
+      resolvedMobileSheetState: "peek",
+    })).toMatchObject({
+      isCollapsed: true,
+      label: "Search",
+    });
+  });
+
   test("builds browse placeholders from the current browse scope", () => {
     expect(getSearchPlaceholder({
       browseSource: "section",

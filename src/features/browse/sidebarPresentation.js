@@ -3,6 +3,51 @@
  * out of the React component lets tests cover empty/loading/offline states
  * without rendering the full map/sidebar shell.
  */
+export const buildAutocompletePresentation = ({
+  isMobile = false,
+} = {}) => ({
+  componentsProps: {
+    popper: {
+      className: "left-sidebar__autocomplete-popper",
+      placement: isMobile ? "auto-start" : "bottom-start",
+    },
+    paper: {
+      elevation: 8,
+      className: "left-sidebar__autocomplete-paper",
+    },
+  },
+  listboxProps: isMobile
+    ? {
+      sx: {
+        maxHeight: "min(40svh, 320px)",
+        py: 0.75,
+      },
+    }
+    : {
+      sx: {
+        maxHeight: 240,
+      },
+    },
+});
+
+export const buildMobileSearchPanelTogglePresentation = ({
+  collapsedSheetState = "collapsed",
+  isMobileSearchPanelCollapsedByControl = false,
+  resolvedMobileSheetState = "",
+} = {}) => {
+  const isCollapsed = Boolean(isMobileSearchPanelCollapsedByControl)
+    || resolvedMobileSheetState === collapsedSheetState;
+
+  return {
+    iconSx: {
+      transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)",
+      transition: "transform 0.2s ease",
+    },
+    isCollapsed,
+    label: isCollapsed ? "Search" : "Collapse",
+  };
+};
+
 export const formatLocationNoticeLabel = ({
   status,
   activeStatus,
