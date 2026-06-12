@@ -55,6 +55,7 @@ import {
   buildClearAllBrowseStateIntent,
   buildMobileSearchPanelToggleIntent,
   buildMobileSheetRevealIntent,
+  buildTourSelectionIntent,
   useBurialSidebarBrowseState,
   useBurialSidebarMobileSheetState,
 } from "./features/browse/sidebarState";
@@ -2040,11 +2041,22 @@ function BurialSidebar({
   }, [maximizeMobileSheet, onClearSectionFilters, setBrowseSource]);
 
   const handleTourSelection = useCallback((tourName) => {
-    if (!hasTourBrowse) return;
+    const intent = buildTourSelectionIntent({
+      hasTourBrowse,
+      tourName,
+    });
 
-    setBrowseSource("tour");
-    onTourChange(tourName);
-    maximizeMobileSheet();
+    if (intent.shouldSetBrowseSource) {
+      setBrowseSource(intent.browseSourceToSet);
+    }
+
+    if (intent.shouldSetTourSelection) {
+      onTourChange(intent.selectedTourToSet);
+    }
+
+    if (intent.shouldMaximizeMobileSheet) {
+      maximizeMobileSheet();
+    }
   }, [hasTourBrowse, maximizeMobileSheet, onTourChange, setBrowseSource]);
 
   const handleClearTourSelection = useCallback(() => {
