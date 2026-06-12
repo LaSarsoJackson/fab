@@ -8,6 +8,7 @@ import {
   buildMobileSearchPanelCollapseResetIntent,
   buildMobileSearchPanelToggleIntent,
   buildMobileSheetRevealIntent,
+  buildSectionSelectionIntent,
   buildTourSelectionIntent,
 } from "../src/features/browse/sidebarState";
 import { MOBILE_SHEET_STATES } from "../src/features/browse/mobileSheetGeometry";
@@ -386,6 +387,23 @@ describe("sidebar state helpers", () => {
       shouldMaximizeMobileSheet: true,
       shouldSetBrowseSource: true,
       shouldSetTourSelection: true,
+    });
+  });
+
+  test("builds section-selection intent with normalized empty section values", () => {
+    expect(buildSectionSelectionIntent({ nextSection: "12" })).toEqual({
+      browseSourceToSet: "section",
+      sectionFilterToSet: "12",
+      shouldMaximizeMobileSheet: true,
+      shouldRequestBurialDataLoad: true,
+      shouldSetBrowseSource: true,
+      shouldSetSectionFilter: true,
+    });
+
+    expect(buildSectionSelectionIntent({ nextSection: null })).toMatchObject({
+      browseSourceToSet: "section",
+      sectionFilterToSet: "",
+      shouldRequestBurialDataLoad: true,
     });
   });
 });

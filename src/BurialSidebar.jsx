@@ -57,6 +57,7 @@ import {
   buildMobileSearchPanelCollapseResetIntent,
   buildMobileSearchPanelToggleIntent,
   buildMobileSheetRevealIntent,
+  buildSectionSelectionIntent,
   buildTourSelectionIntent,
   useBurialSidebarBrowseState,
   useBurialSidebarMobileSheetState,
@@ -2016,10 +2017,23 @@ function BurialSidebar({
   ]);
 
   const handleSectionSelection = useCallback((nextSection) => {
-    onRequestBurialDataLoad?.();
-    setBrowseSource("section");
-    onSectionChange(nextSection || "");
-    maximizeMobileSheet();
+    const intent = buildSectionSelectionIntent({ nextSection });
+
+    if (intent.shouldRequestBurialDataLoad) {
+      onRequestBurialDataLoad?.();
+    }
+
+    if (intent.shouldSetBrowseSource) {
+      setBrowseSource(intent.browseSourceToSet);
+    }
+
+    if (intent.shouldSetSectionFilter) {
+      onSectionChange(intent.sectionFilterToSet);
+    }
+
+    if (intent.shouldMaximizeMobileSheet) {
+      maximizeMobileSheet();
+    }
   }, [maximizeMobileSheet, onRequestBurialDataLoad, onSectionChange, setBrowseSource]);
 
   const handleToggleSectionMarkers = useCallback(() => {
