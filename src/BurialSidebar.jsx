@@ -43,6 +43,7 @@ import {
 import { buildBrowseResultCardPresentation } from "./features/browse/browseResultPresentation";
 import {
   DEFAULT_SELECTED_PLACE_DETAIL_ROW_LIMIT,
+  buildSelectedBurialLookup,
   buildSelectedPlaceDetailPresentation,
   buildSelectedSummaryPresentation,
   buildSelectedPlaceInitials,
@@ -481,13 +482,15 @@ function BrowseResultsPanel({
   scopeChips = EMPTY_PACKET_RECORDS,
   tourStyles,
 }) {
-  const selectedBurialIds = useMemo(
-    () => new Set(selectedBurials.map((item) => item.id)),
+  const {
+    selectedBurialCount,
+    selectedBurialIds,
+  } = useMemo(
+    () => buildSelectedBurialLookup({ selectedBurials }),
     [selectedBurials]
   );
   const onBrowseResultSelectRef = useRef(onBrowseResultSelect);
   const onHoverBurialChangeRef = useRef(onHoverBurialChange);
-  const selectedBurialCount = selectedBurials.length;
   const [visibleCount, setVisibleCount] = useState(batchSize);
 
   onBrowseResultSelectRef.current = onBrowseResultSelect;

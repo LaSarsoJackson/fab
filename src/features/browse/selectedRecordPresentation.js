@@ -5,6 +5,28 @@ const DETAIL_ROW_EXCLUDE_LABELS = ["Location", "Born", "Died"];
 const SINGLE_SELECTION_PANEL_TITLE = "Selected grave";
 const STACK_SELECTION_PANEL_TITLE = "Graves at this spot";
 
+export const buildSelectedBurialLookup = ({
+  selectedBurials = [],
+} = {}) => {
+  const selectedBurialIds = new Set();
+  const selectedBurialOrderById = new Map();
+
+  selectedBurials.forEach((burial, index) => {
+    if (!burial?.id) {
+      return;
+    }
+
+    selectedBurialIds.add(burial.id);
+    selectedBurialOrderById.set(burial.id, index);
+  });
+
+  return {
+    selectedBurialCount: selectedBurials.length,
+    selectedBurialIds,
+    selectedBurialOrderById,
+  };
+};
+
 export const buildSelectedSummaryPresentation = ({
   activeBurialId = "",
   activeRouteBurialId = "",
