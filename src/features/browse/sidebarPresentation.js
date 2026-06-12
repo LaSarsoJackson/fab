@@ -48,6 +48,13 @@ export const buildMobileSearchPanelTogglePresentation = ({
   };
 };
 
+export const getSelectedSectionOption = ({
+  sectionFilter = "",
+  uniqueSections = [],
+} = {}) => (
+  uniqueSections.find((option) => `${option}` === `${sectionFilter}`) ?? null
+);
+
 export const formatLocationNoticeLabel = ({
   status,
   activeStatus,

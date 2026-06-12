@@ -12,6 +12,7 @@ import {
   getBrowseEmptyState,
   getLocationNoticeTone,
   getSearchPlaceholder,
+  getSelectedSectionOption,
   getSearchShellNoticeStyles,
 } from "../src/features/browse/sidebarPresentation";
 
@@ -90,6 +91,23 @@ describe("browse sidebar presentation helpers", () => {
       isCollapsed: true,
       label: "Search",
     });
+  });
+
+  test("resolves selected section options by normalized value", () => {
+    expect(getSelectedSectionOption({
+      sectionFilter: "12",
+      uniqueSections: [8, 12, 16],
+    })).toBe(12);
+
+    expect(getSelectedSectionOption({
+      sectionFilter: 8,
+      uniqueSections: ["8", "9"],
+    })).toBe("8");
+
+    expect(getSelectedSectionOption({
+      sectionFilter: "99",
+      uniqueSections: [8, 12, 16],
+    })).toBeNull();
   });
 
   test("builds browse placeholders from the current browse scope", () => {

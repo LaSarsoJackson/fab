@@ -30,6 +30,7 @@ import {
   buildMobileSearchPanelTogglePresentation,
   buildSearchShellNotices,
   getSearchPlaceholder,
+  getSelectedSectionOption,
 } from "./features/browse/sidebarPresentation";
 import {
   buildLocationSummary,
@@ -2294,7 +2295,7 @@ function BurialSidebar({
   const autocompleteComponentsProps = autocompletePresentation.componentsProps;
   const autocompleteListboxProps = autocompletePresentation.listboxProps;
   const selectedSectionOption = useMemo(
-    () => uniqueSections.find((option) => `${option}` === `${sectionFilter}`) ?? null,
+    () => getSelectedSectionOption({ sectionFilter, uniqueSections }),
     [sectionFilter, uniqueSections]
   );
   const searchPlaceholder = getSearchPlaceholder({
