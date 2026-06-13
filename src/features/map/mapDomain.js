@@ -1202,6 +1202,17 @@ export const getSectionBurialMarkerStyle = (record, options = {}) => {
   };
 };
 
+// Sections should read as labelled regions, not invisible hairline outlines.
+// A calm sage tint over the basemap lets the cemetery's section grid register
+// at a glance — the same mental model a visitor builds from the numbered signs
+// on the ground — while the active section lifts forward with a stronger accent
+// fill and a confident edge. Detail mode (individual burials visible) eases the
+// fills and strokes back so grave markers stay the focus.
+const SECTION_POLYGON_INACTIVE_COLOR = "#5f8a76";
+const SECTION_POLYGON_INACTIVE_STROKE = "#34604f";
+const SECTION_POLYGON_ACTIVE_COLOR = "#2f6b57";
+const SECTION_POLYGON_ACTIVE_STROKE = "#1f4a3b";
+
 export const getSectionPolygonStyle = (options = {}) => {
   const {
     sectionId,
@@ -1215,18 +1226,20 @@ export const getSectionPolygonStyle = (options = {}) => {
 
   if (isActive) {
     return {
-      fillColor: "#2f6b57",
-      fillOpacity: showAllBurials ? 0.035 : 0.08,
-      color: showAllBurials ? "#315f4f" : "#2f6b57",
-      weight: showAllBurials ? 1.35 : 1.65,
+      fillColor: SECTION_POLYGON_ACTIVE_COLOR,
+      fillOpacity: showAllBurials ? 0.06 : 0.18,
+      color: SECTION_POLYGON_ACTIVE_STROKE,
+      weight: showAllBurials ? 1.6 : 2.25,
+      opacity: 0.95,
     };
   }
 
   return {
-    fillColor: "#f8f9fa",
-    fillOpacity: showAllBurials ? 0.02 : 0.05,
-    color: "#999999",
-    weight: 1,
+    fillColor: SECTION_POLYGON_INACTIVE_COLOR,
+    fillOpacity: showAllBurials ? 0.04 : 0.1,
+    color: SECTION_POLYGON_INACTIVE_STROKE,
+    weight: showAllBurials ? 0.85 : 1.15,
+    opacity: showAllBurials ? 0.4 : 0.6,
   };
 };
 
