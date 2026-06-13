@@ -961,12 +961,10 @@ function SelectionLeadCard({
     rows: popupView.rows,
   });
   const [mediaUrl, setMediaUrl] = useState(() => popupView.imageUrl || "");
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   useEffect(() => {
     setMediaUrl(popupView.imageUrl || "");
-    setIsDetailsOpen(false);
-  }, [popupKey, popupView.imageUrl]);
+  }, [popupView.imageUrl]);
 
   const handleImageError = useCallback(() => {
     setMediaUrl((currentUrl) => {
@@ -1090,29 +1088,14 @@ function SelectionLeadCard({
         </Box>
       </ButtonBase>
       {detailPresentation.allDetailRows.length > 0 && (
-        <>
-          <button
-            type="button"
-            className="popup-card__action popup-card__action--ghost left-sidebar__detail-toggle"
-            onClick={() => setIsDetailsOpen((prev) => !prev)}
-          >
-            {isDetailsOpen ? "Hide details" : "Show details"}
-          </button>
-          {isDetailsOpen && (
-            <Box sx={{ mt: 0.85 }}>
-              {detailPresentation.allDetailRows.length > 0 && (
-                <Box component="dl" className="left-sidebar__selected-place-facts">
-                  {detailPresentation.allDetailRows.map(({ label, value }) => (
-                    <Box key={`${popupKey}-lead-${label}`} className="left-sidebar__selected-place-fact">
-                      <dt>{label}</dt>
-                      <dd>{value}</dd>
-                    </Box>
-                  ))}
-                </Box>
-              )}
+        <Box component="dl" className="left-sidebar__selected-place-facts">
+          {detailPresentation.allDetailRows.map(({ label, value }) => (
+            <Box key={`${popupKey}-lead-${label}`} className="left-sidebar__selected-place-fact">
+              <dt>{label}</dt>
+              <dd>{value}</dd>
             </Box>
-          )}
-        </>
+          ))}
+        </Box>
       )}
       <SelectedRecordActionButtons
         burial={burial}

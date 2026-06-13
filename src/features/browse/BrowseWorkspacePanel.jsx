@@ -159,14 +159,12 @@ function VisitTaskSelector({
     hasTourBrowse ? {
       key: "tour",
       source: "tour",
-      ariaLabel: "Start a Tour",
       label: "Tours",
       icon: <AltRouteIcon fontSize="small" />,
     } : null,
     {
       key: "section",
       source: "section",
-      ariaLabel: "Explore Sections",
       label: "Sections",
       icon: <MapIcon fontSize="small" />,
     },
@@ -176,7 +174,7 @@ function VisitTaskSelector({
     <Box
       className="left-sidebar__visit-flow"
       role="group"
-      aria-label="Choose visit task"
+      aria-label="Browse mode"
     >
       <Box className="left-sidebar__visit-tasks">
         {taskSpecs.map((task) => {
@@ -187,7 +185,7 @@ function VisitTaskSelector({
               key={task.key}
               color="inherit"
               variant="text"
-              aria-label={task.ariaLabel}
+              aria-label={task.label}
               aria-pressed={isActive}
               className={getVisitTaskClassName(isActive)}
               onClick={() => onBrowseSourceChange(task.source)}
@@ -635,10 +633,9 @@ export default function BrowseWorkspacePanel({
   // Once a grave is selected, keep that record ahead of search and filters so
   // the sidebar follows the user's current map focus.
   const inlinePriorityContent = shouldPromotePriorityContent ? null : priorityContent;
-  // While a query is active on mobile, drop the visit-task shortcuts so results
-  // land directly under the pinned search bar, the way Maps switches modes.
-  const shouldShowVisitTasks = !shouldPromotePriorityContent
-    && !(isMobile && browseQuery.trim());
+  // While a query or selected grave owns the mobile sheet, keep shortcuts out
+  // of the way. Desktop keeps them visible so users can switch modes anytime.
+  const shouldShowVisitTasks = !(isMobile && (browseQuery.trim() || shouldPromotePriorityContent));
 
   return (
     <Box
