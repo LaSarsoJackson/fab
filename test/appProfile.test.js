@@ -162,18 +162,38 @@ describe("app profile", () => {
     expect(boundsContain(APP_PROFILE.map.paddedBoundaryBounds, BOUNDARY_BOUNDS)).toBe(true);
 
     const imageryBasemap = APP_PROFILE.map.basemaps.find((basemap) => basemap.id === "imagery");
-    const detailOverlay = imageryBasemap.imageOverlays.find((overlay) => overlay.id === "cemetery-detail");
+    const detailOverlays = imageryBasemap.imageOverlays.filter((overlay) => (
+      overlay.id.startsWith("cemetery-detail")
+    ));
+
+    // The detail imagery is tiled so each piece can carry more resolution than a
+    // single capped export. The tiles must still combine to cover the pannable
+    // area, and load lazily so the default zoom only fetches the overview image.
+    expect(detailOverlays.length).toBeGreaterThan(1);
+    expect(detailOverlays.every((overlay) => overlay.lazy === true)).toBe(true);
+    expect(detailOverlays.every((overlay) => Number.isFinite(overlay.minZoom))).toBe(true);
+
+    const detailCoverage = [
+      [
+        Math.min(...detailOverlays.map((overlay) => overlay.bounds[0][0])),
+        Math.min(...detailOverlays.map((overlay) => overlay.bounds[0][1])),
+      ],
+      [
+        Math.max(...detailOverlays.map((overlay) => overlay.bounds[1][0])),
+        Math.max(...detailOverlays.map((overlay) => overlay.bounds[1][1])),
+      ],
+    ];
 
     expect(imageryBasemap.fallbackRaster).toMatchObject({
       type: "raster-xyz",
       maxNativeZoom: 19,
       maxZoom: 20,
     });
-    expect(boundsContain(detailOverlay.bounds, APP_PROFILE.map.paddedBoundaryBounds)).toBe(true);
-    expect(detailOverlay.bounds[0][0]).toBeLessThan(APP_PROFILE.map.paddedBoundaryBounds[0][0]);
-    expect(detailOverlay.bounds[0][1]).toBeLessThan(APP_PROFILE.map.paddedBoundaryBounds[0][1]);
-    expect(detailOverlay.bounds[1][0]).toBeGreaterThan(APP_PROFILE.map.paddedBoundaryBounds[1][0]);
-    expect(detailOverlay.bounds[1][1]).toBeGreaterThan(APP_PROFILE.map.paddedBoundaryBounds[1][1]);
+    expect(boundsContain(detailCoverage, APP_PROFILE.map.paddedBoundaryBounds)).toBe(true);
+    expect(detailCoverage[0][0]).toBeLessThan(APP_PROFILE.map.paddedBoundaryBounds[0][0]);
+    expect(detailCoverage[0][1]).toBeLessThan(APP_PROFILE.map.paddedBoundaryBounds[0][1]);
+    expect(detailCoverage[1][0]).toBeGreaterThan(APP_PROFILE.map.paddedBoundaryBounds[1][0]);
+    expect(detailCoverage[1][1]).toBeGreaterThan(APP_PROFILE.map.paddedBoundaryBounds[1][1]);
   });
 
   test("keeps large map geometry behind async data modules instead of embedding it in the profile shell", () => {
