@@ -13,6 +13,9 @@ retired.
 - Use short-lived branches named `codex/*`, `feature/*`, `fix/*`, `docs/*`,
   `chore/*`, or `hotfix/*`.
 - Promote in order: short-lived branch -> `dev` -> `staging` -> `main`.
+- `dev` -> `staging` promotion is automated after green `dev` CI by
+  `.github/workflows/promote-dev-to-staging.yml`; close the generated PR if
+  staging should intentionally hold.
 - Allow `release/*` branches into `staging` for release preparation.
 - Allow `hotfix/*` branches into `staging` or `main` for emergency production
   fixes.
@@ -41,8 +44,9 @@ promotes it.
 2. Make the smallest coherent production change, including tests and docs.
 3. Run `bun run check` locally for cross-cutting work.
 4. Open a pull request into `dev`.
-5. Promote `dev` to `staging` after the integration checks pass.
-6. Promote `staging` to `main` after final validation.
+5. After `dev` CI passes, GitHub Actions opens or updates a `dev` -> `staging`
+   PR and enables auto-merge once that promotion PR's required checks pass.
+6. Promote `staging` to `main` manually after final validation.
 7. CI runs lint, tests, generated-shell drift, release metadata, and branch
    policy checks.
 8. Merge after the required checks pass.
@@ -51,7 +55,8 @@ promotes it.
 
 GitHub Actions then:
 
-- deploys `main` to GitHub Pages from a reproducible build;
+- deploys `main` to GitHub Pages from a reproducible build using the official
+  Pages artifact workflow;
 - validates release tags with `bun run release:check`;
 - creates a GitHub Release for SemVer tags.
 
@@ -73,6 +78,7 @@ For `staging`, require:
 - pull requests from `dev`, `release/*`, or `hotfix/*`
 - the same status checks as `main`
 - linear history, conversation resolution, no force pushes, and no deletions
+- auto-merge may be enabled for the generated `dev` -> `staging` promotion PR
 
 For `dev`, require:
 

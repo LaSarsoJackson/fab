@@ -154,9 +154,11 @@ manual.
       fail on `git diff --exit-code public/index.html public/manifest.json`.
 - [x] `deploy.yml` on push to main: replace the manual
       `deploy-production.sh` / gh-pages flow with the official GitHub Pages
-      actions, so deploys are reproducible and don't depend on one laptop.
-      Keep the shell script for emergencies until the workflow has shipped a
-      few times, then delete it.
+      actions, so deploys are reproducible and don't depend on one laptop. The
+      shell script now performs a local production build check only.
+- [x] `promote-dev-to-staging.yml`: after a successful `dev` push CI run, open
+      or update the `dev` -> `staging` PR and enable auto-merge once the
+      promotion PR checks pass.
 - [x] `release.yml` on `v*.*.*` tags: validate package/changelog/tag metadata,
       build the production app, and create a GitHub Release.
 
