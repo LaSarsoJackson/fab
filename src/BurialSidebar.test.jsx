@@ -308,7 +308,7 @@ describe("BurialSidebar", () => {
     );
     flushBrowseTimers();
 
-    expect(screen.getByRole("button", { name: "Explore Sections" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Sections" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByPlaceholderText(/Search this section/i)).toBeInTheDocument();
 
     const browseWorkspace = getBrowseWorkspace();
@@ -320,8 +320,8 @@ describe("BurialSidebar", () => {
     renderSidebar({ isMobile: true });
 
     expect(getCurrentMobileSheetSnap()).toBeCloseTo(390);
-    expect(screen.getByRole("button", { name: "Explore Sections" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Start a Tour" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sections" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tours" })).toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Section" })).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Search graves & landmarks/i)).toBeInTheDocument();
     expect(screen.queryByText("Start with a section")).not.toBeInTheDocument();
@@ -714,7 +714,7 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    expect(screen.getByRole("button", { name: "Start a Tour" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Tours" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("combobox", { name: "Tour" })).toHaveValue("Notables Tour 2020");
 
     const tourPanel = screen.getByText(/Choose tour/i).closest(".left-sidebar__browse-detail");
@@ -733,7 +733,7 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    expect(screen.getByRole("button", { name: "Start a Tour" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Tours" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText(/Choose tour/i)).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Tour" })).toHaveValue("");
     expect(screen.getByPlaceholderText(/Select a tour to browse/i)).toBeInTheDocument();
@@ -750,7 +750,7 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    fireEvent.click(screen.getByRole("button", { name: "Explore Sections" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sections" }));
 
     expect(onTourChange).toHaveBeenCalledWith(null);
 
@@ -768,7 +768,7 @@ describe("BurialSidebar", () => {
     expect(screen.getByRole("combobox", { name: "Section" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Select a section to browse/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Explore Sections" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sections" }));
 
     expect(screen.queryByText("Choose section")).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Section" })).not.toBeInTheDocument();
@@ -783,11 +783,11 @@ describe("BurialSidebar", () => {
     expect(screen.queryByText("Results")).not.toBeInTheDocument();
     expect(screen.queryByText("Type at least 2 characters to search.")).not.toBeInTheDocument();
     expect(screen.queryByText("Start with a section")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Explore Sections" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Sections" })).toHaveAttribute("aria-pressed", "false");
 
-    fireEvent.click(screen.getByRole("button", { name: "Explore Sections" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sections" }));
 
-    expect(screen.getByRole("button", { name: "Explore Sections" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Sections" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("combobox", { name: "Section" })).toBeInTheDocument();
     expect(screen.queryByText("Results")).not.toBeInTheDocument();
   });
@@ -1215,6 +1215,8 @@ describe("BurialSidebar", () => {
 
     expect(screen.queryByText("Results")).not.toBeInTheDocument();
     expect(selectionPanel.closest(".left-sidebar__browse-workspace")).toBe(browseWorkspace);
+    expect(within(browseWorkspace).getByRole("button", { name: "Tours" })).toBeInTheDocument();
+    expect(within(browseWorkspace).getByRole("button", { name: "Sections" })).toBeInTheDocument();
   });
 
   domTest("keeps desktop selected actions visible above browse results", () => {
@@ -1234,12 +1236,16 @@ describe("BurialSidebar", () => {
     const browseWorkspace = getBrowseWorkspace();
     const selectionPanel = within(browseWorkspace).getByText("Graves at this spot").closest(".left-sidebar__panel--selected-summary");
     const searchInput = within(browseWorkspace).getByLabelText("Search burials");
+    const sectionModeButton = within(browseWorkspace).getByRole("button", { name: "Sections" });
 
     expect(selectionPanel).not.toBeNull();
     expect(within(selectionPanel).getAllByRole("button", { name: "Navigate" }).length).toBeGreaterThan(0);
     expect(selectionPanel.querySelector(".left-sidebar__selected-scroll")).not.toBeNull();
     expect(
       selectionPanel.compareDocumentPosition(searchInput) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      selectionPanel.compareDocumentPosition(sectionModeButton) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
     expect(within(browseWorkspace).getByText("8 selected")).toBeInTheDocument();
     expect(browseWorkspace).not.toBeNull();
@@ -1521,7 +1527,7 @@ describe("BurialSidebar", () => {
     expect(within(selectedSummary()).queryByText("3rd Albany Volunteers")).not.toBeInTheDocument();
   });
 
-  domTest("desktop lead card shows Show-details toggle when record has detail rows", () => {
+  domTest("desktop lead card shows detail rows without a disclosure toggle", () => {
     const richRecord = buildRichBurialRecord();
 
     renderSidebar({
@@ -1531,24 +1537,8 @@ describe("BurialSidebar", () => {
 
     const selectedPanel = getLeadSelectionCard();
 
-    expect(within(selectedPanel).getByRole("button", { name: "Show details" })).toBeInTheDocument();
-    // Detail rows should be hidden initially
-    expect(within(selectedPanel).queryByText("Mayor")).not.toBeInTheDocument();
-  });
-
-  domTest("desktop lead card toggle reveals all filtered detail rows", () => {
-    const richRecord = buildRichBurialRecord();
-
-    renderSidebar({
-      activeBurialId: richRecord.id,
-      selectedBurials: [richRecord],
-    });
-
-    const selectedPanel = getLeadSelectionCard();
-
-    fireEvent.click(within(selectedPanel).getByRole("button", { name: "Show details" }));
-
-    expect(within(selectedPanel).getByRole("button", { name: "Hide details" })).toBeInTheDocument();
+    expect(within(selectedPanel).queryByRole("button", { name: "Show details" })).not.toBeInTheDocument();
+    expect(within(selectedPanel).queryByRole("button", { name: "Hide details" })).not.toBeInTheDocument();
     expect(within(selectedPanel).getByText("Mayor")).toBeInTheDocument();
     expect(within(selectedPanel).getByText("Colonel")).toBeInTheDocument();
     expect(within(selectedPanel).getByText("1920–1924")).toBeInTheDocument();
@@ -1588,7 +1578,7 @@ describe("BurialSidebar", () => {
     expect(onFocusSelectedBurial).not.toHaveBeenCalled();
   });
 
-  domTest("desktop lead card resets to collapsed when the selected burial changes", () => {
+  domTest("desktop lead card replaces detail rows when the selected burial changes", () => {
     const richRecord = buildRichBurialRecord();
     const rerenderProps = createBaseProps();
     const { rerender } = renderSidebar({
@@ -1598,7 +1588,6 @@ describe("BurialSidebar", () => {
 
     const getLeadPanel = () => getLeadSelectionCard();
 
-    fireEvent.click(within(getLeadPanel()).getByRole("button", { name: "Show details" }));
     expect(within(getLeadPanel()).getByText("Mayor")).toBeInTheDocument();
 
     rerender(
@@ -1609,8 +1598,8 @@ describe("BurialSidebar", () => {
       />
     );
 
-    // Anna Tracy has no additional detail rows — toggle should be absent
     expect(screen.queryByRole("button", { name: "Show details" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Hide details" })).not.toBeInTheDocument();
+    expect(within(getLeadPanel()).queryByText("Mayor")).not.toBeInTheDocument();
   });
 });
