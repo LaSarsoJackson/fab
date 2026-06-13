@@ -24,6 +24,35 @@ const tokenize = (value = '') =>
     .split(/[^a-z0-9]+/)
     .filter((token) => token.length > 1);
 
+// Computes the deduped set of normalized name variants a record can match on.
+// Index build and the scoring pass must agree on this set, so both go through
+// this single helper instead of recomputing the union inline.
+const collectNameVariants = (option) => {
+  const fullNameNormalized = option.fullNameNormalized || normalizeName(
+    option.fullName ||
+    option.label ||
+    `${option.First_Name || ''} ${option.Last_Name || ''}`
+  );
+
+  return Array.from(
+    new Set([
+      fullNameNormalized,
+      ...(option.nameVariantsNormalized || []),
+    ].filter(Boolean))
+  );
+};
+
+// Resolves the tokenized name variants for an option, preferring the token
+// sets cached on the record during buildSearchIndex. Tokenizing every name
+// variant for every candidate on each keystroke is the dominant cost of the
+// scoring pass, so reuse the cached work whenever the index has produced it.
+const resolveNameTokenSets = (option, nameVariants) => {
+  if (Array.isArray(option.searchNameTokenSets)) {
+    return option.searchNameTokenSets;
+  }
+  return nameVariants.map((value) => tokenize(value));
+};
+
 const addToMapArray = (map, key, item) => {
   if (!key) return;
   let arr = map.get(key);
@@ -78,23 +107,21 @@ export const buildSearchIndex = (options, { getTourName, initialIndex } = {}) =>
   options.forEach((option) => {
     const sectionKey = normalize(option.Section);
     const lotKey = normalize(option.Lot);
-    const fullNameNormalized = option.fullNameNormalized || normalizeName(
-      option.fullName ||
-      option.label ||
-      `${option.First_Name || ''} ${option.Last_Name || ''}`
-    );
-    const nameVariantsNormalized = Array.from(
-      new Set([
-        fullNameNormalized,
-        ...(option.nameVariantsNormalized || []),
-      ].filter(Boolean))
-    );
+    const nameVariantsNormalized = collectNameVariants(option);
+    const nameTokenSets = nameVariantsNormalized.map((value) => tokenize(value));
+
+    // Cache the per-record name variants and their token sets so the scoring
+    // pass can reuse them instead of re-deriving the same values on every
+    // keystroke. The search index owns the records for its lifetime, so
+    // attaching the memoized work here is safe.
+    option.searchNameVariants = nameVariantsNormalized;
+    option.searchNameTokenSets = nameTokenSets;
 
     addToMapArray(bySection, sectionKey, option);
     addToMapArray(byLot, lotKey, option);
-    nameVariantsNormalized.forEach((value) => {
+    nameVariantsNormalized.forEach((value, variantIndex) => {
       addToMapArray(byFullName, value, option);
-      tokenize(value).forEach((token) => {
+      nameTokenSets[variantIndex].forEach((token) => {
         addToMapArray(byNameToken, token, option);
       });
     });
@@ -240,20 +267,9 @@ export const smartSearch = (
   return dedupe(
     candidatePool
       .map((option) => {
-        const fullNameNormalized =
-          option.fullNameNormalized || normalizeName(
-            option.fullName ||
-            option.label ||
-            `${option.First_Name || ''} ${option.Last_Name || ''}`
-          );
-        const nameVariantsNormalized = Array.from(
-          new Set([
-            fullNameNormalized,
-            ...(option.nameVariantsNormalized || []),
-          ].filter(Boolean))
-        );
+        const nameVariantsNormalized = option.searchNameVariants || collectNameVariants(option);
         const label = option.searchableLabelLower || normalize(option.searchableLabel);
-        const nameTokenSets = nameVariantsNormalized.map((value) => tokenize(value));
+        const nameTokenSets = resolveNameTokenSets(option, nameVariantsNormalized);
         const matchedNameTokens = nameTokenSets.reduce((best, tokens) => (
           Math.max(best, inputTokens.filter((token) => tokens.includes(token)).length)
         ), 0);
