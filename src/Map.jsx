@@ -143,6 +143,7 @@ import {
   getRoutingErrorMessage,
   isCoordinateNearRoadNetwork,
 } from "./features/map/mapRouting";
+import { createRouteGeoJsonRenderKey } from "./features/map/routeRenderKey";
 import {
   buildFieldPacketShareUrl,
   buildFieldPacketState,
@@ -274,19 +275,6 @@ const getMapMaxZoom = (basemap) => (
 const getSectionBurialMarkerId = (burial) => {
   const properties = burial?.properties || burial || {};
   return burial?.id || properties.id || createMapRecordKey(properties);
-};
-
-const createRouteGeoJsonRenderKey = (geojson) => {
-  const coordinates = geojson?.features?.[0]?.geometry?.coordinates;
-  if (!Array.isArray(coordinates) || coordinates.length === 0) {
-    return "active-route";
-  }
-
-  return coordinates
-    .map((coordinate) => (
-      `${Number(coordinate?.[0]).toFixed(7)},${Number(coordinate?.[1]).toFixed(7)}`
-    ))
-    .join("|");
 };
 
 const createTourMarker = (tourKey, tourStyles) => {
