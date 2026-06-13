@@ -300,7 +300,6 @@ describe("browse sidebar presentation helpers", () => {
       showAllBurials: true,
     })).toEqual([
       { key: "detail", label: "Tier 4" },
-      { key: "markers", label: "Markers visible" },
     ]);
 
     expect(buildBrowseScopeChips({
@@ -386,7 +385,7 @@ describe("browse sidebar presentation helpers", () => {
       isBurialDataLoading: false,
       isCurrentTourLoading: false,
       query: "  Ada  ",
-      scopeChips: [{ key: "markers", label: "Markers visible" }],
+      scopeChips: [{ key: "detail", label: "Tier 4" }],
       sectionFilter: "",
       selectedTour: "",
       visibleCount: 2,
