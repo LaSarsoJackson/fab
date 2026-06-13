@@ -60,9 +60,11 @@ import {
   buildSectionBoundsById,
   buildSectionOverviewMarkers,
   beginLeafletSectionHover,
+  AUTO_BASEMAP_ID,
   clearLeafletSectionHover,
   focusMapSelectionRecord,
   MAP_PRESENTATION_POLICY,
+  resolveEffectiveBasemapId,
   getSectionBurialMarkerStyle,
   getSectionPolygonStyle,
   isApproximateLocationAccuracy,
@@ -235,7 +237,14 @@ const SECTION_MARKER_BATCH_SIZE = 300;
 const SEARCH_INDEX_PUBLIC_PATH = APP_PROFILE.artifacts.searchIndexPublicPath;
 const EMPTY_TOUR_RESULTS = [];
 const MAP_BASEMAPS = APP_PROFILE.map.basemaps || [];
-const MAP_CONTROLLED_BASEMAPS = MAP_BASEMAPS;
+const AUTO_BASEMAP_CONFIG = APP_PROFILE.map.autoBasemap || null;
+// The layer control offers "Auto" as the first option, ahead of the explicit
+// tile sources it switches between. Auto is a selection mode, not a renderable
+// basemap, so it stays out of MAP_BASEMAPS (the renderable specs) and lives only
+// in the control list.
+const MAP_CONTROLLED_BASEMAPS = AUTO_BASEMAP_CONFIG
+  ? [{ id: AUTO_BASEMAP_CONFIG.id, label: AUTO_BASEMAP_CONFIG.label }, ...MAP_BASEMAPS]
+  : MAP_BASEMAPS;
 const DEFAULT_BASEMAP_ID = APP_PROFILE.map.defaultBasemapId || MAP_BASEMAPS[0]?.id || "";
 const DEFAULT_MAX_MAP_ZOOM = MAP_BASEMAPS.reduce((highestZoom, basemap) => (
   Number.isFinite(basemap?.maxZoom)
@@ -437,6 +446,7 @@ const MapRoadLayers = memo(function MapRoadLayers({ roadsData }) {
 const MapStaticLayers = memo(function MapStaticLayers({
   activeBasemap,
   activeBasemapMaxZoom,
+  selectedBasemapId,
   boundaryData,
   fitMapBoundsInViewport,
   getSectionStyle,
@@ -473,7 +483,7 @@ const MapStaticLayers = memo(function MapStaticLayers({
       <MapControlStack isMobile={isMobile}>
         <MapLayerControl
           basemapOptions={MAP_CONTROLLED_BASEMAPS}
-          activeBasemapId={activeBasemap?.id || ""}
+          activeBasemapId={selectedBasemapId || activeBasemap?.id || ""}
           isOpen={isLayerControlOpen}
           onBasemapChange={onBasemapChange}
           onOpenChange={onLayerControlOpenChange}
@@ -811,13 +821,32 @@ export default function BurialMap() {
     () => new Map(MAP_BASEMAPS.map((basemap) => [basemap.id, basemap])),
     []
   );
+  // "auto" is a selection mode, not a renderable spec, so the rendered fallback
+  // always resolves to a real tile source (imagery).
   const defaultBasemap = useMemo(
-    () => basemapById.get(DEFAULT_BASEMAP_ID) || MAP_CONTROLLED_BASEMAPS[0] || MAP_BASEMAPS[0] || null,
+    () => (
+      basemapById.get(DEFAULT_BASEMAP_ID) ||
+      basemapById.get(AUTO_BASEMAP_CONFIG?.imageryBasemapId) ||
+      MAP_BASEMAPS[0] ||
+      null
+    ),
     [basemapById]
   );
+  // The selection ("auto" | a tile-source id) drives the control highlight; the
+  // effective basemap is what actually renders, resolved from selection + zoom.
+  const effectiveBasemapId = useMemo(
+    () => resolveEffectiveBasemapId({
+      selectedBasemapId: activeBasemapId,
+      currentZoom,
+      cartographicBasemapId: AUTO_BASEMAP_CONFIG?.cartographicBasemapId,
+      imageryBasemapId: AUTO_BASEMAP_CONFIG?.imageryBasemapId,
+      imageryMinZoom: AUTO_BASEMAP_CONFIG?.imageryMinZoom,
+    }),
+    [activeBasemapId, currentZoom]
+  );
   const activeBasemap = useMemo(
-    () => basemapById.get(activeBasemapId) || defaultBasemap,
-    [activeBasemapId, basemapById, defaultBasemap]
+    () => basemapById.get(effectiveBasemapId) || defaultBasemap,
+    [effectiveBasemapId, basemapById, defaultBasemap]
   );
   const activeBasemapMaxZoom = useMemo(
     () => getMapMaxZoom(activeBasemap),
@@ -970,7 +999,7 @@ export default function BurialMap() {
   }, [closeMapPopup, dispatchSelectionAction]);
 
   useEffect(() => {
-    if (basemapById.has(activeBasemapId)) {
+    if (activeBasemapId === AUTO_BASEMAP_ID || basemapById.has(activeBasemapId)) {
       return;
     }
 
@@ -4547,6 +4576,7 @@ export default function BurialMap() {
           <MapStaticLayers
             activeBasemap={activeBasemap}
             activeBasemapMaxZoom={activeBasemapMaxZoom}
+            selectedBasemapId={activeBasemapId}
             boundaryData={boundaryData}
             fitMapBoundsInViewport={fitMapBoundsInViewport}
             getSectionStyle={getSectionStyle}

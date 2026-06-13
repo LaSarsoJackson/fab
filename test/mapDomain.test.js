@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  AUTO_BASEMAP_ID,
+  resolveEffectiveBasemapId,
   areLocationCandidatesEquivalent,
   areRouteLatLngTuplesEquivalent,
   buildRecordCoordinateGroups,
@@ -928,6 +930,50 @@ describe("mapDomain", () => {
         topLeft: [16, 16],
         bottomRight: [16, 16],
       });
+    });
+  });
+
+  describe("auto basemap resolution", () => {
+    const autoConfig = {
+      cartographicBasemapId: "streets",
+      imageryBasemapId: "imagery",
+      imageryMinZoom: 16,
+    };
+
+    test("honors an explicit basemap selection regardless of zoom", () => {
+      expect(resolveEffectiveBasemapId({
+        selectedBasemapId: "imagery",
+        currentZoom: 5,
+        ...autoConfig,
+      })).toBe("imagery");
+
+      expect(resolveEffectiveBasemapId({
+        selectedBasemapId: "streets",
+        currentZoom: 20,
+        ...autoConfig,
+      })).toBe("streets");
+    });
+
+    test("auto keeps the cartographic basemap while zoomed out for orientation", () => {
+      expect(resolveEffectiveBasemapId({
+        selectedBasemapId: AUTO_BASEMAP_ID,
+        currentZoom: 13,
+        ...autoConfig,
+      })).toBe("streets");
+    });
+
+    test("auto reveals imagery at and beyond the detail zoom for grave finding", () => {
+      expect(resolveEffectiveBasemapId({
+        selectedBasemapId: AUTO_BASEMAP_ID,
+        currentZoom: 16,
+        ...autoConfig,
+      })).toBe("imagery");
+
+      expect(resolveEffectiveBasemapId({
+        selectedBasemapId: AUTO_BASEMAP_ID,
+        currentZoom: 19,
+        ...autoConfig,
+      })).toBe("imagery");
     });
   });
 

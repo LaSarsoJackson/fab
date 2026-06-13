@@ -37,6 +37,33 @@ export const MAP_PRESENTATION_POLICY = Object.freeze({
   sectionBurialIndividualMinZoom: 20,
   sectionBurialClusterRadius: 64,
 });
+// Auto basemap mode: a calm street/orientation map while the visitor is zoomed
+// out getting their bearings, fading to satellite imagery up close where
+// headstone-level detail matters most. The cemetery's roads and section grid
+// overlay both, so the visitor keeps a continuous mental map as the basemap
+// switches under them.
+export const AUTO_BASEMAP_ID = "auto";
+export const AUTO_BASEMAP_IMAGERY_MIN_ZOOM = MAP_PRESENTATION_POLICY.sectionDetailMinZoom;
+
+// Resolves the basemap that should actually render. An explicit user selection
+// always wins; "auto" picks imagery at/above the detail zoom and a cartographic
+// orientation basemap below it.
+export const resolveEffectiveBasemapId = ({
+  selectedBasemapId,
+  currentZoom = 0,
+  cartographicBasemapId,
+  imageryBasemapId,
+  imageryMinZoom = AUTO_BASEMAP_IMAGERY_MIN_ZOOM,
+} = {}) => {
+  if (selectedBasemapId !== AUTO_BASEMAP_ID) {
+    return selectedBasemapId;
+  }
+
+  return Number(currentZoom) >= Number(imageryMinZoom)
+    ? imageryBasemapId
+    : cartographicBasemapId;
+};
+
 export const SELECTION_SOURCES = Object.freeze({
   MAP_TAP: "map_tap",
   SEARCH_RESULT: "search_result",
