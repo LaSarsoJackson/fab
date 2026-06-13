@@ -370,6 +370,9 @@ export const APP_PROFILE = {
     manifestName: "Albany Rural Cemetery Burial Finder",
     manifestShortName: "Burial Finder",
     noScriptMessage: "You need to enable JavaScript to run the ARC Find-A-Burial App.",
+    errorTitle: "Map unavailable",
+    errorMessage: "The burial map failed to load. Reload the page to try again.",
+    errorReloadLabel: "Reload",
   },
   distribution: {
     iosAppStoreUrl: FAB_IOS_APP_STORE_URL,
