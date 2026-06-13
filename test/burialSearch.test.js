@@ -114,4 +114,34 @@ describe('smartSearch without index', () => {
     const results = smartSearch(options, 'lovelace', { getTourName });
     expect(results.map((item) => item.OBJECTID)).toEqual([3]);
   });
+
+  test('returns an empty list for blank input', () => {
+    expect(smartSearch(options, '   ')).toEqual([]);
+    expect(smartSearch(options, '')).toEqual([]);
+  });
+
+  test('falls back to scanning birth and death years', () => {
+    const results = smartSearch(options, '1812');
+    expect(results.map((item) => item.OBJECTID).sort()).toEqual([1, 2]);
+  });
+
+  test('falls back to scanning section values', () => {
+    const results = smartSearch(options, 'section 12');
+    expect(results.map((item) => item.OBJECTID)).toEqual([1]);
+  });
+
+  test('falls back to scanning lot values', () => {
+    const results = smartSearch(options, 'lot 9');
+    expect(results.map((item) => item.OBJECTID)).toEqual([3]);
+  });
+
+  test('falls back to scanning tour names against the whole pool', () => {
+    const results = smartSearch(options, 'civil war tour', { getTourName });
+    expect(results.map((item) => item.OBJECTID)).toEqual([3]);
+  });
+
+  test('treats a bare number as a section, lot, or year union', () => {
+    const results = smartSearch(options, '12');
+    expect(results.map((item) => item.OBJECTID).sort()).toEqual([1, 2]);
+  });
 });
