@@ -88,13 +88,14 @@ If you change runtime/profile wiring:
 - `bun run start`: dev startup wrapper, alias refresh, image server, React dev server
 - `bun run test`: Bun unit tests plus Jest DOM tests
 - `bun run check`: doctor plus the default automated test suite
-- `bun run deploy`: production build plus GitHub Pages publish
+- `bun run deploy`: local production build check; GitHub Actions deploys `main`
 
 ## Contributor priorities
 
 - Keep moves additive when possible. The worktree may contain in-flight architecture cleanup already.
-- Keep active development on short-lived branches, merge through `dev`, validate
-  on `staging`, and promote `staging` to `main`.
+- Keep active development on short-lived branches, merge through `dev`, let
+  GitHub Actions auto-promote green `dev` builds to `staging`, and manually
+  promote `staging` to `main`.
 - Treat FABFG alignment as shared-contract work first and wrapper-specific work second.
 - Favor clearer Apple-HIG-inspired interaction patterns over decorative UI churn: safer spacing, fewer gestures, stronger hierarchy, and obvious states.
 

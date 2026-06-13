@@ -132,7 +132,8 @@ Useful overrides:
 - `bun run release:check`: verify SemVer, changelog, and release tag metadata
 - `bun run pr:check`: verify pull request branch policy when GitHub provides PR context
 - `bun run build`: create a production build
-- `bun run deploy`: build and publish the GitHub Pages deployment
+- `bun run deploy`: create a local production build; GitHub Actions deploys
+  `main`
 - `bun run build:tour-data`: regenerate tour biography aliases
 - `bun run build:basemaps`: refresh checked-in NYS ortho basemap images
 - `bun run build:data`: regenerate search data, tour matches, and generated map
@@ -155,19 +156,22 @@ Most contributors usually need `bun run start`, `bun run test`, and
 `bun run lint`. Run `bun run doctor` when setting up the repo or when a local
 command fails unexpectedly.
 
-Maintainer, data, and deploy work uses the more specialized commands:
+Maintainer, data, and release work uses the more specialized commands:
 `bun run check`, `bun run build:data`, `bun run build:tour-data`,
 `bun run build:geoparquet`, `bun run validate:geoparquet`, `bun run build`,
-`bun run release:check`, `bun run deploy`, and the Playwright or mobile smoke
-commands when release coverage is needed.
+`bun run release:check`, and the Playwright or mobile smoke commands when
+release coverage is needed. Production deploys happen through GitHub Actions
+after `staging` is promoted to `main`.
 
 ## Branches and Releases
 
 Production work flows through three long-lived branches: `dev` for integration,
 `staging` for pre-production validation, and `main` for production. Open
-short-lived work branches into `dev`, promote `dev` to `staging`, then promote
-`staging` to `main`. Short-lived branches should use prefixes such as
-`feature/`, `fix/`, `docs/`, `chore/`, `hotfix/`, or `codex/`.
+short-lived work branches into `dev`; when `dev` CI passes, GitHub Actions opens
+or updates a `dev` -> `staging` PR and enables auto-merge. Promote `staging` to
+`main` manually when ready for the public GitHub Pages/native-wrapper surface.
+Short-lived branches should use prefixes such as `feature/`, `fix/`, `docs/`,
+`chore/`, `hotfix/`, or `codex/`.
 
 Versioned releases use SemVer in [`package.json`](./package.json), matching
 entries in [`CHANGELOG.md`](./CHANGELOG.md), and tags named `vX.Y.Z`. See
@@ -241,9 +245,9 @@ Common entry points:
 
 There are two relevant hosted environments:
 
-- GitHub Pages is the repo-controlled public validation target. Use
-  `bun run deploy` for manual fallback deploys; pushes to `main` also build
-  and deploy through GitHub Actions.
+- GitHub Pages is the repo-controlled public web deployment. It is built and
+  deployed by GitHub Actions after `staging` is manually promoted to `main`.
+  The `gh-pages` branch is not part of the normal deployment path.
 - `albany.edu/arce` is the institutional production deployment. Promotion to
   that host is still manual.
 
