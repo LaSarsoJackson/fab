@@ -48,7 +48,8 @@ Common commands:
 - `bun run pr:check`: verify pull request branch policy when GitHub provides PR context
 - `bun run build:data`: regenerate search data, tour matches, and generated
   bounds
-- `bun run deploy`: build and publish the GitHub Pages deployment
+- `bun run deploy`: create a local production build; GitHub Actions deploys
+  `main`
 
 Development work starts on short-lived branches and enters the shared pipeline
 through `dev`; see [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md).
@@ -56,7 +57,9 @@ through `dev`; see [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md).
 ## Branches and releases
 
 Use short-lived work branches for product changes. Open those branches into
-`dev`, promote `dev` to `staging`, and promote `staging` to `main`.
+`dev`; after `dev` CI passes, GitHub Actions opens or updates a `dev` ->
+`staging` PR and enables auto-merge. Promote `staging` to `main` manually when
+the public GitHub Pages/native-wrapper surface is ready.
 Short-lived branches should use `codex/`, `feature/`, `fix/`, `docs/`,
 `chore/`, `hotfix/`, `dependabot/`, or `renovate/`. Release branches may target
 `staging`; emergency hotfix branches may target `staging` or `main`.
