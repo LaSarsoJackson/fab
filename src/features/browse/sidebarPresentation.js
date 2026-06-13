@@ -426,10 +426,6 @@ export const buildBrowseScopeChips = ({
       });
     }
 
-    if (showAllBurials) {
-      chips.push({ key: "markers", label: "Markers visible" });
-    }
-
     return chips;
   }
 
