@@ -13,7 +13,7 @@
 
 import React, { memo, useState, useEffect, useMemo, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
-import { MapContainer, Popup, Marker, GeoJSON, CircleMarker, useMap } from "react-leaflet";
+import { MapContainer, Popup, Marker, GeoJSON, useMap } from "react-leaflet";
 import L from "leaflet";
 import "./index.css";
 import "leaflet.markercluster/dist/leaflet.markercluster";
@@ -119,6 +119,7 @@ import {
 } from "./features/map/mapChrome";
 import {
   createCemeteryClusterIcon,
+  createLocationMarkerIcon,
   createNumberedMarkerIcon,
   createSelectedBurialStackIcon,
   MAP_MARKER_COLORS,
@@ -4594,17 +4595,12 @@ export default function BurialMap() {
           )}
 
           {trackedLocation && (
-            <CircleMarker
-              center={[trackedLocation.latitude, trackedLocation.longitude]}
-              radius={8}
+            <Marker
+              position={[trackedLocation.latitude, trackedLocation.longitude]}
+              icon={createLocationMarkerIcon()}
               interactive={false}
-              pathOptions={{
-                color: "#ffffff",
-                fillColor: "#1f8a69",
-                fillOpacity: 0.96,
-                opacity: 0.98,
-                weight: 3,
-              }}
+              keyboard={false}
+              zIndexOffset={1000}
             />
           )}
 

@@ -132,6 +132,34 @@ export const getSectionPoiIcon = ({
   return icon;
 };
 
+// "You are here" is the most important marker on-site, yet it used to be a
+// plain green dot that blended into the green section and burial markers. Map
+// convention the world over reads a pulsing blue dot as "me", so the location
+// marker now uses the same navigation blue as the route line and carries a soft
+// pulse so a visitor can find themselves at a glance under tree canopy and sun
+// glare. Built once and reused — the live position drives the Marker, not the icon.
+let locationMarkerIcon = null;
+
+export const createLocationMarkerIcon = () => {
+  if (locationMarkerIcon) {
+    return locationMarkerIcon;
+  }
+
+  locationMarkerIcon = L.divIcon({
+    className: "location-marker-icon",
+    html: `
+      <div class="location-marker" aria-hidden="true">
+        <span class="location-marker__pulse"></span>
+        <span class="location-marker__dot"></span>
+      </div>
+    `,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
+
+  return locationMarkerIcon;
+};
+
 export const createNumberedMarkerIcon = (number) => {
   const cacheKey = String(number);
   const cachedIcon = numberedMarkerIcons.get(cacheKey);
