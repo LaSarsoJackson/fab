@@ -12,8 +12,8 @@ Treat [`src/Map.jsx`](../src/Map.jsx) as the orchestration layer. It should own:
 - viewport, routing, and selection side effects
 
 It should not be the long-term home for pure formatting or dataset-reconciliation logic.
-Development-only map experiments live on `dev-features`; `main` should keep a
-single production map path unless an experiment is being promoted.
+Development-only map experiments live on short-lived work branches; `main`
+should keep a single production map path unless an experiment is being promoted.
 
 ## Supporting modules
 

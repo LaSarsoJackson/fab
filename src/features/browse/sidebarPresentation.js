@@ -61,6 +61,30 @@ export const getSidebarClassName = ({
   isMobile ? "left-sidebar left-sidebar--mobile" : "left-sidebar left-sidebar--desktop"
 );
 
+export const buildSidebarContentVisibility = ({
+  areFieldPacketsEnabled = false,
+  browseQuery = "",
+  hasFieldPacketContent = false,
+  isBrowsePending = false,
+  isCurrentTourLoading = false,
+  sectionFilter = "",
+  selectedBurialsLength = 0,
+  selectedTour = "",
+} = {}) => {
+  const hasExplicitBrowseResultsContext = Boolean(browseQuery.trim())
+    || Boolean(sectionFilter)
+    || Boolean(selectedTour)
+    || Boolean(isBrowsePending)
+    || Boolean(isCurrentTourLoading);
+
+  return {
+    hasExplicitBrowseResultsContext,
+    shouldShowBrowseResults: hasExplicitBrowseResultsContext,
+    shouldShowFieldPacketPanel: Boolean(areFieldPacketsEnabled)
+      && (selectedBurialsLength > 0 || Boolean(hasFieldPacketContent)),
+  };
+};
+
 export const formatLocationNoticeLabel = ({
   status,
   activeStatus,
@@ -256,8 +280,8 @@ export const getSearchPlaceholder = ({
     return selectedTour ? "Search this tour" : "Select a tour to browse";
   }
 
-  // Narrow mobile sheets truncate the long-form hint, which reads as broken.
-  return isCompact ? "Search graves & landmarks" : "Search name, section, lot, or landmark";
+  // Narrow surfaces truncate the long-form hint, which reads as broken.
+  return isCompact ? "Search graves & landmarks" : "Search burials";
 };
 
 export const getBrowseEmptyState = ({

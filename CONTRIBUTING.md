@@ -50,18 +50,16 @@ Common commands:
   bounds
 - `bun run deploy`: build and publish the GitHub Pages deployment
 
-Development-only surfaces such as static admin, custom renderer experiments,
-PMTiles previews, and site-twin tooling live on `dev-features`; see
-[docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md).
+Development work starts on short-lived branches and enters the shared pipeline
+through `dev`; see [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md).
 
 ## Branches and releases
 
-Use short-lived work branches for production changes. Branches into `main`
-should use `codex/`, `feature/`, `fix/`, `docs/`, `chore/`, `release/`, or
-`hotfix/`. Use `dev` as the integration branch for validated work headed toward
-production. The `dev-features` branch is reserved for experimental and
-operator-only surfaces and should only be promoted through a focused pull
-request.
+Use short-lived work branches for product changes. Open those branches into
+`dev`, promote `dev` to `staging`, and promote `staging` to `main`.
+Short-lived branches should use `codex/`, `feature/`, `fix/`, `docs/`,
+`chore/`, `hotfix/`, `dependabot/`, or `renovate/`. Release branches may target
+`staging`; emergency hotfix branches may target `staging` or `main`.
 
 FAB versions are SemVer values in [`package.json`](./package.json). Any
 production release must also update [`CHANGELOG.md`](./CHANGELOG.md) with a

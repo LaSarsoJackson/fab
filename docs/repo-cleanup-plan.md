@@ -141,7 +141,7 @@ Initial repo-side enforcement now lives in `.github/workflows/`. Every future
 cleanup item should either add a fast automated check or explain why it remains
 manual.
 
-- [x] `ci.yml` on PR + push to main/dev:
+- [x] `ci.yml` on PR + push to main/staging/dev:
       1. `oven-sh/setup-bun` (pin 1.3.8) + `bun install`
       2. `bun run lint`
       3. `bun run release:check`

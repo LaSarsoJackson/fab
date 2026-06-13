@@ -13,10 +13,10 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
-import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
 import AltRouteIcon from "@mui/icons-material/AltRoute";
 import MapIcon from "@mui/icons-material/Map";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
 import { getSearchShellNoticeStyles } from "./sidebarPresentation";
 
@@ -159,15 +159,15 @@ function VisitTaskSelector({
     hasTourBrowse ? {
       key: "tour",
       source: "tour",
-      label: "Start a Tour",
-      detail: "Guided route",
+      ariaLabel: "Start a Tour",
+      label: "Tours",
       icon: <AltRouteIcon fontSize="small" />,
     } : null,
     {
       key: "section",
       source: "section",
-      label: "Explore Sections",
-      detail: "Section map",
+      ariaLabel: "Explore Sections",
+      label: "Sections",
       icon: <MapIcon fontSize="small" />,
     },
   ].filter(Boolean);
@@ -187,7 +187,7 @@ function VisitTaskSelector({
               key={task.key}
               color="inherit"
               variant="text"
-              aria-label={task.label}
+              aria-label={task.ariaLabel}
               aria-pressed={isActive}
               className={getVisitTaskClassName(isActive)}
               onClick={() => onBrowseSourceChange(task.source)}
@@ -195,7 +195,6 @@ function VisitTaskSelector({
             >
               <span className="left-sidebar__visit-task-copy">
                 <span className="left-sidebar__visit-task-label">{task.label}</span>
-                <span className="left-sidebar__visit-task-detail">{task.detail}</span>
               </span>
             </Button>
           );
@@ -269,10 +268,30 @@ function SectionRefinementControls({
     return null;
   }
 
+  const markerToggleLabel = showAllBurials
+    ? "Hide grave markers in this section"
+    : "Show grave markers in this section";
+  const markerToggleIcon = showAllBurials
+    ? <VisibilityOffIcon fontSize="small" />
+    : <VisibilityIcon fontSize="small" />;
+
   return (
     <Box sx={{ mt: 1.2 }}>
+      <Button
+        className={getMarkerToggleClassName(showAllBurials)}
+        variant="text"
+        color="inherit"
+        size="small"
+        onClick={onToggleSectionMarkers}
+        startIcon={markerToggleIcon}
+        aria-label={markerToggleLabel}
+        aria-pressed={showAllBurials}
+      >
+        {showAllBurials ? "Hide graves" : "Show graves"}
+      </Button>
+
       <Typography variant="subtitle2" className="left-sidebar__browse-detail-title" gutterBottom>
-        Refine
+        Filter records
       </Typography>
       <Box
         className="left-sidebar__control-grid"
@@ -313,18 +332,8 @@ function SectionRefinementControls({
             inputMode: "search",
             name: filterType === "lot" ? "lot_filter" : "tier_filter",
             spellCheck: false,
-          }}
-        />
-        <Button
-          className={getMarkerToggleClassName(showAllBurials)}
-          variant="text"
-          color="inherit"
-          size="small"
-          onClick={onToggleSectionMarkers}
-          startIcon={showAllBurials ? <RemoveIcon /> : <AddIcon />}
-        >
-          {showAllBurials ? "Hide graves in this section" : "Show graves in this section"}
-        </Button>
+            }}
+          />
       </Box>
     </Box>
   );
@@ -368,7 +377,7 @@ function SectionBrowseControls({
             Section
           </Typography>
           <Typography variant="body2" sx={{ mt: 0.35, color: "var(--muted-text)" }}>
-            Pick one section, then refine inside it.
+            {sectionFilter ? "Focused on this section." : "Choose a section to zoom in."}
           </Typography>
         </Box>
         {hasSectionFilters && (
@@ -622,9 +631,9 @@ export default function BrowseWorkspacePanel({
   tourDefinitions = [], tourLabel = "Tour", tourStyles = {}, uniqueSections = [],
 }) {
   const selectedTourDefinition = tourDefinitions.find((definition) => definition.name === selectedTour) || null;
-  const shouldPromotePriorityContent = Boolean(isMobile && priorityContent);
-  // On mobile, selected-record controls should appear before search and filters
-  // so the current grave remains the first task in the drawer.
+  const shouldPromotePriorityContent = Boolean(priorityContent);
+  // Once a grave is selected, keep that record ahead of search and filters so
+  // the sidebar follows the user's current map focus.
   const inlinePriorityContent = shouldPromotePriorityContent ? null : priorityContent;
   // While a query is active on mobile, drop the visit-task shortcuts so results
   // land directly under the pinned search bar, the way Maps switches modes.
@@ -650,7 +659,12 @@ export default function BrowseWorkspacePanel({
         }}
       >
         {shouldPromotePriorityContent && (
-          <Box className="left-sidebar__browse-priority left-sidebar__browse-priority--mobile">
+          <Box
+            className={[
+              "left-sidebar__browse-priority",
+              isMobile ? "left-sidebar__browse-priority--mobile" : "",
+            ].filter(Boolean).join(" ")}
+          >
             {priorityContent}
           </Box>
         )}

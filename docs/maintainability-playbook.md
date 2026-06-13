@@ -118,8 +118,8 @@ bun run build:data
 - `Map.jsx` and `BurialSidebar.jsx` should stay orchestration/composition files,
   not new homes for pure rules.
 - `src/lib` is retired. Do not add new helpers there.
-- Development-only surfaces belong on `dev-features` unless they are being
-  promoted into the shipped app.
+- Development-only surfaces belong on short-lived branches unless they are
+  being promoted through `dev`, `staging`, and `main`.
 - `Navigate` is the user-facing action; Map.jsx decides between local-road
   routing and the external Maps handoff.
 - Shared URLs affect both the web app and `FABFG`.

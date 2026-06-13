@@ -1206,31 +1206,19 @@ export const getSectionPolygonStyle = (options = {}) => {
   const {
     sectionId,
     activeSectionId,
-    hoveredSectionId = null,
     showAllBurials = false,
   } = options;
 
   const nextSectionId = String(sectionId || "");
   const nextActiveId = String(activeSectionId || "");
-  const nextHoveredId = String(hoveredSectionId || "");
   const isActive = nextSectionId && nextSectionId === nextActiveId;
-  const isHovered = nextSectionId && nextSectionId === nextHoveredId;
 
   if (isActive) {
     return {
-      fillColor: showAllBurials ? "#7396b4" : "#628ab0",
-      fillOpacity: showAllBurials ? 0.14 : 0.24,
-      color: showAllBurials ? "#4e6f87" : "#365977",
-      weight: showAllBurials ? 1.8 : 2,
-    };
-  }
-
-  if (isHovered) {
-    return {
-      fillColor: "#e4edf5",
-      fillOpacity: showAllBurials ? 0.08 : 0.12,
-      color: "#60788f",
-      weight: 1.6,
+      fillColor: "#2f6b57",
+      fillOpacity: showAllBurials ? 0.035 : 0.08,
+      color: showAllBurials ? "#315f4f" : "#2f6b57",
+      weight: showAllBurials ? 1.35 : 1.65,
     };
   }
 
