@@ -60,6 +60,69 @@ describe("app profile", () => {
     );
   });
 
+  test("resolves record image urls against the cemetery image directory", () => {
+    const { resolveImageUrl, noImageUrl } = APP_PROFILE.features.recordPresentation;
+
+    expect(resolveImageUrl("")).toBe(noImageUrl);
+    expect(resolveImageUrl("NONE")).toBe(noImageUrl);
+    expect(resolveImageUrl("Schuyler70a.jpg")).toBe(
+      "https://www.albany.edu/arce/images/Schuyler70a.jpg"
+    );
+    expect(resolveImageUrl("Schuyler70a")).toBe(
+      "https://www.albany.edu/arce/images/Schuyler70a.jpg"
+    );
+    expect(resolveImageUrl("portrait.png")).toBe(
+      "https://www.albany.edu/arce/images/portrait.png"
+    );
+  });
+
+  test("builds profile-owned popup rows from cemetery source fields", () => {
+    const { buildPopupRows } = APP_PROFILE.features.recordPresentation;
+
+    const rows = buildPopupRows(
+      {
+        Titles: "Mayor",
+        Highest_Ra: "Colonel",
+        Initial_Te: "1850",
+        Subsequent: "1852",
+        Unit: "10th NY",
+        Headstone_: "marble",
+        Service_Re: "Union Army",
+      },
+      {
+        buildLocationSummary: () => "Section 12, Lot 8",
+        resolveRecordDates: () => ({ birth: "1812", death: "1899" }),
+      }
+    );
+
+    const rowMap = Object.fromEntries(rows.map(({ label, value }) => [label, value]));
+
+    expect(rowMap.Role).toBe("Mayor");
+    expect(rowMap.Rank).toBe("Colonel");
+    expect(rowMap["Initial term"]).toBe("1850");
+    expect(rowMap["Subsequent term"]).toBe("1852");
+    expect(rowMap.Unit).toBe("10th NY");
+    expect(rowMap.Location).toBe("Section 12, Lot 8");
+    expect(rowMap.Born).toBe("1812");
+    expect(rowMap.Died).toBe("1899");
+    expect(rowMap.Headstone).toBe("Headstone marble");
+    expect(rowMap.Service).toBe("Union Army");
+  });
+
+  test("omits empty popup rows and avoids duplicating the rank label", () => {
+    const { buildPopupRows } = APP_PROFILE.features.recordPresentation;
+
+    const rows = buildPopupRows({
+      Titles: "Captain",
+      Highest_Ra: "Captain",
+      Headstone_: "Headstone present",
+    });
+    const labels = rows.map((row) => row.label);
+
+    expect(labels).toEqual(["Role", "Headstone"]);
+    expect(rows.find((row) => row.label === "Headstone").value).toBe("Headstone present");
+  });
+
   test("exposes the iPhone app listing used by shared-link install prompts", () => {
     expect(APP_PROFILE.distribution.iosAppStoreUrl).toBe(
       "https://apps.apple.com/us/app/albany-grave-finder/id6746413050"
