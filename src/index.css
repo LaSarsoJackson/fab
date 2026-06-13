@@ -138,6 +138,69 @@ select,
   border: 0;
 }
 
+/* "You are here": the universal blue dot. A calm pulse keeps it findable under
+   tree canopy and sun glare without competing with the green cemetery markers. */
+.location-marker-icon {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.location-marker {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.location-marker__dot {
+  position: relative;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #1471d6;
+  border: 3px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(15, 41, 73, 0.45);
+}
+
+.location-marker__pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(20, 113, 214, 0.35);
+  transform: translate(-50%, -50%);
+  animation: location-marker-pulse 2s ease-out infinite;
+}
+
+@keyframes location-marker-pulse {
+  0% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  70% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.6);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .location-marker__pulse {
+    animation: none;
+    opacity: 0.4;
+    transform: translate(-50%, -50%) scale(1.8);
+  }
+}
+
 .custom-div-icon__badge {
   width: 24px;
   height: 24px;
