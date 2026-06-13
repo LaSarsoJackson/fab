@@ -37,6 +37,33 @@ export const MAP_PRESENTATION_POLICY = Object.freeze({
   sectionBurialIndividualMinZoom: 20,
   sectionBurialClusterRadius: 64,
 });
+// Auto basemap mode: a calm street/orientation map while the visitor is zoomed
+// out getting their bearings, fading to satellite imagery up close where
+// headstone-level detail matters most. The cemetery's roads and section grid
+// overlay both, so the visitor keeps a continuous mental map as the basemap
+// switches under them.
+export const AUTO_BASEMAP_ID = "auto";
+export const AUTO_BASEMAP_IMAGERY_MIN_ZOOM = MAP_PRESENTATION_POLICY.sectionDetailMinZoom;
+
+// Resolves the basemap that should actually render. An explicit user selection
+// always wins; "auto" picks imagery at/above the detail zoom and a cartographic
+// orientation basemap below it.
+export const resolveEffectiveBasemapId = ({
+  selectedBasemapId,
+  currentZoom = 0,
+  cartographicBasemapId,
+  imageryBasemapId,
+  imageryMinZoom = AUTO_BASEMAP_IMAGERY_MIN_ZOOM,
+} = {}) => {
+  if (selectedBasemapId !== AUTO_BASEMAP_ID) {
+    return selectedBasemapId;
+  }
+
+  return Number(currentZoom) >= Number(imageryMinZoom)
+    ? imageryBasemapId
+    : cartographicBasemapId;
+};
+
 export const SELECTION_SOURCES = Object.freeze({
   MAP_TAP: "map_tap",
   SEARCH_RESULT: "search_result",
@@ -1202,6 +1229,17 @@ export const getSectionBurialMarkerStyle = (record, options = {}) => {
   };
 };
 
+// Sections should read as labelled regions, not invisible hairline outlines.
+// A calm sage tint over the basemap lets the cemetery's section grid register
+// at a glance — the same mental model a visitor builds from the numbered signs
+// on the ground — while the active section lifts forward with a stronger accent
+// fill and a confident edge. Detail mode (individual burials visible) eases the
+// fills and strokes back so grave markers stay the focus.
+const SECTION_POLYGON_INACTIVE_COLOR = "#5f8a76";
+const SECTION_POLYGON_INACTIVE_STROKE = "#34604f";
+const SECTION_POLYGON_ACTIVE_COLOR = "#2f6b57";
+const SECTION_POLYGON_ACTIVE_STROKE = "#1f4a3b";
+
 export const getSectionPolygonStyle = (options = {}) => {
   const {
     sectionId,
@@ -1215,18 +1253,72 @@ export const getSectionPolygonStyle = (options = {}) => {
 
   if (isActive) {
     return {
-      fillColor: "#2f6b57",
-      fillOpacity: showAllBurials ? 0.035 : 0.08,
-      color: showAllBurials ? "#315f4f" : "#2f6b57",
-      weight: showAllBurials ? 1.35 : 1.65,
+      fillColor: SECTION_POLYGON_ACTIVE_COLOR,
+      fillOpacity: showAllBurials ? 0.06 : 0.18,
+      color: SECTION_POLYGON_ACTIVE_STROKE,
+      weight: showAllBurials ? 1.6 : 2.25,
+      opacity: 0.95,
     };
   }
 
   return {
-    fillColor: "#f8f9fa",
-    fillOpacity: showAllBurials ? 0.02 : 0.05,
-    color: "#999999",
-    weight: 1,
+    fillColor: SECTION_POLYGON_INACTIVE_COLOR,
+    fillOpacity: showAllBurials ? 0.04 : 0.1,
+    color: SECTION_POLYGON_INACTIVE_STROKE,
+    weight: showAllBurials ? 0.85 : 1.15,
+    opacity: showAllBurials ? 0.4 : 0.6,
+  };
+};
+
+//=============================================================================
+// Route Summary
+//=============================================================================
+
+// On-site, the question a visitor is really asking is "how far, and how long to
+// walk?". The walking-route calculation already produces both, so we surface
+// them in plain, glanceable imperial units (this is a US cemetery). Short
+// in-cemetery distances round to the nearest 10 ft; longer ones switch to miles.
+const ROUTE_FEET_PER_METER = 3.28084;
+const ROUTE_FEET_PER_MILE = 5280;
+const ROUTE_MILE_THRESHOLD_FEET = ROUTE_FEET_PER_MILE * 0.1;
+
+export const formatRouteDistanceLabel = (distanceMeters) => {
+  const meters = Number(distanceMeters);
+  if (!Number.isFinite(meters) || meters < 0) {
+    return "";
+  }
+
+  const feet = meters * ROUTE_FEET_PER_METER;
+  if (feet < ROUTE_MILE_THRESHOLD_FEET) {
+    const roundedFeet = Math.max(10, Math.round(feet / 10) * 10);
+    return `${roundedFeet} ft`;
+  }
+
+  return `${(feet / ROUTE_FEET_PER_MILE).toFixed(1)} mi`;
+};
+
+export const formatRouteWalkTimeLabel = (durationMs) => {
+  const milliseconds = Number(durationMs);
+  if (!Number.isFinite(milliseconds) || milliseconds < 0) {
+    return "";
+  }
+
+  const minutes = milliseconds / 60000;
+  if (minutes < 1) {
+    return "<1 min walk";
+  }
+
+  return `${Math.round(minutes)} min walk`;
+};
+
+export const formatRouteSummary = ({ distanceMeters, durationMs } = {}) => {
+  const distanceLabel = formatRouteDistanceLabel(distanceMeters);
+  const walkTimeLabel = formatRouteWalkTimeLabel(durationMs);
+
+  return {
+    distanceLabel,
+    walkTimeLabel,
+    summaryLabel: [distanceLabel, walkTimeLabel].filter(Boolean).join(" · "),
   };
 };
 

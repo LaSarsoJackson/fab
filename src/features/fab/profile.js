@@ -514,8 +514,19 @@ export const APP_PROFILE = {
       outOfBounds: `Search by name or section, then tap Navigate for directions to ${FAB_SITE_NAME}.`,
       routeLocationRequired: `Continue with Maps for now. On-site navigation will start when you arrive.`,
     },
-    defaultBasemapId: "imagery",
+    defaultBasemapId: "auto",
     basemaps: MAP_BASEMAPS,
+    // Auto mode is not a tile source of its own — it picks between a
+    // cartographic orientation basemap and satellite imagery by zoom so the
+    // default view reads like a wayfinding map when zoomed out and reveals
+    // headstone-level detail up close.
+    autoBasemap: {
+      id: "auto",
+      label: "Auto",
+      cartographicBasemapId: "streets",
+      imageryBasemapId: "imagery",
+      imageryMinZoom: 16,
+    },
     overlaySources: MAP_OVERLAY_SOURCES,
     storageStrategy: {
       sourceOfTruthFormat: "geojson",

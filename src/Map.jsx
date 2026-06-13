@@ -13,7 +13,7 @@
 
 import React, { memo, useState, useEffect, useMemo, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
-import { MapContainer, Popup, Marker, GeoJSON, CircleMarker, useMap } from "react-leaflet";
+import { MapContainer, Popup, Marker, GeoJSON, useMap } from "react-leaflet";
 import L from "leaflet";
 import "./index.css";
 import "leaflet.markercluster/dist/leaflet.markercluster";
@@ -58,9 +58,12 @@ import {
   buildSectionBoundsById,
   buildSectionOverviewMarkers,
   beginLeafletSectionHover,
+  AUTO_BASEMAP_ID,
   clearLeafletSectionHover,
   focusMapSelectionRecord,
+  formatRouteSummary,
   MAP_PRESENTATION_POLICY,
+  resolveEffectiveBasemapId,
   getSectionBurialMarkerStyle,
   getSectionPolygonStyle,
   isApproximateLocationAccuracy,
@@ -117,6 +120,7 @@ import {
 } from "./features/map/mapChrome";
 import {
   createCemeteryClusterIcon,
+  createLocationMarkerIcon,
   createNumberedMarkerIcon,
   createSelectedBurialStackIcon,
   MAP_MARKER_COLORS,
@@ -237,7 +241,14 @@ const SECTION_MARKER_BATCH_SIZE = 300;
 const SEARCH_INDEX_PUBLIC_PATH = APP_PROFILE.artifacts.searchIndexPublicPath;
 const EMPTY_TOUR_RESULTS = [];
 const MAP_BASEMAPS = APP_PROFILE.map.basemaps || [];
-const MAP_CONTROLLED_BASEMAPS = MAP_BASEMAPS;
+const AUTO_BASEMAP_CONFIG = APP_PROFILE.map.autoBasemap || null;
+// The layer control offers "Auto" as the first option, ahead of the explicit
+// tile sources it switches between. Auto is a selection mode, not a renderable
+// basemap, so it stays out of MAP_BASEMAPS (the renderable specs) and lives only
+// in the control list.
+const MAP_CONTROLLED_BASEMAPS = AUTO_BASEMAP_CONFIG
+  ? [{ id: AUTO_BASEMAP_CONFIG.id, label: AUTO_BASEMAP_CONFIG.label }, ...MAP_BASEMAPS]
+  : MAP_BASEMAPS;
 const DEFAULT_BASEMAP_ID = APP_PROFILE.map.defaultBasemapId || MAP_BASEMAPS[0]?.id || "";
 const DEFAULT_MAX_MAP_ZOOM = MAP_BASEMAPS.reduce((highestZoom, basemap) => (
   Number.isFinite(basemap?.maxZoom)
@@ -406,6 +417,7 @@ const MapRoadLayers = memo(function MapRoadLayers({ roadsData }) {
 const MapStaticLayers = memo(function MapStaticLayers({
   activeBasemap,
   activeBasemapMaxZoom,
+  selectedBasemapId,
   boundaryData,
   fitMapBoundsInViewport,
   getSectionStyle,
@@ -442,7 +454,7 @@ const MapStaticLayers = memo(function MapStaticLayers({
       <MapControlStack isMobile={isMobile}>
         <MapLayerControl
           basemapOptions={MAP_CONTROLLED_BASEMAPS}
-          activeBasemapId={activeBasemap?.id || ""}
+          activeBasemapId={selectedBasemapId || activeBasemap?.id || ""}
           isOpen={isLayerControlOpen}
           onBasemapChange={onBasemapChange}
           onOpenChange={onLayerControlOpenChange}
@@ -645,6 +657,7 @@ export default function BurialMap() {
   const [routingOrigin, setRoutingOrigin] = useState(null);
   const [routingDestination, setRoutingDestination] = useState(null);
   const [routeGeoJson, setRouteGeoJson] = useState(null);
+  const [routeSummary, setRouteSummary] = useState(null);
   const [isRouteLoading, setIsRouteLoading] = useState(false);
   const [routeError, setRouteError] = useState("");
   const [navigationNotice, setNavigationNotice] = useState("");
@@ -780,13 +793,32 @@ export default function BurialMap() {
     () => new Map(MAP_BASEMAPS.map((basemap) => [basemap.id, basemap])),
     []
   );
+  // "auto" is a selection mode, not a renderable spec, so the rendered fallback
+  // always resolves to a real tile source (imagery).
   const defaultBasemap = useMemo(
-    () => basemapById.get(DEFAULT_BASEMAP_ID) || MAP_CONTROLLED_BASEMAPS[0] || MAP_BASEMAPS[0] || null,
+    () => (
+      basemapById.get(DEFAULT_BASEMAP_ID) ||
+      basemapById.get(AUTO_BASEMAP_CONFIG?.imageryBasemapId) ||
+      MAP_BASEMAPS[0] ||
+      null
+    ),
     [basemapById]
   );
+  // The selection ("auto" | a tile-source id) drives the control highlight; the
+  // effective basemap is what actually renders, resolved from selection + zoom.
+  const effectiveBasemapId = useMemo(
+    () => resolveEffectiveBasemapId({
+      selectedBasemapId: activeBasemapId,
+      currentZoom,
+      cartographicBasemapId: AUTO_BASEMAP_CONFIG?.cartographicBasemapId,
+      imageryBasemapId: AUTO_BASEMAP_CONFIG?.imageryBasemapId,
+      imageryMinZoom: AUTO_BASEMAP_CONFIG?.imageryMinZoom,
+    }),
+    [activeBasemapId, currentZoom]
+  );
   const activeBasemap = useMemo(
-    () => basemapById.get(activeBasemapId) || defaultBasemap,
-    [activeBasemapId, basemapById, defaultBasemap]
+    () => basemapById.get(effectiveBasemapId) || defaultBasemap,
+    [effectiveBasemapId, basemapById, defaultBasemap]
   );
   const activeBasemapMaxZoom = useMemo(
     () => getMapMaxZoom(activeBasemap, DEFAULT_MAX_MAP_ZOOM),
@@ -939,7 +971,7 @@ export default function BurialMap() {
   }, [closeMapPopup, dispatchSelectionAction]);
 
   useEffect(() => {
-    if (basemapById.has(activeBasemapId)) {
+    if (activeBasemapId === AUTO_BASEMAP_ID || basemapById.has(activeBasemapId)) {
       return;
     }
 
@@ -3050,6 +3082,7 @@ export default function BurialMap() {
   useEffect(() => {
     if (!routingOrigin || !routingDestination) {
       setRouteGeoJson(null);
+      setRouteSummary(null);
       setIsRouteLoading(false);
       renderedRouteDestinationRef.current = null;
       return undefined;
@@ -3065,6 +3098,7 @@ export default function BurialMap() {
 
     if (shouldResetRouteGeometry) {
       setRouteGeoJson(null);
+      setRouteSummary(null);
     }
     setIsRouteLoading(true);
     setRouteError("");
@@ -3079,6 +3113,10 @@ export default function BurialMap() {
       }
 
       setRouteGeoJson(routeResult.geojson);
+      setRouteSummary(formatRouteSummary({
+        distanceMeters: routeResult.distance,
+        durationMs: routeResult.time,
+      }));
       setIsRouteLoading(false);
       renderedRouteDestinationRef.current = routingDestination;
 
@@ -3114,6 +3152,7 @@ export default function BurialMap() {
       }
 
       setRouteGeoJson(null);
+      setRouteSummary(null);
       setRoutingOrigin(null);
       setRoutingDestination(null);
       activeRouteBurialIdRef.current = null;
@@ -4473,6 +4512,7 @@ export default function BurialMap() {
         isMobile={isMobile}
         routingNotice={navigationNotice}
         routingError={routeError}
+        routeSummary={routeSummary}
       />
 
       <MapContainer
@@ -4494,6 +4534,7 @@ export default function BurialMap() {
           <MapStaticLayers
             activeBasemap={activeBasemap}
             activeBasemapMaxZoom={activeBasemapMaxZoom}
+            selectedBasemapId={activeBasemapId}
             boundaryData={boundaryData}
             fitMapBoundsInViewport={fitMapBoundsInViewport}
             getSectionStyle={getSectionStyle}
@@ -4542,17 +4583,12 @@ export default function BurialMap() {
           )}
 
           {trackedLocation && (
-            <CircleMarker
-              center={[trackedLocation.latitude, trackedLocation.longitude]}
-              radius={8}
+            <Marker
+              position={[trackedLocation.latitude, trackedLocation.longitude]}
+              icon={createLocationMarkerIcon()}
               interactive={false}
-              pathOptions={{
-                color: "#ffffff",
-                fillColor: "#1f8a69",
-                fillOpacity: 0.96,
-                opacity: 0.98,
-                weight: 3,
-              }}
+              keyboard={false}
+              zIndexOffset={1000}
             />
           )}
 
