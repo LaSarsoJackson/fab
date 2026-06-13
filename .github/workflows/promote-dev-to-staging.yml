@@ -16,7 +16,7 @@ permissions:
 
 concurrency:
   group: promote-dev-to-staging
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   promote:
