@@ -15,7 +15,6 @@ jobs:
   branch-policy:
     name: Pull request branch policy
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
 
     steps:
       - name: Checkout
