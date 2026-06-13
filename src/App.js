@@ -6,6 +6,7 @@ import React, { Suspense, lazy, useEffect } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { APP_PROFILE } from "./features/fab/profile";
 import { syncDocumentMetadata } from "./shared/runtimeEnv";
+import AppErrorBoundary from "./AppErrorBoundary";
 import "./App.css";
 
 const BurialMap = lazy(() => import("./Map"));
@@ -150,6 +151,10 @@ const {
 const APP_SHELL = APP_PROFILE.shell || {};
 const APP_DOCUMENT_TITLE = APP_SHELL.documentTitle || appName;
 const APP_DESCRIPTION = APP_SHELL.description || "";
+const APP_ERROR_TITLE = APP_SHELL.errorTitle || mapLoadingTitle || appName;
+const APP_ERROR_MESSAGE = APP_SHELL.errorMessage
+  || "The map failed to load. Reload the page to try again.";
+const APP_ERROR_RELOAD_LABEL = APP_SHELL.errorReloadLabel || "Reload";
 
 // Mobile browser chrome changes the visual viewport without always changing
 // `window.innerHeight`; CSS variables keep the map shell sized to the visible
@@ -197,16 +202,22 @@ export default function App() {
         Skip to main content
       </a>
       <main id="app-main" className="app-shell-main" tabIndex={-1}>
-        <Suspense
-          fallback={
-            <div className="app-shell-loading" role="status" aria-live="polite">
-              <h1>{mapLoadingTitle || appName}</h1>
-              <p>{mapLoadingMessage}</p>
-            </div>
-          }
+        <AppErrorBoundary
+          title={APP_ERROR_TITLE}
+          message={APP_ERROR_MESSAGE}
+          reloadLabel={APP_ERROR_RELOAD_LABEL}
         >
-          <BurialMap />
-        </Suspense>
+          <Suspense
+            fallback={
+              <div className="app-shell-loading" role="status" aria-live="polite">
+                <h1>{mapLoadingTitle || appName}</h1>
+                <p>{mapLoadingMessage}</p>
+              </div>
+            }
+          >
+            <BurialMap />
+          </Suspense>
+        </AppErrorBoundary>
       </main>
     </ThemeProvider>
   );
