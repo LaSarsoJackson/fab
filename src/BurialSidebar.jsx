@@ -273,6 +273,7 @@ function SelectedPlaceVisual({
 
 function SelectedRecordActionButtons({
   burial,
+  detailLinkUrl = "",
   isMobile,
   isRouteActive,
   onNavigateToBurial,
@@ -299,6 +300,24 @@ function SelectedRecordActionButtons({
           }}
         >
           {isRouteActive ? "Stop Navigation" : "Navigate"}
+        </Button>
+      )}
+      {detailLinkUrl && (
+        <Button
+          className="left-sidebar__selection-action left-sidebar__selection-action--secondary"
+          component="a"
+          fullWidth
+          href={detailLinkUrl}
+          rel="noopener noreferrer"
+          size="small"
+          target="_blank"
+          variant="text"
+          color="inherit"
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+        >
+          Details
         </Button>
       )}
       <Button
@@ -1070,7 +1089,7 @@ function SelectionLeadCard({
           </Box>
         </Box>
       </ButtonBase>
-      {detailPresentation.hasDetailsContent && (
+      {detailPresentation.allDetailRows.length > 0 && (
         <>
           <button
             type="button"
@@ -1091,24 +1110,13 @@ function SelectionLeadCard({
                   ))}
                 </Box>
               )}
-              {detailPresentation.detailLinkUrl && (
-                <Box sx={{ mt: 0.85 }}>
-                  <a
-                    className="popup-card__action popup-card__action--secondary"
-                    href={detailPresentation.detailLinkUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Details
-                  </a>
-                </Box>
-              )}
             </Box>
           )}
         </>
       )}
       <SelectedRecordActionButtons
         burial={burial}
+        detailLinkUrl={detailPresentation.detailLinkUrl}
         isMobile={isMobile}
         isRouteActive={isRouteActive}
         onNavigateToBurial={onNavigateToBurial}

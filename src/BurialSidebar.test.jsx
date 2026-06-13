@@ -183,6 +183,13 @@ const renderSidebar = (props = {}) => render(<BurialSidebar {...createBaseProps(
 // The search field lives inside the browse panel on desktop but in the pinned
 // sheet header on mobile, so resolve the workspace panel by its own class.
 const getBrowseWorkspace = () => document.querySelector(".left-sidebar__browse-workspace");
+const getLeadSelectionCard = () => {
+  const leadCard = document.querySelector(".left-sidebar__selected-row--lead");
+  if (!leadCard) {
+    throw new Error("Expected a lead selected-record card.");
+  }
+  return leadCard;
+};
 
 describe("BurialSidebar", () => {
   beforeEach(() => {
@@ -1226,10 +1233,14 @@ describe("BurialSidebar", () => {
 
     const browseWorkspace = getBrowseWorkspace();
     const selectionPanel = within(browseWorkspace).getByText("Graves at this spot").closest(".left-sidebar__panel--selected-summary");
+    const searchInput = within(browseWorkspace).getByLabelText("Search burials");
 
     expect(selectionPanel).not.toBeNull();
     expect(within(selectionPanel).getAllByRole("button", { name: "Navigate" }).length).toBeGreaterThan(0);
     expect(selectionPanel.querySelector(".left-sidebar__selected-scroll")).not.toBeNull();
+    expect(
+      selectionPanel.compareDocumentPosition(searchInput) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(within(browseWorkspace).getByText("8 selected")).toBeInTheDocument();
     expect(browseWorkspace).not.toBeNull();
     expect(within(browseWorkspace).getAllByText("Anna Tracy").length).toBeGreaterThan(0);
@@ -1249,7 +1260,7 @@ describe("BurialSidebar", () => {
     });
 
     const selectionPanel = screen.getByText("Graves at this spot").closest(".left-sidebar__panel--selected-summary");
-    const leadCard = within(selectionPanel).getByText("Current selection").closest(".left-sidebar__selected-row--lead");
+    const leadCard = within(selectionPanel).getByText("Anna Tracy").closest(".left-sidebar__selected-row--lead");
     const secondaryRow = within(selectionPanel).getByText("Thomas Tracy").closest(".left-sidebar__selected-row");
 
     expect(within(selectionPanel).getAllByRole("button", { name: "Navigate" })).toHaveLength(1);
@@ -1281,7 +1292,7 @@ describe("BurialSidebar", () => {
       selectedBurials: [selectedTourRecord],
     });
 
-    const selectedPanel = screen.getByText("Current selection").closest(".left-sidebar__selected-row--lead");
+    const selectedPanel = getLeadSelectionCard();
     const portrait = within(selectedPanel).getByAltText("Anna Tracy portrait");
 
     expect(portrait).toHaveAttribute("src", expect.stringContaining("Schuyler70a.jpg"));
@@ -1351,7 +1362,8 @@ describe("BurialSidebar", () => {
       selectedBurials: [burialRecords[0]],
     });
 
-    expect(screen.getByText("Selected burial")).toBeInTheDocument();
+    expect(screen.getByText("Selected grave")).toBeInTheDocument();
+    expect(screen.queryByText("Selected burial")).not.toBeInTheDocument();
     expect(screen.queryByText("Current selection")).not.toBeInTheDocument();
   });
 
@@ -1517,7 +1529,7 @@ describe("BurialSidebar", () => {
       selectedBurials: [richRecord],
     });
 
-    const selectedPanel = screen.getByText("Current selection").closest(".left-sidebar__selected-row--lead");
+    const selectedPanel = getLeadSelectionCard();
 
     expect(within(selectedPanel).getByRole("button", { name: "Show details" })).toBeInTheDocument();
     // Detail rows should be hidden initially
@@ -1532,7 +1544,7 @@ describe("BurialSidebar", () => {
       selectedBurials: [richRecord],
     });
 
-    const selectedPanel = screen.getByText("Current selection").closest(".left-sidebar__selected-row--lead");
+    const selectedPanel = getLeadSelectionCard();
 
     fireEvent.click(within(selectedPanel).getByRole("button", { name: "Show details" }));
 
@@ -1556,19 +1568,24 @@ describe("BurialSidebar", () => {
       biographyLink: "Schuyler70",
     };
 
+    const onFocusSelectedBurial = jest.fn();
+
     renderSidebar({
       activeBurialId: tourRecordWithLink.id,
       selectedBurials: [tourRecordWithLink],
+      onFocusSelectedBurial,
     });
 
-    const selectedPanel = screen.getByText("Current selection").closest(".left-sidebar__selected-row--lead");
-
-    fireEvent.click(within(selectedPanel).getByRole("button", { name: "Show details" }));
+    const selectedPanel = getLeadSelectionCard();
 
     const detailsLink = within(selectedPanel).getByRole("link", { name: "Details" });
     expect(detailsLink).toHaveAttribute("href", "https://www.albany.edu/arce/Schuyler70.html");
     expect(detailsLink).toHaveAttribute("target", "_blank");
     expect(detailsLink).toHaveAttribute("rel", "noopener noreferrer");
+
+    fireEvent.click(detailsLink);
+
+    expect(onFocusSelectedBurial).not.toHaveBeenCalled();
   });
 
   domTest("desktop lead card resets to collapsed when the selected burial changes", () => {
@@ -1579,7 +1596,7 @@ describe("BurialSidebar", () => {
       selectedBurials: [richRecord],
     });
 
-    const getLeadPanel = () => screen.getByText("Current selection").closest(".left-sidebar__selected-row--lead");
+    const getLeadPanel = () => getLeadSelectionCard();
 
     fireEvent.click(within(getLeadPanel()).getByRole("button", { name: "Show details" }));
     expect(within(getLeadPanel()).getByText("Mayor")).toBeInTheDocument();
