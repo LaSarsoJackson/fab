@@ -154,6 +154,51 @@ describe("service worker runtime caching", () => {
     expect(cachedRequests).toEqual(["https://example.test/data/Search_Burials.json"]);
   });
 
+  test("caches multi-megabyte basemap tiles that exceed the generic image cap", async () => {
+    const cachedRequests = [];
+    const response = {
+      ok: true,
+      headers: {
+        // ~5 MB tile: above the 1.5 MB generic image cap, below the basemap cap.
+        get: (name) => (name.toLowerCase() === "content-length" ? "5000000" : null),
+      },
+      clone: () => response,
+    };
+    const cache = {
+      match: async () => undefined,
+      put: async (request) => {
+        cachedRequests.push(request.url);
+      },
+    };
+    const fetchListener = loadServiceWorkerFetchListener({
+      fetchImpl: async () => response,
+      cacheImpl: {
+        open: async () => cache,
+        match: async () => undefined,
+        keys: async () => [],
+        delete: async () => true,
+      },
+    });
+
+    let responsePromise;
+    fetchListener({
+      request: {
+        method: "GET",
+        mode: "same-origin",
+        url: "https://example.test/basemaps/albany-rural-cemetery-nys-ortho-latest-r0-c0.jpg",
+      },
+      respondWith: (promise) => {
+        responsePromise = Promise.resolve(promise);
+      },
+    });
+
+    await expect(responsePromise).resolves.toBe(response);
+    await Promise.resolve();
+    expect(cachedRequests).toEqual([
+      "https://example.test/basemaps/albany-rural-cemetery-nys-ortho-latest-r0-c0.jpg",
+    ]);
+  });
+
   test("does not runtime-cache the full burial source dataset", async () => {
     const response = { ok: true };
     let openedRuntimeCache = false;

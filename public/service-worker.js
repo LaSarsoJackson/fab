@@ -17,6 +17,7 @@ const PRECACHE_URLS = [
 ];
 const SHELL_ASSET_PATTERN = /\.(?:js|css|svg|ico|woff2?)$/i;
 const IMAGE_ASSET_PATTERN = /\.(?:png|jpg|jpeg|gif|webp|avif)$/i;
+const BASEMAP_ASSET_PATTERN = /\/basemaps\/.*\.(?:png|jpg|jpeg|webp|avif)$/i;
 const JSON_ASSET_PATTERN = /\.json$/i;
 const FIELD_SEARCH_PAYLOAD_PATTERN = /\/data\/Search_Burials\.json$/i;
 const LARGE_DATASET_PATTERN = /(Geo_Burials|Burials|ARC_Burials).*\.json$/i;
@@ -24,6 +25,10 @@ const LARGE_DATASET_PATTERN = /(Geo_Burials|Burials|ARC_Burials).*\.json$/i;
 // is the exception because it is the offline-critical browse payload.
 const MAX_RUNTIME_CACHE_BYTES = 1_500_000;
 const MAX_FIELD_DATA_CACHE_BYTES = 50_000_000;
+// High-resolution basemap tiles are several MB each, well above the generic
+// image cap. They load on demand (only when zoomed in), so cache them once
+// fetched to keep panning and repeat visits fast and offline-capable.
+const MAX_BASEMAP_CACHE_BYTES = 8_000_000;
 
 const isCacheableResponse = (response) => Boolean(response && response.ok);
 
@@ -169,6 +174,16 @@ self.addEventListener('fetch', (event) => {
 
     event.respondWith(
       networkFirst(request, { cacheName: RUNTIME_CACHE })
+    );
+    return;
+  }
+
+  if (BASEMAP_ASSET_PATTERN.test(requestUrl.pathname)) {
+    event.respondWith(
+      staleWhileRevalidate(request, {
+        cacheName: RUNTIME_CACHE,
+        maxBytes: MAX_BASEMAP_CACHE_BYTES,
+      })
     );
     return;
   }
