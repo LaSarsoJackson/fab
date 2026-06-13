@@ -19,8 +19,6 @@ import "./index.css";
 import "leaflet.markercluster/dist/leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
-import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
-import { point } from "@turf/helpers";
 import {
   Menu,
   MenuItem,
@@ -133,6 +131,12 @@ import {
 } from "./features/map/mapNavigationDestination";
 import { cleanRecordValue } from "./features/map/mapRecordPresentation";
 import {
+  createRouteGeoJsonRenderKey,
+  getMapMaxZoom,
+  isLocationCandidateWithinBuffer,
+  isRenderableBounds,
+} from "./features/map/mapViewHelpers";
+import {
   PopupCardContent,
   PopupCardStackContent,
   createMapRecordKey,
@@ -203,7 +207,6 @@ const DEFAULT_VIEW_BOUNDS = APP_PROFILE.map.defaultViewBounds;
 const PADDED_BOUNDARY_BOUNDS = APP_PROFILE.map.paddedBoundaryBounds;
 const MAP_CENTER = APP_PROFILE.map.center;
 const MAP_ZOOM = APP_PROFILE.map.zoom;
-const LOCATION_BUFFER_BOUNDARY = APP_PROFILE.map.locationBufferBoundary;
 const LOCATION_MESSAGES = APP_PROFILE.map.locationMessages;
 const SLOW_CONNECTION_TYPES = new Set(['slow-2g', '2g', '3g']);
 const GEOLOCATION_REQUEST_OPTIONS = {
@@ -251,42 +254,9 @@ const DEFAULT_MAP_OVERLAY_VISIBILITY = MAP_OVERLAY_OPTIONS.reduce((visibility, o
   [option.id]: option.defaultVisible,
 }), {});
 
-const isLocationCandidateWithinBuffer = (candidate) => {
-  if (!candidate) {
-    return false;
-  }
-
-  return booleanPointInPolygon(
-    point([candidate.longitude, candidate.latitude]),
-    LOCATION_BUFFER_BOUNDARY
-  );
-};
-
-const isRenderableBounds = (bounds) => (
-  isLatLngBoundsExpressionValid(bounds) ||
-  (typeof bounds?.isValid === "function" && bounds.isValid())
-);
-
-const getMapMaxZoom = (basemap) => (
-  Number.isFinite(basemap?.maxZoom) ? basemap.maxZoom : DEFAULT_MAX_MAP_ZOOM
-);
-
 const getSectionBurialMarkerId = (burial) => {
   const properties = burial?.properties || burial || {};
   return burial?.id || properties.id || createMapRecordKey(properties);
-};
-
-const createRouteGeoJsonRenderKey = (geojson) => {
-  const coordinates = geojson?.features?.[0]?.geometry?.coordinates;
-  if (!Array.isArray(coordinates) || coordinates.length === 0) {
-    return "active-route";
-  }
-
-  return coordinates
-    .map((coordinate) => (
-      `${Number(coordinate?.[0]).toFixed(7)},${Number(coordinate?.[1]).toFixed(7)}`
-    ))
-    .join("|");
 };
 
 const createTourMarker = (tourKey, tourStyles) => {
@@ -819,7 +789,7 @@ export default function BurialMap() {
     [activeBasemapId, basemapById, defaultBasemap]
   );
   const activeBasemapMaxZoom = useMemo(
-    () => getMapMaxZoom(activeBasemap),
+    () => getMapMaxZoom(activeBasemap, DEFAULT_MAX_MAP_ZOOM),
     [activeBasemap]
   );
   const routeGeoJsonRenderKey = useMemo(
@@ -2022,7 +1992,7 @@ export default function BurialMap() {
       const currentZoom = map.getZoom();
       const targetZoom = resolvePointSelectionFocusZoom({
         currentZoom,
-        maxZoom: getMapMaxZoom(activeBasemap),
+        maxZoom: getMapMaxZoom(activeBasemap, DEFAULT_MAX_MAP_ZOOM),
         selectionSource,
         sourceFocusMinZoom: FOCUS_ZOOM_LEVEL,
       });
