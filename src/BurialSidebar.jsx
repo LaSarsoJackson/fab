@@ -993,16 +993,8 @@ function SelectionLeadCard({
           pb: 1.1,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
-          <Box
-            sx={buildSelectionBadgeSx({
-              color: markerColor,
-              isLead: true,
-            })}
-          >
-            {burialIndex + 1}
-          </Box>
-          {mediaUrl && (
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.15 }}>
+          <Box sx={{ position: "relative", flexShrink: 0, display: "flex" }}>
             <SelectedPlaceVisual
               fallbackLabel={getSelectedPlaceTypeLabel(burial)}
               heading={popupView.heading}
@@ -1012,21 +1004,22 @@ function SelectionLeadCard({
               markerColor={markerColor}
               onImageError={handleImageError}
             />
-          )}
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              variant="caption"
+            <Box
               sx={{
-                display: "block",
-                color: "var(--muted-text)",
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                mb: 0.5,
+                ...buildSelectionBadgeSx({
+                  color: markerColor,
+                  isLead: true,
+                }),
+                position: "absolute",
+                top: -8,
+                left: -8,
+                mt: 0,
               }}
             >
-              {isActive ? "Current selection" : "Selected burial"}
-            </Typography>
+              {burialIndex + 1}
+            </Box>
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
               variant="subtitle2"
               sx={{ lineHeight: 1.2, fontSize: "1.04rem", ...selectionTextWrapSx }}

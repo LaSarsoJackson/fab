@@ -178,20 +178,20 @@ select,
   top: max(14px, calc(var(--safe-area-top) + 8px));
   left: max(14px, calc(var(--safe-area-left) + 8px));
   z-index: 1200;
-  width: min(390px, calc(100vw - var(--safe-area-left) - var(--safe-area-right) - 28px));
+  width: min(360px, calc(100vw - var(--safe-area-left) - var(--safe-area-right) - 28px));
   max-height: calc(100vh - var(--safe-area-top) - var(--safe-area-bottom) - 28px);
   max-height: calc(100dvh - var(--safe-area-top) - var(--safe-area-bottom) - 28px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  border-radius: 24px !important;
+  border-radius: 18px !important;
   border: 1px solid var(--glass-border-bright);
-  -webkit-backdrop-filter: blur(18px) saturate(120%);
-  backdrop-filter: blur(18px) saturate(120%);
-  background: rgba(250, 252, 253, 0.82) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(112%);
+  backdrop-filter: blur(14px) saturate(112%);
+  background: rgba(250, 252, 253, 0.92) !important;
   box-shadow:
-    0 24px 48px rgba(20, 33, 43, 0.14),
-    0 8px 18px rgba(20, 33, 43, 0.06),
+    0 18px 34px rgba(20, 33, 43, 0.12),
+    0 6px 14px rgba(20, 33, 43, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.78) !important;
   isolation: isolate;
 }
@@ -525,24 +525,24 @@ select,
 
 .left-sidebar__visit-tasks {
   display: grid;
-  gap: 8px;
-  grid-template-columns: 1fr;
+  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
 }
 
 .left-sidebar__visit-task.MuiButton-root {
-  justify-content: flex-start;
+  justify-content: center;
   align-items: center;
   min-width: 0;
-  min-height: 58px;
-  padding: 9px 11px;
-  border-radius: 16px;
+  min-height: 42px;
+  padding: 7px 10px;
+  border-radius: 12px;
   border: 1px solid rgba(20, 33, 43, 0.08);
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.72);
   color: var(--text-main);
-  text-align: left;
+  text-align: center;
   text-transform: none;
   box-shadow:
-    0 8px 18px rgba(20, 33, 43, 0.05),
+    0 5px 12px rgba(20, 33, 43, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.78);
 }
 
@@ -552,27 +552,19 @@ select,
 
 .left-sidebar__visit-task.MuiButton-root .MuiButton-startIcon {
   flex-shrink: 0;
-  margin-right: 10px;
+  margin-right: 7px;
   color: var(--muted-text);
 }
 
 .left-sidebar__visit-task-copy {
-  display: grid;
-  gap: 2px;
+  display: block;
   min-width: 0;
 }
 
 .left-sidebar__visit-task-label {
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   font-weight: 800;
   line-height: 1.1;
-}
-
-.left-sidebar__visit-task-detail {
-  color: var(--muted-text);
-  font-size: 0.74rem;
-  font-weight: 600;
-  line-height: 1.2;
 }
 
 .left-sidebar__visit-task--active.MuiButton-root {
@@ -581,8 +573,7 @@ select,
   color: var(--accent-strong);
 }
 
-.left-sidebar__visit-task--active.MuiButton-root .MuiButton-startIcon,
-.left-sidebar__visit-task--active .left-sidebar__visit-task-detail {
+.left-sidebar__visit-task--active.MuiButton-root .MuiButton-startIcon {
   color: var(--accent-strong);
 }
 
@@ -729,14 +720,14 @@ select,
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  border-radius: 20px;
+  border-radius: 14px;
   border: 1px solid rgba(20, 33, 43, 0.08);
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.84);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    0 8px 18px rgba(20, 33, 43, 0.05);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+    0 4px 12px rgba(20, 33, 43, 0.04);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
 .left-sidebar__browse-detail-title {
@@ -763,13 +754,15 @@ select,
 }
 
 .left-sidebar__browse-detail .MuiButton-root {
-  border-radius: 16px;
+  border-radius: 12px;
 }
 
 .left-sidebar__marker-toggle.MuiButton-root {
-  grid-column: 1 / -1;
-  justify-content: flex-start;
+  width: 100%;
+  justify-content: center;
   min-height: 44px;
+  margin-bottom: 12px;
+  padding-inline: 11px;
   border: 1px solid rgba(20, 33, 43, 0.08);
   background: rgba(255, 255, 255, 0.74);
   color: var(--muted-text);
@@ -1724,6 +1717,12 @@ select,
 
 .left-sidebar__selected-row--lead {
   margin-top: 0;
+}
+
+.left-sidebar__selected-row--lead .left-sidebar__selected-place-visual {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
 }
 
 .left-sidebar__selection-summary-header {

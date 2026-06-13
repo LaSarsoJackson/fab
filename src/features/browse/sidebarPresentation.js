@@ -280,8 +280,8 @@ export const getSearchPlaceholder = ({
     return selectedTour ? "Search this tour" : "Select a tour to browse";
   }
 
-  // Narrow mobile sheets truncate the long-form hint, which reads as broken.
-  return isCompact ? "Search graves & landmarks" : "Search name, section, lot, or landmark";
+  // Narrow surfaces truncate the long-form hint, which reads as broken.
+  return isCompact ? "Search graves & landmarks" : "Search burials";
 };
 
 export const getBrowseEmptyState = ({

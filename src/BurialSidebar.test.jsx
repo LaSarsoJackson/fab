@@ -289,7 +289,7 @@ describe("BurialSidebar", () => {
   domTest("shows section browse results when a section is selected after initial render", () => {
     const { rerender } = renderSidebar();
 
-    expect(screen.getByPlaceholderText(/Search name, section, lot, or landmark/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Search burials/i)).toBeInTheDocument();
     expect(screen.queryByText("Anna Tracy")).not.toBeInTheDocument();
 
     rerender(
@@ -765,7 +765,7 @@ describe("BurialSidebar", () => {
 
     expect(screen.queryByText("Choose section")).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Section" })).not.toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Search name, section, lot, or landmark/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Search burials/i)).toBeInTheDocument();
   });
 
   domTest("keeps the idle state focused on browse controls before a global search starts", () => {
@@ -790,7 +790,7 @@ describe("BurialSidebar", () => {
 
     flushBrowseTimers();
 
-    const input = screen.getByPlaceholderText(/Search name, section, lot, or landmark/i);
+    const input = screen.getByPlaceholderText(/Search burials/i);
     fireEvent.change(input, { target: { value: "zz" } });
 
     flushBrowseTimers();
@@ -824,7 +824,7 @@ describe("BurialSidebar", () => {
     renderSidebar({ onBrowseResultSelect });
     flushBrowseTimers();
 
-    const input = screen.getByPlaceholderText(/Search name, section, lot, or landmark/i);
+    const input = screen.getByPlaceholderText(/Search burials/i);
     fireEvent.change(input, { target: { value: "anna" } });
     flushBrowseTimers();
 
