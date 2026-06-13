@@ -89,7 +89,8 @@ Notes:
 - `bun run start` defaults `REACT_APP_DEV_IMAGE_SERVER_ORIGIN` to the local
   companion image server on `http://127.0.0.1:8000`.
 - Development-only surfaces such as the static admin studio, custom renderer,
-  PMTiles previews, and site-twin tools live on `dev-features`; see
+  PMTiles previews, and site-twin tools should stay on short-lived branches
+  until they are ready for the shared `dev` pipeline; see
   [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md).
 
 ### Run the app
@@ -162,10 +163,11 @@ commands when release coverage is needed.
 
 ## Branches and Releases
 
-Production work goes through pull requests into `main`, the remote default
-branch. `dev` is the integration branch for validated work headed toward
-production. Short-lived branches should use prefixes such as `feature/`,
-`fix/`, `docs/`, `chore/`, `release/`, `hotfix/`, or `codex/`.
+Production work flows through three long-lived branches: `dev` for integration,
+`staging` for pre-production validation, and `main` for production. Open
+short-lived work branches into `dev`, promote `dev` to `staging`, then promote
+`staging` to `main`. Short-lived branches should use prefixes such as
+`feature/`, `fix/`, `docs/`, `chore/`, `hotfix/`, or `codex/`.
 
 Versioned releases use SemVer in [`package.json`](./package.json), matching
 entries in [`CHANGELOG.md`](./CHANGELOG.md), and tags named `vX.Y.Z`. See
@@ -215,8 +217,8 @@ Start with these documents:
   repo-wide cleanup, comment policy, and source-of-truth boundaries
 - [docs/routing-architecture.md](./docs/routing-architecture.md) for client
   route, deep-link, in-app road routing, and external directions-link ownership
-- [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md) for the branch
-  workflow for development-only surfaces
+- [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md) for the
+  dev/staging/main branch workflow
 - [docs/release-workflow.md](./docs/release-workflow.md) for production branch,
   versioning, release tags, and CI/CD rules
 

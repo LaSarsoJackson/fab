@@ -7,7 +7,7 @@ The goals are:
 - keep the shipped web surface and `FABFG` hosted URL contract aligned
 - keep the UI clearer, more performant, and closer to Apple HIG expectations
 - reduce contributor friction for new maintainers
-- keep development-only tools isolated on `dev-features`
+- keep development-only tools isolated on short-lived work branches
 
 ## Current state
 
@@ -60,7 +60,8 @@ Status: active
 Status: active
 
 - keep `main` on the shipped Leaflet map path
-- move renderer experiments, operator tooling, and artifact previews to `dev-features`
+- move renderer experiments, operator tooling, and artifact previews to
+  short-lived work branches
 - promote only focused, production-ready contracts back to `main`
 
 ## Stage 5: Toolchain modernization

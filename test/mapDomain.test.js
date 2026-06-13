@@ -865,6 +865,15 @@ describe("mapDomain", () => {
       expect(ROAD_LAYER_STYLE.weight).toBeGreaterThanOrEqual(1.5);
     });
 
+    test("keeps section hover visually inert", () => {
+      expect(getSectionPolygonStyle({
+        sectionId: "107",
+      })).toEqual(getSectionPolygonStyle({
+        sectionId: "107",
+        hoveredSectionId: "107",
+      }));
+    });
+
     test("defines MapKit-style roads as layered non-interactive strokes", () => {
       expect(ROAD_LAYER_STYLES).toHaveLength(3);
 

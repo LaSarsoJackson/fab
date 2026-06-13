@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   buildBrowseQueryChangeIntent,
+  buildSidebarBrowseFlags,
   buildBrowseSourceChangeIntent,
   buildClearAllBrowseStateIntent,
   buildClearBrowseQueryIntent,
@@ -248,6 +249,58 @@ describe("sidebar state helpers", () => {
     expect(buildClearBrowseQueryIntent()).toEqual({
       browseQueryToSet: "",
       shouldSetBrowseQuery: true,
+    });
+  });
+
+  test("builds derived browse flags from query, source, filters, and tour loading state", () => {
+    expect(buildSidebarBrowseFlags({
+      browseQuery: "  ada  ",
+      browseSource: "section",
+      hasTourBrowse: true,
+      loadingTourName: "Women of ARC",
+      lotTierFilter: "Lot 4",
+      sectionFilter: "12",
+      selectedBurialsLength: 2,
+      selectedTour: "Women of ARC",
+      tourResultCount: 0,
+    })).toEqual({
+      hasGlobalResetState: true,
+      hasMinimumBrowseQuery: true,
+      hasSectionFilters: true,
+      hasTourSelection: true,
+      isCurrentTourLoading: true,
+      isSectionBrowseVisible: true,
+      isTourBrowseVisible: false,
+    });
+
+    expect(buildSidebarBrowseFlags({
+      browseQuery: "  a ",
+      browseSource: "tour",
+      hasTourBrowse: false,
+      loadingTourName: "Other Tour",
+      lotTierFilter: "",
+      sectionFilter: "",
+      selectedBurialsLength: 0,
+      selectedTour: "Women of ARC",
+      tourResultCount: 3,
+    })).toEqual({
+      hasGlobalResetState: true,
+      hasMinimumBrowseQuery: false,
+      hasSectionFilters: false,
+      hasTourSelection: true,
+      isCurrentTourLoading: false,
+      isSectionBrowseVisible: false,
+      isTourBrowseVisible: false,
+    });
+
+    expect(buildSidebarBrowseFlags()).toEqual({
+      hasGlobalResetState: false,
+      hasMinimumBrowseQuery: false,
+      hasSectionFilters: false,
+      hasTourSelection: false,
+      isCurrentTourLoading: false,
+      isSectionBrowseVisible: false,
+      isTourBrowseVisible: false,
     });
   });
 

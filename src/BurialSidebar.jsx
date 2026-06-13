@@ -29,6 +29,7 @@ import {
   buildBrowseScopeChips,
   buildMobileSearchPanelTogglePresentation,
   buildSearchShellNotices,
+  buildSidebarContentVisibility,
   getSearchPlaceholder,
   getSelectedSectionOption,
   getSidebarClassName,
@@ -42,6 +43,7 @@ import {
 import { buildBrowseResultCardPresentation } from "./features/browse/browseResultPresentation";
 import {
   DEFAULT_SELECTED_PLACE_DETAIL_ROW_LIMIT,
+  buildSelectedBurialLookup,
   buildSelectedPlaceDetailPresentation,
   buildSelectedSummaryPresentation,
   buildSelectedPlaceInitials,
@@ -56,6 +58,7 @@ import { MOBILE_SHEET_STATES } from "./features/browse/mobileSheetGeometry";
 import {
   buildBrowseQueryChangeIntent,
   buildBrowseResultSelectIntent,
+  buildSidebarBrowseFlags,
   buildBrowseSourceChangeIntent,
   buildClearAllBrowseStateIntent,
   buildClearBrowseQueryIntent,
@@ -270,6 +273,7 @@ function SelectedPlaceVisual({
 
 function SelectedRecordActionButtons({
   burial,
+  detailLinkUrl = "",
   isMobile,
   isRouteActive,
   onNavigateToBurial,
@@ -296,6 +300,24 @@ function SelectedRecordActionButtons({
           }}
         >
           {isRouteActive ? "Stop Navigation" : "Navigate"}
+        </Button>
+      )}
+      {detailLinkUrl && (
+        <Button
+          className="left-sidebar__selection-action left-sidebar__selection-action--secondary"
+          component="a"
+          fullWidth
+          href={detailLinkUrl}
+          rel="noopener noreferrer"
+          size="small"
+          target="_blank"
+          variant="text"
+          color="inherit"
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+        >
+          Details
         </Button>
       )}
       <Button
@@ -479,13 +501,15 @@ function BrowseResultsPanel({
   scopeChips = EMPTY_PACKET_RECORDS,
   tourStyles,
 }) {
-  const selectedBurialIds = useMemo(
-    () => new Set(selectedBurials.map((item) => item.id)),
+  const {
+    selectedBurialCount,
+    selectedBurialIds,
+  } = useMemo(
+    () => buildSelectedBurialLookup({ selectedBurials }),
     [selectedBurials]
   );
   const onBrowseResultSelectRef = useRef(onBrowseResultSelect);
   const onHoverBurialChangeRef = useRef(onHoverBurialChange);
-  const selectedBurialCount = selectedBurials.length;
   const [visibleCount, setVisibleCount] = useState(batchSize);
 
   onBrowseResultSelectRef.current = onBrowseResultSelect;
@@ -988,16 +1012,8 @@ function SelectionLeadCard({
           pb: 1.1,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
-          <Box
-            sx={buildSelectionBadgeSx({
-              color: markerColor,
-              isLead: true,
-            })}
-          >
-            {burialIndex + 1}
-          </Box>
-          {mediaUrl && (
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.15 }}>
+          <Box sx={{ position: "relative", flexShrink: 0, display: "flex" }}>
             <SelectedPlaceVisual
               fallbackLabel={getSelectedPlaceTypeLabel(burial)}
               heading={popupView.heading}
@@ -1007,21 +1023,22 @@ function SelectionLeadCard({
               markerColor={markerColor}
               onImageError={handleImageError}
             />
-          )}
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              variant="caption"
+            <Box
               sx={{
-                display: "block",
-                color: "var(--muted-text)",
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                mb: 0.5,
+                ...buildSelectionBadgeSx({
+                  color: markerColor,
+                  isLead: true,
+                }),
+                position: "absolute",
+                top: -8,
+                left: -8,
+                mt: 0,
               }}
             >
-              {isActive ? "Current selection" : "Selected burial"}
-            </Typography>
+              {burialIndex + 1}
+            </Box>
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
               variant="subtitle2"
               sx={{ lineHeight: 1.2, fontSize: "1.04rem", ...selectionTextWrapSx }}
@@ -1072,7 +1089,7 @@ function SelectionLeadCard({
           </Box>
         </Box>
       </ButtonBase>
-      {detailPresentation.hasDetailsContent && (
+      {detailPresentation.allDetailRows.length > 0 && (
         <>
           <button
             type="button"
@@ -1093,24 +1110,13 @@ function SelectionLeadCard({
                   ))}
                 </Box>
               )}
-              {detailPresentation.detailLinkUrl && (
-                <Box sx={{ mt: 0.85 }}>
-                  <a
-                    className="popup-card__action popup-card__action--secondary"
-                    href={detailPresentation.detailLinkUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Details
-                  </a>
-                </Box>
-              )}
             </Box>
           )}
         </>
       )}
       <SelectedRecordActionButtons
         burial={burial}
+        detailLinkUrl={detailPresentation.detailLinkUrl}
         isMobile={isMobile}
         isRouteActive={isRouteActive}
         onNavigateToBurial={onNavigateToBurial}
@@ -1870,20 +1876,25 @@ function BurialSidebar({
     selectedBurialsLength: selectedBurials.length,
   });
   const [isMobileSearchPanelCollapsedByControl, setIsMobileSearchPanelCollapsedByControl] = useState(false);
-  const hasGlobalResetState = Boolean(
-    browseQuery.trim() ||
-    sectionFilter ||
-    lotTierFilter ||
-    selectedTour ||
-    selectedBurials.length > 0
-  );
-  const hasSectionFilters = Boolean(sectionFilter || lotTierFilter);
-  const hasTourSelection = Boolean(selectedTour);
-  const isSectionBrowseVisible = browseSource === "section";
-  const isTourBrowseVisible = browseSource === "tour" && hasTourBrowse;
-  const isCurrentTourLoading = Boolean(
-    selectedTour && loadingTourName === selectedTour && tourResults.length === 0
-  );
+  const {
+    hasGlobalResetState,
+    hasMinimumBrowseQuery,
+    hasSectionFilters,
+    hasTourSelection,
+    isCurrentTourLoading,
+    isSectionBrowseVisible,
+    isTourBrowseVisible,
+  } = buildSidebarBrowseFlags({
+    browseQuery,
+    browseSource,
+    hasTourBrowse,
+    loadingTourName,
+    lotTierFilter,
+    sectionFilter,
+    selectedBurialsLength: selectedBurials.length,
+    selectedTour,
+    tourResultCount: tourResults.length,
+  });
   const sidebarScrollRef = useRef(null);
   const previousActiveBurialIdRef = useRef(null);
   const previousSectionFilterRef = useRef("");
@@ -2301,7 +2312,6 @@ function BurialSidebar({
     sectionFilter,
     selectedTour,
   });
-  const hasMinimumBrowseQuery = browseQuery.trim().length >= MIN_BROWSE_QUERY_LENGTH;
   const searchShellNotices = useMemo(() => {
     return buildSearchShellNotices({
       burialRecordCount: burialRecords.length,
@@ -2426,14 +2436,19 @@ function BurialSidebar({
       />
     </IconButton>
   ) : null;
-  const hasExplicitBrowseResultsContext = Boolean(browseQuery.trim())
-    || Boolean(sectionFilter)
-    || Boolean(selectedTour)
-    || isBrowsePending
-    || isCurrentTourLoading;
-  const shouldShowBrowseResults = hasExplicitBrowseResultsContext;
-  const shouldShowFieldPacketPanel = areFieldPacketsEnabled
-    && (selectedBurials.length > 0 || hasFieldPacketContent(fieldPacket));
+  const {
+    shouldShowBrowseResults,
+    shouldShowFieldPacketPanel,
+  } = buildSidebarContentVisibility({
+    areFieldPacketsEnabled,
+    browseQuery,
+    hasFieldPacketContent: hasFieldPacketContent(fieldPacket),
+    isBrowsePending,
+    isCurrentTourLoading,
+    sectionFilter,
+    selectedBurialsLength: selectedBurials.length,
+    selectedTour,
+  });
 
   const browseResultsContent = shouldShowBrowseResults ? (
     <BrowseResultsPanel

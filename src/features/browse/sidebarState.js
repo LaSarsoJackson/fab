@@ -22,6 +22,41 @@ const ASYNC_BROWSE_RECORD_THRESHOLD = 5000;
 const BROWSE_RESULTS_CACHE_LIMIT = 24;
 let browseSearchWorkerFactoryPromise = null;
 
+export const buildSidebarBrowseFlags = ({
+  browseQuery = "",
+  browseSource = "all",
+  hasTourBrowse = true,
+  loadingTourName = "",
+  lotTierFilter = "",
+  minimumBrowseQueryLength = MIN_BROWSE_QUERY_LENGTH,
+  sectionFilter = "",
+  selectedBurialsLength = 0,
+  selectedTour = "",
+  tourResultCount = 0,
+} = {}) => {
+  const trimmedBrowseQuery = String(browseQuery || "").trim();
+  const hasSectionFilters = Boolean(sectionFilter || lotTierFilter);
+  const hasTourSelection = Boolean(selectedTour);
+
+  return {
+    hasGlobalResetState: Boolean(
+      trimmedBrowseQuery ||
+      sectionFilter ||
+      lotTierFilter ||
+      selectedTour ||
+      Number(selectedBurialsLength) > 0
+    ),
+    hasMinimumBrowseQuery: trimmedBrowseQuery.length >= minimumBrowseQueryLength,
+    hasSectionFilters,
+    hasTourSelection,
+    isCurrentTourLoading: Boolean(
+      selectedTour && loadingTourName === selectedTour && Number(tourResultCount) === 0
+    ),
+    isSectionBrowseVisible: browseSource === "section",
+    isTourBrowseVisible: browseSource === "tour" && Boolean(hasTourBrowse),
+  };
+};
+
 export const buildBrowseQueryChangeIntent = ({
   nextQuery = "",
 } = {}) => ({
