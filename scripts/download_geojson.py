@@ -33,8 +33,11 @@ files_to_download = [
     "SocietyPillarsTour20.geojson"
 ]
 
-# Create data directory if it doesn't exist
-data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src", "data")
+# Create data directory if it doesn't exist. The script lives in scripts/, so
+# resolve the repo root (its parent) before joining src/data, where the app
+# actually reads the source files.
+repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+data_dir = os.path.join(repo_root, "src", "data")
 os.makedirs(data_dir, exist_ok=True)
 
 # Download each file
