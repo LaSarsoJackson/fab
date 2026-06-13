@@ -34,10 +34,10 @@ import {
 import BurialSidebar from "./BurialSidebar";
 import {
   buildBurialSectionIndex,
-  buildBurialBrowseResult,
   buildTourBrowseResult,
   findSectionBrowseDetailDefinition,
   formatBrowseResultName,
+  inflateSearchBurialRow,
   resolveSectionBrowseRecords,
 } from "./features/browse/browseResults";
 import {
@@ -3277,29 +3277,7 @@ export default function BurialMap() {
         if (!ignore) {
           const nextUniqueSections = new Set();
           const records = minifiedData.map((item) => {
-            const nextRecord = buildBurialBrowseResult(
-              {
-                id: item.i,
-                properties: {
-                  OBJECTID: item.i,
-                  First_Name: item.f,
-                  Last_Name: item.l,
-                  Section: item.s,
-                  Lot: item.lo,
-                  Grave: item.g,
-                  Tier: item.t,
-                  Birth: item.b,
-                  Death: item.d,
-                  tourKey: item.tk,
-                  title: item.tk,
-                  fullNameNormalized: item.n,
-                  searchableLabelLower: item.sl,
-                  nameVariantsNormalized: item.nv,
-                },
-                geometry: item.c ? { type: 'Point', coordinates: item.c } : null,
-              },
-              { getTourName }
-            );
+            const nextRecord = inflateSearchBurialRow(item, { getTourName });
 
             if (nextRecord.Section) {
               nextUniqueSections.add(nextRecord.Section);
