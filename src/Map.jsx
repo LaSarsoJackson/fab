@@ -3098,6 +3098,7 @@ export default function BurialMap() {
 
     if (shouldResetRouteGeometry) {
       setRouteGeoJson(null);
+      setRouteSummary(null);
     }
     setIsRouteLoading(true);
     setRouteError("");
