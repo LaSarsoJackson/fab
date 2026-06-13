@@ -63,6 +63,7 @@ import {
   AUTO_BASEMAP_ID,
   clearLeafletSectionHover,
   focusMapSelectionRecord,
+  formatRouteSummary,
   MAP_PRESENTATION_POLICY,
   resolveEffectiveBasemapId,
   getSectionBurialMarkerStyle,
@@ -686,6 +687,7 @@ export default function BurialMap() {
   const [routingOrigin, setRoutingOrigin] = useState(null);
   const [routingDestination, setRoutingDestination] = useState(null);
   const [routeGeoJson, setRouteGeoJson] = useState(null);
+  const [routeSummary, setRouteSummary] = useState(null);
   const [isRouteLoading, setIsRouteLoading] = useState(false);
   const [routeError, setRouteError] = useState("");
   const [navigationNotice, setNavigationNotice] = useState("");
@@ -3110,6 +3112,7 @@ export default function BurialMap() {
   useEffect(() => {
     if (!routingOrigin || !routingDestination) {
       setRouteGeoJson(null);
+      setRouteSummary(null);
       setIsRouteLoading(false);
       renderedRouteDestinationRef.current = null;
       return undefined;
@@ -3139,6 +3142,10 @@ export default function BurialMap() {
       }
 
       setRouteGeoJson(routeResult.geojson);
+      setRouteSummary(formatRouteSummary({
+        distanceMeters: routeResult.distance,
+        durationMs: routeResult.time,
+      }));
       setIsRouteLoading(false);
       renderedRouteDestinationRef.current = routingDestination;
 
@@ -3174,6 +3181,7 @@ export default function BurialMap() {
       }
 
       setRouteGeoJson(null);
+      setRouteSummary(null);
       setRoutingOrigin(null);
       setRoutingDestination(null);
       activeRouteBurialIdRef.current = null;
@@ -4555,6 +4563,7 @@ export default function BurialMap() {
         isMobile={isMobile}
         routingNotice={navigationNotice}
         routingError={routeError}
+        routeSummary={routeSummary}
       />
 
       <MapContainer

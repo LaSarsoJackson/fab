@@ -1271,6 +1271,58 @@ export const getSectionPolygonStyle = (options = {}) => {
 };
 
 //=============================================================================
+// Route Summary
+//=============================================================================
+
+// On-site, the question a visitor is really asking is "how far, and how long to
+// walk?". The walking-route calculation already produces both, so we surface
+// them in plain, glanceable imperial units (this is a US cemetery). Short
+// in-cemetery distances round to the nearest 10 ft; longer ones switch to miles.
+const ROUTE_FEET_PER_METER = 3.28084;
+const ROUTE_FEET_PER_MILE = 5280;
+const ROUTE_MILE_THRESHOLD_FEET = ROUTE_FEET_PER_MILE * 0.1;
+
+export const formatRouteDistanceLabel = (distanceMeters) => {
+  const meters = Number(distanceMeters);
+  if (!Number.isFinite(meters) || meters < 0) {
+    return "";
+  }
+
+  const feet = meters * ROUTE_FEET_PER_METER;
+  if (feet < ROUTE_MILE_THRESHOLD_FEET) {
+    const roundedFeet = Math.max(10, Math.round(feet / 10) * 10);
+    return `${roundedFeet} ft`;
+  }
+
+  return `${(feet / ROUTE_FEET_PER_MILE).toFixed(1)} mi`;
+};
+
+export const formatRouteWalkTimeLabel = (durationMs) => {
+  const milliseconds = Number(durationMs);
+  if (!Number.isFinite(milliseconds) || milliseconds < 0) {
+    return "";
+  }
+
+  const minutes = milliseconds / 60000;
+  if (minutes < 1) {
+    return "<1 min walk";
+  }
+
+  return `${Math.round(minutes)} min walk`;
+};
+
+export const formatRouteSummary = ({ distanceMeters, durationMs } = {}) => {
+  const distanceLabel = formatRouteDistanceLabel(distanceMeters);
+  const walkTimeLabel = formatRouteWalkTimeLabel(durationMs);
+
+  return {
+    distanceLabel,
+    walkTimeLabel,
+    summaryLabel: [distanceLabel, walkTimeLabel].filter(Boolean).join(" · "),
+  };
+};
+
+//=============================================================================
 // Location Rules
 //=============================================================================
 

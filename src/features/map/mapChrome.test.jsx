@@ -168,6 +168,29 @@ describe("mapChrome", () => {
     expect(status).toHaveClass("route-status-overlay--mobile");
   });
 
+  test("surfaces the live route distance and walk time once a path is drawn", () => {
+    const { rerender } = render(
+      <RouteStatusOverlay
+        isCalculating={false}
+        routeSummary={{ summaryLabel: "350 ft · 2 min walk" }}
+      />
+    );
+
+    expect(screen.getByText("350 ft · 2 min walk")).toBeInTheDocument();
+
+    // An error always wins over a stale summary.
+    rerender(
+      <RouteStatusOverlay
+        isCalculating={false}
+        routingError="Route unavailable"
+        routeSummary={{ summaryLabel: "350 ft · 2 min walk" }}
+      />
+    );
+
+    expect(screen.getByText("Route unavailable")).toBeInTheDocument();
+    expect(screen.queryByText("350 ft · 2 min walk")).not.toBeInTheDocument();
+  });
+
   test("toggles the search panel with explicit accessible labels", () => {
     const onToggle = jest.fn();
     const { rerender } = render(

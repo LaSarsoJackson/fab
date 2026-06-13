@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import CheckBoxIcon from "@mui/icons-material/CheckBox";
+import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import HomeIcon from "@mui/icons-material/Home";
 import LayersIcon from "@mui/icons-material/Layers";
@@ -902,13 +903,20 @@ export function RouteStatusOverlay({
   isMobile = false,
   routingError,
   routingNotice = "",
+  routeSummary = null,
 }) {
-  if (!isCalculating && !routingError && !routingNotice) {
+  // A live route summary persists once the path is drawn, answering the on-site
+  // question "how far, how long?" at a glance. Errors still take precedence, and
+  // the calculating/notice message shows only while there is no summary yet.
+  const summaryLabel = routeSummary?.summaryLabel || "";
+  const hasSummary = Boolean(summaryLabel) && !routingError;
+
+  if (!isCalculating && !routingError && !routingNotice && !hasSummary) {
     return null;
   }
 
   const isError = Boolean(routingError);
-  const message = routingError || routingNotice || "Starting on-site navigation...";
+  const message = routingError || (hasSummary ? summaryLabel : (routingNotice || "Starting on-site navigation..."));
   const placementSx = isMobile
     ? {
         top: "calc(env(safe-area-inset-top, 0px) + 10px)",
@@ -957,17 +965,26 @@ export function RouteStatusOverlay({
         WebkitBackdropFilter: "blur(16px)",
       }}
     >
-      <Typography
-        variant="body2"
-        sx={{
-          color: "inherit",
-          fontWeight: 600,
-          lineHeight: 1.35,
-          overflowWrap: "anywhere",
-        }}
-      >
-        {message}
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: hasSummary ? "8px" : 0 }}>
+        {hasSummary && (
+          <DirectionsWalkIcon
+            fontSize="small"
+            sx={{ color: "var(--accent, #2f6b57)", flex: "none" }}
+            aria-hidden="true"
+          />
+        )}
+        <Typography
+          variant="body2"
+          sx={{
+            color: "inherit",
+            fontWeight: hasSummary ? 700 : 600,
+            lineHeight: 1.35,
+            overflowWrap: "anywhere",
+          }}
+        >
+          {message}
+        </Typography>
+      </Box>
     </Paper>
   );
 }

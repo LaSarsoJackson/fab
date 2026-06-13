@@ -3,6 +3,9 @@ import { describe, expect, test } from "bun:test";
 import {
   AUTO_BASEMAP_ID,
   resolveEffectiveBasemapId,
+  formatRouteDistanceLabel,
+  formatRouteWalkTimeLabel,
+  formatRouteSummary,
   areLocationCandidatesEquivalent,
   areRouteLatLngTuplesEquivalent,
   buildRecordCoordinateGroups,
@@ -974,6 +977,43 @@ describe("mapDomain", () => {
         currentZoom: 19,
         ...autoConfig,
       })).toBe("imagery");
+    });
+  });
+
+  describe("route summary formatting", () => {
+    test("rounds short in-cemetery distances to the nearest 10 ft", () => {
+      expect(formatRouteDistanceLabel(0)).toBe("10 ft");
+      expect(formatRouteDistanceLabel(30)).toBe("100 ft");
+      expect(formatRouteDistanceLabel(107)).toBe("350 ft");
+    });
+
+    test("switches to miles once past a tenth of a mile", () => {
+      expect(formatRouteDistanceLabel(300)).toBe("0.2 mi");
+      expect(formatRouteDistanceLabel(1609)).toBe("1.0 mi");
+    });
+
+    test("returns an empty distance label for invalid input", () => {
+      expect(formatRouteDistanceLabel(-5)).toBe("");
+      expect(formatRouteDistanceLabel(NaN)).toBe("");
+    });
+
+    test("formats walk time in whole minutes with a sub-minute floor", () => {
+      expect(formatRouteWalkTimeLabel(20000)).toBe("<1 min walk");
+      expect(formatRouteWalkTimeLabel(90000)).toBe("2 min walk");
+      expect(formatRouteWalkTimeLabel(-1)).toBe("");
+    });
+
+    test("joins distance and walk time into a single glanceable summary", () => {
+      expect(formatRouteSummary({ distanceMeters: 107, durationMs: 90000 })).toEqual({
+        distanceLabel: "350 ft",
+        walkTimeLabel: "2 min walk",
+        summaryLabel: "350 ft · 2 min walk",
+      });
+    });
+
+    test("omits missing parts from the joined summary", () => {
+      expect(formatRouteSummary({ distanceMeters: 30 }).summaryLabel).toBe("100 ft");
+      expect(formatRouteSummary({}).summaryLabel).toBe("");
     });
   });
 
