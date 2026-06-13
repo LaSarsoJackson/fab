@@ -1,4 +1,5 @@
 import {
+  buildSelectedBurialLookup,
   buildSelectedPlaceDetailPresentation,
   buildSelectedSummaryPresentation,
   buildSelectedPlaceInitials,
@@ -8,6 +9,22 @@ import {
 } from "../src/features/browse/selectedRecordPresentation";
 
 describe("selected record presentation helpers", () => {
+  test("builds selected-burial lookup metadata for result rows", () => {
+    const firstRecord = { id: "grave-a", displayName: "First Grave" };
+    const secondRecord = { id: "grave-b", displayName: "Second Grave" };
+
+    const lookup = buildSelectedBurialLookup({
+      selectedBurials: [firstRecord, { displayName: "Missing id" }, secondRecord],
+    });
+
+    expect(lookup.selectedBurialCount).toBe(3);
+    expect(Array.from(lookup.selectedBurialIds.values())).toEqual(["grave-a", "grave-b"]);
+    expect(Array.from(lookup.selectedBurialOrderById.entries())).toEqual([
+      ["grave-a", 0],
+      ["grave-b", 2],
+    ]);
+  });
+
   test("builds compact selected-place detail presentation with hidden row count", () => {
     const rows = [
       { label: "Location", value: "Section 10" },

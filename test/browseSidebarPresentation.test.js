@@ -5,6 +5,7 @@ import {
   buildBrowseEmptyActionSpecs,
   buildBrowseResultsPanelPresentation,
   buildBrowseScopeChips,
+  buildSidebarContentVisibility,
   buildLifeDatesSummary,
   buildMobileSearchPanelTogglePresentation,
   buildSearchShellNotices,
@@ -114,6 +115,53 @@ describe("browse sidebar presentation helpers", () => {
   test("builds sidebar shell class names for desktop and mobile", () => {
     expect(getSidebarClassName({ isMobile: true })).toBe("left-sidebar left-sidebar--mobile");
     expect(getSidebarClassName({ isMobile: false })).toBe("left-sidebar left-sidebar--desktop");
+  });
+
+  test("builds sidebar content visibility from browse and field-packet context", () => {
+    expect(buildSidebarContentVisibility({
+      areFieldPacketsEnabled: false,
+      browseQuery: "ada",
+      hasFieldPacketContent: false,
+      isBrowsePending: false,
+      isCurrentTourLoading: false,
+      sectionFilter: "",
+      selectedBurialsLength: 0,
+      selectedTour: "",
+    })).toEqual({
+      hasExplicitBrowseResultsContext: true,
+      shouldShowBrowseResults: true,
+      shouldShowFieldPacketPanel: false,
+    });
+
+    expect(buildSidebarContentVisibility({
+      areFieldPacketsEnabled: true,
+      browseQuery: "",
+      hasFieldPacketContent: true,
+      isBrowsePending: false,
+      isCurrentTourLoading: true,
+      sectionFilter: "",
+      selectedBurialsLength: 0,
+      selectedTour: "",
+    })).toEqual({
+      hasExplicitBrowseResultsContext: true,
+      shouldShowBrowseResults: true,
+      shouldShowFieldPacketPanel: true,
+    });
+
+    expect(buildSidebarContentVisibility({
+      areFieldPacketsEnabled: true,
+      browseQuery: "",
+      hasFieldPacketContent: false,
+      isBrowsePending: false,
+      isCurrentTourLoading: false,
+      sectionFilter: "",
+      selectedBurialsLength: 0,
+      selectedTour: "",
+    })).toEqual({
+      hasExplicitBrowseResultsContext: false,
+      shouldShowBrowseResults: false,
+      shouldShowFieldPacketPanel: false,
+    });
   });
 
   test("builds browse placeholders from the current browse scope", () => {

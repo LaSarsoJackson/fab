@@ -93,7 +93,8 @@ If you change runtime/profile wiring:
 ## Contributor priorities
 
 - Keep moves additive when possible. The worktree may contain in-flight architecture cleanup already.
-- Keep development-only surfaces on `dev-features` unless they are being promoted into the shipped app.
+- Keep active development on short-lived branches, merge through `dev`, validate
+  on `staging`, and promote `staging` to `main`.
 - Treat FABFG alignment as shared-contract work first and wrapper-specific work second.
 - Favor clearer Apple-HIG-inspired interaction patterns over decorative UI churn: safer spacing, fewer gestures, stronger hierarchy, and obvious states.
 

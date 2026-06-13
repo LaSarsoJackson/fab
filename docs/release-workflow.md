@@ -6,15 +6,19 @@ retired.
 
 ## Branch model
 
-- Start production work from `main`.
-- Use `dev` as the integration branch for validated work that is ready to
-  batch toward production.
+- Start ordinary work from `dev`.
+- Use `dev` as the integration branch for validated work.
+- Use `staging` as the pre-production branch for final validation.
+- Use `main` as the production branch and remote default branch.
 - Use short-lived branches named `codex/*`, `feature/*`, `fix/*`, `docs/*`,
-  `chore/*`, `release/*`, or `hotfix/*`.
-- Keep experimental and operator-only tooling on `dev-features`; promote it to
-  production only through a focused pull request into `dev` or `main`.
-- Do not push directly to `main` except for an emergency rollback. Protect
-  the branch in GitHub and require the CI checks in this repo before merge.
+  `chore/*`, or `hotfix/*`.
+- Promote in order: short-lived branch -> `dev` -> `staging` -> `main`.
+- Allow `release/*` branches into `staging` for release preparation.
+- Allow `hotfix/*` branches into `staging` or `main` for emergency production
+  fixes.
+- Do not push directly to `dev`, `staging`, or `main` except for emergency
+  rollback. Protect these branches in GitHub and require the CI checks in this
+  repo before merge.
 
 ## Version policy
 
@@ -33,15 +37,16 @@ promotes it.
 
 ## Pipeline
 
-1. Create a short-lived branch from `main`.
-2. Merge validated work into `dev` when you want an integration checkpoint.
-3. Make the smallest coherent production change, including tests and docs.
-4. Run `bun run check` locally for cross-cutting work.
-5. Open a pull request into `main`.
-6. CI runs lint, tests, generated-shell drift, release metadata, and branch
+1. Create a short-lived branch from `dev`.
+2. Make the smallest coherent production change, including tests and docs.
+3. Run `bun run check` locally for cross-cutting work.
+4. Open a pull request into `dev`.
+5. Promote `dev` to `staging` after the integration checks pass.
+6. Promote `staging` to `main` after final validation.
+7. CI runs lint, tests, generated-shell drift, release metadata, and branch
    policy checks.
-7. Merge after the required checks pass.
-8. For a numbered release, tag the merge commit as `vX.Y.Z` where `X.Y.Z`
+8. Merge after the required checks pass.
+9. For a numbered release, tag the merge commit as `vX.Y.Z` where `X.Y.Z`
    exactly matches `package.json`.
 
 GitHub Actions then:
@@ -52,16 +57,30 @@ GitHub Actions then:
 
 ## GitHub branch protection
 
-Configure `main` in GitHub with these protections:
+Configure `main`, `staging`, and `dev` in GitHub with branch protection.
 
-- Require a pull request before merging.
-- Require status checks to pass before merging:
+For `main`, require:
+
+- pull requests from `staging` or `hotfix/*`
+- status checks:
   `CI / Lint and test`, `CI / Release metadata`,
-  `CI / Pull request branch policy`, and `CI / Generated shell drift`.
-- Require branches to be up to date before merging when practical.
-- Restrict direct pushes to maintainers.
-- Require signed tags or restricted tag creation for `v*.*.*` releases when the
-  repository has multiple maintainers.
+  `CI / Pull request branch policy`, and `CI / Generated shell drift`
+- branches to be up to date before merging when practical
+- linear history, conversation resolution, no force pushes, and no deletions
+
+For `staging`, require:
+
+- pull requests from `dev`, `release/*`, or `hotfix/*`
+- the same status checks as `main`
+- linear history, conversation resolution, no force pushes, and no deletions
+
+For `dev`, require:
+
+- pull requests from short-lived work branches
+- status checks to pass before merging:
+  `CI / Lint and test`, `CI / Release metadata`,
+  `CI / Pull request branch policy`, and `CI / Generated shell drift`
+- linear history, conversation resolution, no force pushes, and no deletions
 
 These settings live in GitHub, not in the repository, so this document and the
 workflow checks are the repo-side contract.

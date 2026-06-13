@@ -2,47 +2,59 @@
 
 import { pathToFileURL } from "node:url";
 
-const PRODUCTION_BRANCHES = new Set(["main"]);
-const ALLOWED_EXACT_BRANCHES = new Set(["dev", "dev-features"]);
-const ALLOWED_BRANCH_PREFIXES = [
+const PIPELINE_BRANCHES = new Set(["main", "staging", "dev"]);
+const SHORT_LIVED_BRANCH_PREFIXES = [
   "codex/",
   "feature/",
   "fix/",
   "docs/",
   "chore/",
-  "release/",
   "hotfix/",
-  "dev-features/",
   "dependabot/",
   "renovate/",
 ];
 
-const allowedBranchMessage = [
-  ...ALLOWED_EXACT_BRANCHES,
-  ...ALLOWED_BRANCH_PREFIXES,
-].join(", ");
+const BRANCH_RULES = {
+  main: {
+    exact: new Set(["staging"]),
+    prefixes: ["hotfix/"],
+    description: "staging or hotfix/",
+  },
+  staging: {
+    exact: new Set(["dev"]),
+    prefixes: ["release/", "hotfix/"],
+    description: "dev, release/, or hotfix/",
+  },
+  dev: {
+    exact: new Set([]),
+    prefixes: SHORT_LIVED_BRANCH_PREFIXES,
+    description: SHORT_LIVED_BRANCH_PREFIXES.join(", "),
+  },
+};
 
 export const validatePullRequestBranch = ({ baseRef = "", headRef = "" }) => {
-  if (!baseRef || !headRef || !PRODUCTION_BRANCHES.has(baseRef)) {
+  const rule = BRANCH_RULES[baseRef];
+
+  if (!baseRef || !headRef || !rule) {
     return [];
   }
 
-  if (PRODUCTION_BRANCHES.has(headRef)) {
+  if (PIPELINE_BRANCHES.has(headRef) && !rule.exact.has(headRef)) {
     return [
-      `Pull requests into ${baseRef} must come from a short-lived branch, not ${headRef}.`,
+      `Pull requests into ${baseRef} must come from ${rule.description}, not ${headRef}.`,
     ];
   }
 
-  if (ALLOWED_EXACT_BRANCHES.has(headRef)) {
+  if (rule.exact.has(headRef)) {
     return [];
   }
 
-  if (ALLOWED_BRANCH_PREFIXES.some((prefix) => headRef.startsWith(prefix))) {
+  if (rule.prefixes.some((prefix) => headRef.startsWith(prefix))) {
     return [];
   }
 
   return [
-    `Pull request branch ${headRef} must use one of: ${allowedBranchMessage}.`,
+    `Pull request branch ${headRef} into ${baseRef} must use one of: ${rule.description}.`,
   ];
 };
 
