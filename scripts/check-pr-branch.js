@@ -65,7 +65,7 @@ const main = () => {
   });
 
   if (!process.env.GITHUB_BASE_REF || !process.env.GITHUB_HEAD_REF) {
-    console.log("No pull request branch context detected; branch policy skipped.");
+    console.log("No pull request branch context detected; branch policy passed.");
     return;
   }
 
