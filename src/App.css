@@ -26,6 +26,13 @@
   transform: translateY(0);
 }
 
+@media (hover: none) and (pointer: coarse) {
+  .app-skip-link,
+  .app-skip-link:focus-visible {
+    display: none !important;
+  }
+}
+
 .app-shell-loading {
   min-height: var(--app-height, 100vh);
   display: flex;

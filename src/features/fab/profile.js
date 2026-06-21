@@ -108,6 +108,17 @@ const ESRI_WORLD_IMAGERY_BASEMAP = Object.freeze({
   tileSize: 256,
   attribution: "Esri World Imagery",
 });
+const ESRI_WORLD_HILLSHADE_BASEMAP = Object.freeze({
+  id: "world-hillshade",
+  label: "Hillshade",
+  type: "raster-xyz",
+  urlTemplate: "https://services.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
+  minZoom: 0,
+  maxNativeZoom: 16,
+  maxZoom: 20,
+  tileSize: 256,
+  attribution: "Esri, USGS 3DEP",
+});
 
 export const FAB_BASEMAP_IMAGE_EXPORTS = Object.freeze([
   Object.freeze({
@@ -341,6 +352,7 @@ const MAP_BASEMAPS = [
     maxZoom: 20,
     tileSize: 256,
   },
+  ESRI_WORLD_HILLSHADE_BASEMAP,
 ].map(createBasemapSpec);
 
 const MAP_OVERLAY_SOURCES = [
@@ -514,7 +526,7 @@ export const APP_PROFILE = {
       outOfBounds: `Search by name or section, then tap Navigate for directions to ${FAB_SITE_NAME}.`,
       routeLocationRequired: `Continue with Maps for now. On-site navigation will start when you arrive.`,
     },
-    defaultBasemapId: "auto",
+    defaultBasemapId: "world-hillshade",
     basemaps: MAP_BASEMAPS,
     // Auto mode is not a tile source of its own — it picks between a
     // cartographic orientation basemap and satellite imagery by zoom so the

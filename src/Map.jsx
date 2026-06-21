@@ -184,7 +184,7 @@ const FOCUS_ZOOM_LEVEL = MAP_PRESENTATION_POLICY.burialFocusMinZoom;
  * Style configuration for the cemetery boundary
  */
 const exteriorStyle = {
-  color: "#ffffff",
+  color: "#000000",
   weight: 1.5,
   fillOpacity: .08
 };
