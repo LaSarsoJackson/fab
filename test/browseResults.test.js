@@ -9,6 +9,7 @@ import {
   findSectionBrowseDetailDefinition,
   formatBrowseResultName,
   getBrowseSourceMode,
+  inflateSearchBurialRow,
   resolveSectionBrowseRecords,
 } from "../src/features/browse/browseResults";
 
@@ -396,5 +397,67 @@ describe("buildBrowseResults", () => {
 
     expect(activeSource).toBe("tour");
     expect(results).toEqual([]);
+  });
+});
+
+describe("inflateSearchBurialRow", () => {
+  // The generated Search_Burials.json drops the normalized search strings to
+  // roughly halve the gzipped payload; the client must rebuild them exactly.
+  const buildCompactRow = (feature, { tourKey = "" } = {}) => {
+    const p = feature.properties;
+    return {
+      i: p.OBJECTID,
+      f: p.First_Name || "",
+      l: p.Last_Name || "",
+      s: p.Section || "",
+      lo: p.Lot || "",
+      g: p.Grave || "",
+      t: p.Tier || "",
+      b: p.Birth || "",
+      d: p.Death || "",
+      tk: tourKey,
+      c: feature.geometry?.coordinates || null,
+    };
+  };
+
+  test("recomputes the dropped search fields to match a tourless build record", () => {
+    const feature = burialFeatures[0];
+    // The build derives search fields from the raw source before tour matching,
+    // so the reference record is built without any tour context.
+    const tourlessFeature = { ...feature, properties: { ...feature.properties, title: undefined } };
+    const reference = buildBurialBrowseResult(tourlessFeature);
+    const inflated = inflateSearchBurialRow(buildCompactRow(feature));
+
+    expect(inflated.fullNameNormalized).toBe(reference.fullNameNormalized);
+    expect(inflated.searchableLabelLower).toBe(reference.searchableLabelLower);
+    expect(inflated.nameVariantsNormalized).toEqual(reference.nameVariantsNormalized);
+    expect(inflated.tourKey).toBe("");
+  });
+
+  test("applies tour identity without leaking the tour name into search fields", () => {
+    const feature = burialFeatures[0];
+    const tourlessReference = buildBurialBrowseResult({
+      ...feature,
+      properties: { ...feature.properties, title: undefined },
+    });
+    const inflated = inflateSearchBurialRow(
+      buildCompactRow(feature, { tourKey: "Notable" }),
+      { getTourName }
+    );
+
+    // Tour identity is preserved for display/markers...
+    expect(inflated.tourKey).toBe("Notable");
+    expect(inflated.title).toBe("Notable");
+    expect(inflated.tourName).toBe("Notables Tour 2020");
+    // ...but the searchable label stays tourless, matching the build artifact.
+    expect(inflated.searchableLabelLower).toBe(tourlessReference.searchableLabelLower);
+    expect(inflated.searchableLabelLower).not.toContain("notable");
+    expect(inflated.nameVariantsNormalized).toEqual(tourlessReference.nameVariantsNormalized);
+  });
+
+  test("preserves verbatim source coordinates through inflation", () => {
+    const feature = burialFeatures[0];
+    const inflated = inflateSearchBurialRow(buildCompactRow(feature));
+    expect(inflated.coordinates).toEqual(feature.geometry.coordinates);
   });
 });

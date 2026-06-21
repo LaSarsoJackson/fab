@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  AUTO_BASEMAP_ID,
+  resolveEffectiveBasemapId,
+  formatRouteDistanceLabel,
+  formatRouteWalkTimeLabel,
+  formatRouteSummary,
   areLocationCandidatesEquivalent,
   areRouteLatLngTuplesEquivalent,
   buildRecordCoordinateGroups,
@@ -784,12 +789,11 @@ describe("mapDomain", () => {
       const hoveredStyle = getSectionBurialMarkerStyle({ id: "grave-a" }, { isHovered: true });
       const activeStyle = getSectionBurialMarkerStyle({ id: "grave-a" }, { isActive: true });
 
-      expect(new Set(fills).size).toBe(1);
-      expect(fills[0]).toBe("#2f6b57");
+      expect(new Set(fills).size).toBeGreaterThan(1);
       expect(baseStyle).toEqual(getSectionBurialMarkerStyle({ id: "grave-a" }));
       expect(hoveredStyle.radius).toBeGreaterThan(baseStyle.radius);
       expect(hoveredStyle.fillOpacity).toBeGreaterThan(baseStyle.fillOpacity);
-      expect(hoveredStyle.fillColor).toBe("#26594a");
+      expect(hoveredStyle.fillColor).not.toBe(baseStyle.fillColor);
       expect(activeStyle.radius).toBeGreaterThan(hoveredStyle.radius);
       expect(activeStyle.fillOpacity).toBeGreaterThan(hoveredStyle.fillOpacity);
     });
@@ -865,13 +869,18 @@ describe("mapDomain", () => {
       expect(ROAD_LAYER_STYLE.weight).toBeGreaterThanOrEqual(1.5);
     });
 
-    test("keeps section hover visually inert", () => {
-      expect(getSectionPolygonStyle({
+    test("lifts hovered sections while preserving inactive styling", () => {
+      const inactiveStyle = getSectionPolygonStyle({
         sectionId: "107",
-      })).toEqual(getSectionPolygonStyle({
+      });
+      const hoveredStyle = getSectionPolygonStyle({
         sectionId: "107",
         hoveredSectionId: "107",
-      }));
+      });
+
+      expect(hoveredStyle).not.toEqual(inactiveStyle);
+      expect(hoveredStyle.fillOpacity).toBeGreaterThan(inactiveStyle.fillOpacity);
+      expect(hoveredStyle.weight).toBeGreaterThan(inactiveStyle.weight);
     });
 
     test("defines MapKit-style roads as layered non-interactive strokes", () => {
@@ -890,11 +899,12 @@ describe("mapDomain", () => {
         lineJoin: "round",
       });
       expect(body).toMatchObject({
-        color: "#f8f6ef",
+        color: "#595959",
         interactive: false,
         lineCap: "round",
         lineJoin: "round",
       });
+      expect(ROAD_LAYER_STYLES.every((style) => style.color === "#595959")).toBe(true);
       expect(shadow.weight).toBeGreaterThan(casing.weight);
       expect(casing.weight).toBeGreaterThan(body.weight);
       expect(body.opacity).toBeGreaterThan(shadow.opacity);
@@ -928,6 +938,87 @@ describe("mapDomain", () => {
         topLeft: [16, 16],
         bottomRight: [16, 16],
       });
+    });
+  });
+
+  describe("auto basemap resolution", () => {
+    const autoConfig = {
+      cartographicBasemapId: "streets",
+      imageryBasemapId: "imagery",
+      imageryMinZoom: 16,
+    };
+
+    test("honors an explicit basemap selection regardless of zoom", () => {
+      expect(resolveEffectiveBasemapId({
+        selectedBasemapId: "imagery",
+        currentZoom: 5,
+        ...autoConfig,
+      })).toBe("imagery");
+
+      expect(resolveEffectiveBasemapId({
+        selectedBasemapId: "streets",
+        currentZoom: 20,
+        ...autoConfig,
+      })).toBe("streets");
+    });
+
+    test("auto keeps the cartographic basemap while zoomed out for orientation", () => {
+      expect(resolveEffectiveBasemapId({
+        selectedBasemapId: AUTO_BASEMAP_ID,
+        currentZoom: 13,
+        ...autoConfig,
+      })).toBe("streets");
+    });
+
+    test("auto reveals imagery at and beyond the detail zoom for grave finding", () => {
+      expect(resolveEffectiveBasemapId({
+        selectedBasemapId: AUTO_BASEMAP_ID,
+        currentZoom: 16,
+        ...autoConfig,
+      })).toBe("imagery");
+
+      expect(resolveEffectiveBasemapId({
+        selectedBasemapId: AUTO_BASEMAP_ID,
+        currentZoom: 19,
+        ...autoConfig,
+      })).toBe("imagery");
+    });
+  });
+
+  describe("route summary formatting", () => {
+    test("rounds short in-cemetery distances to the nearest 10 ft", () => {
+      expect(formatRouteDistanceLabel(0)).toBe("10 ft");
+      expect(formatRouteDistanceLabel(30)).toBe("100 ft");
+      expect(formatRouteDistanceLabel(107)).toBe("350 ft");
+    });
+
+    test("switches to miles once past a tenth of a mile", () => {
+      expect(formatRouteDistanceLabel(300)).toBe("0.2 mi");
+      expect(formatRouteDistanceLabel(1609)).toBe("1.0 mi");
+    });
+
+    test("returns an empty distance label for invalid input", () => {
+      expect(formatRouteDistanceLabel(-5)).toBe("");
+      expect(formatRouteDistanceLabel(NaN)).toBe("");
+    });
+
+    test("formats walk time in whole minutes with a sub-minute floor", () => {
+      expect(formatRouteWalkTimeLabel(20000)).toBe("<1 min walk");
+      expect(formatRouteWalkTimeLabel(90000)).toBe("2 min walk");
+      expect(formatRouteWalkTimeLabel(-1)).toBe("");
+    });
+
+    test("joins distance and walk time into a single glanceable summary", () => {
+      expect(formatRouteSummary({ distanceMeters: 107, durationMs: 90000 })).toEqual({
+        distanceLabel: "350 ft",
+        walkTimeLabel: "2 min walk",
+        summaryLabel: "350 ft · 2 min walk",
+      });
+    });
+
+    test("omits missing parts from the joined summary", () => {
+      expect(formatRouteSummary({ distanceMeters: 30 }).summaryLabel).toBe("100 ft");
+      expect(formatRouteSummary({}).summaryLabel).toBe("");
     });
   });
 

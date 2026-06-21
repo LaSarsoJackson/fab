@@ -60,6 +60,69 @@ describe("app profile", () => {
     );
   });
 
+  test("resolves record image urls against the cemetery image directory", () => {
+    const { resolveImageUrl, noImageUrl } = APP_PROFILE.features.recordPresentation;
+
+    expect(resolveImageUrl("")).toBe(noImageUrl);
+    expect(resolveImageUrl("NONE")).toBe(noImageUrl);
+    expect(resolveImageUrl("Schuyler70a.jpg")).toBe(
+      "https://www.albany.edu/arce/images/Schuyler70a.jpg"
+    );
+    expect(resolveImageUrl("Schuyler70a")).toBe(
+      "https://www.albany.edu/arce/images/Schuyler70a.jpg"
+    );
+    expect(resolveImageUrl("portrait.png")).toBe(
+      "https://www.albany.edu/arce/images/portrait.png"
+    );
+  });
+
+  test("builds profile-owned popup rows from cemetery source fields", () => {
+    const { buildPopupRows } = APP_PROFILE.features.recordPresentation;
+
+    const rows = buildPopupRows(
+      {
+        Titles: "Mayor",
+        Highest_Ra: "Colonel",
+        Initial_Te: "1850",
+        Subsequent: "1852",
+        Unit: "10th NY",
+        Headstone_: "marble",
+        Service_Re: "Union Army",
+      },
+      {
+        buildLocationSummary: () => "Section 12, Lot 8",
+        resolveRecordDates: () => ({ birth: "1812", death: "1899" }),
+      }
+    );
+
+    const rowMap = Object.fromEntries(rows.map(({ label, value }) => [label, value]));
+
+    expect(rowMap.Role).toBe("Mayor");
+    expect(rowMap.Rank).toBe("Colonel");
+    expect(rowMap["Initial term"]).toBe("1850");
+    expect(rowMap["Subsequent term"]).toBe("1852");
+    expect(rowMap.Unit).toBe("10th NY");
+    expect(rowMap.Location).toBe("Section 12, Lot 8");
+    expect(rowMap.Born).toBe("1812");
+    expect(rowMap.Died).toBe("1899");
+    expect(rowMap.Headstone).toBe("Headstone marble");
+    expect(rowMap.Service).toBe("Union Army");
+  });
+
+  test("omits empty popup rows and avoids duplicating the rank label", () => {
+    const { buildPopupRows } = APP_PROFILE.features.recordPresentation;
+
+    const rows = buildPopupRows({
+      Titles: "Captain",
+      Highest_Ra: "Captain",
+      Headstone_: "Headstone present",
+    });
+    const labels = rows.map((row) => row.label);
+
+    expect(labels).toEqual(["Role", "Headstone"]);
+    expect(rows.find((row) => row.label === "Headstone").value).toBe("Headstone present");
+  });
+
   test("exposes the iPhone app listing used by shared-link install prompts", () => {
     expect(APP_PROFILE.distribution.iosAppStoreUrl).toBe(
       "https://apps.apple.com/us/app/albany-grave-finder/id6746413050"
@@ -98,19 +161,49 @@ describe("app profile", () => {
     expect(boundsContain(APP_PROFILE.map.defaultViewBounds, BOUNDARY_BOUNDS)).toBe(true);
     expect(boundsContain(APP_PROFILE.map.paddedBoundaryBounds, BOUNDARY_BOUNDS)).toBe(true);
 
+    const defaultBasemap = APP_PROFILE.map.basemaps.find((basemap) => (
+      basemap.id === APP_PROFILE.map.defaultBasemapId
+    ));
     const imageryBasemap = APP_PROFILE.map.basemaps.find((basemap) => basemap.id === "imagery");
-    const detailOverlay = imageryBasemap.imageOverlays.find((overlay) => overlay.id === "cemetery-detail");
+    const detailOverlays = imageryBasemap.imageOverlays.filter((overlay) => (
+      overlay.id.startsWith("cemetery-detail")
+    ));
+
+    expect(defaultBasemap).toMatchObject({
+      id: "world-hillshade",
+      type: "raster-xyz",
+      maxNativeZoom: 16,
+      maxZoom: 20,
+    });
+
+    // The detail imagery is tiled so each piece can carry more resolution than a
+    // single capped export. The tiles must still combine to cover the pannable
+    // area, and load lazily so the default zoom only fetches the overview image.
+    expect(detailOverlays.length).toBeGreaterThan(1);
+    expect(detailOverlays.every((overlay) => overlay.lazy === true)).toBe(true);
+    expect(detailOverlays.every((overlay) => Number.isFinite(overlay.minZoom))).toBe(true);
+
+    const detailCoverage = [
+      [
+        Math.min(...detailOverlays.map((overlay) => overlay.bounds[0][0])),
+        Math.min(...detailOverlays.map((overlay) => overlay.bounds[0][1])),
+      ],
+      [
+        Math.max(...detailOverlays.map((overlay) => overlay.bounds[1][0])),
+        Math.max(...detailOverlays.map((overlay) => overlay.bounds[1][1])),
+      ],
+    ];
 
     expect(imageryBasemap.fallbackRaster).toMatchObject({
       type: "raster-xyz",
       maxNativeZoom: 19,
       maxZoom: 20,
     });
-    expect(boundsContain(detailOverlay.bounds, APP_PROFILE.map.paddedBoundaryBounds)).toBe(true);
-    expect(detailOverlay.bounds[0][0]).toBeLessThan(APP_PROFILE.map.paddedBoundaryBounds[0][0]);
-    expect(detailOverlay.bounds[0][1]).toBeLessThan(APP_PROFILE.map.paddedBoundaryBounds[0][1]);
-    expect(detailOverlay.bounds[1][0]).toBeGreaterThan(APP_PROFILE.map.paddedBoundaryBounds[1][0]);
-    expect(detailOverlay.bounds[1][1]).toBeGreaterThan(APP_PROFILE.map.paddedBoundaryBounds[1][1]);
+    expect(boundsContain(detailCoverage, APP_PROFILE.map.paddedBoundaryBounds)).toBe(true);
+    expect(detailCoverage[0][0]).toBeLessThan(APP_PROFILE.map.paddedBoundaryBounds[0][0]);
+    expect(detailCoverage[0][1]).toBeLessThan(APP_PROFILE.map.paddedBoundaryBounds[0][1]);
+    expect(detailCoverage[1][0]).toBeGreaterThan(APP_PROFILE.map.paddedBoundaryBounds[1][0]);
+    expect(detailCoverage[1][1]).toBeGreaterThan(APP_PROFILE.map.paddedBoundaryBounds[1][1]);
   });
 
   test("keeps large map geometry behind async data modules instead of embedding it in the profile shell", () => {

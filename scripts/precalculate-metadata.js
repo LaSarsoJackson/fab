@@ -231,6 +231,12 @@ async function precalculate() {
     // browse result. Coordinates stay verbatim from the source record; any
     // display-only spreading for exact stacks happens later in mapDomain.
     // Keep keys short here because this file ships to visitors.
+    //
+    // The normalized search strings (fullNameNormalized, searchableLabelLower,
+    // nameVariantsNormalized) are intentionally NOT shipped: inflateSearchBurialRow
+    // recomputes them deterministically from these fields on the client, which
+    // roughly halves the gzipped payload. `burialRecord` stays in scope only to
+    // resolve the tour match id above.
     return {
       i: properties.OBJECTID,
       f: cleanValue(properties.First_Name),
@@ -242,10 +248,7 @@ async function precalculate() {
       b: cleanValue(properties.Birth),
       d: cleanValue(properties.Death),
       tk: match ? match.tourKey : '',
-      c: sourceCoordinates,
-      n: burialRecord.fullNameNormalized,
-      sl: burialRecord.searchableLabelLower,
-      nv: burialRecord.nameVariantsNormalized
+      c: sourceCoordinates
     };
   });
 

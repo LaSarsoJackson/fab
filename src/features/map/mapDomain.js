@@ -37,6 +37,33 @@ export const MAP_PRESENTATION_POLICY = Object.freeze({
   sectionBurialIndividualMinZoom: 20,
   sectionBurialClusterRadius: 64,
 });
+// Auto basemap mode: a calm street/orientation map while the visitor is zoomed
+// out getting their bearings, fading to satellite imagery up close where
+// headstone-level detail matters most. The cemetery's roads and section grid
+// overlay both, so the visitor keeps a continuous mental map as the basemap
+// switches under them.
+export const AUTO_BASEMAP_ID = "auto";
+export const AUTO_BASEMAP_IMAGERY_MIN_ZOOM = MAP_PRESENTATION_POLICY.sectionDetailMinZoom;
+
+// Resolves the basemap that should actually render. An explicit user selection
+// always wins; "auto" picks imagery at/above the detail zoom and a cartographic
+// orientation basemap below it.
+export const resolveEffectiveBasemapId = ({
+  selectedBasemapId,
+  currentZoom = 0,
+  cartographicBasemapId,
+  imageryBasemapId,
+  imageryMinZoom = AUTO_BASEMAP_IMAGERY_MIN_ZOOM,
+} = {}) => {
+  if (selectedBasemapId !== AUTO_BASEMAP_ID) {
+    return selectedBasemapId;
+  }
+
+  return Number(currentZoom) >= Number(imageryMinZoom)
+    ? imageryBasemapId
+    : cartographicBasemapId;
+};
+
 export const SELECTION_SOURCES = Object.freeze({
   MAP_TAP: "map_tap",
   SEARCH_RESULT: "search_result",
@@ -1110,11 +1137,28 @@ export const createLeafletTextContent = (
 // Presentation Rules
 //=============================================================================
 
-const SECTION_BURIAL_MARKER_TONE = {
-  fillColor: "#2f6b57",
-  hoverFillColor: "#26594a",
-  strokeColor: "#f4f9f6",
-};
+const SECTION_BURIAL_MARKER_PALETTE = [
+  {
+    fillColor: "#708177",
+    hoverFillColor: "#607069",
+    strokeColor: "#e7eee9",
+  },
+  {
+    fillColor: "#7c7f88",
+    hoverFillColor: "#686e78",
+    strokeColor: "#edf1f4",
+  },
+  {
+    fillColor: "#8a715f",
+    hoverFillColor: "#765f50",
+    strokeColor: "#f2eae4",
+  },
+  {
+    fillColor: "#657884",
+    hoverFillColor: "#556772",
+    strokeColor: "#e8eff2",
+  },
+];
 
 const ACTIVE_SECTION_BURIAL_MARKER_STYLE = {
   radius: 7.25,
@@ -1137,19 +1181,19 @@ const ROAD_LINE_BASE_STYLE = {
 export const ROAD_LAYER_STYLES = [
   {
     ...ROAD_LINE_BASE_STYLE,
-    color: "#5c6469",
+    color: "#595959",
     weight: 8,
     opacity: 0.2,
   },
   {
     ...ROAD_LINE_BASE_STYLE,
-    color: "#d8d1c5",
+    color: "#595959",
     weight: 6.25,
     opacity: 0.64,
   },
   {
     ...ROAD_LINE_BASE_STYLE,
-    color: "#f8f6ef",
+    color: "#595959",
     weight: 4.5,
     opacity: 0.96,
   },
@@ -1157,6 +1201,36 @@ export const ROAD_LAYER_STYLES = [
 
 export const ROAD_LAYER_STYLE = ROAD_LAYER_STYLES[ROAD_LAYER_STYLES.length - 1];
 
+const normalizeSectionBurialMarkerKey = (record = {}) => {
+  const properties = record?.properties || record || {};
+  if (record?.id || properties.id) {
+    return String(record?.id || properties.id);
+  }
+
+  return [
+    properties.Section,
+    properties.Lot,
+    properties.Grave,
+    properties.Tier,
+  ].filter((value) => value !== null && value !== undefined && value !== "").join(":");
+};
+
+const hashMarkerKey = (value = "") => {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) - hash) + value.charCodeAt(index);
+    hash |= 0;
+  }
+
+  return Math.abs(hash);
+};
+
+const getSectionBurialMarkerTone = (record = {}) => {
+  const markerKey = normalizeSectionBurialMarkerKey(record);
+  const paletteIndex = hashMarkerKey(markerKey) % SECTION_BURIAL_MARKER_PALETTE.length;
+  return SECTION_BURIAL_MARKER_PALETTE[paletteIndex];
+};
 
 export const getSectionBurialMarkerStyle = (record, options = {}) => {
   const {
@@ -1189,44 +1263,113 @@ export const getSectionBurialMarkerStyle = (record, options = {}) => {
     };
   }
 
-  const tone = SECTION_BURIAL_MARKER_TONE;
+  const tone = getSectionBurialMarkerTone(record);
 
   return {
     radius: isHovered ? 6.25 : isPreviewMarker ? 3.75 : 5.25,
     fillColor: isHovered ? tone.hoverFillColor : tone.fillColor,
-    fillOpacity: isHovered ? 0.66 : isPreviewMarker ? 0.26 : 0.48,
+    fillOpacity: isHovered ? 0.62 : isPreviewMarker ? 0.24 : 0.44,
     color: tone.strokeColor,
     weight: isHovered ? 1.8 : isPreviewMarker ? 0.85 : 1.15,
-    opacity: isHovered ? 0.95 : isPreviewMarker ? 0.5 : 0.8,
+    opacity: isHovered ? 0.92 : isPreviewMarker ? 0.48 : 0.76,
     hitRadius: isHovered ? 16 : isPreviewMarker ? 10 : 14,
   };
 };
+
+const SECTION_POLYGON_STROKE = "#595959";
 
 export const getSectionPolygonStyle = (options = {}) => {
   const {
     sectionId,
     activeSectionId,
+    hoveredSectionId = null,
     showAllBurials = false,
   } = options;
 
   const nextSectionId = String(sectionId || "");
   const nextActiveId = String(activeSectionId || "");
+  const nextHoveredId = String(hoveredSectionId || "");
   const isActive = nextSectionId && nextSectionId === nextActiveId;
+  const isHovered = nextSectionId && nextSectionId === nextHoveredId;
 
   if (isActive) {
     return {
-      fillColor: "#2f6b57",
-      fillOpacity: showAllBurials ? 0.035 : 0.08,
-      color: showAllBurials ? "#315f4f" : "#2f6b57",
-      weight: showAllBurials ? 1.35 : 1.65,
+      fillColor: showAllBurials ? "#7396b4" : "#628ab0",
+      fillOpacity: showAllBurials ? 0.14 : 0.24,
+      color: SECTION_POLYGON_STROKE,
+      weight: showAllBurials ? 1.8 : 2,
+      opacity: 0.92,
+    };
+  }
+
+  if (isHovered) {
+    return {
+      fillColor: "#e4edf5",
+      fillOpacity: showAllBurials ? 0.08 : 0.12,
+      color: SECTION_POLYGON_STROKE,
+      weight: 1.6,
+      opacity: 0.86,
     };
   }
 
   return {
     fillColor: "#f8f9fa",
     fillOpacity: showAllBurials ? 0.02 : 0.05,
-    color: "#999999",
+    color: SECTION_POLYGON_STROKE,
     weight: 1,
+    opacity: showAllBurials ? 0.42 : 0.62,
+  };
+};
+
+//=============================================================================
+// Route Summary
+//=============================================================================
+
+// On-site, the question a visitor is really asking is "how far, and how long to
+// walk?". The walking-route calculation already produces both, so we surface
+// them in plain, glanceable imperial units (this is a US cemetery). Short
+// in-cemetery distances round to the nearest 10 ft; longer ones switch to miles.
+const ROUTE_FEET_PER_METER = 3.28084;
+const ROUTE_FEET_PER_MILE = 5280;
+const ROUTE_MILE_THRESHOLD_FEET = ROUTE_FEET_PER_MILE * 0.1;
+
+export const formatRouteDistanceLabel = (distanceMeters) => {
+  const meters = Number(distanceMeters);
+  if (!Number.isFinite(meters) || meters < 0) {
+    return "";
+  }
+
+  const feet = meters * ROUTE_FEET_PER_METER;
+  if (feet < ROUTE_MILE_THRESHOLD_FEET) {
+    const roundedFeet = Math.max(10, Math.round(feet / 10) * 10);
+    return `${roundedFeet} ft`;
+  }
+
+  return `${(feet / ROUTE_FEET_PER_MILE).toFixed(1)} mi`;
+};
+
+export const formatRouteWalkTimeLabel = (durationMs) => {
+  const milliseconds = Number(durationMs);
+  if (!Number.isFinite(milliseconds) || milliseconds < 0) {
+    return "";
+  }
+
+  const minutes = milliseconds / 60000;
+  if (minutes < 1) {
+    return "<1 min walk";
+  }
+
+  return `${Math.round(minutes)} min walk`;
+};
+
+export const formatRouteSummary = ({ distanceMeters, durationMs } = {}) => {
+  const distanceLabel = formatRouteDistanceLabel(distanceMeters);
+  const walkTimeLabel = formatRouteWalkTimeLabel(durationMs);
+
+  return {
+    distanceLabel,
+    walkTimeLabel,
+    summaryLabel: [distanceLabel, walkTimeLabel].filter(Boolean).join(" · "),
   };
 };
 

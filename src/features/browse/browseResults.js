@@ -182,6 +182,44 @@ export const buildBurialBrowseResult = (feature, { getTourName } = {}) => {
   };
 };
 
+/**
+ * Inflate a compact Search_Burials row back into a full burial browse record.
+ *
+ * The generated artifact omits the normalized search strings
+ * (fullNameNormalized, searchableLabelLower, nameVariantsNormalized) because
+ * buildBurialBrowseResult recomputes them deterministically from the burial
+ * fields. Tour identity is applied *after* the tourless build so the searchable
+ * label matches the build-time artifact: precalculate-metadata.js derives the
+ * search fields from the raw burial source before tour matching, so the tour
+ * name never leaks into the searchable label there either.
+ */
+export const inflateSearchBurialRow = (row = {}, { getTourName } = {}) => {
+  const baseRecord = buildBurialBrowseResult({
+    properties: {
+      OBJECTID: row.i,
+      First_Name: row.f,
+      Last_Name: row.l,
+      Section: row.s,
+      Lot: row.lo,
+      Grave: row.g,
+      Tier: row.t,
+      Birth: row.b,
+      Death: row.d,
+    },
+    geometry: row.c ? { type: "Point", coordinates: row.c } : null,
+  });
+
+  const tourKey = cleanValue(row.tk);
+  if (!tourKey) return baseRecord;
+
+  return {
+    ...baseRecord,
+    title: tourKey,
+    tourKey,
+    tourName: getTourName ? cleanValue(getTourName({ tourKey, title: tourKey })) : baseRecord.tourName,
+  };
+};
+
 export const buildTourBrowseResult = (feature, { tourKey, tourName } = {}) => {
   const properties = feature.properties || {};
   // Tour stops are not always one-to-one with burial source records, so build a
