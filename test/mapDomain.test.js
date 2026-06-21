@@ -789,12 +789,11 @@ describe("mapDomain", () => {
       const hoveredStyle = getSectionBurialMarkerStyle({ id: "grave-a" }, { isHovered: true });
       const activeStyle = getSectionBurialMarkerStyle({ id: "grave-a" }, { isActive: true });
 
-      expect(new Set(fills).size).toBe(1);
-      expect(fills[0]).toBe("#2f6b57");
+      expect(new Set(fills).size).toBeGreaterThan(1);
       expect(baseStyle).toEqual(getSectionBurialMarkerStyle({ id: "grave-a" }));
       expect(hoveredStyle.radius).toBeGreaterThan(baseStyle.radius);
       expect(hoveredStyle.fillOpacity).toBeGreaterThan(baseStyle.fillOpacity);
-      expect(hoveredStyle.fillColor).toBe("#26594a");
+      expect(hoveredStyle.fillColor).not.toBe(baseStyle.fillColor);
       expect(activeStyle.radius).toBeGreaterThan(hoveredStyle.radius);
       expect(activeStyle.fillOpacity).toBeGreaterThan(hoveredStyle.fillOpacity);
     });
@@ -870,13 +869,18 @@ describe("mapDomain", () => {
       expect(ROAD_LAYER_STYLE.weight).toBeGreaterThanOrEqual(1.5);
     });
 
-    test("keeps section hover visually inert", () => {
-      expect(getSectionPolygonStyle({
+    test("lifts hovered sections while preserving inactive styling", () => {
+      const inactiveStyle = getSectionPolygonStyle({
         sectionId: "107",
-      })).toEqual(getSectionPolygonStyle({
+      });
+      const hoveredStyle = getSectionPolygonStyle({
         sectionId: "107",
         hoveredSectionId: "107",
-      }));
+      });
+
+      expect(hoveredStyle).not.toEqual(inactiveStyle);
+      expect(hoveredStyle.fillOpacity).toBeGreaterThan(inactiveStyle.fillOpacity);
+      expect(hoveredStyle.weight).toBeGreaterThan(inactiveStyle.weight);
     });
 
     test("defines MapKit-style roads as layered non-interactive strokes", () => {
@@ -895,11 +899,12 @@ describe("mapDomain", () => {
         lineJoin: "round",
       });
       expect(body).toMatchObject({
-        color: "#f8f6ef",
+        color: "#595959",
         interactive: false,
         lineCap: "round",
         lineJoin: "round",
       });
+      expect(ROAD_LAYER_STYLES.every((style) => style.color === "#595959")).toBe(true);
       expect(shadow.weight).toBeGreaterThan(casing.weight);
       expect(casing.weight).toBeGreaterThan(body.weight);
       expect(body.opacity).toBeGreaterThan(shadow.opacity);
