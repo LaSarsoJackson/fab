@@ -9,6 +9,9 @@ import { FAB_TOUR_DEFINITIONS, FAB_TOUR_STYLES, enrichFabTourRecord } from "./to
 const stripLeadingSlash = (value = "") => String(value).trim().replace(/^\/+/, "");
 const stripTrailingSlash = (value = "") => String(value).trim().replace(/\/+$/, "");
 const createBasemapSpec = (definition) => Object.freeze({ ...definition });
+const insertFileNameSuffix = (filePath = "", suffix = "") => (
+  String(filePath).replace(/(\.[^./]+)$/, `${suffix}$1`)
+);
 const createOverlaySourceSpec = (definition) => Object.freeze({ ...definition });
 const createOptimizationArtifactSpec = (definition) => Object.freeze({ ...definition });
 const createBoundsFromBbox = ([west, south, east, north]) => Object.freeze([
@@ -19,6 +22,38 @@ const padLatLngBounds = (bounds, { latitude = 0, longitude = 0 } = {}) => Object
   Object.freeze([bounds[0][0] - latitude, bounds[0][1] - longitude]),
   Object.freeze([bounds[1][0] + latitude, bounds[1][1] + longitude]),
 ]);
+// The NYS export service caps a single request at 4096x4096, so a lone image
+// covering the whole pannable area can only reach ~1 m/px. Splitting the detail
+// bounds into a grid lets each tile spend that 4096 budget on a smaller area,
+// pushing the imagery basemap toward the source's ~12 inch native resolution.
+const createTiledImageExports = (definition, { rows = 1, cols = 1 } = {}) => {
+  if (rows <= 1 && cols <= 1) return [definition];
+
+  const [[south, west], [north, east]] = definition.bounds;
+  const latStep = (north - south) / rows;
+  const lngStep = (east - west) / cols;
+  const tiles = [];
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      const suffix = `-r${row}-c${col}`;
+      tiles.push({
+        ...definition,
+        id: `${definition.id}${suffix}`,
+        imageUrl: insertFileNameSuffix(definition.imageUrl, suffix),
+        outputPath: insertFileNameSuffix(definition.outputPath, suffix),
+        bounds: createBoundsFromBbox([
+          west + lngStep * col,
+          south + latStep * row,
+          west + lngStep * (col + 1),
+          south + latStep * (row + 1),
+        ]),
+      });
+    }
+  }
+
+  return tiles;
+};
 
 const FAB_SITE_ROOT_URL = "https://www.albany.edu/arce";
 const FAB_SITE_NAME = "Albany Rural Cemetery";
@@ -47,10 +82,22 @@ const CEMETERY_ORTHO_OVERVIEW_BOUNDS = Object.freeze([
   Object.freeze([42.66, -73.82]),
   Object.freeze([42.75, -73.64]),
 ]);
+// Keep this padding just past the 0.01 pannable ring (paddedBoundaryBounds) so
+// the tiled detail still fully covers everywhere the user can pan, while
+// spending as little of the pixel budget as possible outside the cemetery.
 const CEMETERY_ORTHO_DETAIL_BOUNDS = padLatLngBounds(CEMETERY_BOUNDARY_BOUNDS, {
-  latitude: 0.015,
-  longitude: 0.015,
+  latitude: 0.012,
+  longitude: 0.012,
 });
+// 2x2 tiling lifts the cemetery detail from ~1.2 m/px to ~0.5 m/px without
+// exceeding the per-request export cap.
+const FAB_BASEMAP_DETAIL_GRID = Object.freeze({ rows: 2, cols: 2 });
+// The detail tiles are large, so they are served dynamically: map chrome only
+// downloads a tile once the viewer zooms past this level (where the wide
+// overview image starts to look soft) and the tile is in view. The default
+// zoom-14 view loads only the lightweight overview image.
+const FAB_BASEMAP_DETAIL_MIN_ZOOM = 16;
+const FAB_BASEMAP_DETAIL_ID_PREFIX = "cemetery-detail";
 const ESRI_WORLD_IMAGERY_BASEMAP = Object.freeze({
   id: "esri-world-imagery-fallback",
   type: "raster-xyz",
@@ -71,14 +118,14 @@ export const FAB_BASEMAP_IMAGE_EXPORTS = Object.freeze([
     sourceExportUrl: NYS_ORTHO_LATEST_EXPORT_URL,
     maxImageDimension: 4096,
   }),
-  Object.freeze({
+  ...createTiledImageExports({
     id: "cemetery-detail",
     imageUrl: "/basemaps/albany-rural-cemetery-nys-ortho-latest.jpg",
     outputPath: "public/basemaps/albany-rural-cemetery-nys-ortho-latest.jpg",
     bounds: CEMETERY_ORTHO_DETAIL_BOUNDS,
     sourceExportUrl: NYS_ORTHO_LATEST_EXPORT_URL,
     maxImageDimension: 4096,
-  }),
+  }, FAB_BASEMAP_DETAIL_GRID).map((definition) => Object.freeze(definition)),
 ]);
 
 const buildFabSiteUrl = (path = "") => {
@@ -265,12 +312,21 @@ const MAP_BASEMAPS = [
     label: "Imagery",
     type: "image-overlay",
     fallbackRaster: ESRI_WORLD_IMAGERY_BASEMAP,
-    imageOverlays: FAB_BASEMAP_IMAGE_EXPORTS.map((exportDefinition, index) => ({
-      id: exportDefinition.id,
-      imageUrl: exportDefinition.imageUrl,
-      bounds: exportDefinition.bounds,
-      zIndex: index + 1,
-    })),
+    imageOverlays: FAB_BASEMAP_IMAGE_EXPORTS.map((exportDefinition, index) => {
+      const isDetailTile = exportDefinition.id.startsWith(FAB_BASEMAP_DETAIL_ID_PREFIX);
+
+      return {
+        id: exportDefinition.id,
+        imageUrl: exportDefinition.imageUrl,
+        bounds: exportDefinition.bounds,
+        zIndex: index + 1,
+        // High-resolution detail tiles load on demand; the overview image keeps
+        // covering the cemetery at lower zooms so the first paint stays light.
+        ...(isDetailTile
+          ? { lazy: true, minZoom: FAB_BASEMAP_DETAIL_MIN_ZOOM }
+          : {}),
+      };
+    }),
     attribution: "NYS ITS Geospatial Services",
     minZoom: 0,
     maxZoom: 20,
@@ -370,6 +426,9 @@ export const APP_PROFILE = {
     manifestName: "Albany Rural Cemetery Burial Finder",
     manifestShortName: "Burial Finder",
     noScriptMessage: "You need to enable JavaScript to run the ARC Find-A-Burial App.",
+    errorTitle: "Map unavailable",
+    errorMessage: "The burial map failed to load. Reload the page to try again.",
+    errorReloadLabel: "Reload",
   },
   distribution: {
     iosAppStoreUrl: FAB_IOS_APP_STORE_URL,
@@ -455,8 +514,19 @@ export const APP_PROFILE = {
       outOfBounds: `Search by name or section, then tap Navigate for directions to ${FAB_SITE_NAME}.`,
       routeLocationRequired: `Continue with Maps for now. On-site navigation will start when you arrive.`,
     },
-    defaultBasemapId: "imagery",
+    defaultBasemapId: "auto",
     basemaps: MAP_BASEMAPS,
+    // Auto mode is not a tile source of its own — it picks between a
+    // cartographic orientation basemap and satellite imagery by zoom so the
+    // default view reads like a wayfinding map when zoomed out and reveals
+    // headstone-level detail up close.
+    autoBasemap: {
+      id: "auto",
+      label: "Auto",
+      cartographicBasemapId: "streets",
+      imageryBasemapId: "imagery",
+      imageryMinZoom: 16,
+    },
     overlaySources: MAP_OVERLAY_SOURCES,
     storageStrategy: {
       sourceOfTruthFormat: "geojson",

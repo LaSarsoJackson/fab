@@ -1,4 +1,4 @@
-import React, { memo, useEffect } from "react";
+import React, { memo, useEffect, useState } from "react";
 import { CircleMarker, GeoJSON, ImageOverlay, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 import {
   Box,
@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import CheckBoxIcon from "@mui/icons-material/CheckBox";
+import DirectionsWalkIcon from "@mui/icons-material/DirectionsWalk";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import HomeIcon from "@mui/icons-material/Home";
 import LayersIcon from "@mui/icons-material/Layers";
@@ -283,26 +284,109 @@ const LeafletRasterBasemapTile = ({ basemap, keepBuffer }) => (
   />
 );
 
-export const LeafletBasemapLayer = ({ basemap, keepBuffer = DEFAULT_BASEMAP_KEEP_BUFFER }) => {
-  if (isLeafletImageBasemap(basemap)) {
-    const fallbackRaster = isLeafletRasterBasemap(basemap.fallbackRaster)
-      ? basemap.fallbackRaster
-      : null;
-    const imageOverlays = (Array.isArray(basemap.imageOverlays)
-      ? basemap.imageOverlays
-      : [basemap]
-    ).filter((overlay) => (
-      typeof overlay?.imageUrl === "string" &&
-      overlay.imageUrl.length > 0 &&
-      Array.isArray(overlay.bounds)
-    ));
+// How far past the current viewport a lazy detail tile must reach before we
+// mount it, expressed as a fraction of the viewport span. The buffer pre-loads
+// tiles just outside the edges so panning stays smooth instead of flashing.
+const DETAIL_OVERLAY_VIEWPORT_BUFFER = 0.5;
 
-    return (
-      <>
-        {fallbackRaster && (
-          <LeafletRasterBasemapTile basemap={fallbackRaster} keepBuffer={keepBuffer} />
-        )}
-        {imageOverlays.map((overlay, index) => (
+const readMapViewport = (map) => ({
+  zoom: typeof map?.getZoom === "function" ? map.getZoom() : null,
+  bounds: typeof map?.getBounds === "function" ? map.getBounds() : null,
+});
+
+// Tracks zoom and bounds so basemap layers can react to the live viewport. Kept
+// defensive so unit tests can mock `useMap` with a bare object.
+const useMapViewport = () => {
+  const map = useMap();
+  const [viewport, setViewport] = useState(() => readMapViewport(map));
+
+  useEffect(() => {
+    if (typeof map?.on !== "function") {
+      return undefined;
+    }
+
+    const syncViewport = () => setViewport(readMapViewport(map));
+
+    syncViewport();
+    map.on("zoomend", syncViewport);
+    map.on("moveend", syncViewport);
+
+    return () => {
+      map.off("zoomend", syncViewport);
+      map.off("moveend", syncViewport);
+    };
+  }, [map]);
+
+  return viewport;
+};
+
+const isImageOverlayInViewport = (overlay, viewport, bufferRatio = DETAIL_OVERLAY_VIEWPORT_BUFFER) => {
+  const bounds = viewport?.bounds;
+  if (!bounds || typeof bounds.getSouth !== "function") {
+    return true;
+  }
+
+  const south = bounds.getSouth();
+  const north = bounds.getNorth();
+  const west = bounds.getWest();
+  const east = bounds.getEast();
+  const latPad = (north - south) * bufferRatio;
+  const lngPad = (east - west) * bufferRatio;
+  const [[overlaySouth, overlayWest], [overlayNorth, overlayEast]] = overlay.bounds;
+
+  return (
+    overlaySouth <= north + latPad &&
+    overlayNorth >= south - latPad &&
+    overlayWest <= east + lngPad &&
+    overlayEast >= west - lngPad
+  );
+};
+
+// Large high-resolution detail tiles opt into lazy loading via `lazy`/`minZoom`
+// so they only mount (and download) once the viewer has zoomed in far enough to
+// resolve the extra detail and the tile is within view. Lighter overlays such
+// as the wide context image carry neither flag and stay mounted at every zoom.
+const shouldMountImageOverlay = (overlay, viewport) => {
+  if (!viewport) {
+    return true;
+  }
+
+  if (
+    Number.isFinite(overlay?.minZoom) &&
+    Number.isFinite(viewport.zoom) &&
+    viewport.zoom < overlay.minZoom
+  ) {
+    return false;
+  }
+
+  if (overlay?.lazy && !isImageOverlayInViewport(overlay, viewport)) {
+    return false;
+  }
+
+  return true;
+};
+
+const LeafletImageBasemapLayer = ({ basemap, keepBuffer }) => {
+  const viewport = useMapViewport();
+  const fallbackRaster = isLeafletRasterBasemap(basemap.fallbackRaster)
+    ? basemap.fallbackRaster
+    : null;
+  const imageOverlays = (Array.isArray(basemap.imageOverlays)
+    ? basemap.imageOverlays
+    : [basemap]
+  ).filter((overlay) => (
+    typeof overlay?.imageUrl === "string" &&
+    overlay.imageUrl.length > 0 &&
+    Array.isArray(overlay.bounds)
+  ));
+
+  return (
+    <>
+      {fallbackRaster && (
+        <LeafletRasterBasemapTile basemap={fallbackRaster} keepBuffer={keepBuffer} />
+      )}
+      {imageOverlays.map((overlay, index) => (
+        shouldMountImageOverlay(overlay, viewport) ? (
           <ImageOverlay
             key={overlay.id || overlay.imageUrl || `${basemap.id}:image:${index}`}
             url={buildPublicAssetUrl(overlay.imageUrl)}
@@ -312,9 +396,15 @@ export const LeafletBasemapLayer = ({ basemap, keepBuffer = DEFAULT_BASEMAP_KEEP
             attribution={overlay.attribution || basemap.attribution || ""}
             className="leaflet-basemap-image"
           />
-        ))}
-      </>
-    );
+        ) : null
+      ))}
+    </>
+  );
+};
+
+export const LeafletBasemapLayer = ({ basemap, keepBuffer = DEFAULT_BASEMAP_KEEP_BUFFER }) => {
+  if (isLeafletImageBasemap(basemap)) {
+    return <LeafletImageBasemapLayer basemap={basemap} keepBuffer={keepBuffer} />;
   }
 
   if (!isLeafletRasterBasemap(basemap)) {
@@ -902,13 +992,20 @@ export function RouteStatusOverlay({
   isMobile = false,
   routingError,
   routingNotice = "",
+  routeSummary = null,
 }) {
-  if (!isCalculating && !routingError && !routingNotice) {
+  // A live route summary persists once the path is drawn, answering the on-site
+  // question "how far, how long?" at a glance. Errors still take precedence, and
+  // the calculating/notice message shows only while there is no summary yet.
+  const summaryLabel = routeSummary?.summaryLabel || "";
+  const hasSummary = Boolean(summaryLabel) && !routingError;
+
+  if (!isCalculating && !routingError && !routingNotice && !hasSummary) {
     return null;
   }
 
   const isError = Boolean(routingError);
-  const message = routingError || routingNotice || "Starting on-site navigation...";
+  const message = routingError || (hasSummary ? summaryLabel : (routingNotice || "Starting on-site navigation..."));
   const placementSx = isMobile
     ? {
         top: "calc(env(safe-area-inset-top, 0px) + 10px)",
@@ -957,17 +1054,26 @@ export function RouteStatusOverlay({
         WebkitBackdropFilter: "blur(16px)",
       }}
     >
-      <Typography
-        variant="body2"
-        sx={{
-          color: "inherit",
-          fontWeight: 600,
-          lineHeight: 1.35,
-          overflowWrap: "anywhere",
-        }}
-      >
-        {message}
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: hasSummary ? "8px" : 0 }}>
+        {hasSummary && (
+          <DirectionsWalkIcon
+            fontSize="small"
+            sx={{ color: "var(--accent, #2f6b57)", flex: "none" }}
+            aria-hidden="true"
+          />
+        )}
+        <Typography
+          variant="body2"
+          sx={{
+            color: "inherit",
+            fontWeight: hasSummary ? 700 : 600,
+            lineHeight: 1.35,
+            overflowWrap: "anywhere",
+          }}
+        >
+          {message}
+        </Typography>
+      </Box>
     </Paper>
   );
 }

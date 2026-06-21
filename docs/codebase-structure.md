@@ -6,6 +6,8 @@ so there is a clearer answer to "where should this change go?"
 
 ## Primary entry points
 
+- [`src/App.js`](../src/App.js): root shell, theme, document metadata, and the lazy map mount
+- [`src/AppErrorBoundary.jsx`](../src/AppErrorBoundary.jsx): fallback UI when the lazy map chunk fails to load or the map throws while rendering
 - [`src/Map.jsx`](../src/Map.jsx): runtime map shell and Leaflet orchestration
 - [`src/BurialSidebar.jsx`](../src/BurialSidebar.jsx): search, browse, and selection UI
 
