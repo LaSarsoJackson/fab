@@ -161,10 +161,20 @@ describe("app profile", () => {
     expect(boundsContain(APP_PROFILE.map.defaultViewBounds, BOUNDARY_BOUNDS)).toBe(true);
     expect(boundsContain(APP_PROFILE.map.paddedBoundaryBounds, BOUNDARY_BOUNDS)).toBe(true);
 
+    const defaultBasemap = APP_PROFILE.map.basemaps.find((basemap) => (
+      basemap.id === APP_PROFILE.map.defaultBasemapId
+    ));
     const imageryBasemap = APP_PROFILE.map.basemaps.find((basemap) => basemap.id === "imagery");
     const detailOverlays = imageryBasemap.imageOverlays.filter((overlay) => (
       overlay.id.startsWith("cemetery-detail")
     ));
+
+    expect(defaultBasemap).toMatchObject({
+      id: "world-hillshade",
+      type: "raster-xyz",
+      maxNativeZoom: 16,
+      maxZoom: 20,
+    });
 
     // The detail imagery is tiled so each piece can carry more resolution than a
     // single capped export. The tiles must still combine to cover the pannable

@@ -1137,11 +1137,28 @@ export const createLeafletTextContent = (
 // Presentation Rules
 //=============================================================================
 
-const SECTION_BURIAL_MARKER_TONE = {
-  fillColor: "#2f6b57",
-  hoverFillColor: "#26594a",
-  strokeColor: "#f4f9f6",
-};
+const SECTION_BURIAL_MARKER_PALETTE = [
+  {
+    fillColor: "#708177",
+    hoverFillColor: "#607069",
+    strokeColor: "#e7eee9",
+  },
+  {
+    fillColor: "#7c7f88",
+    hoverFillColor: "#686e78",
+    strokeColor: "#edf1f4",
+  },
+  {
+    fillColor: "#8a715f",
+    hoverFillColor: "#765f50",
+    strokeColor: "#f2eae4",
+  },
+  {
+    fillColor: "#657884",
+    hoverFillColor: "#556772",
+    strokeColor: "#e8eff2",
+  },
+];
 
 const ACTIVE_SECTION_BURIAL_MARKER_STYLE = {
   radius: 7.25,
@@ -1164,19 +1181,19 @@ const ROAD_LINE_BASE_STYLE = {
 export const ROAD_LAYER_STYLES = [
   {
     ...ROAD_LINE_BASE_STYLE,
-    color: "#5c6469",
+    color: "#595959",
     weight: 8,
     opacity: 0.2,
   },
   {
     ...ROAD_LINE_BASE_STYLE,
-    color: "#d8d1c5",
+    color: "#595959",
     weight: 6.25,
     opacity: 0.64,
   },
   {
     ...ROAD_LINE_BASE_STYLE,
-    color: "#f8f6ef",
+    color: "#595959",
     weight: 4.5,
     opacity: 0.96,
   },
@@ -1184,6 +1201,36 @@ export const ROAD_LAYER_STYLES = [
 
 export const ROAD_LAYER_STYLE = ROAD_LAYER_STYLES[ROAD_LAYER_STYLES.length - 1];
 
+const normalizeSectionBurialMarkerKey = (record = {}) => {
+  const properties = record?.properties || record || {};
+  if (record?.id || properties.id) {
+    return String(record?.id || properties.id);
+  }
+
+  return [
+    properties.Section,
+    properties.Lot,
+    properties.Grave,
+    properties.Tier,
+  ].filter((value) => value !== null && value !== undefined && value !== "").join(":");
+};
+
+const hashMarkerKey = (value = "") => {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) - hash) + value.charCodeAt(index);
+    hash |= 0;
+  }
+
+  return Math.abs(hash);
+};
+
+const getSectionBurialMarkerTone = (record = {}) => {
+  const markerKey = normalizeSectionBurialMarkerKey(record);
+  const paletteIndex = hashMarkerKey(markerKey) % SECTION_BURIAL_MARKER_PALETTE.length;
+  return SECTION_BURIAL_MARKER_PALETTE[paletteIndex];
+};
 
 export const getSectionBurialMarkerStyle = (record, options = {}) => {
   const {
@@ -1216,57 +1263,61 @@ export const getSectionBurialMarkerStyle = (record, options = {}) => {
     };
   }
 
-  const tone = SECTION_BURIAL_MARKER_TONE;
+  const tone = getSectionBurialMarkerTone(record);
 
   return {
     radius: isHovered ? 6.25 : isPreviewMarker ? 3.75 : 5.25,
     fillColor: isHovered ? tone.hoverFillColor : tone.fillColor,
-    fillOpacity: isHovered ? 0.66 : isPreviewMarker ? 0.26 : 0.48,
+    fillOpacity: isHovered ? 0.62 : isPreviewMarker ? 0.24 : 0.44,
     color: tone.strokeColor,
     weight: isHovered ? 1.8 : isPreviewMarker ? 0.85 : 1.15,
-    opacity: isHovered ? 0.95 : isPreviewMarker ? 0.5 : 0.8,
+    opacity: isHovered ? 0.92 : isPreviewMarker ? 0.48 : 0.76,
     hitRadius: isHovered ? 16 : isPreviewMarker ? 10 : 14,
   };
 };
 
-// Sections should read as labelled regions, not invisible hairline outlines.
-// A calm sage tint over the basemap lets the cemetery's section grid register
-// at a glance — the same mental model a visitor builds from the numbered signs
-// on the ground — while the active section lifts forward with a stronger accent
-// fill and a confident edge. Detail mode (individual burials visible) eases the
-// fills and strokes back so grave markers stay the focus.
-const SECTION_POLYGON_INACTIVE_COLOR = "#5f8a76";
-const SECTION_POLYGON_INACTIVE_STROKE = "#34604f";
-const SECTION_POLYGON_ACTIVE_COLOR = "#2f6b57";
-const SECTION_POLYGON_ACTIVE_STROKE = "#1f4a3b";
+const SECTION_POLYGON_STROKE = "#595959";
 
 export const getSectionPolygonStyle = (options = {}) => {
   const {
     sectionId,
     activeSectionId,
+    hoveredSectionId = null,
     showAllBurials = false,
   } = options;
 
   const nextSectionId = String(sectionId || "");
   const nextActiveId = String(activeSectionId || "");
+  const nextHoveredId = String(hoveredSectionId || "");
   const isActive = nextSectionId && nextSectionId === nextActiveId;
+  const isHovered = nextSectionId && nextSectionId === nextHoveredId;
 
   if (isActive) {
     return {
-      fillColor: SECTION_POLYGON_ACTIVE_COLOR,
-      fillOpacity: showAllBurials ? 0.06 : 0.18,
-      color: SECTION_POLYGON_ACTIVE_STROKE,
-      weight: showAllBurials ? 1.6 : 2.25,
-      opacity: 0.95,
+      fillColor: showAllBurials ? "#7396b4" : "#628ab0",
+      fillOpacity: showAllBurials ? 0.14 : 0.24,
+      color: SECTION_POLYGON_STROKE,
+      weight: showAllBurials ? 1.8 : 2,
+      opacity: 0.92,
+    };
+  }
+
+  if (isHovered) {
+    return {
+      fillColor: "#e4edf5",
+      fillOpacity: showAllBurials ? 0.08 : 0.12,
+      color: SECTION_POLYGON_STROKE,
+      weight: 1.6,
+      opacity: 0.86,
     };
   }
 
   return {
-    fillColor: SECTION_POLYGON_INACTIVE_COLOR,
-    fillOpacity: showAllBurials ? 0.04 : 0.1,
-    color: SECTION_POLYGON_INACTIVE_STROKE,
-    weight: showAllBurials ? 0.85 : 1.15,
-    opacity: showAllBurials ? 0.4 : 0.6,
+    fillColor: "#f8f9fa",
+    fillOpacity: showAllBurials ? 0.02 : 0.05,
+    color: SECTION_POLYGON_STROKE,
+    weight: 1,
+    opacity: showAllBurials ? 0.42 : 0.62,
   };
 };
 
