@@ -937,7 +937,9 @@ export default function BurialMap() {
 
     return isMobile;
   }, [isMobile]);
-  const shouldUseMapPopups = !isMobile;
+  // The mobile sheet supplements the map popup; it does not replace it.
+  // Keep the full portrait, biography, and navigation card available at every viewport size.
+  const shouldUseMapPopups = true;
   const shouldUseMapPopupsRef = useRef(shouldUseMapPopups);
   const handleBasemapChange = useCallback((nextBasemapId) => {
     setActiveBasemapId(nextBasemapId);
@@ -1908,13 +1910,13 @@ export default function BurialMap() {
   const getPopupLayerForBurial = useCallback((burial) => {
     if (!burial) return null;
 
-    if (burial.source === "tour") {
-      return tourFeatureLayersRef.current.get(burial.id) || null;
-    }
-
     const selectedMarker = selectedMarkerLayersRef.current.get(burial.id);
     if (selectedMarker) {
       return selectedMarker;
+    }
+
+    if (burial.source === "tour") {
+      return tourFeatureLayersRef.current.get(burial.id) || null;
     }
 
     return sectionMarkersByIdRef.current.get(getSectionBurialMarkerId(burial)) || null;
@@ -4718,7 +4720,7 @@ export default function BurialMap() {
                 }}
                 zIndexOffset={1000}
               >
-                {shouldUseMapPopups && burial.source !== "tour" && (
+                {shouldUseMapPopups && (
                   <Popup>
                     <PopupCardContent
                       record={burial}

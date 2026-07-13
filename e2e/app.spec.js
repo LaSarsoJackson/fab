@@ -275,25 +275,31 @@ test.describe("desktop", () => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
 
-    await page.getByRole("button", { name: "Start a Tour" }).click();
+    await page.getByRole("button", { name: "Tours", exact: true }).click();
 
     const tourInput = page.getByRole("combobox", { name: "Tour" });
     await tourInput.click();
-    await tourInput.fill("Notables");
     await page.getByRole("option", { name: "Notables Tour 2020" }).click();
 
     await expect(page.getByText("Loading Notables Tour 2020…")).toHaveCount(0, { timeout: 45_000 });
 
     const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
-    await expect(browseResults.first()).toBeVisible();
+    await expect(browseResults.first()).toBeVisible({ timeout: 45_000 });
 
     const selectedHeading = (await browseResults.first().getByRole("heading").textContent()).trim();
-    await browseResults.first().click();
+    const tourMarker = page.locator(".leaflet-marker-icon.tour-marker").first();
+    await expect(tourMarker).toBeVisible();
+    await tourMarker.click();
 
-    const popupCard = page.locator(".popup-card");
+    const popupCard = page.locator(".leaflet-popup .popup-card");
     await expect(popupCard).toBeVisible();
     await expect(popupCard.locator(".popup-card__eyebrow")).toContainText("Notables Tour 2020");
     await expect(popupCard.locator(".popup-card__title")).toHaveText(selectedHeading);
+    await expect(page.locator(".left-sidebar__panel--selected-summary")).toContainText(selectedHeading);
+
+    await page.waitForTimeout(750);
+    await expect(popupCard).toBeVisible();
+    await expect(page.locator(".left-sidebar__panel--selected-summary")).toContainText(selectedHeading);
   });
 
   test("deep links restore the selected burial and popup state", async ({ page }) => {
@@ -466,13 +472,23 @@ test.describe("desktop", () => {
 test.describe("mobile", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("selected-person actions stay usable in the mobile bottom sheet", async ({ page }) => {
-    await waitForAppReady(page, buildAppPath("view=burials&q=lamont"));
+  test("selected-person details stay usable in the map popup and mobile bottom sheet", async ({ page }) => {
+    await waitForAppReady(page, buildAppPath("view=burials&q=marcus%20reynolds"));
     await ensureBurialDataLoaded(page);
+
+    const mapPopup = page.locator(".leaflet-popup .popup-card");
+    await expect(mapPopup).toBeVisible();
+    await expect(mapPopup.locator(".popup-card__title")).toContainText("Reynolds");
+    await expect(mapPopup.locator(".popup-card__paragraph")).toContainText("Albany Architect");
+    const portrait = mapPopup.locator(".popup-card__image");
+    await expect(portrait).toBeVisible();
+    await expect.poll(() => portrait.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
+    await expect(mapPopup.getByRole("button", { name: "Navigate" })).toBeVisible();
+    await expect(mapPopup.getByRole("link", { name: "Details" })).toBeVisible();
 
     const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
     await expect(selectedPeoplePanel).toContainText("Selected grave");
-    await expect(selectedPeoplePanel).toContainText("Thomas E LaMont");
+    await expect(selectedPeoplePanel).toContainText("Reynolds");
     await expect(selectedPeoplePanel.getByRole("button", { name: "Navigate" })).toBeVisible();
     await expect(selectedPeoplePanel.getByRole("button", { name: "Navigate" })).toBeInViewport();
 
