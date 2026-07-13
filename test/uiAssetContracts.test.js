@@ -36,4 +36,17 @@ describe("UI asset contracts", () => {
     expect(markerToggle).toContain("min-height: 44px");
     expect(quickTourButton).toContain("min-height: 44px");
   });
+
+  test("keeps stacked popup content in one bounded scroll region", () => {
+    const css = readText("src/index.css");
+    const popupStack = readCssBlock(css, ".leaflet-popup .popup-card-stack");
+    const stackedCard = readCssBlock(css, ".leaflet-popup .popup-card-stack > .popup-card");
+    const stackedList = readCssBlock(css, ".leaflet-popup .popup-card-stack .popup-card__stack-list");
+
+    expect(popupStack).toContain("max-height: min(70vh, 420px)");
+    expect(popupStack).toContain("overflow-y: auto");
+    expect(stackedCard).toContain("overflow: visible");
+    expect(stackedList).toContain("overflow-x: auto");
+    expect(stackedList).toContain("overflow-y: hidden");
+  });
 });

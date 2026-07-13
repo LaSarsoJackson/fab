@@ -1,10 +1,14 @@
 /** @jest-environment jsdom */
 
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import { PopupCardStackContent, PopupCardStackList } from "./popupCardContent";
+import {
+  PopupCardContent,
+  PopupCardStackContent,
+  PopupCardStackList,
+} from "./popupCardContent";
 
 const stackRecords = [
   {
@@ -52,6 +56,11 @@ test("PopupCardStackContent with 3 records renders all 3 names in the list and t
   expect(screen.getAllByText("Anna Stack").length).toBeGreaterThanOrEqual(1);
   expect(screen.getByText("Beth Stack")).toBeInTheDocument();
   expect(screen.getByText("Clara Stack")).toBeInTheDocument();
+  const stack = screen.getByRole("group", { name: "3 burial records at this marker" });
+  expect(stack).toHaveClass("popup-card-stack");
+  expect(within(stack).getByRole("list", { name: "3 burial records at this marker" }))
+    .toBeInTheDocument();
+  expect(within(stack).getByRole("heading", { level: 3 })).toHaveTextContent("Anna Stack");
 });
 
 test("clicking a non-active option calls onSelectRecord with that record and the card switches to it", () => {
@@ -143,4 +152,39 @@ test("popup actions render when action handlers are provided", () => {
 
   expect(screen.getByRole("button", { name: "Navigate" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+});
+
+test("the default map popup includes biography facts, portrait, and directions", () => {
+  const onNavigate = jest.fn();
+
+  render(
+    <PopupCardContent
+      record={{
+        id: "reynolds",
+        source: "tour",
+        displayName: "Marcus T. Reynolds",
+        Section: "17",
+        Lot: "1",
+        Birth: "8/20/1869",
+        Death: "3/18/1937",
+        extraTitle: "Albany Architect",
+        portraitImageName: "Reynolds5d.png",
+        biographyLink: "Reynolds5",
+      }}
+      onNavigate={onNavigate}
+      onRemove={jest.fn()}
+      schedulePopupLayout={jest.fn()}
+      getPopup={() => ({})}
+      showActions
+    />
+  );
+
+  expect(screen.getByText("Albany Architect")).toHaveClass("popup-card__paragraph");
+  expect(screen.getByRole("img", { name: "Marcus T. Reynolds portrait" }))
+    .toHaveAttribute("src", expect.stringContaining("/images/Reynolds5d.png"));
+  expect(screen.getByRole("link", { name: "Details" }))
+    .toHaveAttribute("href", "https://www.albany.edu/arce/Reynolds5.html");
+
+  fireEvent.click(screen.getByRole("button", { name: "Navigate" }));
+  expect(onNavigate).toHaveBeenCalledTimes(1);
 });

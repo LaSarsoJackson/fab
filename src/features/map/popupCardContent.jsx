@@ -20,12 +20,17 @@ export function PopupCardContent({
   getPopup,
   schedulePopupLayout,
   showActions = false,
-  showDetails = false,
+  showDetails = true,
 }) {
   const popupView = buildPopupViewModel(record);
   const popupKey = createMapRecordKey(record, 0);
   const [mediaUrl, setMediaUrl] = useState(() => popupView.imageUrl || "");
   const locationRow = popupView.rows.find(({ label }) => label === "Location");
+  const detailRows = popupView.rows.filter(({ label, value }) => (
+    label !== "Location" && !(
+      label === "Role" && popupView.paragraphs.includes(cleanRecordValue(value))
+    )
+  ));
   const shouldShowActions = showActions && (onNavigate || onRemove);
 
   const handlePopupInteraction = useCallback((event) => {
@@ -117,9 +122,9 @@ export function PopupCardContent({
           ))}
         </Box>
       )}
-      {showDetails && popupView.rows.length > 0 && (
+      {showDetails && detailRows.length > 0 && (
         <Box component="dl" className="popup-card__details">
-          {popupView.rows.map(({ label, value }) => (
+          {detailRows.map(({ label, value }) => (
             <Box key={`${popupKey}-${label}`} className="popup-card__row">
               <dt>{label}</dt>
               <dd>{value}</dd>
@@ -177,10 +182,21 @@ export function PopupCardContent({
               Navigate
             </button>
           )}
+          {showDetails && popupView.biographyLink && (
+            <a
+              className="popup-card__action popup-card__action--secondary"
+              href={popupView.biographyLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handlePopupInteraction}
+            >
+              Details
+            </a>
+          )}
           {onRemove && (
             <button
               type="button"
-              className="popup-card__action popup-card__action--secondary"
+              className="popup-card__action popup-card__action--ghost"
               onClick={(event) => {
                 stopMapInteractionPropagation(event);
                 onRemove();
@@ -332,7 +348,11 @@ export function PopupCardStackContent({
   };
 
   return (
-    <>
+    <div
+      className="popup-card-stack"
+      role="group"
+      aria-label={`${stackRecords.length} burial records at this marker`}
+    >
       <PopupCardStackList
         records={stackRecords}
         activeRecordId={currentRecordId}
@@ -347,6 +367,6 @@ export function PopupCardStackContent({
         getPopup={getPopup}
         schedulePopupLayout={schedulePopupLayout}
       />
-    </>
+    </div>
   );
 }

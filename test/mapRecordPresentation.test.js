@@ -158,6 +158,27 @@ describe("buildPopupViewModel", () => {
     expect(popup.imageUrl).toBe("");
     expect(popup.imageLinkUrl).toBe("");
     expect(popup.imageHint).toBe("");
+    expect(popup.paragraphs).toEqual([]);
+  });
+
+  test("uses the tour title as a concise biography while preserving shared detail rows", () => {
+    const popup = buildPopupViewModel({
+      source: "tour",
+      displayName: "Marcus T. Reynolds",
+      Section: "17",
+      Lot: "1",
+      Birth: "8/20/1869",
+      Death: "3/18/1937",
+      extraTitle: "Albany Architect",
+    });
+
+    expect(popup.paragraphs).toEqual(["Albany Architect"]);
+    expect(popup.rows).toEqual([
+      { label: "Role", value: "Albany Architect" },
+      { label: "Location", value: "Section 17, Lot 1" },
+      { label: "Born", value: "8/20/1869" },
+      { label: "Died", value: "3/18/1937" },
+    ]);
   });
 
   test("uses the same shared rows for GAR markers", () => {

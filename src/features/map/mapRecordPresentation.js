@@ -158,13 +158,14 @@ export const buildPopupViewModel = (record = {}) => {
   const imageHint = imageUrl && hasBiographyLink
     ? cleanRecordValue(RECORD_PRESENTATION?.biographyImageHint)
     : "";
+  const summary = cleanRecordValue(record.extraTitle || record.Titles);
   const rows = buildPopupRows(record);
 
   return {
     heading,
     sourceLabel: buildPopupSourceLabel(record),
     subtitle: "",
-    paragraphs: [],
+    paragraphs: summary ? [summary] : [],
     rows,
     biographyLink,
     imageLinkUrl,
