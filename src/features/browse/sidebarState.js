@@ -70,19 +70,6 @@ export const buildClearBrowseQueryIntent = () => ({
   shouldSetBrowseQuery: true,
 });
 
-export const buildBrowseResultSelectIntent = ({
-  isMobile = false,
-  selectedBurialsLength = 0,
-} = {}) => {
-  const shouldSetSelectedSummaryExpanded = Boolean(isMobile)
-    && Number(selectedBurialsLength) === 0;
-
-  return {
-    isSelectedSummaryExpandedToSet: shouldSetSelectedSummaryExpanded ? true : null,
-    shouldSetSelectedSummaryExpanded,
-  };
-};
-
 export const buildTourSelectionIntent = ({
   hasTourBrowse = false,
   tourName = "",
@@ -228,7 +215,6 @@ export const buildClearAllBrowseStateIntent = ({
   return {
     browseQueryToSet: "",
     browseSourceToSet: "all",
-    isSelectedSummaryExpandedToSet: false,
     lotTierFilterToSet: "",
     selectedTourToSet: null,
     shouldClearSectionFilters: hasSectionFilter,
@@ -336,7 +322,6 @@ export const buildMobileSheetRevealIntent = ({
     shouldExpandMobileSheet: (
       (
         shouldRevealSelectedRecord
-        && resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED
       ) ||
       (
         shouldRevealBrowseContext
@@ -939,18 +924,13 @@ export function useBurialSidebarMobileSheetState({
     isMobile,
   });
   const [mobileSheetState, setMobileSheetState] = useState(() => initialMobileSheetState);
-  const [isSelectedSummaryExpanded, setIsSelectedSummaryExpanded] = useState(
-    () => selectedBurialsLength > 1
-  );
   const sheetRef = useRef(null);
   const requestedMobileSheetStateRef = useRef(null);
   // Last layout metrics reported by the bottom sheet. Spring-end bucketing must
   // use the same inputs the snap points were computed from, otherwise a short
   // content measurement gets mistaken for a collapsed drawer.
   const sheetLayoutMetricsRef = useRef({ headerHeight: null, maxHeight: null, minHeight: null });
-  const previousSelectedCountRef = useRef(selectedBurialsLength);
   const previousIsMobileRef = useRef(isMobile);
-  const previousHasActiveBrowseContextRef = useRef(hasActiveBrowseContext);
   const currentMobileSheetState = getDefaultMobileSheetState({
     hasBrowseContext: hasActiveBrowseContext,
     hasSelectedBurials: selectedBurialsLength > 0,
@@ -1118,66 +1098,14 @@ export function useBurialSidebarMobileSheetState({
     }
   }, [currentMobileSheetState, isMobile, mobileSheetState]);
 
-  useEffect(() => {
-    const previousSelectedCount = previousSelectedCountRef.current;
-    const previousHasActiveBrowseContext = previousHasActiveBrowseContextRef.current;
-
-    if (!isMobile) {
-      previousSelectedCountRef.current = selectedBurialsLength;
-      previousHasActiveBrowseContextRef.current = hasActiveBrowseContext;
-      return;
-    }
-
-    // Mobile drawer behavior follows context changes automatically so search-
-    // first flows stay lightweight while explicit selections still expand the
-    // working area when the user needs it.
-    if (selectedBurialsLength === 0 && previousSelectedCount > 0) {
-      setIsSelectedSummaryExpanded(false);
-      if (!hasActiveBrowseContext && resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
-        expandMobileSheet();
-      }
-    } else if (selectedBurialsLength > previousSelectedCount && selectedBurialsLength > 1) {
-      setIsSelectedSummaryExpanded(true);
-      if (resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
-        expandMobileSheet();
-      }
-    } else if (
-      !previousHasActiveBrowseContext
-      && hasActiveBrowseContext
-      && initialBrowseSource !== "all"
-      && resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED
-    ) {
-      expandMobileSheet();
-    } else if (previousHasActiveBrowseContext && !hasActiveBrowseContext && selectedBurialsLength === 0) {
-      setIsSelectedSummaryExpanded(false);
-    }
-
-    previousSelectedCountRef.current = selectedBurialsLength;
-    previousHasActiveBrowseContextRef.current = hasActiveBrowseContext;
-  }, [
-    expandMobileSheet,
-    hasActiveBrowseContext,
-    initialBrowseSource,
-    isMobile,
-    resolvedMobileSheetState,
-    selectedBurialsLength,
-  ]);
-
-  const toggleSelectedSummary = useCallback(() => {
-    setIsSelectedSummaryExpanded((current) => !current);
-  }, []);
-
   return {
     collapseMobileSheet,
     expandMobileSheet,
     handleSheetSpringEnd,
-    isSelectedSummaryExpanded,
     maximizeMobileSheet,
     mobileDefaultSnap,
     mobileSnapPoints,
     resolvedMobileSheetState,
-    setIsSelectedSummaryExpanded,
     sheetRef,
-    toggleSelectedSummary,
   };
 }

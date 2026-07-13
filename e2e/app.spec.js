@@ -177,7 +177,7 @@ async function expectExternalMapsNavigation(page, triggerNavigation) {
 }
 
 async function getSelectedMarkerCenter(page) {
-  const marker = page.locator(".custom-div-icon").first();
+  const marker = page.locator(".selected-location-marker-icon").first();
   await expect(marker).toBeVisible();
 
   const markerBox = await marker.boundingBox();
@@ -472,27 +472,43 @@ test.describe("desktop", () => {
 test.describe("mobile", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("selected-person details stay usable in the map popup and mobile bottom sheet", async ({ page }) => {
+  test("one shared plot becomes one marker and one usable bottom location card", async ({ page }) => {
     await waitForAppReady(page, buildAppPath("view=burials&q=marcus%20reynolds"));
     await ensureBurialDataLoaded(page);
 
-    const mapPopup = page.locator(".leaflet-popup .popup-card");
-    await expect(mapPopup).toBeVisible();
-    await expect(mapPopup.locator(".popup-card__title")).toContainText("Reynolds");
-    await expect(mapPopup.locator(".popup-card__paragraph")).toContainText("Albany Architect");
-    const portrait = mapPopup.locator(".popup-card__image");
+    await expect(page.locator(".leaflet-popup .popup-card")).toHaveCount(0);
+
+    const selectedLocationMarkers = page.locator(".selected-location-marker-icon");
+    await expect(selectedLocationMarkers).toHaveCount(1);
+    await expect(selectedLocationMarkers).toBeInViewport();
+    await expect(selectedLocationMarkers.locator(".cemetery-cluster__count")).toHaveText("58");
+
+    await expect(page.getByRole("heading", { name: "58 people at this plot" })).toBeVisible();
+    const locationCard = page.locator(".mobile-location-card");
+    await expect(locationCard).toBeVisible();
+    await expect(locationCard.getByRole("tablist", { name: "58 people at this plot" })).toBeVisible();
+    await expect(locationCard.getByRole("tab")).toHaveCount(58);
+    await expect(locationCard).toContainText("Reynolds");
+
+    const portrait = locationCard.locator(".left-sidebar__selected-place-visual-image");
     await expect(portrait).toBeVisible();
     await expect.poll(() => portrait.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
-    await expect(mapPopup.getByRole("button", { name: "Navigate" })).toBeVisible();
-    await expect(mapPopup.getByRole("link", { name: "Details" })).toBeVisible();
 
-    const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
-    await expect(selectedPeoplePanel).toContainText("Selected grave");
-    await expect(selectedPeoplePanel).toContainText("Reynolds");
-    await expect(selectedPeoplePanel.getByRole("button", { name: "Navigate" })).toBeVisible();
-    await expect(selectedPeoplePanel.getByRole("button", { name: "Navigate" })).toBeInViewport();
+    const navigateButton = locationCard.getByRole("button", { name: "Navigate" });
+    await expect(navigateButton).toBeVisible();
+    await expect(navigateButton).toBeInViewport();
+    expect(await navigateButton.evaluate((button) => {
+      const bounds = button.getBoundingClientRect();
+      const topElement = document.elementFromPoint(
+        bounds.left + (bounds.width / 2),
+        bounds.top + (bounds.height / 2)
+      );
+      return topElement === button || button.contains(topElement);
+    })).toBe(true);
 
-    await selectedPeoplePanel.getByRole("button", { name: "Close" }).click();
-    await expect(selectedPeoplePanel).toHaveCount(0);
+    await page.getByRole("button", { name: "Back to results" }).click();
+    await expect(locationCard).toHaveCount(0);
+    await expect(selectedLocationMarkers).toHaveCount(0);
+    await expect(await getVisibleSearchInput(page, { requireEditable: false })).toHaveValue("marcus reynolds");
   });
 });
