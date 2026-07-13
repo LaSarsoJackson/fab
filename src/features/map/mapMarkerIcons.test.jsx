@@ -3,8 +3,7 @@
 import {
   MAP_MARKER_COLORS,
   createCemeteryClusterIcon,
-  createNumberedMarkerIcon,
-  createSelectedBurialStackIcon,
+  createSelectedLocationIcon,
   getSectionAffordanceIcon,
   getSectionClusterIcon,
   getSectionPoiIcon,
@@ -16,28 +15,6 @@ describe("MAP_MARKER_COLORS", () => {
     MAP_MARKER_COLORS.forEach((color) => {
       expect(color).toMatch(/^#[0-9a-f]{6}$/i);
     });
-  });
-});
-
-describe("createNumberedMarkerIcon", () => {
-  test("assigns a fixed badge size and embeds the marker number", () => {
-    const icon = createNumberedMarkerIcon(1);
-
-    expect(icon.options.iconSize).toEqual([32, 32]);
-    expect(icon.options.iconAnchor).toEqual([16, 16]);
-    expect(icon.options.html).toContain('data-marker-number="1"');
-    expect(icon.options.html).toMatch(/>\s*1\s*<\/div>/);
-  });
-
-  test("cycles palette colors and wraps past the palette length", () => {
-    expect(createNumberedMarkerIcon(1).options.html).toContain(`--marker-color: ${MAP_MARKER_COLORS[0]}`);
-    expect(createNumberedMarkerIcon(2).options.html).toContain(`--marker-color: ${MAP_MARKER_COLORS[1]}`);
-    // (7 - 1) % 6 === 0 wraps back to the first palette color.
-    expect(createNumberedMarkerIcon(7).options.html).toContain(`--marker-color: ${MAP_MARKER_COLORS[0]}`);
-  });
-
-  test("caches icons by number so repeated lookups reuse one instance", () => {
-    expect(createNumberedMarkerIcon(3)).toBe(createNumberedMarkerIcon(3));
   });
 });
 
@@ -79,21 +56,22 @@ describe("createCemeteryClusterIcon", () => {
   });
 });
 
-describe("createSelectedBurialStackIcon", () => {
-  test("uses the selected-stack styling at a fixed size", () => {
-    const icon = createSelectedBurialStackIcon({ count: 4 });
+describe("createSelectedLocationIcon", () => {
+  test("uses one selected-place marker with the people count", () => {
+    const icon = createSelectedLocationIcon({ count: 58 });
 
     expect(icon.options.iconSize).toEqual([34, 34]);
-    expect(icon.options.className).toContain("selected-burial-cluster-icon");
-    expect(icon.options.html).toContain("selected-burial-cluster");
+    expect(icon.options.className).toContain("selected-location-marker-icon");
+    expect(icon.options.html).toContain("selected-location-marker");
+    expect(icon.options.html).toContain(">58</span>");
   });
 
   test("adds the highlighted modifier only when highlighted", () => {
-    expect(createSelectedBurialStackIcon({ count: 1, isHighlighted: true }).options.html).toContain(
-      "selected-burial-cluster--highlighted"
+    expect(createSelectedLocationIcon({ count: 1, isHighlighted: true }).options.html).toContain(
+      "selected-location-marker--highlighted"
     );
-    expect(createSelectedBurialStackIcon({ count: 1, isHighlighted: false }).options.html).not.toContain(
-      "selected-burial-cluster--highlighted"
+    expect(createSelectedLocationIcon({ count: 1, isHighlighted: false }).options.html).not.toContain(
+      "selected-location-marker--highlighted"
     );
   });
 });
