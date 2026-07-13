@@ -1,5 +1,6 @@
 import {
   buildSelectedBurialLookup,
+  buildSelectedLocationLabel,
   buildSelectedPlaceDetailPresentation,
   buildSelectedSummaryPresentation,
   buildSelectedPlaceInitials,
@@ -111,7 +112,6 @@ describe("selected record presentation helpers", () => {
     const presentation = buildSelectedSummaryPresentation({
       activeBurialId: "grave-b",
       activeRouteBurialId: "grave-b",
-      isExpanded: false,
       isMobile: true,
       selectedBurialCoordinateGroups: [
         {
@@ -128,11 +128,10 @@ describe("selected record presentation helpers", () => {
       isRouteActive: true,
       leadBurial: secondRecord,
       leadBurialIndex: 1,
-      mobileSelectionSummaryTitle: "2 graves here",
-      selectionSummaryLabel: "2 graves share this map location.",
-      selectionSummaryTitle: "Graves at this spot",
+      mobileSelectionSummaryTitle: "2 people at this plot",
+      selectionSummaryLabel: "2 burial records share this mapped cemetery location.",
+      selectionSummaryTitle: "People at this plot",
       shouldShowSecondarySelections: false,
-      shouldShowSelectionToggle: true,
       secondarySelectedBurials: [firstRecord],
     });
     expect(Array.from(presentation.selectedBurialOrderById.entries())).toEqual([
@@ -153,7 +152,6 @@ describe("selected record presentation helpers", () => {
     expect(buildSelectedSummaryPresentation({
       activeBurialId: "",
       activeRouteBurialId: "",
-      isExpanded: false,
       isMobile: false,
       selectedBurials: [firstRecord, secondRecord],
     })).toMatchObject({
@@ -162,12 +160,21 @@ describe("selected record presentation helpers", () => {
       leadBurial: firstRecord,
       leadBurialIndex: 0,
       leadStackList: null,
-      mobileSelectionSummaryTitle: "2 graves here",
-      selectionSummaryTitle: "Graves at this spot",
+      mobileSelectionSummaryTitle: "2 people at this plot",
+      selectionSummaryTitle: "People at this plot",
       shouldShowSecondarySelections: true,
-      shouldShowSelectionToggle: false,
       secondarySelectedBurials: [secondRecord],
     });
+  });
+
+  test("builds a useful plot label without placeholder zero values", () => {
+    expect(buildSelectedLocationLabel({
+      Section: "17",
+      Lot: "1",
+      Tier: 0,
+      Grave: "0",
+    })).toBe("Section 17 · Lot 1");
+    expect(buildSelectedLocationLabel({ section: "", lot: null })).toBe("");
   });
 
   test("builds compact fallback initials from cleaned selected-place headings", () => {

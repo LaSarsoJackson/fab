@@ -922,22 +922,6 @@ export const resolveClusterExpansionZoom = ({
   return Math.max(0, terminalZoom);
 };
 
-export const getMarkerCoordinateKey = (
-  marker,
-  precision = DEFAULT_COORDINATE_PRECISION
-) => {
-  const latLng = marker?.getLatLng?.();
-  if (!latLng) return "";
-
-  const lat = Number(latLng.lat);
-  const lng = Number(latLng.lng);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "";
-
-  return `${lat.toFixed(precision)}:${lng.toFixed(precision)}`;
-};
-
-// Display markers may be nudged apart, but cluster decisions still need the
-// original cemetery coordinate when the marker carries its source burial record.
 const getRecordCoordinateKey = (
   record,
   precision = DEFAULT_COORDINATE_PRECISION
@@ -961,55 +945,6 @@ const getRecordCoordinates = (record) => {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
   return [lng, lat];
-};
-
-const getMarkerSourceCoordinateKey = (
-  marker,
-  precision = DEFAULT_COORDINATE_PRECISION
-) => (
-  getRecordCoordinateKey(marker?.burialRecord, precision) ||
-  getMarkerCoordinateKey(marker, precision)
-);
-
-export const getDistinctMarkerLocationCount = (markers = []) => {
-  const coordinateKeys = new Set();
-
-  markers.forEach((marker) => {
-    const coordinateKey = getMarkerCoordinateKey(marker);
-    if (coordinateKey) {
-      coordinateKeys.add(coordinateKey);
-    }
-  });
-
-  return coordinateKeys.size;
-};
-
-const areMarkersFromSameSourceLocation = (markers = []) => {
-  const coordinateKeys = markers
-    .map((marker) => getMarkerSourceCoordinateKey(marker))
-    .filter(Boolean);
-
-  return (
-    markers.length > 1 &&
-    coordinateKeys.length === markers.length &&
-    new Set(coordinateKeys).size === 1
-  );
-};
-
-export const getSameCoordinateMarkerBurialRecords = (markers = []) => {
-  const burialRecords = markers
-    .map((marker) => marker?.burialRecord)
-    .filter(Boolean);
-
-  if (
-    burialRecords.length < 2 ||
-    burialRecords.length !== markers.length ||
-    !areMarkersFromSameSourceLocation(markers)
-  ) {
-    return [];
-  }
-
-  return burialRecords;
 };
 
 export const buildRecordCoordinateGroups = (
@@ -1045,6 +980,70 @@ export const buildRecordCoordinateGroups = (
   return [...groupsByCoordinate.values()]
     .sort((left, right) => left.firstRecordIndex - right.firstRecordIndex)
     .map(({ firstRecordIndex, ...group }) => group);
+};
+
+/**
+ * Index burial records by their mapped cemetery location.
+ *
+ * The source dataset is person-granular but its geometry is plot-granular:
+ * many people intentionally share one ARC_GeoID/coordinate. Keeping that
+ * distinction explicit prevents the UI from treating every person as a
+ * separate physical pin.
+ */
+export const buildRecordLocationIndex = (
+  records = [],
+  {
+    getRecordId = (record) => record?.id,
+    getMatchedRecordId = (record) => record?.matchedBurialId,
+  } = {}
+) => {
+  const groups = buildRecordCoordinateGroups(records, { getRecordId });
+  const byCoordinateKey = new Map();
+  const byRecordId = new Map();
+
+  groups.forEach((group) => {
+    byCoordinateKey.set(group.coordinateKey, group);
+
+    group.records.forEach((record) => {
+      const recordId = normalizeSectionValue(getRecordId(record));
+      const matchedRecordId = normalizeSectionValue(getMatchedRecordId(record));
+
+      if (recordId) {
+        byRecordId.set(recordId, group);
+      }
+      if (matchedRecordId) {
+        byRecordId.set(matchedRecordId, group);
+      }
+    });
+  });
+
+  return {
+    byCoordinateKey,
+    byRecordId,
+    groups,
+  };
+};
+
+export const resolveRecordLocationGroup = (
+  record,
+  locationIndex,
+  {
+    getRecordId = (candidate) => candidate?.id,
+    getMatchedRecordId = (candidate) => candidate?.matchedBurialId,
+  } = {}
+) => {
+  if (!record || !locationIndex) return null;
+
+  const recordId = normalizeSectionValue(getRecordId(record));
+  const matchedRecordId = normalizeSectionValue(getMatchedRecordId(record));
+  const coordinateKey = getRecordCoordinateKey(record);
+
+  return (
+    (recordId ? locationIndex.byRecordId?.get(recordId) : null) ||
+    (matchedRecordId ? locationIndex.byRecordId?.get(matchedRecordId) : null) ||
+    (coordinateKey ? locationIndex.byCoordinateKey?.get(coordinateKey) : null) ||
+    null
+  );
 };
 
 export const getClusterIconCount = (
