@@ -149,6 +149,19 @@ async function searchForLamont(page) {
 
 async function expectExternalMapsNavigation(page, triggerNavigation) {
   const externalMapsPattern = /maps\.apple\.com|google\.com\/maps\/dir/i;
+  const usesPopupTarget = await page.evaluate(() => !(
+    /iphone|ipad|ipod|macintosh|mac os x|android/i.test(navigator.userAgent)
+  ));
+  if (usesPopupTarget) {
+    await page.evaluate(() => {
+      const nativeOpen = window.open.bind(window);
+      window.__fabExternalMapsOpenCalls = [];
+      window.open = (...args) => {
+        window.__fabExternalMapsOpenCalls.push(args);
+        return nativeOpen(...args);
+      };
+    });
+  }
   const popupPromise = page
     .waitForEvent("popup", { timeout: 20_000 })
     .then((popup) => ({ type: "popup", popup }));
@@ -157,6 +170,12 @@ async function expectExternalMapsNavigation(page, triggerNavigation) {
     .then(() => ({ type: "same-tab" }));
 
   await triggerNavigation();
+  if (usesPopupTarget) {
+    await expect.poll(() => page.evaluate(() => window.__fabExternalMapsOpenCalls?.length || 0), {
+      message: "Expected desktop Maps to open synchronously from the Navigate click.",
+      timeout: 500,
+    }).toBe(1);
+  }
 
   let navigationTarget = null;
 
@@ -223,6 +242,14 @@ async function waitForStableSelectedMarkerCenter(page, tolerance = 1) {
   }).toBeGreaterThanOrEqual(3);
 
   return currentCenter;
+}
+
+async function primeOnSiteLocation(page) {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Locate" }).click();
+  await expect(page.getByText("Using your current location for directions.")).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await expect(page.locator(".left-sidebar--desktop")).toBeVisible();
 }
 
 async function dragMapBy(page, { deltaX, deltaY }) {
@@ -325,6 +352,7 @@ test.describe("desktop", () => {
     await expect(popupCard).toBeVisible();
     await expect(popupCard.locator(".popup-card__title")).toHaveText("Thomas E LaMont");
     await expect(popupCard.locator(".popup-card__subtitle")).toContainText("Section 215, Lot 30, Tier 0, Grave 0");
+    await waitForStableSelectedMarkerCenter(page);
 
     await expectExternalMapsNavigation(page, () => popupCard.getByRole("button", { name: "Navigate" }).click());
   });
@@ -501,6 +529,7 @@ test.describe("desktop", () => {
 
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
+    await primeOnSiteLocation(page);
     const browseResults = await searchForLamont(page);
 
     await browseResults.first().click();
@@ -527,6 +556,7 @@ test.describe("desktop", () => {
 
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
+    await primeOnSiteLocation(page);
     const browseResults = await searchForLamont(page);
 
     await browseResults.first().click();
