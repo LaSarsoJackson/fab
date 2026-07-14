@@ -3,8 +3,8 @@
  * the shell installable, caches the compact public search payload generously,
  * and avoids pinning full source datasets into constrained browser storage.
  */
-const STATIC_CACHE = 'fab-static-v3';
-const RUNTIME_CACHE = 'fab-runtime-v3';
+const STATIC_CACHE = 'fab-static-v4';
+const RUNTIME_CACHE = 'fab-runtime-v4';
 // Keep the app shell installable, but leave large and frequently regenerated
 // datasets to route-specific caching rules below.
 const PRECACHE_URLS = [
