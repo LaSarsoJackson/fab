@@ -1,7 +1,7 @@
 /** @jest-environment jsdom */
 
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import App from "./App";
 import { APP_PROFILE } from "./features/fab/profile";
@@ -52,5 +52,77 @@ describe("App", () => {
     renderApp();
 
     expect(await screen.findByText("Map stub")).toBeInTheDocument();
+  });
+
+  test("batches visual viewport changes into one animation frame and cleans them up", async () => {
+    const viewportListeners = new Map();
+    const visualViewport = {
+      height: 720,
+      width: 390,
+      offsetTop: 18,
+      addEventListener: jest.fn((type, listener) => {
+        viewportListeners.set(type, listener);
+      }),
+      removeEventListener: jest.fn(),
+    };
+    const originalVisualViewport = window.visualViewport;
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    const originalCancelAnimationFrame = window.cancelAnimationFrame;
+    let scheduledFrame = null;
+
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: visualViewport,
+    });
+    window.requestAnimationFrame = jest.fn((callback) => {
+      scheduledFrame = callback;
+      return 37;
+    });
+    window.cancelAnimationFrame = jest.fn();
+    const setPropertySpy = jest.spyOn(document.documentElement.style, "setProperty");
+
+    const { unmount } = renderApp();
+    await screen.findByText("Map stub");
+
+    expect(setPropertySpy).toHaveBeenCalledTimes(3);
+    expect(visualViewport.addEventListener).toHaveBeenCalledWith(
+      "scroll",
+      expect.any(Function),
+      { passive: true }
+    );
+
+    setPropertySpy.mockClear();
+    act(() => {
+      viewportListeners.get("scroll")();
+      viewportListeners.get("resize")();
+    });
+
+    expect(window.requestAnimationFrame).toHaveBeenCalledTimes(1);
+    expect(setPropertySpy).not.toHaveBeenCalled();
+
+    act(() => {
+      scheduledFrame();
+    });
+
+    expect(setPropertySpy).toHaveBeenCalledTimes(3);
+
+    act(() => {
+      viewportListeners.get("scroll")();
+    });
+    unmount();
+
+    expect(window.cancelAnimationFrame).toHaveBeenCalledWith(37);
+    expect(visualViewport.removeEventListener).toHaveBeenCalledWith(
+      "scroll",
+      expect.any(Function)
+    );
+
+    setPropertySpy.mockRestore();
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: originalVisualViewport,
+    });
+    window.requestAnimationFrame = originalRequestAnimationFrame;
+    window.cancelAnimationFrame = originalCancelAnimationFrame;
   });
 });
