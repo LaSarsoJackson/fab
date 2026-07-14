@@ -13,6 +13,8 @@ export const createMapRecordKey = (record, index = 0) => (
   record?.id || `${record?.OBJECTID}_${record?.Section}_${record?.Lot}_${record?.Grave}_${index}`
 );
 
+const DESKTOP_POPUP_INITIAL_PERSON_LIMIT = 8;
+
 export function PopupCardContent({
   record,
   onNavigate,
@@ -218,34 +220,52 @@ export function PopupCardStackList({
   stackDescription = "",
 }) {
   const validRecords = records.filter(Boolean);
-
-  const viewModels = useMemo(
-    () => validRecords.map((record) => buildPopupViewModel(record)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [validRecords.length, validRecords.map((r) => r?.id).join("|")]
-  );
+  const [visibleLimit, setVisibleLimit] = useState(DESKTOP_POPUP_INITIAL_PERSON_LIMIT);
+  const listId = `popup-people-${encodeURIComponent(
+    createMapRecordKey(validRecords[0], 0)
+  ).replace(/%/g, "_")}`;
 
   if (validRecords.length < 2) {
     return null;
   }
 
   const count = validRecords.length;
+  const activeRecord = validRecords.find((record) => (
+    cleanRecordValue(record?.id) === cleanRecordValue(activeRecordId)
+  ));
+  const initialRecords = validRecords.slice(0, visibleLimit);
+  const visibleRecords = activeRecord && !initialRecords.some((record) => record.id === activeRecord.id)
+    ? [...initialRecords, activeRecord]
+    : initialRecords;
+  const viewModels = visibleRecords.map((record) => buildPopupViewModel(record));
+  const hasHiddenRecords = visibleRecords.length < validRecords.length;
+  const canCollapse = !hasHiddenRecords && visibleLimit > DESKTOP_POPUP_INITIAL_PERSON_LIMIT;
 
   const handleListInteraction = (event) => {
     stopMapInteractionPropagation(event);
   };
 
+  const handleToggleVisibleRecords = (event) => {
+    stopMapInteractionPropagation(event);
+    setVisibleLimit((currentLimit) => (
+      currentLimit >= validRecords.length
+        ? DESKTOP_POPUP_INITIAL_PERSON_LIMIT
+        : Math.min(validRecords.length, currentLimit + DESKTOP_POPUP_INITIAL_PERSON_LIMIT)
+    ));
+  };
+
   return (
     <div>
-      <p className="popup-card__stack-heading">{count} graves at this marker</p>
+      <p className="popup-card__stack-heading">{count} people at this plot</p>
       <ul
+        id={listId}
         className="popup-card__stack-list"
-        aria-label={stackDescription || "Burial records at this marker"}
+        aria-label={stackDescription || "People at this plot"}
         onMouseDown={handleListInteraction}
         onPointerDown={handleListInteraction}
         onTouchStart={handleListInteraction}
       >
-        {validRecords.map((record, index) => {
+        {visibleRecords.map((record, index) => {
           const vm = viewModels[index];
           const isActive = cleanRecordValue(record?.id) === cleanRecordValue(activeRecordId);
           const bornRow = vm.rows.find(({ label }) => label === "Born");
@@ -285,6 +305,22 @@ export function PopupCardStackList({
           );
         })}
       </ul>
+      {(hasHiddenRecords || canCollapse) && (
+        <div className="popup-card__stack-controls">
+          <span className="popup-card__stack-progress">
+            {visibleRecords.length} of {count} shown
+          </span>
+          <button
+            type="button"
+            className="popup-card__stack-toggle"
+            aria-controls={listId}
+            aria-expanded={visibleLimit > DESKTOP_POPUP_INITIAL_PERSON_LIMIT}
+            onClick={handleToggleVisibleRecords}
+          >
+            {hasHiddenRecords ? "Show more" : "Show fewer"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -351,13 +387,14 @@ export function PopupCardStackContent({
     <div
       className="popup-card-stack"
       role="group"
-      aria-label={`${stackRecords.length} burial records at this marker`}
+      aria-label={`${stackRecords.length} people at this plot`}
     >
       <PopupCardStackList
+        key={recordSignature}
         records={stackRecords}
         activeRecordId={currentRecordId}
         onSelectRecord={handleSelectRecord}
-        stackDescription={`${stackRecords.length} burial records at this marker`}
+        stackDescription={`${stackRecords.length} people at this plot`}
       />
       <PopupCardContent
         record={activeRecord}
