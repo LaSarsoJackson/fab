@@ -1150,7 +1150,11 @@ export default function BurialMap() {
   }, [keepActiveSelectionInVisibleViewport, scheduleActivePopupLayout]);
 
   useEffect(() => {
-    if (!isSearchPanelVisible || typeof ResizeObserver === "undefined") {
+    // Only the mobile sheet changes how much of the map is physically usable
+    // when its overlay resizes. Observing desktop sidebar content here lets
+    // unrelated status updates (including GPS route refreshes) auto-pan the
+    // map after a visitor has deliberately dragged it.
+    if (!isMobile || !isSearchPanelVisible || typeof ResizeObserver === "undefined") {
       return undefined;
     }
 
@@ -1183,7 +1187,7 @@ export default function BurialMap() {
         window.cancelAnimationFrame(frame);
       }
     };
-  }, [handleMobileSheetViewportChange, isSearchPanelVisible]);
+  }, [handleMobileSheetViewportChange, isMobile, isSearchPanelVisible]);
   const canIdlePrefetchTours = useMemo(() => {
     if (typeof navigator === 'undefined') {
       return !isMobile;
