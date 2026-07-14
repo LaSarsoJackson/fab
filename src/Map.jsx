@@ -50,6 +50,7 @@ import {
   buildLocationAccuracyGeoJson,
   buildRecordCoordinateGroups,
   buildRecordLocationIndex,
+  calculateLocationDistanceMeters,
   clearMapSelectionFocus,
   clearMapSelectionFocusForRecord,
   createLeafletTextContent,
@@ -69,6 +70,7 @@ import {
   isApproximateLocationAccuracy,
   LOCATION_APPROXIMATE_MAX_ACCURACY_METERS,
   LOCATION_INITIAL_MAX_ACCEPTABLE_ACCURACY_METERS,
+  LOCATION_JITTER_DEADBAND_METERS,
   LOCATION_MAX_ACCEPTABLE_ACCURACY_METERS,
   LOCATION_RECENT_FIX_WINDOW_MS,
   normalizeLocationPosition,
@@ -232,10 +234,56 @@ const ROUTING_LOCATION_REQUIRED_MESSAGE = LOCATION_MESSAGES.routeLocationRequire
 const NAVIGATION_NOTICE_AUTO_HIDE_MS = 6000;
 const NAVIGATION_LOCATION_DECISION_WAIT_MS = 1400;
 const ROUTE_LOCATION_REFRESH_INTERVAL_MS = 5000;
+const ROUTE_LOCATION_WATCH_STALE_MS = 15000;
 const ROUTE_LOCATION_REFRESH_OPTIONS = {
   ...GEOLOCATION_REQUEST_OPTIONS,
   timeout: 5000,
 };
+
+export const resolveSectionInputEventNames = (supportsPointerEvents) => ({
+  leave: supportsPointerEvents ? "pointerleave" : "mouseleave",
+  move: supportsPointerEvents ? "pointermove" : "mousemove",
+  start: supportsPointerEvents ? "pointerdown" : "touchstart",
+});
+
+export const shouldRefreshStaleRouteLocation = ({
+  lastFallbackRequestAt = 0,
+  lastWatchUpdateAt = 0,
+  now = Date.now(),
+  staleAfterMs = ROUTE_LOCATION_WATCH_STALE_MS,
+} = {}) => {
+  const isRecent = (timestamp) => (
+    Number.isFinite(timestamp) &&
+    timestamp > 0 &&
+    (now - timestamp) < staleAfterMs
+  );
+
+  return !isRecent(lastWatchUpdateAt) && !isRecent(lastFallbackRequestAt);
+};
+
+export const shouldUpdateRoutingOrigin = ({
+  currentOrigin,
+  nextLocation,
+  minimumMovementMeters = LOCATION_JITTER_DEADBAND_METERS,
+} = {}) => {
+  if (
+    !Array.isArray(currentOrigin) ||
+    currentOrigin.length < 2 ||
+    !Number.isFinite(Number(currentOrigin[0])) ||
+    !Number.isFinite(Number(currentOrigin[1])) ||
+    !Number.isFinite(Number(nextLocation?.latitude)) ||
+    !Number.isFinite(Number(nextLocation?.longitude))
+  ) {
+    return true;
+  }
+
+  const movementMeters = calculateLocationDistanceMeters(
+    { latitude: Number(currentOrigin[0]), longitude: Number(currentOrigin[1]) },
+    nextLocation
+  );
+  return !Number.isFinite(movementMeters) || movementMeters >= minimumMovementMeters;
+};
+
 const SECTION_MARKER_BATCH_SIZE = 300;
 const SEARCH_INDEX_PUBLIC_PATH = APP_PROFILE.artifacts.searchIndexPublicPath;
 const EMPTY_TOUR_RESULTS = [];
@@ -705,6 +753,8 @@ export default function BurialMap() {
   const suppressAutoOnSiteNavigationUntilRef = useRef(0);
   const openExternalDirectionsRef = useRef(null);
   const routeLocationRefreshInFlightRef = useRef(false);
+  const lastLocationWatchUpdateAtRef = useRef(0);
+  const lastRouteLocationFallbackAtRef = useRef(0);
   const watchIdRef = useRef(null);
   const acceptedLocationRef = useRef(null);
   const locationRecentCandidatesRef = useRef([]);
@@ -715,6 +765,7 @@ export default function BurialMap() {
   // and flap the chrome status between locating/unavailable.
   const isLocateRequestInFlightRef = useRef(false);
   const renderedRouteDestinationRef = useRef(null);
+  const routingOriginRef = useRef(null);
   const viewportIntentControllerRef = useRef(null);
   if (viewportIntentControllerRef.current === null) {
     viewportIntentControllerRef.current = createViewportIntentController({
@@ -1443,13 +1494,42 @@ export default function BurialMap() {
     selectedLocationFixRef.current = null;
   }, []);
 
+  const commitRoutingOrigin = useCallback((nextOrigin, { force = false } = {}) => {
+    if (nextOrigin === null) {
+      routingOriginRef.current = null;
+      setRoutingOrigin(null);
+      return true;
+    }
+
+    const nextLocation = {
+      latitude: Number(nextOrigin?.[0]),
+      longitude: Number(nextOrigin?.[1]),
+    };
+    if (
+      !force &&
+      !shouldUpdateRoutingOrigin({
+        currentOrigin: routingOriginRef.current,
+        nextLocation,
+      })
+    ) {
+      return false;
+    }
+
+    const normalizedOrigin = [nextLocation.latitude, nextLocation.longitude];
+    routingOriginRef.current = normalizedOrigin;
+    setRoutingOrigin(normalizedOrigin);
+    return true;
+  }, []);
+
   const clearAcceptedLocation = useCallback((nextStatus = LOCATION_MESSAGES.inactive) => {
     acceptedLocationRef.current = null;
     resetLocationCandidateWindow();
-    setStatus(nextStatus);
-    setLat(null);
-    setLng(null);
-    setLocationAccuracyMeters(null);
+    ReactDOM.unstable_batchedUpdates(() => {
+      setStatus(nextStatus);
+      setLat(null);
+      setLng(null);
+      setLocationAccuracyMeters(null);
+    });
   }, [resetLocationCandidateWindow]);
 
   const commitAcceptedLocation = useCallback((location) => {
@@ -1466,21 +1546,26 @@ export default function BurialMap() {
       : { ...location, isApproximate };
 
     acceptedLocationRef.current = annotatedLocation;
-    setStatus(
-      isApproximate
-        ? (LOCATION_MESSAGES.approximate || LOCATION_MESSAGES.active)
-        : LOCATION_MESSAGES.active
-    );
-    setLat(annotatedLocation.latitude);
-    setLng(annotatedLocation.longitude);
-    setLocationAccuracyMeters(annotatedLocation.accuracyMeters);
+    ReactDOM.unstable_batchedUpdates(() => {
+      setStatus(
+        isApproximate
+          ? (LOCATION_MESSAGES.approximate || LOCATION_MESSAGES.active)
+          : LOCATION_MESSAGES.active
+      );
+      setLat(annotatedLocation.latitude);
+      setLng(annotatedLocation.longitude);
+      setLocationAccuracyMeters(annotatedLocation.accuracyMeters);
 
-    if (activeRouteBurialIdRef.current) {
-      setRoutingOrigin([annotatedLocation.latitude, annotatedLocation.longitude]);
-    }
+      if (activeRouteBurialIdRef.current) {
+        commitRoutingOrigin([
+          annotatedLocation.latitude,
+          annotatedLocation.longitude,
+        ]);
+      }
+    });
 
     return annotatedLocation;
-  }, []);
+  }, [commitRoutingOrigin]);
 
   // The shell may opt in to accepting a coarse network/Wi-Fi fix as
   // "approximate" (e.g. after the high-accuracy attempt timed out under
@@ -1845,6 +1930,7 @@ export default function BurialMap() {
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
+        lastLocationWatchUpdateAtRef.current = Date.now();
         const previousLocation = acceptedLocationRef.current;
         const nextLocation = updateLocationFromPosition(position);
         const didAcceptNewLocation = nextLocation &&
@@ -1861,6 +1947,7 @@ export default function BurialMap() {
       GEOLOCATION_REQUEST_OPTIONS
     );
 
+    lastLocationWatchUpdateAtRef.current = 0;
     watchIdRef.current = watchId;
     return watchId;
   }, [focusUserLocationOnMap, handleLocationError, updateLocationFromPosition]);
@@ -1869,6 +1956,7 @@ export default function BurialMap() {
     if (watchIdRef.current !== null && navigator.geolocation) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
+      lastLocationWatchUpdateAtRef.current = 0;
     }
   }, []);
 
@@ -2162,7 +2250,7 @@ export default function BurialMap() {
     dispatchSelectionAction(removeMapSelectionRecord(burialId));
 
     if (activeRouteBurialIdRef.current === burialId) {
-      setRoutingOrigin(null);
+      commitRoutingOrigin(null);
       setRoutingDestination(null);
       setRouteGeoJson(null);
       setIsRouteLoading(false);
@@ -2180,14 +2268,14 @@ export default function BurialMap() {
       setNavigationDestination(null);
       clearStoredNavigationDestination();
     }
-  }, [dispatchSelectionAction]);
+  }, [commitRoutingOrigin, dispatchSelectionAction]);
 
   /**
    * Clears all search results
    */
   const clearSelectedBurials = useCallback(() => {
     dispatchSelectionAction(resetMapSelection());
-    setRoutingOrigin(null);
+    commitRoutingOrigin(null);
     setRoutingDestination(null);
     setRouteGeoJson(null);
     setIsRouteLoading(false);
@@ -2201,7 +2289,7 @@ export default function BurialMap() {
     setNavigationDestination(null);
     clearStoredNavigationDestination();
     closeMapPopup();
-  }, [closeMapPopup, dispatchSelectionAction]);
+  }, [closeMapPopup, commitRoutingOrigin, dispatchSelectionAction]);
 
   const handleOpenAppMenu = useCallback((event) => {
     setAppMenuAnchorEl(event.currentTarget);
@@ -2914,7 +3002,7 @@ export default function BurialMap() {
     });
 
     setRouteError("");
-    setRoutingOrigin([usableLocation.latitude, usableLocation.longitude]);
+    commitRoutingOrigin([usableLocation.latitude, usableLocation.longitude], { force: true });
     setRoutingDestination([routeBurial.coordinates[1], routeBurial.coordinates[0]]);
     activeRouteBurialIdRef.current = routeBurial.id;
     activeNavigationBurialRef.current = routeBurial;
@@ -2927,13 +3015,14 @@ export default function BurialMap() {
     resetLocationCandidateWindow,
     saveNavigationDestination,
     selectBurial,
+    commitRoutingOrigin,
   ]);
 
   /**
    * Stops the current navigation.
    */
   const stopRouting = useCallback(() => {
-    setRoutingOrigin(null);
+    commitRoutingOrigin(null);
     setRoutingDestination(null);
     setRouteGeoJson(null);
     setIsRouteLoading(false);
@@ -2944,7 +3033,7 @@ export default function BurialMap() {
     renderedRouteDestinationRef.current = null;
     setActiveRouteBurialId(null);
     clearNavigationDestination();
-  }, [clearNavigationDestination]);
+  }, [clearNavigationDestination, commitRoutingOrigin]);
 
   const handleNavigateToBurial = useCallback(async (eventOrBurial, maybeBurial = null) => {
     const burial = maybeBurial || eventOrBurial;
@@ -3101,7 +3190,7 @@ export default function BurialMap() {
 
       setRouteGeoJson(null);
       setRouteSummary(null);
-      setRoutingOrigin(null);
+      commitRoutingOrigin(null);
       setRoutingDestination(null);
       activeRouteBurialIdRef.current = null;
       activeNavigationBurialRef.current = null;
@@ -3123,6 +3212,7 @@ export default function BurialMap() {
   }, [
     fitMapBoundsInViewport,
     getMapInstance,
+    commitRoutingOrigin,
     roadRoutingGraph,
     routingDestination,
     routingOrigin,
@@ -3416,16 +3506,27 @@ export default function BurialMap() {
   useEffect(() => {
     if (!activeRouteBurialId || typeof window === "undefined" || !navigator.geolocation) {
       routeLocationRefreshInFlightRef.current = false;
+      lastRouteLocationFallbackAtRef.current = 0;
       return undefined;
     }
 
+    ensureLocationWatchActive();
     let isCancelled = false;
     const refreshActiveRouteLocation = () => {
-      if (routeLocationRefreshInFlightRef.current) {
+      const now = Date.now();
+      if (
+        routeLocationRefreshInFlightRef.current ||
+        !shouldRefreshStaleRouteLocation({
+          lastFallbackRequestAt: lastRouteLocationFallbackAtRef.current,
+          lastWatchUpdateAt: lastLocationWatchUpdateAtRef.current,
+          now,
+        })
+      ) {
         return;
       }
 
       routeLocationRefreshInFlightRef.current = true;
+      lastRouteLocationFallbackAtRef.current = now;
       navigator.geolocation.getCurrentPosition(
         (position) => {
           routeLocationRefreshInFlightRef.current = false;
@@ -3452,9 +3553,11 @@ export default function BurialMap() {
       isCancelled = true;
       window.clearInterval(intervalId);
       routeLocationRefreshInFlightRef.current = false;
+      lastRouteLocationFallbackAtRef.current = 0;
     };
   }, [
     activeRouteBurialId,
+    ensureLocationWatchActive,
     handleLocationError,
     updateLocationFromPosition,
   ]);
@@ -3741,6 +3844,9 @@ export default function BurialMap() {
     const map = getMapInstance();
     if (!map) return undefined;
     const container = typeof map.getContainer === 'function' ? map.getContainer() : null;
+    const inputEventNames = resolveSectionInputEventNames(
+      typeof window.PointerEvent !== "undefined"
+    );
     // Section polygon hover is mouse-first. Map movement, pointer leave, window
     // blur, and touch input all clear hover state so tooltips cannot get stuck.
     const handleInterruptedSectionHover = () => {
@@ -3757,23 +3863,17 @@ export default function BurialMap() {
 
     map.on('movestart', handleInterruptedSectionHover);
     map.on('zoomstart', handleInterruptedSectionHover);
-    container?.addEventListener('pointermove', handleSectionInputMove);
-    container?.addEventListener('mousemove', handleSectionInputMove);
-    container?.addEventListener('pointerleave', handleInterruptedSectionHover);
-    container?.addEventListener('mouseleave', handleInterruptedSectionHover);
-    window.addEventListener('pointerdown', handleSectionInputStart, true);
-    window.addEventListener('touchstart', handleSectionInputStart, true);
+    container?.addEventListener(inputEventNames.move, handleSectionInputMove);
+    container?.addEventListener(inputEventNames.leave, handleInterruptedSectionHover);
+    window.addEventListener(inputEventNames.start, handleSectionInputStart, true);
     window.addEventListener('blur', handleInterruptedSectionHover);
 
     return () => {
       map.off('movestart', handleInterruptedSectionHover);
       map.off('zoomstart', handleInterruptedSectionHover);
-      container?.removeEventListener('pointermove', handleSectionInputMove);
-      container?.removeEventListener('mousemove', handleSectionInputMove);
-      container?.removeEventListener('pointerleave', handleInterruptedSectionHover);
-      container?.removeEventListener('mouseleave', handleInterruptedSectionHover);
-      window.removeEventListener('pointerdown', handleSectionInputStart, true);
-      window.removeEventListener('touchstart', handleSectionInputStart, true);
+      container?.removeEventListener(inputEventNames.move, handleSectionInputMove);
+      container?.removeEventListener(inputEventNames.leave, handleInterruptedSectionHover);
+      window.removeEventListener(inputEventNames.start, handleSectionInputStart, true);
       window.removeEventListener('blur', handleInterruptedSectionHover);
     };
   }, [clearHoveredSection, getMapInstance, markSectionInputMode]);
