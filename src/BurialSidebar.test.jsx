@@ -674,6 +674,76 @@ describe("BurialSidebar", () => {
     expect(onClearSelectedBurials).toHaveBeenCalledTimes(1);
   });
 
+  domTest("preserves expanded mobile search results after selecting a person and returning", () => {
+    const searchRecords = Array.from({ length: 25 }, (_, index) => buildBurialBrowseResult(
+      {
+        properties: {
+          OBJECTID: 500 + index,
+          First_Name: `Result${index + 1}`,
+          Last_Name: "Person",
+          Section: "99",
+          Lot: `${index + 1}`,
+          Tier: "0",
+          Grave: "0",
+        },
+        geometry: {
+          coordinates: [-73.73367 + (index * 0.00001), 42.71193],
+        },
+      },
+      { getTourName }
+    ));
+    const recordsById = new Map(searchRecords.map((record) => [record.id, record]));
+    const searchRecordsIndex = buildSearchIndex(searchRecords, { getTourName });
+
+    function MobileSearchHarness() {
+      const [activeId, setActiveId] = React.useState(null);
+      const [selectedRecords, setSelectedRecords] = React.useState([]);
+
+      const handleSelect = (record) => {
+        setActiveId(record.id);
+        setSelectedRecords([record]);
+      };
+      const handleBack = () => {
+        setActiveId(null);
+        setSelectedRecords([]);
+      };
+
+      return (
+        <BurialSidebar
+          {...createBaseProps()}
+          isMobile
+          initialQuery="result"
+          activeBurialId={activeId}
+          burialRecords={searchRecords}
+          burialRecordsById={recordsById}
+          searchIndex={searchRecordsIndex}
+          selectedBurials={selectedRecords}
+          onBrowseResultSelect={handleSelect}
+          onClearSelectedBurials={handleBack}
+        />
+      );
+    }
+
+    render(<MobileSearchHarness />);
+    flushBrowseTimers();
+
+    let browseWorkspace = getBrowseWorkspace();
+    expect(within(browseWorkspace).getByText("Showing 10 of 25")).toBeInTheDocument();
+
+    fireEvent.click(within(browseWorkspace).getByRole("button", { name: "Show more" }));
+    expect(within(browseWorkspace).getByText("Showing 20 of 25")).toBeInTheDocument();
+
+    fireEvent.click(within(browseWorkspace).getByText("Result1 Person"));
+    expect(getBrowseWorkspace()).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to results" }));
+
+    browseWorkspace = getBrowseWorkspace();
+    expect(within(browseWorkspace).getByText("Showing 20 of 25")).toBeInTheDocument();
+    expect(within(browseWorkspace).getByText("Result20 Person")).toBeInTheDocument();
+    expect(within(browseWorkspace).getByRole("button", { name: "Show fewer" })).toBeInTheDocument();
+  });
+
   domTest("uses contextual clear controls without duplicating browse state", () => {
     const onClearSectionFilters = jest.fn();
     const onClearSelectedBurials = jest.fn();
@@ -1089,6 +1159,89 @@ describe("BurialSidebar", () => {
     expect(onClearSelectedBurials).toHaveBeenCalled();
   });
 
+  domTest("bounds mobile plot tabs while preserving the active person and ARIA keyboard behavior", () => {
+    const plotRecords = Array.from({ length: 12 }, (_, index) => ({
+      ...burialRecords[0],
+      id: `plot-person-${index + 1}`,
+      displayName: `Person ${index + 1} Plot`,
+      fullName: `Person ${index + 1} Plot`,
+      label: `Person ${index + 1} Plot`,
+      First_Name: `Person ${index + 1}`,
+      Last_Name: "Plot",
+    }));
+
+    function MobilePlotHarness() {
+      const [activeId, setActiveId] = React.useState(plotRecords[10].id);
+      return (
+        <BurialSidebar
+          {...createBaseProps()}
+          isMobile
+          activeBurialId={activeId}
+          burialRecords={plotRecords}
+          burialRecordsById={new Map(plotRecords.map((record) => [record.id, record]))}
+          selectedBurialCoordinateGroups={buildRecordCoordinateGroups(plotRecords)}
+          selectedBurials={plotRecords}
+          onFocusSelectedBurial={(record) => setActiveId(record.id)}
+        />
+      );
+    }
+
+    render(<MobilePlotHarness />);
+
+    const locationCard = getMobileLocationCard();
+    const tabList = within(locationCard).getByRole("tablist", { name: "12 people at this plot" });
+    let tabs = within(tabList).getAllByRole("tab");
+    expect(tabs).toHaveLength(9);
+
+    const hiddenActiveTab = within(tabList).getByRole("tab", { name: "Person 11 Plot" });
+    const tabPanel = within(locationCard).getByRole("tabpanel");
+    expect(hiddenActiveTab).toHaveAttribute("aria-selected", "true");
+    expect(hiddenActiveTab).toHaveAttribute("tabindex", "0");
+    expect(hiddenActiveTab).toHaveAttribute("aria-controls", tabPanel.id);
+    expect(tabPanel).toHaveAttribute("aria-labelledby", hiddenActiveTab.id);
+    tabs.filter((tab) => tab !== hiddenActiveTab).forEach((tab) => {
+      expect(tab).toHaveAttribute("tabindex", "-1");
+    });
+    expect(locationCard).not.toHaveAttribute("aria-live");
+
+    hiddenActiveTab.focus();
+    fireEvent.keyDown(hiddenActiveTab, { key: "Home" });
+
+    const firstTab = within(tabList).getByRole("tab", { name: "Person 1 Plot" });
+    expect(firstTab).toHaveFocus();
+    expect(firstTab).toHaveAttribute("aria-selected", "true");
+    expect(firstTab).toHaveAttribute("tabindex", "0");
+
+    const showMore = within(locationCard).getByRole("button", { name: /Show more people/i });
+    expect(showMore).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(showMore);
+
+    tabs = within(tabList).getAllByRole("tab");
+    expect(tabs).toHaveLength(12);
+    expect(within(locationCard).getByRole("button", { name: /Show fewer people/i }))
+      .toHaveAttribute("aria-expanded", "true");
+  });
+
+  domTest("opens selected locations fully on short phones without changing short-phone browse peek", () => {
+    Object.defineProperty(window, "innerHeight", {
+      writable: true,
+      configurable: true,
+      value: 667,
+    });
+
+    const { unmount } = renderSidebar({ isMobile: true });
+    expect(getCurrentMobileSheetSnap(667)).toBeCloseTo(667 * 0.43);
+    unmount();
+
+    renderSidebar({
+      isMobile: true,
+      activeBurialId: burialRecords[0].id,
+      selectedBurials: [burialRecords[0]],
+    });
+
+    expect(getCurrentMobileSheetSnap(667)).toBeCloseTo(667 * 0.92);
+  });
+
   domTest("uses the bottom-sheet overlay as the mobile viewport padding root", () => {
     const rootRef = React.createRef();
 
@@ -1417,8 +1570,8 @@ describe("BurialSidebar", () => {
     )).toBeInTheDocument();
   });
 
-  // Build a burial record that produces >4 filtered detail rows (Role, Rank,
-  // Initial term, Subsequent term, Unit, Headstone, Service — minus Location/Born/Died).
+  // Build a burial record with a short visible role plus >4 disclosure rows
+  // (Rank, terms, Unit, Headstone, Service — minus Location/Born/Died).
   const buildRichBurialRecord = () => buildBurialBrowseResult(
     {
       properties: {
@@ -1446,7 +1599,7 @@ describe("BurialSidebar", () => {
     { getTourName }
   );
 
-  domTest("mobile location card keeps record details behind one clear disclosure", () => {
+  domTest("mobile location card shows the short role while keeping long details behind one disclosure", () => {
     const richRecord = buildRichBurialRecord();
 
     renderSidebar({
@@ -1457,7 +1610,7 @@ describe("BurialSidebar", () => {
 
     const selectedSummary = getMobileLocationCard();
 
-    expect(within(selectedSummary).queryByText("Mayor")).not.toBeInTheDocument();
+    expect(within(selectedSummary).getByText("Mayor")).toHaveClass("mobile-location-card__summary");
     expect(within(selectedSummary).queryByText("3rd Albany Volunteers")).not.toBeInTheDocument();
     expect(within(selectedSummary).queryByText(/Civil War veteran/i)).not.toBeInTheDocument();
     expect(within(selectedSummary).getByRole("button", { name: "Details" })).toHaveAttribute(
