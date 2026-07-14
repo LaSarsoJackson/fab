@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
-const loadServiceWorkerFetchListener = ({ fetchImpl, cacheImpl }) => {
+const loadServiceWorkerListeners = ({ fetchImpl, cacheImpl }) => {
   const listeners = {};
   const context = {
     URL,
@@ -30,10 +30,49 @@ const loadServiceWorkerFetchListener = ({ fetchImpl, cacheImpl }) => {
   // Run the checked-in service worker script so the tests exercise its real
   // fetch listener instead of a copied helper that can drift.
   vm.runInNewContext(readFileSync("public/service-worker.js", "utf8"), context);
-  return listeners.fetch;
+  return listeners;
+};
+
+const loadServiceWorkerFetchListener = (options) => {
+  return loadServiceWorkerListeners(options).fetch;
 };
 
 describe("service worker runtime caching", () => {
+  test("removes caches from earlier app releases during activation", async () => {
+    const deletedCaches = [];
+    const listeners = loadServiceWorkerListeners({
+      fetchImpl: async () => {
+        throw new Error("activation should not fetch");
+      },
+      cacheImpl: {
+        open: async () => ({
+          addAll: async () => undefined,
+        }),
+        match: async () => undefined,
+        keys: async () => [
+          "fab-static-v3",
+          "fab-runtime-v3",
+          "fab-static-v4",
+          "fab-runtime-v4",
+        ],
+        delete: async (cacheName) => {
+          deletedCaches.push(cacheName);
+          return true;
+        },
+      },
+    });
+
+    let activationPromise;
+    listeners.activate({
+      waitUntil: (promise) => {
+        activationPromise = Promise.resolve(promise);
+      },
+    });
+
+    await activationPromise;
+    expect(deletedCaches).toEqual(["fab-static-v3", "fab-runtime-v3"]);
+  });
+
   test("caches the public search payload when storage allows it", async () => {
     const cachedRequests = [];
     const response = {
