@@ -178,8 +178,8 @@ async function expectExternalMapsNavigation(page, triggerNavigation) {
 
 async function expectHitTarget(locator) {
   await expect(locator).toBeVisible();
-  await expect(locator).toBeInViewport();
-  expect(await locator.evaluate((element) => {
+  await expect(locator).toBeInViewport({ ratio: 1 });
+  await expect.poll(() => locator.evaluate((element) => {
     const bounds = element.getBoundingClientRect();
     const topElement = document.elementFromPoint(
       bounds.left + (bounds.width / 2),
