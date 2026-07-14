@@ -267,19 +267,26 @@ async function swipeElementUp(page, locator, { distance = 180, steps = 6 } = {})
   }
 }
 
-async function waitForStableElementTop(locator, tolerance = 1) {
+async function waitForSettledSheetTop(locator, tolerance = 1) {
   let previousTop = null;
   let currentTop = null;
   let stableSamples = 0;
 
   await expect.poll(async () => {
-    currentTop = await locator.evaluate((element) => element.getBoundingClientRect().top);
-    const isStable = previousTop !== null && Math.abs(currentTop - previousTop) <= tolerance;
+    const measurement = await locator.evaluate((element) => ({
+      sheetState: element.closest("[data-rsbs-root]")?.getAttribute("data-rsbs-state") || "",
+      top: element.getBoundingClientRect().top,
+    }));
+    currentTop = measurement.top;
+    const isStable = measurement.sheetState === "open"
+      && previousTop !== null
+      && Math.abs(currentTop - previousTop) <= tolerance;
     stableSamples = isStable ? stableSamples + 1 : 0;
-    previousTop = currentTop;
+    previousTop = measurement.sheetState === "open" ? currentTop : null;
     return stableSamples;
   }, {
     intervals: [100, 100, 100, 100, 100, 250],
+    timeout: 15_000,
   }).toBeGreaterThanOrEqual(4);
 
   return currentTop;
@@ -608,7 +615,7 @@ test.describe("mobile", () => {
     await expectHitTarget(navigateButton);
     await expectHitTarget(detailsButton);
 
-    await waitForStableElementTop(page.locator("[data-rsbs-overlay]"));
+    await waitForSettledSheetTop(page.locator("[data-rsbs-overlay]"));
 
     const compactGeometry = await page.evaluate(() => {
       const overlay = document.querySelector("[data-rsbs-overlay]")?.getBoundingClientRect();
@@ -706,13 +713,13 @@ test.describe("mobile", () => {
       viewport.scrollHeight > viewport.clientHeight
     ))).toBe(true);
     const sheetOverlay = page.locator("[data-rsbs-overlay]");
-    const sheetTopBeforeSwipe = await waitForStableElementTop(sheetOverlay);
+    const sheetTopBeforeSwipe = await waitForSettledSheetTop(sheetOverlay);
     await swipeElementUp(page, pickerViewport);
     await expect.poll(() => pickerViewport.evaluate((viewportElement) => (
       viewportElement.scrollTop
     ))).toBeGreaterThan(0);
     await expect(pickerTrigger).toHaveAttribute("aria-expanded", "true");
-    const sheetTopAfterSwipe = await waitForStableElementTop(sheetOverlay);
+    const sheetTopAfterSwipe = await waitForSettledSheetTop(sheetOverlay);
     expect(Math.abs(sheetTopAfterSwipe - sheetTopBeforeSwipe)).toBeLessThanOrEqual(2);
 
     let peopleSearch = locationCard.getByRole("searchbox", { name: "Search people at this plot" });
