@@ -516,18 +516,28 @@ describe("BurialSidebar", () => {
 
     const selectedSummary = getMobileLocationCard();
 
-    expect(screen.getByRole("heading", { name: "2 people at this plot" })).toBeInTheDocument();
-    expect(within(selectedSummary).getByRole("tablist", { name: "2 people at this plot" })).toBeInTheDocument();
+    expect(screen.getByText("2 people at this plot")).toBeInTheDocument();
+    const pickerTrigger = within(selectedSummary).getByRole("button", {
+      name: /Choose person.*Anna Tracy selected.*2 people at this plot/i,
+    });
+    expect(pickerTrigger).toHaveAttribute("aria-expanded", "false");
 
-    const annaStackOption = within(selectedSummary).getByRole("tab", { name: /Anna Tracy/i });
+    fireEvent.click(pickerTrigger);
+
+    const personList = within(selectedSummary).getByRole("listbox", {
+      name: "Choose from 2 people at this plot",
+    });
+    const annaStackOption = within(personList).getByRole("option", { name: /Anna Tracy/i });
     expect(annaStackOption).toHaveAttribute("aria-selected", "true");
 
-    const thomasStackOption = within(selectedSummary).getByRole("tab", { name: /Thomas Tracy/i });
+    const thomasStackOption = within(personList).getByRole("option", { name: /Thomas Tracy/i });
     fireEvent.click(thomasStackOption);
 
     expect(onFocusSelectedBurial).toHaveBeenCalledWith(expect.objectContaining({
       id: stackedSecondRecord.id,
     }));
+    expect(pickerTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(within(selectedSummary).queryByRole("listbox")).not.toBeInTheDocument();
   });
 
   domTest("keeps the mobile sheet in place when paging through graves at the same marker", () => {
@@ -1157,7 +1167,7 @@ describe("BurialSidebar", () => {
     const locationCard = getMobileLocationCard();
 
     expect(getBrowseWorkspace()).toBeNull();
-    expect(screen.getByRole("heading", { name: "2 people at this plot" })).toBeInTheDocument();
+    expect(screen.getByText("2 people at this plot")).toBeInTheDocument();
     expect(within(locationCard).getByRole("button", { name: "Navigate" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Back to results" }));
@@ -1165,8 +1175,8 @@ describe("BurialSidebar", () => {
     expect(onClearSelectedBurials).toHaveBeenCalled();
   });
 
-  domTest("bounds mobile plot tabs while preserving the active person and ARIA keyboard behavior", () => {
-    const plotRecords = Array.from({ length: 12 }, (_, index) => ({
+  domTest("uses a bounded searchable person picker with single-select keyboard behavior", () => {
+    const plotRecords = Array.from({ length: 120 }, (_, index) => ({
       ...burialRecords[0],
       id: `plot-person-${index + 1}`,
       displayName: `Person ${index + 1} Plot`,
@@ -1177,7 +1187,7 @@ describe("BurialSidebar", () => {
     }));
 
     function MobilePlotHarness() {
-      const [activeId, setActiveId] = React.useState(plotRecords[10].id);
+      const [activeId, setActiveId] = React.useState(plotRecords[110].id);
       return (
         <BurialSidebar
           {...createBaseProps()}
@@ -1195,37 +1205,91 @@ describe("BurialSidebar", () => {
     render(<MobilePlotHarness />);
 
     const locationCard = getMobileLocationCard();
-    const tabList = within(locationCard).getByRole("tablist", { name: "12 people at this plot" });
-    let tabs = within(tabList).getAllByRole("tab");
-    expect(tabs).toHaveLength(9);
+    const pickerTrigger = within(locationCard).getByRole("button", {
+      name: /Choose person.*Person 111 Plot selected.*120 people at this plot/i,
+    });
+    expect(pickerTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(within(locationCard).queryByRole("tablist")).not.toBeInTheDocument();
 
-    const hiddenActiveTab = within(tabList).getByRole("tab", { name: "Person 11 Plot" });
-    const tabPanel = within(locationCard).getByRole("tabpanel");
-    expect(hiddenActiveTab).toHaveAttribute("aria-selected", "true");
-    expect(hiddenActiveTab).toHaveAttribute("tabindex", "0");
-    expect(hiddenActiveTab).toHaveAttribute("aria-controls", tabPanel.id);
-    expect(tabPanel).toHaveAttribute("aria-labelledby", hiddenActiveTab.id);
-    tabs.filter((tab) => tab !== hiddenActiveTab).forEach((tab) => {
-      expect(tab).toHaveAttribute("tabindex", "-1");
+    pickerTrigger.focus();
+    fireEvent.click(pickerTrigger);
+    expect(pickerTrigger).toHaveFocus();
+    expect(document.getElementById(pickerTrigger.getAttribute("aria-controls"))).toBeInTheDocument();
+
+    let personList = within(locationCard).getByRole("listbox", {
+      name: "Choose from 120 people at this plot",
+    });
+    let personOptions = within(personList).getAllByRole("option");
+    expect(personOptions).toHaveLength(9);
+
+    let activeOption = within(personList).getByRole("option", { name: /Person 111 Plot/i });
+    expect(activeOption).toHaveAttribute("aria-selected", "true");
+    expect(activeOption).toHaveAttribute("aria-posinset", "111");
+    expect(activeOption).toHaveAttribute("aria-setsize", "120");
+    expect(activeOption).toHaveAttribute("tabindex", "0");
+    personOptions.filter((option) => option !== activeOption).forEach((option) => {
+      expect(option).toHaveAttribute("tabindex", "-1");
     });
     expect(locationCard).not.toHaveAttribute("aria-live");
 
-    hiddenActiveTab.focus();
-    fireEvent.keyDown(hiddenActiveTab, { key: "Home" });
-
-    const firstTab = within(tabList).getByRole("tab", { name: "Person 1 Plot" });
-    expect(firstTab).toHaveFocus();
-    expect(firstTab).toHaveAttribute("aria-selected", "true");
-    expect(firstTab).toHaveAttribute("tabindex", "0");
-
-    const showMore = within(locationCard).getByRole("button", { name: /Show more people/i });
-    expect(showMore).toHaveAttribute("aria-expanded", "false");
+    const showMore = within(locationCard).getByRole("button", { name: /Show 8 more people/i });
     fireEvent.click(showMore);
+    personOptions = within(personList).getAllByRole("option");
+    expect(personOptions).toHaveLength(17);
+    expect(within(personList).getByRole("option", { name: /Person 9 Plot/i })).toHaveFocus();
 
-    tabs = within(tabList).getAllByRole("tab");
-    expect(tabs).toHaveLength(12);
-    expect(within(locationCard).getByRole("button", { name: /Show fewer people/i }))
-      .toHaveAttribute("aria-expanded", "true");
+    fireEvent.keyDown(document.activeElement, { key: "End" });
+    const lastOption = within(personList).getByRole("option", { name: /Person 120 Plot/i });
+    expect(within(personList).getAllByRole("option")).toHaveLength(120);
+    expect(lastOption).toHaveFocus();
+    expect(lastOption).toHaveAttribute("aria-posinset", "120");
+    expect(lastOption).toHaveAttribute("aria-setsize", "120");
+
+    const searchInput = within(locationCard).getByRole("searchbox", {
+      name: "Search people at this plot",
+    });
+    fireEvent.change(searchInput, { target: { value: "Nobody here" } });
+    expect(within(personList).queryAllByRole("option")).toHaveLength(0);
+    expect(within(locationCard).getByText("No people found")).toBeInTheDocument();
+
+    fireEvent.change(searchInput, { target: { value: "Person 12" } });
+    personList = within(locationCard).getByRole("listbox", {
+      name: "Choose from 120 people at this plot",
+    });
+    expect(within(personList).getAllByRole("option")).toHaveLength(2);
+    expect(within(personList).getByRole("option", { name: /Person 120 Plot/i })).toBeInTheDocument();
+    expect(within(locationCard).getByRole("status")).toHaveTextContent("2 matching people");
+
+    fireEvent.change(searchInput, { target: { value: "" } });
+    personList = within(locationCard).getByRole("listbox", {
+      name: "Choose from 120 people at this plot",
+    });
+    activeOption = within(personList).getByRole("option", { name: /Person 111 Plot/i });
+    activeOption.focus();
+    fireEvent.keyDown(activeOption, { key: "Home" });
+
+    const firstOption = within(personList).getByRole("option", { name: /Person 1 Plot/i });
+    expect(firstOption).toHaveFocus();
+    expect(firstOption).toHaveAttribute("aria-selected", "false");
+    expect(activeOption).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.keyDown(firstOption, { key: "Enter" });
+
+    expect(pickerTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(within(locationCard).queryByRole("listbox")).not.toBeInTheDocument();
+    expect(within(locationCard).getByRole("heading", { name: "Person 1 Plot" })).toBeInTheDocument();
+    expect(pickerTrigger).toHaveFocus();
+
+    fireEvent.click(pickerTrigger);
+    personList = within(locationCard).getByRole("listbox", {
+      name: "Choose from 120 people at this plot",
+    });
+    const selectedOption = within(personList).getByRole("option", { name: /Person 1 Plot/i });
+    selectedOption.focus();
+    fireEvent.keyDown(selectedOption, { key: "Escape" });
+
+    expect(within(locationCard).queryByRole("listbox")).not.toBeInTheDocument();
+    expect(pickerTrigger).toHaveFocus();
   });
 
   domTest("fits selected locations to their actions without changing the browse peek", () => {

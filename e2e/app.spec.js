@@ -220,6 +220,71 @@ async function dragMapBy(page, { deltaX, deltaY }) {
   await page.waitForTimeout(250);
 }
 
+async function swipeElementUp(page, locator, { distance = 180, steps = 6 } = {}) {
+  const bounds = await locator.boundingBox();
+  if (!bounds) {
+    throw new Error("Expected a visible element to swipe.");
+  }
+
+  const viewport = page.viewportSize();
+  if (!viewport) {
+    throw new Error("Expected a fixed viewport for touch emulation.");
+  }
+
+  const client = await page.context().newCDPSession(page);
+  const x = bounds.x + (bounds.width / 2);
+  const visibleTop = Math.max(0, bounds.y);
+  const visibleBottom = Math.min(viewport.height, bounds.y + bounds.height);
+  const startY = visibleBottom - 16;
+  const endY = Math.max(visibleTop + 16, startY - distance);
+
+  if (endY >= startY) {
+    await client.detach();
+    throw new Error("Expected enough visible picker height for an upward swipe.");
+  }
+
+  try {
+    await client.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ x, y: startY }],
+    });
+
+    for (let step = 1; step <= steps; step += 1) {
+      const y = startY + ((endY - startY) * (step / steps));
+      await client.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [{ x, y }],
+      });
+      await page.waitForTimeout(16);
+    }
+
+    await client.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+  } finally {
+    await client.detach();
+  }
+}
+
+async function waitForStableElementTop(locator, tolerance = 1) {
+  let previousTop = null;
+  let currentTop = null;
+  let stableSamples = 0;
+
+  await expect.poll(async () => {
+    currentTop = await locator.evaluate((element) => element.getBoundingClientRect().top);
+    const isStable = previousTop !== null && Math.abs(currentTop - previousTop) <= tolerance;
+    stableSamples = isStable ? stableSamples + 1 : 0;
+    previousTop = currentTop;
+    return stableSamples;
+  }, {
+    intervals: [100, 100, 100, 100, 100, 250],
+  }).toBeGreaterThanOrEqual(4);
+
+  return currentTop;
+}
+
 test.describe("desktop", () => {
   test("searching for a burial opens the map popup and external maps popup", async ({ page }) => {
     await waitForAppReady(page);
@@ -483,7 +548,7 @@ test.describe("desktop", () => {
 });
 
 test.describe("mobile", () => {
-  test.use({ viewport: { width: 390, height: 844 } });
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
 
   test("a short shared plot stays attached to the bottom without hiding the map", async ({ page }) => {
     await waitForAppReady(page);
@@ -503,23 +568,47 @@ test.describe("mobile", () => {
     await expect(selectedLocationMarker).toHaveCount(1);
     await expect(selectedLocationMarker.locator(".cemetery-cluster__count")).toHaveText("4");
 
-    await expect(page.getByRole("heading", { name: "4 people at this plot" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Section 53 · Lot 7" })).toBeVisible();
+    await expect(page.getByText("4 people at this plot", { exact: true })).toBeVisible();
     const locationCard = page.locator(".mobile-location-card");
-    const tabList = locationCard.getByRole("tablist", { name: "4 people at this plot" });
-    await expect(tabList.getByRole("tab")).toHaveCount(4);
-    await expect(tabList.getByRole("tab", { name: "Charles C Waller", exact: true })).toBeVisible();
-    await expect(tabList.getByRole("tab", { name: "Annie M. Waller", exact: true })).toBeVisible();
-    await expect(tabList.getByRole("tab", { name: "Cyren C. Waller", exact: true })).toBeVisible();
-    const activeTab = tabList.getByRole("tab", { name: "Anna M. Gardiner Waller", exact: true });
-    await expect(activeTab).toHaveAttribute("aria-selected", "true");
-    expect(await activeTab.locator("span:last-child").evaluate((label) => (
-      label.scrollWidth <= label.clientWidth + 1
-    ))).toBe(true);
+    const pickerTrigger = locationCard.getByRole("button", {
+      name: /Choose person.*Anna M\. Gardiner Waller selected.*4 people at this plot/i,
+    });
+    await expect(pickerTrigger).toHaveAttribute("aria-expanded", "false");
+    await expect(locationCard.getByRole("tablist")).toHaveCount(0);
+
+    await pickerTrigger.click();
+
+    const personList = locationCard.getByRole("listbox", {
+      name: "Choose from 4 people at this plot",
+    });
+    const peopleOptions = personList.getByRole("option");
+    await expect(peopleOptions).toHaveCount(4);
+    await expect(personList.getByRole("option", { name: /Charles C Waller/i })).toBeVisible();
+    await expect(personList.getByRole("option", { name: /Annie M\. Waller/i })).toBeVisible();
+    const cyrenOption = personList.getByRole("option", { name: /Cyren C\. Waller/i });
+    await expect(cyrenOption).toBeVisible();
+    const activeOption = personList.getByRole("option", { name: /Anna M\. Gardiner Waller/i });
+    await expect(activeOption).toHaveAttribute("aria-selected", "true");
+    expect(await personList.evaluate((list) => list.scrollWidth <= list.clientWidth + 1)).toBe(true);
+    expect(await peopleOptions.evaluateAll((options) => options.every((option) => {
+      const name = option.querySelector(".mobile-location-card__person-option-name");
+      return name && name.scrollWidth <= name.clientWidth + 1;
+    }))).toBe(true);
+
+    await cyrenOption.click();
+    await expect(locationCard.getByRole("listbox")).toHaveCount(0);
+    await expect(locationCard.getByRole("heading", { name: "Cyren C. Waller" })).toBeVisible();
+    await expect(locationCard.getByRole("button", {
+      name: /Choose person.*Cyren C\. Waller selected.*4 people at this plot/i,
+    })).toHaveAttribute("aria-expanded", "false");
 
     const navigateButton = locationCard.getByRole("button", { name: "Navigate" });
     const detailsButton = locationCard.getByRole("button", { name: "Details" });
     await expectHitTarget(navigateButton);
     await expectHitTarget(detailsButton);
+
+    await waitForStableElementTop(page.locator("[data-rsbs-overlay]"));
 
     const compactGeometry = await page.evaluate(() => {
       const overlay = document.querySelector("[data-rsbs-overlay]")?.getBoundingClientRect();
@@ -592,56 +681,70 @@ test.describe("mobile", () => {
     await expect(selectedLocationMarkers).toBeInViewport();
     await expect(selectedLocationMarkers.locator(".cemetery-cluster__count")).toHaveText("58");
 
-    await expect(page.getByRole("heading", { name: "58 people at this plot" })).toBeVisible();
+    await expect(page.getByText("58 people at this plot", { exact: true })).toBeVisible();
     const locationCard = page.locator(".mobile-location-card");
     await expect(locationCard).toBeVisible();
-    const tabList = locationCard.getByRole("tablist", { name: "58 people at this plot" });
-    const peopleTabs = tabList.getByRole("tab");
-    await expect(tabList).toBeVisible();
-    const initialTabCount = await peopleTabs.count();
-    expect(initialTabCount).toBeGreaterThanOrEqual(8);
-    expect(initialTabCount).toBeLessThanOrEqual(9);
-    expect(initialTabCount).toBeLessThan(58);
     await expect(locationCard).toContainText("Marcus T.11 Reynolds");
     await expect(locationCard).toContainText("2/17/1926");
     await expect(locationCard).not.toContainText("Albany Architect");
     await expect(locationCard.locator(".left-sidebar__selected-place-visual-image")).toHaveCount(0);
 
-    const activeTab = tabList.locator('[role="tab"][aria-selected="true"]');
-    await expect(activeTab).toHaveCount(1);
-    await expect(activeTab).toHaveAttribute("tabindex", "0");
-    await expect(tabList.locator('[role="tab"][aria-selected="false"]').first())
-      .toHaveAttribute("tabindex", "-1");
-    const previousActiveTabId = await activeTab.getAttribute("id");
-    await activeTab.focus();
-    await activeTab.press("ArrowRight");
-    const nextActiveTab = tabList.locator('[role="tab"][aria-selected="true"]');
-    await expect(nextActiveTab).toBeFocused();
-    await expect.poll(() => nextActiveTab.getAttribute("id")).not.toBe(previousActiveTabId);
-    await expect(locationCard.getByRole("tabpanel"))
-      .toHaveAttribute("aria-labelledby", await nextActiveTab.getAttribute("id"));
-    await expect(locationCard.getByRole("tabpanel")).toContainText("Anne Reynolds");
+    let pickerTrigger = locationCard.getByRole("button", { name: /Choose person/i });
+    await pickerTrigger.click();
 
-    const showMorePeople = locationCard.getByRole("button", { name: /Show more people/i });
-    await expect(showMorePeople).toHaveAttribute("aria-expanded", "false");
-    await showMorePeople.click();
-    await expect.poll(() => peopleTabs.count()).toBeGreaterThan(initialTabCount);
-    await expect(showMorePeople).toHaveAttribute("aria-expanded", "true");
+    let personList = locationCard.getByRole("listbox", {
+      name: "Choose from 58 people at this plot",
+    });
+    const peopleOptions = personList.getByRole("option");
+    const initialOptionCount = await peopleOptions.count();
+    expect(initialOptionCount).toBe(58);
+    await expect(personList.locator('[role="option"][aria-selected="true"]')).toHaveCount(1);
+    expect(await personList.evaluate((list) => list.scrollWidth <= list.clientWidth + 1)).toBe(true);
 
-    await page.getByRole("button", { name: "Back to results" }).click();
-    await expect(locationCard).toHaveCount(0);
-    await expect(selectedLocationMarkers).toHaveCount(0);
+    const pickerViewport = locationCard.locator(".mobile-location-card__person-picker-viewport");
+    await expect.poll(() => pickerViewport.evaluate((viewport) => (
+      viewport.scrollHeight > viewport.clientHeight
+    ))).toBe(true);
+    const sheetOverlay = page.locator("[data-rsbs-overlay]");
+    const sheetTopBeforeSwipe = await waitForStableElementTop(sheetOverlay);
+    await swipeElementUp(page, pickerViewport);
+    await expect.poll(() => pickerViewport.evaluate((viewportElement) => (
+      viewportElement.scrollTop
+    ))).toBeGreaterThan(0);
+    await expect(pickerTrigger).toHaveAttribute("aria-expanded", "true");
+    const sheetTopAfterSwipe = await waitForStableElementTop(sheetOverlay);
+    expect(Math.abs(sheetTopAfterSwipe - sheetTopBeforeSwipe)).toBeLessThanOrEqual(2);
 
-    const architectMarcus = browseResults
-      .filter({ hasText: "Marcus Tullius Reynolds" })
-      .filter({ hasText: "Born 8/20/1869" })
-      .filter({ hasText: "Died 3/18/1937" });
+    let peopleSearch = locationCard.getByRole("searchbox", { name: "Search people at this plot" });
+    await peopleSearch.fill("Anne Reynolds");
+    personList = locationCard.getByRole("listbox", {
+      name: "Choose from 58 people at this plot",
+    });
+    const anneOption = personList.getByRole("option", { name: /^Anne Reynolds\./i });
+    await expect(anneOption).toHaveCount(1);
+    await peopleSearch.press("ArrowDown");
+    await expect(anneOption).toBeFocused();
+    await anneOption.press("Enter");
+
+    await expect(locationCard.getByRole("listbox")).toHaveCount(0);
+    await expect(locationCard.getByRole("heading", { name: "Anne Reynolds" })).toBeVisible();
+
+    pickerTrigger = locationCard.getByRole("button", { name: /Choose person/i });
+    await pickerTrigger.click();
+    peopleSearch = locationCard.getByRole("searchbox", { name: "Search people at this plot" });
+    await peopleSearch.fill("Marcus Tullius Reynolds");
+    personList = locationCard.getByRole("listbox", {
+      name: "Choose from 58 people at this plot",
+    });
+    const architectMarcus = personList.getByRole("option", {
+      name: /^Marcus Tullius Reynolds\. Born 8\/20\/1869/i,
+    });
     await expect(architectMarcus).toHaveCount(1);
     await architectMarcus.click();
 
-    await expect(locationCard).toBeVisible();
+    await expect(locationCard.getByRole("listbox")).toHaveCount(0);
     await expect(selectedLocationMarkers).toHaveCount(1);
-    await expect(locationCard).toContainText("Marcus Tullius Reynolds");
+    await expect(locationCard.getByRole("heading", { name: "Marcus Tullius Reynolds" })).toBeVisible();
     await expect(locationCard).toContainText("Albany Architect");
 
     const portrait = locationCard.locator(".left-sidebar__selected-place-visual-image");

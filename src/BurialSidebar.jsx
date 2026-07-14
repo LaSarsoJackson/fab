@@ -1,4 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   Box,
   Button,
@@ -7,6 +8,7 @@ import {
   CircularProgress,
   Divider,
   IconButton,
+  InputAdornment,
   List,
   ListItem,
   Paper,
@@ -16,9 +18,12 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import DirectionsIcon from "@mui/icons-material/Directions";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import { BottomSheet } from "react-spring-bottom-sheet";
 import "react-spring-bottom-sheet/dist/style.css";
 import { APP_PROFILE } from "./features/fab/profile";
@@ -88,12 +93,14 @@ import {
  * feature/hooks modules so this file can stay focused on composing the UI.
  */
 const MOBILE_LOCATION_INITIAL_PERSON_LIMIT = 8;
+const MOBILE_LOCATION_PERSON_SEARCH_THRESHOLD = 8;
+const MOBILE_LOCATION_RENDER_ALL_PERSON_LIMIT = 100;
 
-const buildMobileLocationTabId = (tabSetId, recordId) => (
-  `${tabSetId}-tab-${encodeURIComponent(cleanRecordValue(recordId)).replace(/%/g, "_")}`
+const buildMobileLocationPersonOptionId = (pickerId, recordId) => (
+  `${pickerId}-option-${encodeURIComponent(cleanRecordValue(recordId)).replace(/%/g, "_")}`
 );
 
-const buildMobileLocationTabSetId = (records = [], fallbackId = "plot") => (
+const buildMobileLocationPickerId = (records = [], fallbackId = "plot") => (
   `mobile-location-${encodeURIComponent(cleanRecordValue(records[0]?.id || fallbackId)).replace(/%/g, "_")}`
 );
 
@@ -1107,157 +1114,393 @@ function SelectionLeadCard({
   );
 }
 
-const MobileLocationPersonChip = memo(function MobileLocationPersonChip({
-  controlsId,
+const buildMobileLocationPersonOption = (record, sourceIndex) => {
+  const name = formatBrowseResultName(record);
+  const lifeSummary = buildLifeDatesSummary(record);
+
+  return {
+    id: record.id,
+    lifeSummary,
+    name,
+    record,
+    searchText: `${name} ${lifeSummary}`.toLocaleLowerCase(),
+    sourceIndex,
+  };
+};
+
+const filterMobileLocationPersonOptions = (options, query) => {
+  const normalizedQuery = cleanRecordValue(query).toLocaleLowerCase();
+  return normalizedQuery
+    ? options.filter((option) => option.searchText.includes(normalizedQuery))
+    : options;
+};
+
+const MobileLocationPersonOption = memo(function MobileLocationPersonOption({
   isActive,
+  isFocused,
+  onFocus,
   onKeyDown,
   onSelect,
-  record,
-  tabId,
+  option,
+  optionId,
+  position,
+  setSize,
+  setOptionRef,
 }) {
-  const popupView = useMemo(() => buildPopupViewModel(record), [record]);
-  const [mediaUrl, setMediaUrl] = useState(() => popupView.imageUrl || "");
-
-  useEffect(() => {
-    setMediaUrl(popupView.imageUrl || "");
-  }, [popupView.imageUrl, record?.id]);
-
   return (
     <ButtonBase
+      ref={(node) => setOptionRef(option.id, node)}
       component="button"
       type="button"
-      role="tab"
-      id={tabId}
-      aria-controls={controlsId}
+      role="option"
+      id={optionId}
+      aria-label={`${option.name}${option.lifeSummary ? `. ${option.lifeSummary}` : ""}`}
+      aria-posinset={position}
       aria-selected={isActive}
-      tabIndex={isActive ? 0 : -1}
+      aria-setsize={setSize}
+      tabIndex={isFocused ? 0 : -1}
       className={[
-        "mobile-location-card__person-chip",
-        isActive ? "mobile-location-card__person-chip--active" : "",
+        "mobile-location-card__person-option",
+        isActive ? "mobile-location-card__person-option--active" : "",
       ].filter(Boolean).join(" ")}
-      onClick={() => onSelect?.(record)}
-      onKeyDown={(event) => onKeyDown?.(event, record)}
+      onClick={() => onSelect(option.record)}
+      onFocus={() => onFocus(option.id)}
+      onKeyDown={(event) => onKeyDown(event, option)}
     >
-      {mediaUrl && (
-        <img
-          className="mobile-location-card__person-chip-image"
-          src={mediaUrl}
-          alt=""
-          loading="lazy"
-          onError={() => setMediaUrl("")}
-        />
-      )}
-      <span>{popupView.heading}</span>
+      <span className="mobile-location-card__person-option-visual" aria-hidden="true">
+        {buildSelectedPlaceInitials(option.name)}
+      </span>
+      <span className="mobile-location-card__person-option-copy">
+        <span className="mobile-location-card__person-option-name">{option.name}</span>
+        <span className="mobile-location-card__person-option-meta">
+          {option.lifeSummary || "Burial record"}
+        </span>
+      </span>
+      <CheckRoundedIcon
+        className="mobile-location-card__person-option-check"
+        aria-hidden="true"
+      />
     </ButtonBase>
   );
 });
 
-const MobileLocationPeopleTabs = memo(function MobileLocationPeopleTabs({
+function MobileLocationPeoplePicker({
   activeRecordId,
+  children,
   onSelectRecord,
-  panelId,
+  pickerId,
   records,
-  tabSetId,
 }) {
-  const [visibleLimit, setVisibleLimit] = useState(MOBILE_LOCATION_INITIAL_PERSON_LIMIT);
-  const activeRecord = useMemo(
-    () => records.find((record) => record.id === activeRecordId) || records[0],
-    [activeRecordId, records]
+  const initialVisibleLimit = records.length <= MOBILE_LOCATION_RENDER_ALL_PERSON_LIMIT
+    ? records.length
+    : MOBILE_LOCATION_INITIAL_PERSON_LIMIT;
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [visibleLimit, setVisibleLimit] = useState(initialVisibleLimit);
+  const [focusedRecordId, setFocusedRecordId] = useState(activeRecordId || records[0]?.id || "");
+  const triggerRef = useRef(null);
+  const optionRefs = useRef(new Map());
+  const pickerPanelId = `${pickerId}-panel`;
+  const listboxId = `${pickerId}-listbox`;
+  const searchId = `${pickerId}-search`;
+  const options = useMemo(() => (
+    records
+      .map(buildMobileLocationPersonOption)
+      .sort((left, right) => (
+        left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: "base" })
+        || left.sourceIndex - right.sourceIndex
+      ))
+  ), [records]);
+  const activeOption = options.find((option) => option.id === activeRecordId) || options[0];
+  const matchingOptions = useMemo(
+    () => filterMobileLocationPersonOptions(options, query),
+    [options, query]
   );
-  const visibleRecords = useMemo(() => {
-    const initialRecords = records.slice(0, visibleLimit);
-    return activeRecord && !initialRecords.some((record) => record.id === activeRecord.id)
-      ? [...initialRecords, activeRecord]
-      : initialRecords;
-  }, [activeRecord, records, visibleLimit]);
-  const hasHiddenRecords = visibleRecords.length < records.length;
-  const canCollapse = !hasHiddenRecords && visibleLimit > MOBILE_LOCATION_INITIAL_PERSON_LIMIT;
-  const tabListId = `${tabSetId}-list`;
-  const activeTabId = buildMobileLocationTabId(tabSetId, activeRecord?.id);
+  const visibleOptions = useMemo(() => {
+    const boundedOptions = matchingOptions.slice(0, visibleLimit);
+    const activeMatch = matchingOptions.find((option) => option.id === activeOption?.id);
+    return activeMatch && !boundedOptions.some((option) => option.id === activeMatch.id)
+      ? [...boundedOptions, activeMatch]
+      : boundedOptions;
+  }, [activeOption?.id, matchingOptions, visibleLimit]);
+  const hiddenOptionCount = Math.max(0, matchingOptions.length - visibleOptions.length);
+  const shouldShowSearch = records.length > MOBILE_LOCATION_PERSON_SEARCH_THRESHOLD;
 
-  useEffect(() => {
-    const activeTab = document.getElementById(activeTabId);
-    if (typeof activeTab?.scrollIntoView === "function") {
-      activeTab.scrollIntoView({ block: "nearest", inline: "nearest" });
+  const restoreTriggerFocus = useCallback(() => {
+    triggerRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  const closePicker = useCallback(() => {
+    setIsOpen(false);
+    setQuery("");
+    setVisibleLimit(initialVisibleLimit);
+    restoreTriggerFocus();
+  }, [initialVisibleLimit, restoreTriggerFocus]);
+
+  const handleTogglePicker = useCallback(() => {
+    if (isOpen) {
+      closePicker();
+      return;
     }
-  }, [activeTabId, visibleLimit]);
 
-  const handleTabKeyDown = useCallback((event, record) => {
-    const currentIndex = visibleRecords.findIndex((candidate) => candidate.id === record.id);
+    setQuery("");
+    setVisibleLimit(initialVisibleLimit);
+    setFocusedRecordId(activeOption?.id || options[0]?.id || "");
+    setIsOpen(true);
+  }, [activeOption?.id, closePicker, initialVisibleLimit, isOpen, options]);
+
+  const handleTriggerKeyDown = useCallback((event) => {
+    if (event.key !== "Escape" || !isOpen) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closePicker();
+  }, [closePicker, isOpen]);
+
+  const handleQueryChange = useCallback((event) => {
+    const nextQuery = event.target.value;
+    const nextMatches = filterMobileLocationPersonOptions(options, nextQuery);
+    const nextActiveOption = nextMatches.find((option) => option.id === activeRecordId);
+
+    setQuery(nextQuery);
+    setVisibleLimit(initialVisibleLimit);
+    setFocusedRecordId(nextActiveOption?.id || nextMatches[0]?.id || "");
+  }, [activeRecordId, initialVisibleLimit, options]);
+
+  const handleSelectOption = useCallback((record) => {
+    setIsOpen(false);
+    setQuery("");
+    setVisibleLimit(initialVisibleLimit);
+    setFocusedRecordId(record.id);
+    onSelectRecord?.(record);
+    restoreTriggerFocus();
+  }, [initialVisibleLimit, onSelectRecord, restoreTriggerFocus]);
+
+  const setOptionRef = useCallback((recordId, node) => {
+    if (node) {
+      optionRefs.current.set(recordId, node);
+      return;
+    }
+
+    optionRefs.current.delete(recordId);
+  }, []);
+
+  const focusOption = useCallback((option) => {
+    if (!option) return;
+    setFocusedRecordId(option.id);
+    optionRefs.current.get(option.id)?.focus();
+  }, []);
+
+  const revealAndFocusOption = useCallback((option, nextVisibleLimit) => {
+    if (!option) return;
+
+    if (nextVisibleLimit > visibleLimit) {
+      flushSync(() => {
+        setVisibleLimit(Math.min(matchingOptions.length, nextVisibleLimit));
+      });
+    }
+
+    focusOption(option);
+  }, [focusOption, matchingOptions.length, visibleLimit]);
+
+  const handleOptionKeyDown = useCallback((event, option) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      closePicker();
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleSelectOption(option.record);
+      return;
+    }
+
+    const currentIndex = matchingOptions.findIndex((candidate) => candidate.id === option.id);
     if (currentIndex < 0) return;
 
-    let nextIndex = null;
-    if (event.key === "ArrowRight") {
-      nextIndex = (currentIndex + 1) % visibleRecords.length;
-    } else if (event.key === "ArrowLeft") {
-      nextIndex = (currentIndex - 1 + visibleRecords.length) % visibleRecords.length;
+    let nextOption = null;
+    let nextVisibleLimit = visibleLimit;
+    if (event.key === "ArrowDown") {
+      if (currentIndex >= matchingOptions.length - 1) return;
+      nextOption = matchingOptions[currentIndex + 1];
+      nextVisibleLimit = Math.max(visibleLimit, currentIndex + 2);
+    } else if (event.key === "ArrowUp") {
+      if (currentIndex === 0) return;
+      nextOption = matchingOptions[currentIndex - 1];
+      nextVisibleLimit = Math.max(visibleLimit, currentIndex + 1);
     } else if (event.key === "Home") {
-      nextIndex = 0;
+      nextOption = matchingOptions[0];
     } else if (event.key === "End") {
-      nextIndex = visibleRecords.length - 1;
+      nextOption = matchingOptions[matchingOptions.length - 1];
+      nextVisibleLimit = matchingOptions.length;
     }
 
-    if (nextIndex === null) return;
-
+    if (!nextOption) return;
     event.preventDefault();
-    const nextRecord = visibleRecords[nextIndex];
-    const nextTab = document.getElementById(buildMobileLocationTabId(tabSetId, nextRecord.id));
-    onSelectRecord?.(nextRecord);
-    nextTab?.focus();
-    if (typeof nextTab?.scrollIntoView === "function") {
-      nextTab.scrollIntoView({ block: "nearest", inline: "nearest" });
-    }
-  }, [onSelectRecord, tabSetId, visibleRecords]);
+    revealAndFocusOption(nextOption, nextVisibleLimit);
+  }, [
+    closePicker,
+    handleSelectOption,
+    matchingOptions,
+    revealAndFocusOption,
+    visibleLimit,
+  ]);
 
-  const handleToggleVisibleRecords = useCallback(() => {
-    setVisibleLimit((currentLimit) => (
-      currentLimit >= records.length
-        ? MOBILE_LOCATION_INITIAL_PERSON_LIMIT
-        : Math.min(records.length, currentLimit + MOBILE_LOCATION_INITIAL_PERSON_LIMIT)
-    ));
-  }, [records.length]);
+  const handleSearchKeyDown = useCallback((event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      closePicker();
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      focusOption(visibleOptions.find((option) => option.id === focusedRecordId) || visibleOptions[0]);
+    }
+  }, [closePicker, focusOption, focusedRecordId, visibleOptions]);
+
+  const handleShowMore = useCallback(() => {
+    const nextOption = matchingOptions[Math.min(visibleLimit, matchingOptions.length - 1)];
+    const nextVisibleLimit = Math.min(
+      matchingOptions.length,
+      visibleLimit + MOBILE_LOCATION_INITIAL_PERSON_LIMIT
+    );
+
+    flushSync(() => {
+      setVisibleLimit(nextVisibleLimit);
+    });
+    focusOption(nextOption);
+  }, [focusOption, matchingOptions, visibleLimit]);
+
+  const activeName = activeOption?.name || "Selected person";
+  const triggerLabel = `Choose person. ${activeName} selected. ${records.length} people at this plot.`;
 
   return (
-    <Box className="mobile-location-card__people-rail">
-      <Box
-        id={tabListId}
-        className="mobile-location-card__people-tablist"
-        role="tablist"
-        aria-label={`${records.length} people at this plot`}
+    <>
+      <ButtonBase
+        ref={triggerRef}
+        component="button"
+        type="button"
+        className="mobile-location-card__person-picker-trigger"
+        aria-controls={pickerPanelId}
+        aria-expanded={isOpen}
+        aria-label={triggerLabel}
+        onClick={handleTogglePicker}
+        onKeyDown={handleTriggerKeyDown}
       >
-        {visibleRecords.map((record) => (
-          <MobileLocationPersonChip
-            key={record.id}
-            controlsId={panelId}
-            record={record}
-            tabId={buildMobileLocationTabId(tabSetId, record.id)}
-            isActive={record.id === activeRecord?.id}
-            onKeyDown={handleTabKeyDown}
-            onSelect={onSelectRecord}
-          />
-        ))}
-      </Box>
-      {(hasHiddenRecords || canCollapse) && (
-        <ButtonBase
-          component="button"
-          type="button"
-          className="mobile-location-card__people-toggle"
-          aria-controls={tabListId}
-          aria-expanded={visibleLimit > MOBILE_LOCATION_INITIAL_PERSON_LIMIT}
-          aria-label={hasHiddenRecords
-            ? `Show more people. ${visibleRecords.length} of ${records.length} shown.`
-            : `Show fewer people. ${visibleRecords.length} of ${records.length} shown.`}
-          onClick={handleToggleVisibleRecords}
-        >
-          <span>{hasHiddenRecords ? "Show more" : "Show fewer"}</span>
-          <span className="mobile-location-card__people-progress">
-            {visibleRecords.length} of {records.length}
-          </span>
-        </ButtonBase>
-      )}
-    </Box>
+        <span className="mobile-location-card__person-picker-icon" aria-hidden="true">
+          <PeopleAltOutlinedIcon />
+        </span>
+        <span className="mobile-location-card__person-picker-copy">
+          <span className="mobile-location-card__person-picker-label">Choose a person</span>
+          <span className="mobile-location-card__person-picker-value">{activeName}</span>
+        </span>
+        <span className="mobile-location-card__person-picker-count" aria-hidden="true">
+          {records.length}
+        </span>
+        <ArrowDropDownIcon
+          className="mobile-location-card__person-picker-chevron"
+          aria-hidden="true"
+        />
+      </ButtonBase>
+
+      {isOpen ? (
+        <Box id={pickerPanelId} className="mobile-location-card__person-picker" onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            closePicker();
+          }
+        }}>
+          {shouldShowSearch && (
+            <TextField
+              id={searchId}
+              className="mobile-location-card__person-picker-search"
+              type="search"
+              value={query}
+              fullWidth
+              placeholder={`Search ${records.length} people`}
+              inputProps={{ "aria-label": "Search people at this plot" }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchRoundedIcon aria-hidden="true" />
+                  </InputAdornment>
+                ),
+              }}
+              onChange={handleQueryChange}
+              onKeyDown={handleSearchKeyDown}
+            />
+          )}
+
+          {shouldShowSearch && cleanRecordValue(query) && (
+            <Box
+              className="mobile-location-card__person-picker-results"
+              role="status"
+              aria-live="polite"
+            >
+              {matchingOptions.length === 1
+                ? "1 matching person"
+                : `${matchingOptions.length} matching people`}
+            </Box>
+          )}
+
+          <Box className="mobile-location-card__person-picker-viewport">
+            <Box
+              component="ul"
+              id={listboxId}
+              className="mobile-location-card__person-listbox"
+              role="listbox"
+              aria-label={`Choose from ${records.length} people at this plot`}
+            >
+              {visibleOptions.map((option) => (
+                <Box component="li" role="presentation" key={option.id}>
+                  <MobileLocationPersonOption
+                    isActive={option.id === activeOption?.id}
+                    isFocused={option.id === focusedRecordId}
+                    onFocus={setFocusedRecordId}
+                    onKeyDown={handleOptionKeyDown}
+                    onSelect={handleSelectOption}
+                    option={option}
+                    optionId={buildMobileLocationPersonOptionId(pickerId, option.id)}
+                    position={matchingOptions.findIndex((candidate) => candidate.id === option.id) + 1}
+                    setSize={matchingOptions.length}
+                    setOptionRef={setOptionRef}
+                  />
+                </Box>
+              ))}
+            </Box>
+
+            {visibleOptions.length === 0 && (
+              <Box className="mobile-location-card__person-picker-empty" role="status">
+                <strong>No people found</strong>
+                <span>Try a different name or date.</span>
+              </Box>
+            )}
+
+            {hiddenOptionCount > 0 && (
+              <ButtonBase
+                component="button"
+                type="button"
+                className="mobile-location-card__people-toggle"
+                aria-controls={listboxId}
+                aria-label={`Show ${Math.min(MOBILE_LOCATION_INITIAL_PERSON_LIMIT, hiddenOptionCount)} more people. ${visibleOptions.length} of ${matchingOptions.length} shown.`}
+                onClick={handleShowMore}
+              >
+                <span>Show {Math.min(MOBILE_LOCATION_INITIAL_PERSON_LIMIT, hiddenOptionCount)} more</span>
+                <span className="mobile-location-card__people-progress">
+                  {visibleOptions.length} of {matchingOptions.length}
+                </span>
+              </ButtonBase>
+            )}
+          </Box>
+        </Box>
+      ) : children}
+    </>
   );
-});
+}
 
 function SelectedPlaceCard({
   burial,
@@ -1273,9 +1516,9 @@ function SelectedPlaceCard({
   const popupView = useMemo(() => buildPopupViewModel(burial), [burial]);
   const popupKey = burial?.id || popupView.heading;
   const locationRecords = stackList?.records || [burial];
-  const tabSetId = buildMobileLocationTabSetId(locationRecords, popupKey);
-  const tabPanelId = `${tabSetId}-panel`;
-  const hasPeopleTabs = locationRecords.length > 1;
+  const pickerId = buildMobileLocationPickerId(locationRecords, popupKey);
+  const selectedPersonHeadingId = `${pickerId}-selected-person`;
+  const hasPeoplePicker = locationRecords.length > 1;
   const locationSummary = buildLocationSummary(burial);
   const lifeSummary = buildLifeDatesSummary(burial);
   const placeTypeLabel = getSelectedPlaceTypeLabel(burial);
@@ -1315,27 +1558,12 @@ function SelectedPlaceCard({
     });
   }, [popupView.imageFallbackUrl]);
 
-  return (
-    <Box className="mobile-location-card">
-      {hasPeopleTabs && (
-        <MobileLocationPeopleTabs
-          key={locationRecords[0]?.id || popupKey}
-          activeRecordId={burial.id}
-          onSelectRecord={stackList?.onSelectRecord}
-          panelId={tabPanelId}
-          records={locationRecords}
-          tabSetId={tabSetId}
-        />
-      )}
-
-      <Box
-        id={hasPeopleTabs ? tabPanelId : undefined}
-        className="mobile-location-card__person-panel"
-        role={hasPeopleTabs ? "tabpanel" : undefined}
-        aria-labelledby={hasPeopleTabs
-          ? buildMobileLocationTabId(tabSetId, burial.id)
-          : undefined}
-      >
+  const selectedPersonPanel = (
+    <Box
+      className="mobile-location-card__person-panel"
+      role="region"
+      aria-labelledby={selectedPersonHeadingId}
+    >
         <Box className="mobile-location-card__active-person">
           <SelectedPlaceVisual
             fallbackLabel={placeTypeLabel}
@@ -1347,7 +1575,11 @@ function SelectedPlaceCard({
             onImageError={handleImageError}
           />
           <Box className="mobile-location-card__active-copy">
-            <Box component="h3" className="mobile-location-card__person-name">
+            <Box
+              component="h3"
+              id={selectedPersonHeadingId}
+              className="mobile-location-card__person-name"
+            >
               {popupView.heading}
             </Box>
             {lifeSummary && (
@@ -1437,7 +1669,22 @@ function SelectedPlaceCard({
             )}
           </Box>
         )}
-      </Box>
+    </Box>
+  );
+
+  return (
+    <Box className="mobile-location-card">
+      {hasPeoplePicker ? (
+        <MobileLocationPeoplePicker
+          key={pickerId}
+          activeRecordId={burial.id}
+          onSelectRecord={stackList?.onSelectRecord}
+          pickerId={pickerId}
+          records={locationRecords}
+        >
+          {selectedPersonPanel}
+        </MobileLocationPeoplePicker>
+      ) : selectedPersonPanel}
     </Box>
   );
 }
@@ -2829,13 +3076,15 @@ function BurialSidebar({
       </ButtonBase>
       <Box className="mobile-location-header__copy">
         <Typography component="h2" className="mobile-location-header__title">
-          {mobileLocationRecordCount === 1
+          {mobileLocationLabel || (mobileLocationRecordCount === 1
             ? "1 person at this plot"
-            : `${mobileLocationRecordCount} people at this plot`}
+            : `${mobileLocationRecordCount} people at this plot`)}
         </Typography>
         {mobileLocationLabel && (
           <Typography component="p" className="mobile-location-header__subtitle">
-            {mobileLocationLabel}
+            {mobileLocationRecordCount === 1
+              ? "1 person at this plot"
+              : `${mobileLocationRecordCount} people at this plot`}
           </Typography>
         )}
       </Box>
@@ -2889,6 +3138,8 @@ function BurialSidebar({
     </Box>
   );
 
+  // Keep content dragging disabled so vertical lists own finger scrolling;
+  // the sheet header and grabber remain the dedicated resize gesture.
   return (
     <BottomSheet
       ref={sheetRef}
@@ -2904,7 +3155,6 @@ function BurialSidebar({
       snapPoints={mobileSnapPoints}
       defaultSnap={mobileDefaultSnap}
       header={mobileSheetHeader}
-      expandOnContentDrag
       onSpringEnd={handleMobileSheetSpringEnd}
     >
       {mobileSheetBody}
