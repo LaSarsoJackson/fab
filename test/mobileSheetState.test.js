@@ -57,14 +57,24 @@ describe("mobile sheet state helpers", () => {
     })).toBeCloseTo(340);
   });
 
-  test("keeps a selected location full while its content measurement settles", () => {
+  test("keeps selected-place actions visible while content measurement settles", () => {
     expect(getMobileSheetSnapHeight({
-      forceFullHeight: true,
       headerHeight: 120,
       maxHeight: 844,
+      minimumFullBodyHeight: 280,
       minHeight: 220,
       state: MOBILE_SHEET_STATES.FULL,
-    })).toBeCloseTo(844 * 0.92);
+    })).toBe(400);
+  });
+
+  test("caps the selected-place body floor to the available full height", () => {
+    expect(getMobileSheetSnapHeight({
+      headerHeight: 120,
+      maxHeight: 400,
+      minimumFullBodyHeight: 280,
+      minHeight: 220,
+      state: MOBILE_SHEET_STATES.FULL,
+    })).toBeCloseTo(400 * 0.92);
   });
 
   test("does not treat the collapsed header height as the full content height", () => {
@@ -96,18 +106,25 @@ describe("mobile sheet state helpers", () => {
     })).toBe(76);
   });
 
-  test("adds pinned header and body measurements before capping full snap height", () => {
+  test("uses the library's complete pinned-header measurement without double counting", () => {
     expect(getMobileSheetSnapHeight({
       headerHeight: 120,
       maxHeight: 1000,
       minHeight: 360,
       state: MOBILE_SHEET_STATES.FULL,
-    })).toBe(480);
+    })).toBe(360);
 
     expect(getMobileSheetSnapHeight({
       headerHeight: 120,
       maxHeight: 1000,
       minHeight: 900,
+      state: MOBILE_SHEET_STATES.FULL,
+    })).toBe(900);
+
+    expect(getMobileSheetSnapHeight({
+      headerHeight: 120,
+      maxHeight: 1000,
+      minHeight: 980,
       state: MOBILE_SHEET_STATES.FULL,
     })).toBe(920);
   });
@@ -143,6 +160,24 @@ describe("mobile sheet state helpers", () => {
     expect(getMobileSheetStateFromHeight({
       height: 900,
       windowHeight: 1000,
+    })).toBe(MOBILE_SHEET_STATES.FULL);
+  });
+
+  test("uses the selected-place body floor when bucketing spring-end heights", () => {
+    const selectedSheetMetrics = {
+      headerHeight: 120,
+      minHeight: 220,
+      minimumFullBodyHeight: 280,
+      windowHeight: 844,
+    };
+
+    expect(getMobileSheetStateFromHeight({
+      ...selectedSheetMetrics,
+      height: 300,
+    })).toBe(MOBILE_SHEET_STATES.PEEK);
+    expect(getMobileSheetStateFromHeight({
+      ...selectedSheetMetrics,
+      height: 400,
     })).toBe(MOBILE_SHEET_STATES.FULL);
   });
 });
