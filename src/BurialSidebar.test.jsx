@@ -420,7 +420,7 @@ describe("BurialSidebar", () => {
       />
     );
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(430);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(920);
     expect(mockBottomSheetState.snapTo.mock.calls.length).toBeLessThanOrEqual(1);
   });
 
@@ -445,7 +445,7 @@ describe("BurialSidebar", () => {
     );
 
     expect(mockBottomSheetState.snapTo.mock.calls.length).toBeLessThanOrEqual(1);
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(430);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(920);
   });
 
   domTest("keeps map-driven section browse at mobile peek height", () => {
@@ -668,7 +668,7 @@ describe("BurialSidebar", () => {
 
     expect(getBrowseWorkspace()).toBeNull();
     expect(within(getMobileLocationCard()).getByText("Anna Tracy")).toBeInTheDocument();
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(430);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(920);
 
     fireEvent.click(screen.getByRole("button", { name: "Back to results" }));
     expect(onClearSelectedBurials).toHaveBeenCalledTimes(1);
@@ -1270,7 +1270,7 @@ describe("BurialSidebar", () => {
       selectedBurials: [burialRecords[0]],
     });
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(430);
+    expect(getCurrentMobileSheetSnap()).toBeCloseTo(920);
     expect(mockBottomSheetState.snapTo.mock.calls.length).toBeLessThanOrEqual(1);
   });
 
