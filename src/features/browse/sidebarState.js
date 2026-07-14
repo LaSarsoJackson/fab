@@ -908,6 +908,12 @@ const getCurrentVisualViewportHeight = () => {
   return window.visualViewport?.height || window.innerHeight || null;
 };
 
+// On a compact phone the primary action row ends about 261px into the selected
+// body. Keep 20px of breathing room below it while the bottom sheet's
+// ResizeObserver settles, without turning every selection into a nearly
+// full-screen sheet.
+const SELECTED_LOCATION_MINIMUM_BODY_HEIGHT = 280;
+
 export function useBurialSidebarMobileSheetState({
   hasActiveBrowseContext,
   initialBrowseSource,
@@ -942,10 +948,9 @@ export function useBurialSidebarMobileSheetState({
   const resolvedMobileSheetState = isMobile && !previousIsMobileRef.current
     ? currentMobileSheetState
     : mobileSheetState;
-  // Selected-place content changes as portraits and biography metadata settle.
-  // Do not let an early, short content measurement collapse a requested full
-  // location card back onto the browse peek height.
-  const forceFullHeight = selectedBurialsLength > 0;
+  const minimumFullBodyHeight = selectedBurialsLength > 0
+    ? SELECTED_LOCATION_MINIMUM_BODY_HEIGHT
+    : 0;
 
   const mobileSnapPoints = useCallback(({ headerHeight, maxHeight, minHeight }) => {
     sheetLayoutMetricsRef.current = { headerHeight, maxHeight, minHeight };
@@ -955,25 +960,25 @@ export function useBurialSidebarMobileSheetState({
     const visualViewportHeight = getCurrentVisualViewportHeight();
     const snapPoints = [
       getMobileSheetSnapHeight({
-        forceFullHeight,
         headerHeight,
         maxHeight,
+        minimumFullBodyHeight,
         minHeight,
         state: MOBILE_SHEET_STATES.COLLAPSED,
         visualViewportHeight,
       }),
       getMobileSheetSnapHeight({
-        forceFullHeight,
         headerHeight,
         maxHeight,
+        minimumFullBodyHeight,
         minHeight,
         state: MOBILE_SHEET_STATES.PEEK,
         visualViewportHeight,
       }),
       getMobileSheetSnapHeight({
-        forceFullHeight,
         headerHeight,
         maxHeight,
+        minimumFullBodyHeight,
         minHeight,
         state: MOBILE_SHEET_STATES.FULL,
         visualViewportHeight,
@@ -981,16 +986,16 @@ export function useBurialSidebarMobileSheetState({
     ];
 
     return Array.from(new Set(snapPoints)).sort((a, b) => a - b);
-  }, [forceFullHeight]);
+  }, [minimumFullBodyHeight]);
 
   const mobileDefaultSnap = useCallback(({ headerHeight, maxHeight, minHeight, snapPoints }) => {
     const visualViewportHeight = getCurrentVisualViewportHeight();
 
     if (resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
       return snapPoints[0] || getMobileSheetSnapHeight({
-        forceFullHeight,
         headerHeight,
         maxHeight,
+        minimumFullBodyHeight,
         minHeight,
         state: MOBILE_SHEET_STATES.COLLAPSED,
         visualViewportHeight,
@@ -999,9 +1004,9 @@ export function useBurialSidebarMobileSheetState({
 
     if (resolvedMobileSheetState === MOBILE_SHEET_STATES.FULL) {
       return snapPoints[snapPoints.length - 1] || getMobileSheetSnapHeight({
-        forceFullHeight,
         headerHeight,
         maxHeight,
+        minimumFullBodyHeight,
         minHeight,
         state: MOBILE_SHEET_STATES.FULL,
         visualViewportHeight,
@@ -1009,14 +1014,14 @@ export function useBurialSidebarMobileSheetState({
     }
 
     return snapPoints[Math.min(1, snapPoints.length - 1)] || getMobileSheetSnapHeight({
-      forceFullHeight,
       headerHeight,
       maxHeight,
+      minimumFullBodyHeight,
       minHeight,
       state: MOBILE_SHEET_STATES.PEEK,
       visualViewportHeight,
     });
-  }, [forceFullHeight, resolvedMobileSheetState]);
+  }, [minimumFullBodyHeight, resolvedMobileSheetState]);
 
   const setAndSnapMobileSheet = useCallback((state) => {
     if (!isMobile) return;
@@ -1026,15 +1031,15 @@ export function useBurialSidebarMobileSheetState({
     setMobileSheetState(state);
     if (sheetRef.current) {
       sheetRef.current.snapTo(({ headerHeight, maxHeight, minHeight }) => getMobileSheetSnapHeight({
-        forceFullHeight,
         headerHeight,
         maxHeight,
+        minimumFullBodyHeight,
         minHeight,
         state,
         visualViewportHeight: getCurrentVisualViewportHeight(),
       }));
     }
-  }, [forceFullHeight, isMobile]);
+  }, [isMobile, minimumFullBodyHeight]);
 
   const maximizeMobileSheet = useCallback(() => {
     setAndSnapMobileSheet(MOBILE_SHEET_STATES.FULL);
@@ -1060,9 +1065,9 @@ export function useBurialSidebarMobileSheetState({
 
       const metrics = sheetLayoutMetricsRef.current;
       const targetHeight = getMobileSheetSnapHeight({
-        forceFullHeight,
         headerHeight: metrics.headerHeight,
         maxHeight: metrics.maxHeight || window.innerHeight,
+        minimumFullBodyHeight,
         minHeight: metrics.minHeight,
         state: requestedState,
         visualViewportHeight: getCurrentVisualViewportHeight(),
@@ -1070,9 +1075,9 @@ export function useBurialSidebarMobileSheetState({
 
       if (Math.abs((sheetRef.current.height || 0) - targetHeight) > 8) {
         sheetRef.current.snapTo(({ headerHeight, maxHeight, minHeight }) => getMobileSheetSnapHeight({
-          forceFullHeight,
           headerHeight,
           maxHeight,
+          minimumFullBodyHeight,
           minHeight,
           state: requestedState,
           visualViewportHeight: getCurrentVisualViewportHeight(),
@@ -1087,16 +1092,16 @@ export function useBurialSidebarMobileSheetState({
     // short content measurement can never get misread as a collapsed drawer.
     const { headerHeight, maxHeight, minHeight } = sheetLayoutMetricsRef.current;
     const nextState = getMobileSheetStateFromHeight({
-      forceFullHeight,
       headerHeight,
       height: sheetRef.current.height,
+      minimumFullBodyHeight,
       minHeight,
       windowHeight: maxHeight || window.innerHeight,
       visualViewportHeight: getCurrentVisualViewportHeight(),
     });
     requestedMobileSheetStateRef.current = nextState;
     setMobileSheetState(nextState);
-  }, [forceFullHeight]);
+  }, [minimumFullBodyHeight]);
 
   useEffect(() => {
     const wasMobile = previousIsMobileRef.current;
