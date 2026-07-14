@@ -6,6 +6,15 @@ contract releases.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-13
+
+- Fixed shared-plot selection on phones by replacing the clipped horizontal
+  person rail with a searchable, vertically scrolling picker.
+- Separated sheet-resize gestures from list scrolling so real finger swipes
+  move through people at the same plot without dragging the bottom sheet.
+- Kept compact selected-plot sheets attached to the bottom with the map,
+  marker, directions, and record details visible on short screens.
+
 ## [0.2.0] - 2026-07-13
 
 - Added labelled cemetery sections, tiled aerial and hillshade basemaps, and
