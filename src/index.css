@@ -2075,7 +2075,7 @@ select,
   display: none;
 }
 
-[data-rsbs-content] {
+[data-rsbs-root][data-rsbs-has-footer='false'] [data-rsbs-content] {
   padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 24px));
 }
 
@@ -2378,6 +2378,7 @@ select,
 }
 
 .mobile-location-card__person-chip--active.MuiButtonBase-root {
+  max-width: min(82vw, 320px);
   background: rgba(242, 249, 246, 0.98);
   color: #14533e;
   box-shadow:

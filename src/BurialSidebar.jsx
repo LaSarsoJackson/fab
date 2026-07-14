@@ -2125,8 +2125,8 @@ function BurialSidebar({
     }
 
     // Browse contexts keep the map visible at the peek height. A selected
-    // location opens fully so the primary Navigate action is immediately
-    // reachable even when the record includes a portrait and biography.
+    // location requests the full-content snap so the primary Navigate action
+    // is immediately reachable; geometry keeps short cards content-sized.
     if (revealIntent.shouldExpandMobileSheet) {
       if (revealIntent.shouldRevealSelectedRecord) {
         maximizeMobileSheet();

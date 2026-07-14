@@ -176,6 +176,19 @@ async function expectExternalMapsNavigation(page, triggerNavigation) {
   await expect(page).toHaveURL(externalMapsPattern, { timeout: 20_000 });
 }
 
+async function expectHitTarget(locator) {
+  await expect(locator).toBeVisible();
+  await expect(locator).toBeInViewport();
+  expect(await locator.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    const topElement = document.elementFromPoint(
+      bounds.left + (bounds.width / 2),
+      bounds.top + (bounds.height / 2)
+    );
+    return topElement === element || element.contains(topElement);
+  })).toBe(true);
+}
+
 async function getSelectedMarkerCenter(page) {
   const marker = page.locator(".selected-location-marker-icon").first();
   await expect(marker).toBeVisible();
@@ -472,6 +485,92 @@ test.describe("desktop", () => {
 test.describe("mobile", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
+  test("a short shared plot stays attached to the bottom without hiding the map", async ({ page }) => {
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
+
+    const searchInput = await getVisibleSearchInput(page);
+    await searchInput.fill("anna m gardiner waller");
+    const wallerResult = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card")
+      .filter({ hasText: "Anna M. Gardiner Waller" })
+      .filter({ hasText: "Born 3/30/1834" })
+      .filter({ hasText: "Died 9/6/1873" });
+    await expect(wallerResult).toHaveCount(1);
+    await wallerResult.click();
+
+    await expect(page.locator(".leaflet-popup .popup-card")).toHaveCount(0);
+    const selectedLocationMarker = page.locator(".selected-location-marker-icon");
+    await expect(selectedLocationMarker).toHaveCount(1);
+    await expect(selectedLocationMarker.locator(".cemetery-cluster__count")).toHaveText("4");
+
+    await expect(page.getByRole("heading", { name: "4 people at this plot" })).toBeVisible();
+    const locationCard = page.locator(".mobile-location-card");
+    const tabList = locationCard.getByRole("tablist", { name: "4 people at this plot" });
+    await expect(tabList.getByRole("tab")).toHaveCount(4);
+    await expect(tabList.getByRole("tab", { name: "Charles C Waller", exact: true })).toBeVisible();
+    await expect(tabList.getByRole("tab", { name: "Annie M. Waller", exact: true })).toBeVisible();
+    await expect(tabList.getByRole("tab", { name: "Cyren C. Waller", exact: true })).toBeVisible();
+    const activeTab = tabList.getByRole("tab", { name: "Anna M. Gardiner Waller", exact: true });
+    await expect(activeTab).toHaveAttribute("aria-selected", "true");
+    expect(await activeTab.locator("span:last-child").evaluate((label) => (
+      label.scrollWidth <= label.clientWidth + 1
+    ))).toBe(true);
+
+    const navigateButton = locationCard.getByRole("button", { name: "Navigate" });
+    const detailsButton = locationCard.getByRole("button", { name: "Details" });
+    await expectHitTarget(navigateButton);
+    await expectHitTarget(detailsButton);
+
+    const compactGeometry = await page.evaluate(() => {
+      const overlay = document.querySelector("[data-rsbs-overlay]")?.getBoundingClientRect();
+      const card = document.querySelector(".mobile-location-card")?.getBoundingClientRect();
+      const markerElement = document.querySelector(".selected-location-marker-icon");
+      const marker = markerElement?.getBoundingClientRect();
+      const markerCenter = marker
+        ? { x: marker.left + (marker.width / 2), y: marker.top + (marker.height / 2) }
+        : null;
+      const markerCenterElement = markerCenter
+        ? document.elementFromPoint(markerCenter.x, markerCenter.y)
+        : null;
+
+      return {
+        blankTail: overlay && card ? overlay.bottom - card.bottom : null,
+        markerCenterVisible: Boolean(
+          markerElement
+          && markerCenterElement
+          && (markerElement === markerCenterElement || markerElement.contains(markerCenterElement))
+        ),
+        markerCenterY: markerCenter?.y ?? null,
+        sheetHeight: overlay?.height ?? null,
+        sheetTop: overlay?.top ?? null,
+        visibleMapHeight: overlay?.top ?? null,
+        viewportHeight: window.innerHeight,
+      };
+    });
+
+    expect(compactGeometry.sheetHeight).toBeLessThan(compactGeometry.viewportHeight * 0.62);
+    expect(compactGeometry.visibleMapHeight).toBeGreaterThan(compactGeometry.viewportHeight * 0.4);
+    expect(compactGeometry.blankTail).toBeLessThanOrEqual(70);
+    expect(compactGeometry.markerCenterY).toBeLessThanOrEqual(compactGeometry.sheetTop - 8);
+    expect(compactGeometry.markerCenterVisible).toBe(true);
+
+    await detailsButton.click();
+    await expect(locationCard.getByText("Records here")).toBeVisible();
+    await expect.poll(async () => (
+      await page.locator("[data-rsbs-overlay]").evaluate((overlay) => (
+        overlay.getBoundingClientRect().height
+      ))
+    )).toBeGreaterThan(compactGeometry.sheetHeight);
+
+    await detailsButton.click();
+    await expect(locationCard.getByText("Records here")).toHaveCount(0);
+    await expect.poll(async () => (
+      await page.locator("[data-rsbs-overlay]").evaluate((overlay) => (
+        overlay.getBoundingClientRect().height
+      ))
+    )).toBeLessThanOrEqual(compactGeometry.sheetHeight + 2);
+  });
+
   test("one shared plot becomes one marker and one usable bottom location card", async ({ page }) => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
@@ -550,16 +649,7 @@ test.describe("mobile", () => {
     await expect.poll(() => portrait.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
 
     const navigateButton = locationCard.getByRole("button", { name: "Navigate" });
-    await expect(navigateButton).toBeVisible();
-    await expect(navigateButton).toBeInViewport();
-    expect(await navigateButton.evaluate((button) => {
-      const bounds = button.getBoundingClientRect();
-      const topElement = document.elementFromPoint(
-        bounds.left + (bounds.width / 2),
-        bounds.top + (bounds.height / 2)
-      );
-      return topElement === button || button.contains(topElement);
-    })).toBe(true);
+    await expectHitTarget(navigateButton);
 
     await page.getByRole("button", { name: "Back to results" }).click();
     await expect(locationCard).toHaveCount(0);
@@ -583,15 +673,6 @@ test.describe("mobile", () => {
     const locationCard = page.locator(".mobile-location-card");
     const navigateButton = locationCard.getByRole("button", { name: "Navigate" });
     await expect(locationCard).toBeVisible();
-    await expect(navigateButton).toBeVisible();
-    await expect(navigateButton).toBeInViewport();
-    expect(await navigateButton.evaluate((button) => {
-      const bounds = button.getBoundingClientRect();
-      const topElement = document.elementFromPoint(
-        bounds.left + (bounds.width / 2),
-        bounds.top + (bounds.height / 2)
-      );
-      return topElement === button || button.contains(topElement);
-    })).toBe(true);
+    await expectHitTarget(navigateButton);
   });
 });

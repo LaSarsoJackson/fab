@@ -36,12 +36,13 @@ const normalizeHeaderHeight = (headerHeight) => {
 const getSheetContentCeilingHeight = ({ headerHeight, maxHeight, minHeight }) => {
   const fullHeight = maxHeight * SNAP_FULL_FRACTION;
   const pinnedHeaderHeight = normalizeHeaderHeight(headerHeight);
-  // With a pinned header, `minHeight` measures the scrollable body alone, so
-  // the total content height is header + body. Legacy callers measure both
-  // together and need the bogus-measurement floor to ignore pre-mount values.
+  // react-spring-bottom-sheet reports `minHeight` as the complete sheet height,
+  // including its pinned header. Treat that measurement as authoritative;
+  // adding the header again leaves visible empty space below short content.
+  // Legacy callers without a header still need the pre-mount measurement floor.
   const measuredContentHeight = pinnedHeaderHeight !== null
     ? (Number.isFinite(minHeight) && minHeight > 0
-      ? pinnedHeaderHeight + minHeight
+      ? minHeight
       : fullHeight)
     : (Number.isFinite(minHeight) && minHeight > SNAP_CONTENT_MEASUREMENT_MIN_HEIGHT
       ? minHeight
@@ -66,9 +67,9 @@ export const getDefaultMobileSheetState = ({
 };
 
 export const getMobileSheetSnapHeight = ({
-  forceFullHeight = false,
   headerHeight,
   maxHeight,
+  minimumFullBodyHeight = 0,
   minHeight,
   state,
   visualViewportHeight,
@@ -98,44 +99,49 @@ export const getMobileSheetSnapHeight = ({
   }
 
   if (state === MOBILE_SHEET_STATES.FULL) {
-    if (forceFullHeight) {
-      return effectiveMaxHeight * SNAP_FULL_FRACTION;
-    }
+    const normalizedMinimumFullBodyHeight = Number(minimumFullBodyHeight);
+    const minimumFullHeight = Number.isFinite(normalizedMinimumFullBodyHeight)
+      && normalizedMinimumFullBodyHeight > 0
+      ? (pinnedHeaderHeight || 0) + normalizedMinimumFullBodyHeight
+      : 0;
 
-    return contentCeilingHeight;
+    return Math.min(
+      effectiveMaxHeight * SNAP_FULL_FRACTION,
+      Math.max(contentCeilingHeight, minimumFullHeight)
+    );
   }
 
   return Math.min(effectiveMaxHeight * SNAP_PEEK_FRACTION, contentCeilingHeight);
 };
 
 export const getMobileSheetStateFromHeight = ({
-  forceFullHeight = false,
   headerHeight,
   height,
+  minimumFullBodyHeight = 0,
   minHeight,
   windowHeight,
   visualViewportHeight,
 }) => {
   const collapsedHeight = getMobileSheetSnapHeight({
-    forceFullHeight,
     headerHeight,
     maxHeight: windowHeight,
+    minimumFullBodyHeight,
     minHeight,
     state: MOBILE_SHEET_STATES.COLLAPSED,
     visualViewportHeight,
   });
   const peekHeight = getMobileSheetSnapHeight({
-    forceFullHeight,
     headerHeight,
     maxHeight: windowHeight,
+    minimumFullBodyHeight,
     minHeight,
     state: MOBILE_SHEET_STATES.PEEK,
     visualViewportHeight,
   });
   const fullHeight = getMobileSheetSnapHeight({
-    forceFullHeight,
     headerHeight,
     maxHeight: windowHeight,
+    minimumFullBodyHeight,
     minHeight,
     state: MOBILE_SHEET_STATES.FULL,
     visualViewportHeight,

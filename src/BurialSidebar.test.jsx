@@ -173,10 +173,16 @@ const flushBrowseTimers = () => {
   });
 };
 
-const getCurrentMobileSheetSnap = (maxHeight = 1000) => {
+const SELECTED_LOCATION_SHEET_METRICS = {
+  headerHeight: 135,
+  minHeight: 392,
+};
+
+const getCurrentMobileSheetSnap = (maxHeight = 1000, metrics = {}) => {
   const { defaultSnap, snapPoints } = mockBottomSheetState.lastProps;
-  const resolvedSnapPoints = snapPoints({ maxHeight });
-  return defaultSnap({ maxHeight, snapPoints: resolvedSnapPoints });
+  const layoutMetrics = { maxHeight, ...metrics };
+  const resolvedSnapPoints = snapPoints(layoutMetrics);
+  return defaultSnap({ ...layoutMetrics, snapPoints: resolvedSnapPoints });
 };
 
 const renderSidebar = (props = {}) => render(<BurialSidebar {...createBaseProps()} {...props} />);
@@ -420,7 +426,7 @@ describe("BurialSidebar", () => {
       />
     );
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(920);
+    expect(getCurrentMobileSheetSnap(1000, SELECTED_LOCATION_SHEET_METRICS)).toBe(415);
     expect(mockBottomSheetState.snapTo.mock.calls.length).toBeLessThanOrEqual(1);
   });
 
@@ -445,7 +451,7 @@ describe("BurialSidebar", () => {
     );
 
     expect(mockBottomSheetState.snapTo.mock.calls.length).toBeLessThanOrEqual(1);
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(920);
+    expect(getCurrentMobileSheetSnap(1000, SELECTED_LOCATION_SHEET_METRICS)).toBe(415);
   });
 
   domTest("keeps map-driven section browse at mobile peek height", () => {
@@ -668,7 +674,7 @@ describe("BurialSidebar", () => {
 
     expect(getBrowseWorkspace()).toBeNull();
     expect(within(getMobileLocationCard()).getByText("Anna Tracy")).toBeInTheDocument();
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(920);
+    expect(getCurrentMobileSheetSnap(1000, SELECTED_LOCATION_SHEET_METRICS)).toBe(415);
 
     fireEvent.click(screen.getByRole("button", { name: "Back to results" }));
     expect(onClearSelectedBurials).toHaveBeenCalledTimes(1);
@@ -1222,7 +1228,7 @@ describe("BurialSidebar", () => {
       .toHaveAttribute("aria-expanded", "true");
   });
 
-  domTest("opens selected locations fully without changing the browse peek", () => {
+  domTest("fits selected locations to their actions without changing the browse peek", () => {
     Object.defineProperty(window, "innerHeight", {
       writable: true,
       configurable: true,
@@ -1239,7 +1245,9 @@ describe("BurialSidebar", () => {
       selectedBurials: [burialRecords[0]],
     });
 
-    expect(getCurrentMobileSheetSnap(844)).toBeCloseTo(844 * 0.92);
+    expect(getCurrentMobileSheetSnap(844, SELECTED_LOCATION_SHEET_METRICS)).toBe(415);
+    expect(getCurrentMobileSheetSnap(844, SELECTED_LOCATION_SHEET_METRICS))
+      .toBeLessThan(844 * 0.6);
   });
 
   domTest("uses the bottom-sheet overlay as the mobile viewport padding root", () => {
@@ -1270,7 +1278,7 @@ describe("BurialSidebar", () => {
       selectedBurials: [burialRecords[0]],
     });
 
-    expect(getCurrentMobileSheetSnap()).toBeCloseTo(920);
+    expect(getCurrentMobileSheetSnap(1000, SELECTED_LOCATION_SHEET_METRICS)).toBe(415);
     expect(mockBottomSheetState.snapTo.mock.calls.length).toBeLessThanOrEqual(1);
   });
 
