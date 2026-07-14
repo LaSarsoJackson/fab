@@ -37,4 +37,46 @@ describe("generated artifacts", () => {
     expect(firstMatchId).toMatch(/^burial:/);
     expect(firstMatchRecord).toHaveProperty("source", "tour");
   });
+
+  test("assigns each tour stop to at most one burial", () => {
+    const burialIdsByTourId = new Map();
+
+    Object.entries(TourMatches).forEach(([burialId, tourRecord]) => {
+      const tourId = tourRecord.id;
+      if (!burialIdsByTourId.has(tourId)) {
+        burialIdsByTourId.set(tourId, []);
+      }
+      burialIdsByTourId.get(tourId).push(burialId);
+    });
+
+    const duplicateAssignments = [...burialIdsByTourId.entries()]
+      .filter(([, burialIds]) => burialIds.length > 1);
+
+    expect(duplicateAssignments).toEqual([]);
+  });
+
+  test("enriches only the correct Marcus T. Reynolds burial", () => {
+    const reynoldsAssignments = Object.entries(TourMatches)
+      .filter(([, tourRecord]) => tourRecord.Tour_Bio === "Reynolds5")
+      .map(([burialId]) => burialId);
+    const searchRowsByObjectId = new Map(
+      SearchBurials.map((row) => [String(row.i), row])
+    );
+
+    expect(reynoldsAssignments).toEqual(["burial:28063:17:1:0"]);
+    expect(searchRowsByObjectId.get("28063")?.tk).toBe("Notable");
+    expect(searchRowsByObjectId.get("732")?.tk).toBe("");
+  });
+
+  test("keeps family collisions out while retaining known spelling variants", () => {
+    const searchRowsByObjectId = new Map(
+      SearchBurials.map((row) => [String(row.i), row])
+    );
+
+    expect(TourMatches).not.toHaveProperty("burial:100341:57:1:0");
+    expect(searchRowsByObjectId.get("100341")?.tk).toBe("");
+    expect(TourMatches["burial:52937:41:23:0"]?.Tour_Bio).toBe("Roessle172");
+    expect(TourMatches["burial:57969:8:15:0"]?.Tour_Bio).toBe("TenEyck163");
+    expect(TourMatches["burial:71095:34:2:0"]?.Tour_Bio).toBe("Lord145");
+  });
 });
