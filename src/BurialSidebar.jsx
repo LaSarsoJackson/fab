@@ -87,6 +87,16 @@ import {
  * mobile drawer behavior. Pure result shaping and mobile-sheet state live in
  * feature/hooks modules so this file can stay focused on composing the UI.
  */
+const MOBILE_LOCATION_INITIAL_PERSON_LIMIT = 8;
+
+const buildMobileLocationTabId = (tabSetId, recordId) => (
+  `${tabSetId}-tab-${encodeURIComponent(cleanRecordValue(recordId)).replace(/%/g, "_")}`
+);
+
+const buildMobileLocationTabSetId = (records = [], fallbackId = "plot") => (
+  `mobile-location-${encodeURIComponent(cleanRecordValue(records[0]?.id || fallbackId)).replace(/%/g, "_")}`
+);
+
 const rowShellStyles = {
   transition: "background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease",
   borderRadius: 3,
@@ -499,8 +509,10 @@ function BrowseResultsPanel({
   sectionFilter,
   selectedBurials,
   selectedTour,
+  setVisibleCount,
   scopeChips = EMPTY_PACKET_RECORDS,
   tourStyles,
+  visibleCount,
 }) {
   const {
     selectedBurialCount,
@@ -511,7 +523,6 @@ function BrowseResultsPanel({
   );
   const onBrowseResultSelectRef = useRef(onBrowseResultSelect);
   const onHoverBurialChangeRef = useRef(onHoverBurialChange);
-  const [visibleCount, setVisibleCount] = useState(batchSize);
 
   onBrowseResultSelectRef.current = onBrowseResultSelect;
   onHoverBurialChangeRef.current = onHoverBurialChange;
@@ -523,20 +534,6 @@ function BrowseResultsPanel({
   const handleHoverBurialChange = useCallback((burialId) => {
     onHoverBurialChangeRef.current?.(burialId);
   }, []);
-
-  useEffect(() => {
-    // Scope changes should reset incremental pagination so newly selected
-    // sections/tours start from the top of their result list.
-    setVisibleCount(batchSize);
-  }, [
-    activeBurialId,
-    batchSize,
-    browseResults.length,
-    browseSource,
-    query,
-    sectionFilter,
-    selectedTour,
-  ]);
 
   const panelPresentation = useMemo(
     () => buildBrowseResultsPanelPresentation({
@@ -1111,9 +1108,12 @@ function SelectionLeadCard({
 }
 
 const MobileLocationPersonChip = memo(function MobileLocationPersonChip({
+  controlsId,
   isActive,
+  onKeyDown,
   onSelect,
   record,
+  tabId,
 }) {
   const popupView = useMemo(() => buildPopupViewModel(record), [record]);
   const [mediaUrl, setMediaUrl] = useState(() => popupView.imageUrl || "");
@@ -1127,12 +1127,16 @@ const MobileLocationPersonChip = memo(function MobileLocationPersonChip({
       component="button"
       type="button"
       role="tab"
+      id={tabId}
+      aria-controls={controlsId}
       aria-selected={isActive}
+      tabIndex={isActive ? 0 : -1}
       className={[
         "mobile-location-card__person-chip",
         isActive ? "mobile-location-card__person-chip--active" : "",
       ].filter(Boolean).join(" ")}
       onClick={() => onSelect?.(record)}
+      onKeyDown={(event) => onKeyDown?.(event, record)}
     >
       {mediaUrl && (
         <img
@@ -1145,6 +1149,113 @@ const MobileLocationPersonChip = memo(function MobileLocationPersonChip({
       )}
       <span>{popupView.heading}</span>
     </ButtonBase>
+  );
+});
+
+const MobileLocationPeopleTabs = memo(function MobileLocationPeopleTabs({
+  activeRecordId,
+  onSelectRecord,
+  panelId,
+  records,
+  tabSetId,
+}) {
+  const [visibleLimit, setVisibleLimit] = useState(MOBILE_LOCATION_INITIAL_PERSON_LIMIT);
+  const activeRecord = useMemo(
+    () => records.find((record) => record.id === activeRecordId) || records[0],
+    [activeRecordId, records]
+  );
+  const visibleRecords = useMemo(() => {
+    const initialRecords = records.slice(0, visibleLimit);
+    return activeRecord && !initialRecords.some((record) => record.id === activeRecord.id)
+      ? [...initialRecords, activeRecord]
+      : initialRecords;
+  }, [activeRecord, records, visibleLimit]);
+  const hasHiddenRecords = visibleRecords.length < records.length;
+  const canCollapse = !hasHiddenRecords && visibleLimit > MOBILE_LOCATION_INITIAL_PERSON_LIMIT;
+  const tabListId = `${tabSetId}-list`;
+  const activeTabId = buildMobileLocationTabId(tabSetId, activeRecord?.id);
+
+  useEffect(() => {
+    const activeTab = document.getElementById(activeTabId);
+    if (typeof activeTab?.scrollIntoView === "function") {
+      activeTab.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+  }, [activeTabId, visibleLimit]);
+
+  const handleTabKeyDown = useCallback((event, record) => {
+    const currentIndex = visibleRecords.findIndex((candidate) => candidate.id === record.id);
+    if (currentIndex < 0) return;
+
+    let nextIndex = null;
+    if (event.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % visibleRecords.length;
+    } else if (event.key === "ArrowLeft") {
+      nextIndex = (currentIndex - 1 + visibleRecords.length) % visibleRecords.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = visibleRecords.length - 1;
+    }
+
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    const nextRecord = visibleRecords[nextIndex];
+    const nextTab = document.getElementById(buildMobileLocationTabId(tabSetId, nextRecord.id));
+    onSelectRecord?.(nextRecord);
+    nextTab?.focus();
+    if (typeof nextTab?.scrollIntoView === "function") {
+      nextTab.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+  }, [onSelectRecord, tabSetId, visibleRecords]);
+
+  const handleToggleVisibleRecords = useCallback(() => {
+    setVisibleLimit((currentLimit) => (
+      currentLimit >= records.length
+        ? MOBILE_LOCATION_INITIAL_PERSON_LIMIT
+        : Math.min(records.length, currentLimit + MOBILE_LOCATION_INITIAL_PERSON_LIMIT)
+    ));
+  }, [records.length]);
+
+  return (
+    <Box className="mobile-location-card__people-rail">
+      <Box
+        id={tabListId}
+        className="mobile-location-card__people-tablist"
+        role="tablist"
+        aria-label={`${records.length} people at this plot`}
+      >
+        {visibleRecords.map((record) => (
+          <MobileLocationPersonChip
+            key={record.id}
+            controlsId={panelId}
+            record={record}
+            tabId={buildMobileLocationTabId(tabSetId, record.id)}
+            isActive={record.id === activeRecord?.id}
+            onKeyDown={handleTabKeyDown}
+            onSelect={onSelectRecord}
+          />
+        ))}
+      </Box>
+      {(hasHiddenRecords || canCollapse) && (
+        <ButtonBase
+          component="button"
+          type="button"
+          className="mobile-location-card__people-toggle"
+          aria-controls={tabListId}
+          aria-expanded={visibleLimit > MOBILE_LOCATION_INITIAL_PERSON_LIMIT}
+          aria-label={hasHiddenRecords
+            ? `Show more people. ${visibleRecords.length} of ${records.length} shown.`
+            : `Show fewer people. ${visibleRecords.length} of ${records.length} shown.`}
+          onClick={handleToggleVisibleRecords}
+        >
+          <span>{hasHiddenRecords ? "Show more" : "Show fewer"}</span>
+          <span className="mobile-location-card__people-progress">
+            {visibleRecords.length} of {records.length}
+          </span>
+        </ButtonBase>
+      )}
+    </Box>
   );
 });
 
@@ -1161,11 +1272,19 @@ function SelectedPlaceCard({
 }) {
   const popupView = useMemo(() => buildPopupViewModel(burial), [burial]);
   const popupKey = burial?.id || popupView.heading;
+  const locationRecords = stackList?.records || [burial];
+  const tabSetId = buildMobileLocationTabSetId(locationRecords, popupKey);
+  const tabPanelId = `${tabSetId}-panel`;
+  const hasPeopleTabs = locationRecords.length > 1;
   const locationSummary = buildLocationSummary(burial);
   const lifeSummary = buildLifeDatesSummary(burial);
   const placeTypeLabel = getSelectedPlaceTypeLabel(burial);
   const recordContextLabel = popupView.sourceLabel || placeTypeLabel;
   const tourContextLabel = burial.tourName || tourStyle?.name || "";
+  const summaryParagraphs = popupView.paragraphs || [];
+  const detailRows = popupView.rows.filter(({ label, value }) => !(
+    label === "Role" && summaryParagraphs.includes(cleanRecordValue(value))
+  ));
   const shouldAppendTourContext = Boolean(
     tourStyle
     && cleanRecordValue(tourContextLabel)
@@ -1176,7 +1295,7 @@ function SelectedPlaceCard({
   const detailPresentation = buildSelectedPlaceDetailPresentation({
     detailLinkUrl: popupView.biographyLink || popupView.imageLinkUrl,
     isExpanded: isDetailExpanded,
-    rows: popupView.rows,
+    rows: detailRows,
     visibleRowLimit: DEFAULT_SELECTED_PLACE_DETAIL_ROW_LIMIT,
   });
 
@@ -1196,28 +1315,27 @@ function SelectedPlaceCard({
     });
   }, [popupView.imageFallbackUrl]);
 
-  const locationRecords = stackList?.records || [burial];
-
   return (
-    <Box className="mobile-location-card" aria-live="polite">
-      {locationRecords.length > 1 && (
-        <Box
-          className="mobile-location-card__people-rail"
-          role="tablist"
-          aria-label={`${locationRecords.length} people at this plot`}
-        >
-          {locationRecords.map((record) => (
-            <MobileLocationPersonChip
-              key={record.id}
-              record={record}
-              isActive={record.id === burial.id}
-              onSelect={stackList?.onSelectRecord}
-            />
-          ))}
-        </Box>
+    <Box className="mobile-location-card">
+      {hasPeopleTabs && (
+        <MobileLocationPeopleTabs
+          key={locationRecords[0]?.id || popupKey}
+          activeRecordId={burial.id}
+          onSelectRecord={stackList?.onSelectRecord}
+          panelId={tabPanelId}
+          records={locationRecords}
+          tabSetId={tabSetId}
+        />
       )}
 
-      <Box className="mobile-location-card__person-panel">
+      <Box
+        id={hasPeopleTabs ? tabPanelId : undefined}
+        className="mobile-location-card__person-panel"
+        role={hasPeopleTabs ? "tabpanel" : undefined}
+        aria-labelledby={hasPeopleTabs
+          ? buildMobileLocationTabId(tabSetId, burial.id)
+          : undefined}
+      >
         <Box className="mobile-location-card__active-person">
           <SelectedPlaceVisual
             fallbackLabel={placeTypeLabel}
@@ -1237,6 +1355,15 @@ function SelectedPlaceCard({
                 {lifeSummary}
               </Box>
             )}
+            {summaryParagraphs.map((paragraph, index) => (
+              <Box
+                key={`${popupKey}-mobile-summary-${index}`}
+                component="p"
+                className="mobile-location-card__summary"
+              >
+                {paragraph}
+              </Box>
+            ))}
             <Box component="p" className="mobile-location-card__record-type">
               {recordContextLabel}
               {shouldAppendTourContext ? ` · ${tourContextLabel}` : ""}
@@ -1818,6 +1945,53 @@ function BurialSidebar({
     selectedTour,
     tourResults,
   });
+  const browseResultScopeKey = useMemo(
+    () => JSON.stringify([
+      resultLimit,
+      browseResults.length,
+      browseSource,
+      browseQuery,
+      sectionFilter,
+      selectedTour,
+    ]),
+    [
+      browseQuery,
+      browseResults.length,
+      browseSource,
+      resultLimit,
+      sectionFilter,
+      selectedTour,
+    ]
+  );
+  const [browsePagination, setBrowsePagination] = useState(() => ({
+    scopeKey: browseResultScopeKey,
+    visibleCount: resultLimit,
+  }));
+  const visibleBrowseResultCount = browsePagination.scopeKey === browseResultScopeKey
+    ? browsePagination.visibleCount
+    : resultLimit;
+  const setVisibleBrowseResultCount = useCallback((nextVisibleCount) => {
+    setBrowsePagination((currentPagination) => {
+      const currentVisibleCount = currentPagination.scopeKey === browseResultScopeKey
+        ? currentPagination.visibleCount
+        : resultLimit;
+      const resolvedVisibleCount = typeof nextVisibleCount === "function"
+        ? nextVisibleCount(currentVisibleCount)
+        : nextVisibleCount;
+
+      if (
+        currentPagination.scopeKey === browseResultScopeKey
+        && currentPagination.visibleCount === resolvedVisibleCount
+      ) {
+        return currentPagination;
+      }
+
+      return {
+        scopeKey: browseResultScopeKey,
+        visibleCount: resolvedVisibleCount,
+      };
+    });
+  }, [browseResultScopeKey, resultLimit]);
   const {
     collapseMobileSheet,
     expandMobileSheet,
@@ -1950,10 +2124,15 @@ function BurialSidebar({
       return;
     }
 
-    // Mobile keeps the map usable by default, then reveals the drawer when a
-    // user action creates a result or selection worth inspecting.
+    // Browse contexts keep the map visible at the peek height. A selected
+    // location opens fully so the primary Navigate action is immediately
+    // reachable even when the record includes a portrait and biography.
     if (revealIntent.shouldExpandMobileSheet) {
-      expandMobileSheet();
+      if (revealIntent.shouldRevealSelectedRecord) {
+        maximizeMobileSheet();
+      } else {
+        expandMobileSheet();
+      }
     }
 
     if (revealIntent.shouldScrollMobileSheetToTop) {
@@ -1963,6 +2142,7 @@ function BurialSidebar({
     activeBurialId,
     expandMobileSheet,
     isMobile,
+    maximizeMobileSheet,
     resolvedMobileSheetState,
     scrollMobileSheetToTop,
     sectionFilter,
@@ -2411,8 +2591,10 @@ function BurialSidebar({
       sectionFilter={sectionFilter}
       selectedBurials={selectedBurials}
       selectedTour={selectedTour}
+      setVisibleCount={setVisibleBrowseResultCount}
       scopeChips={browseScopeChips}
       tourStyles={tourStyles}
+      visibleCount={visibleBrowseResultCount}
     />
   ) : null;
 

@@ -241,11 +241,11 @@ test.describe("desktop", () => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
 
-    await page.getByRole("button", { name: "Explore Sections" }).click();
+    await page.getByRole("button", { name: "Sections", exact: true }).click();
     const sectionBrowseDetail = page.locator(".left-sidebar__browse-detail--section");
     const browseSearchInput = page.locator(".left-sidebar__browse-composer input").first();
 
-    await expect(sectionBrowseDetail).toContainText(/one section, then refine inside it\./i);
+    await expect(sectionBrowseDetail).toContainText("Choose a section to zoom in.");
 
     const sectionInput = page.getByRole("combobox", { name: "Section" });
     await sectionInput.click();
@@ -253,7 +253,7 @@ test.describe("desktop", () => {
     await page.getByRole("option", { name: "Section 215" }).click();
     await expect(sectionInput).toHaveValue("Section 215");
     await expect(browseSearchInput).toHaveAttribute("placeholder", "Search this section");
-    await expect(sectionBrowseDetail.getByRole("heading", { name: "Refine" })).toBeVisible();
+    await expect(sectionBrowseDetail.getByRole("heading", { name: "Filter records" })).toBeVisible();
     await expect(page.locator(".left-sidebar__panel--browse")).toContainText("114 results");
 
     const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
@@ -267,8 +267,8 @@ test.describe("desktop", () => {
     await sectionBrowseDetail.getByRole("button", { name: "Clear" }).click();
     await expect(sectionInput).toHaveValue("");
     await expect(browseSearchInput).toHaveAttribute("placeholder", "Select a section to browse");
-    await expect(sectionBrowseDetail.getByRole("heading", { name: "Refine" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Show section markers" })).toHaveCount(0);
+    await expect(sectionBrowseDetail.getByRole("heading", { name: "Filter records" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /grave markers in this section/i })).toHaveCount(0);
   });
 
   test("tour browsing loads stops and lets a user inspect a tour stop popup", async ({ page }) => {
@@ -473,8 +473,18 @@ test.describe("mobile", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test("one shared plot becomes one marker and one usable bottom location card", async ({ page }) => {
-    await waitForAppReady(page, buildAppPath("view=burials&q=marcus%20reynolds"));
+    await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
+
+    const searchInput = await getVisibleSearchInput(page);
+    await searchInput.fill("marcus reynolds");
+    const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
+    const unrelatedMarcus = browseResults
+      .filter({ hasText: "Marcus T.11 Reynolds" })
+      .filter({ hasText: "Born 2/17/1926" })
+      .filter({ hasText: "Died 9/21/2007" });
+    await expect(unrelatedMarcus).toHaveCount(1);
+    await unrelatedMarcus.click();
 
     await expect(page.locator(".leaflet-popup .popup-card")).toHaveCount(0);
 
@@ -486,9 +496,54 @@ test.describe("mobile", () => {
     await expect(page.getByRole("heading", { name: "58 people at this plot" })).toBeVisible();
     const locationCard = page.locator(".mobile-location-card");
     await expect(locationCard).toBeVisible();
-    await expect(locationCard.getByRole("tablist", { name: "58 people at this plot" })).toBeVisible();
-    await expect(locationCard.getByRole("tab")).toHaveCount(58);
-    await expect(locationCard).toContainText("Reynolds");
+    const tabList = locationCard.getByRole("tablist", { name: "58 people at this plot" });
+    const peopleTabs = tabList.getByRole("tab");
+    await expect(tabList).toBeVisible();
+    const initialTabCount = await peopleTabs.count();
+    expect(initialTabCount).toBeGreaterThanOrEqual(8);
+    expect(initialTabCount).toBeLessThanOrEqual(9);
+    expect(initialTabCount).toBeLessThan(58);
+    await expect(locationCard).toContainText("Marcus T.11 Reynolds");
+    await expect(locationCard).toContainText("2/17/1926");
+    await expect(locationCard).not.toContainText("Albany Architect");
+    await expect(locationCard.locator(".left-sidebar__selected-place-visual-image")).toHaveCount(0);
+
+    const activeTab = tabList.locator('[role="tab"][aria-selected="true"]');
+    await expect(activeTab).toHaveCount(1);
+    await expect(activeTab).toHaveAttribute("tabindex", "0");
+    await expect(tabList.locator('[role="tab"][aria-selected="false"]').first())
+      .toHaveAttribute("tabindex", "-1");
+    const previousActiveTabId = await activeTab.getAttribute("id");
+    await activeTab.focus();
+    await activeTab.press("ArrowRight");
+    const nextActiveTab = tabList.locator('[role="tab"][aria-selected="true"]');
+    await expect(nextActiveTab).toBeFocused();
+    await expect.poll(() => nextActiveTab.getAttribute("id")).not.toBe(previousActiveTabId);
+    await expect(locationCard.getByRole("tabpanel"))
+      .toHaveAttribute("aria-labelledby", await nextActiveTab.getAttribute("id"));
+    await expect(locationCard.getByRole("tabpanel")).toContainText("Anne Reynolds");
+
+    const showMorePeople = locationCard.getByRole("button", { name: /Show more people/i });
+    await expect(showMorePeople).toHaveAttribute("aria-expanded", "false");
+    await showMorePeople.click();
+    await expect.poll(() => peopleTabs.count()).toBeGreaterThan(initialTabCount);
+    await expect(showMorePeople).toHaveAttribute("aria-expanded", "true");
+
+    await page.getByRole("button", { name: "Back to results" }).click();
+    await expect(locationCard).toHaveCount(0);
+    await expect(selectedLocationMarkers).toHaveCount(0);
+
+    const architectMarcus = browseResults
+      .filter({ hasText: "Marcus Tullius Reynolds" })
+      .filter({ hasText: "Born 8/20/1869" })
+      .filter({ hasText: "Died 3/18/1937" });
+    await expect(architectMarcus).toHaveCount(1);
+    await architectMarcus.click();
+
+    await expect(locationCard).toBeVisible();
+    await expect(selectedLocationMarkers).toHaveCount(1);
+    await expect(locationCard).toContainText("Marcus Tullius Reynolds");
+    await expect(locationCard).toContainText("Albany Architect");
 
     const portrait = locationCard.locator(".left-sidebar__selected-place-visual-image");
     await expect(portrait).toBeVisible();
@@ -510,5 +565,33 @@ test.describe("mobile", () => {
     await expect(locationCard).toHaveCount(0);
     await expect(selectedLocationMarkers).toHaveCount(0);
     await expect(await getVisibleSearchInput(page, { requireEditable: false })).toHaveValue("marcus reynolds");
+  });
+
+  test("short phones reveal Navigate without requiring another sheet drag", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
+
+    const searchInput = await getVisibleSearchInput(page);
+    await searchInput.fill("marcus reynolds");
+    const burialResult = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card")
+      .filter({ hasText: "Marcus T.11 Reynolds" })
+      .filter({ hasText: "Born 2/17/1926" });
+    await expect(burialResult).toHaveCount(1);
+    await burialResult.click();
+
+    const locationCard = page.locator(".mobile-location-card");
+    const navigateButton = locationCard.getByRole("button", { name: "Navigate" });
+    await expect(locationCard).toBeVisible();
+    await expect(navigateButton).toBeVisible();
+    await expect(navigateButton).toBeInViewport();
+    expect(await navigateButton.evaluate((button) => {
+      const bounds = button.getBoundingClientRect();
+      const topElement = document.elementFromPoint(
+        bounds.left + (bounds.width / 2),
+        bounds.top + (bounds.height / 2)
+      );
+      return topElement === button || button.contains(topElement);
+    })).toBe(true);
   });
 });

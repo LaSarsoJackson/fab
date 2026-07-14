@@ -942,6 +942,10 @@ export function useBurialSidebarMobileSheetState({
   const resolvedMobileSheetState = isMobile && !previousIsMobileRef.current
     ? currentMobileSheetState
     : mobileSheetState;
+  // Selected-place content changes as portraits and biography metadata settle.
+  // Do not let an early, short content measurement collapse a requested full
+  // location card back onto the browse peek height.
+  const forceFullHeight = selectedBurialsLength > 0;
 
   const mobileSnapPoints = useCallback(({ headerHeight, maxHeight, minHeight }) => {
     sheetLayoutMetricsRef.current = { headerHeight, maxHeight, minHeight };
@@ -951,6 +955,7 @@ export function useBurialSidebarMobileSheetState({
     const visualViewportHeight = getCurrentVisualViewportHeight();
     const snapPoints = [
       getMobileSheetSnapHeight({
+        forceFullHeight,
         headerHeight,
         maxHeight,
         minHeight,
@@ -958,6 +963,7 @@ export function useBurialSidebarMobileSheetState({
         visualViewportHeight,
       }),
       getMobileSheetSnapHeight({
+        forceFullHeight,
         headerHeight,
         maxHeight,
         minHeight,
@@ -965,6 +971,7 @@ export function useBurialSidebarMobileSheetState({
         visualViewportHeight,
       }),
       getMobileSheetSnapHeight({
+        forceFullHeight,
         headerHeight,
         maxHeight,
         minHeight,
@@ -974,13 +981,14 @@ export function useBurialSidebarMobileSheetState({
     ];
 
     return Array.from(new Set(snapPoints)).sort((a, b) => a - b);
-  }, []);
+  }, [forceFullHeight]);
 
   const mobileDefaultSnap = useCallback(({ headerHeight, maxHeight, minHeight, snapPoints }) => {
     const visualViewportHeight = getCurrentVisualViewportHeight();
 
     if (resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
       return snapPoints[0] || getMobileSheetSnapHeight({
+        forceFullHeight,
         headerHeight,
         maxHeight,
         minHeight,
@@ -991,6 +999,7 @@ export function useBurialSidebarMobileSheetState({
 
     if (resolvedMobileSheetState === MOBILE_SHEET_STATES.FULL) {
       return snapPoints[snapPoints.length - 1] || getMobileSheetSnapHeight({
+        forceFullHeight,
         headerHeight,
         maxHeight,
         minHeight,
@@ -1000,13 +1009,14 @@ export function useBurialSidebarMobileSheetState({
     }
 
     return snapPoints[Math.min(1, snapPoints.length - 1)] || getMobileSheetSnapHeight({
+      forceFullHeight,
       headerHeight,
       maxHeight,
       minHeight,
       state: MOBILE_SHEET_STATES.PEEK,
       visualViewportHeight,
     });
-  }, [resolvedMobileSheetState]);
+  }, [forceFullHeight, resolvedMobileSheetState]);
 
   const setAndSnapMobileSheet = useCallback((state) => {
     if (!isMobile) return;
@@ -1016,6 +1026,7 @@ export function useBurialSidebarMobileSheetState({
     setMobileSheetState(state);
     if (sheetRef.current) {
       sheetRef.current.snapTo(({ headerHeight, maxHeight, minHeight }) => getMobileSheetSnapHeight({
+        forceFullHeight,
         headerHeight,
         maxHeight,
         minHeight,
@@ -1023,7 +1034,7 @@ export function useBurialSidebarMobileSheetState({
         visualViewportHeight: getCurrentVisualViewportHeight(),
       }));
     }
-  }, [isMobile]);
+  }, [forceFullHeight, isMobile]);
 
   const maximizeMobileSheet = useCallback(() => {
     setAndSnapMobileSheet(MOBILE_SHEET_STATES.FULL);
@@ -1049,6 +1060,7 @@ export function useBurialSidebarMobileSheetState({
 
       const metrics = sheetLayoutMetricsRef.current;
       const targetHeight = getMobileSheetSnapHeight({
+        forceFullHeight,
         headerHeight: metrics.headerHeight,
         maxHeight: metrics.maxHeight || window.innerHeight,
         minHeight: metrics.minHeight,
@@ -1058,6 +1070,7 @@ export function useBurialSidebarMobileSheetState({
 
       if (Math.abs((sheetRef.current.height || 0) - targetHeight) > 8) {
         sheetRef.current.snapTo(({ headerHeight, maxHeight, minHeight }) => getMobileSheetSnapHeight({
+          forceFullHeight,
           headerHeight,
           maxHeight,
           minHeight,
@@ -1074,6 +1087,7 @@ export function useBurialSidebarMobileSheetState({
     // short content measurement can never get misread as a collapsed drawer.
     const { headerHeight, maxHeight, minHeight } = sheetLayoutMetricsRef.current;
     const nextState = getMobileSheetStateFromHeight({
+      forceFullHeight,
       headerHeight,
       height: sheetRef.current.height,
       minHeight,
@@ -1082,7 +1096,7 @@ export function useBurialSidebarMobileSheetState({
     });
     requestedMobileSheetStateRef.current = nextState;
     setMobileSheetState(nextState);
-  }, []);
+  }, [forceFullHeight]);
 
   useEffect(() => {
     const wasMobile = previousIsMobileRef.current;

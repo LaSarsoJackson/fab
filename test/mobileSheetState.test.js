@@ -57,6 +57,16 @@ describe("mobile sheet state helpers", () => {
     })).toBeCloseTo(340);
   });
 
+  test("keeps a selected location full while its content measurement settles", () => {
+    expect(getMobileSheetSnapHeight({
+      forceFullHeight: true,
+      headerHeight: 120,
+      maxHeight: 844,
+      minHeight: 220,
+      state: MOBILE_SHEET_STATES.FULL,
+    })).toBeCloseTo(844 * 0.92);
+  });
+
   test("does not treat the collapsed header height as the full content height", () => {
     expect(getMobileSheetSnapHeight({
       maxHeight: 1000,

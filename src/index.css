@@ -1407,6 +1407,45 @@ select,
   overflow-y: auto;
 }
 
+.popup-card__stack-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -0.1rem 0 0.55rem;
+}
+
+.popup-card__stack-progress {
+  color: var(--muted-text);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.popup-card__stack-toggle {
+  min-height: 44px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition-property: background-color, scale;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.popup-card__stack-toggle:hover {
+  background: rgba(47, 107, 87, 0.18);
+}
+
+.popup-card__stack-toggle:active {
+  scale: 0.96;
+}
+
 .popup-card__stack-option {
   width: 100%;
   min-height: 44px;
@@ -2257,6 +2296,51 @@ select,
   display: none;
 }
 
+.mobile-location-card__people-tablist {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+}
+
+.mobile-location-card__people-toggle.MuiButtonBase-root {
+  flex: 0 0 auto;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 112px;
+  min-height: 50px;
+  padding: 6px 13px;
+  border-radius: 16px;
+  background: rgba(23, 100, 73, 0.08);
+  color: #14533e;
+  box-shadow: 0 0 0 1px rgba(23, 100, 73, 0.12);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: left;
+  transition-property: background-color, box-shadow, scale;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.mobile-location-card__people-toggle.MuiButtonBase-root:hover {
+  background: rgba(23, 100, 73, 0.12);
+}
+
+.mobile-location-card__people-toggle.MuiButtonBase-root:active {
+  scale: 0.96;
+}
+
+.mobile-location-card__people-progress {
+  margin-top: 2px;
+  color: rgba(60, 60, 67, 0.66);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
 .mobile-location-card__person-chip.MuiButtonBase-root {
   flex: 0 0 auto;
   display: inline-flex;
@@ -2371,6 +2455,18 @@ select,
   font-size: 17px;
   font-variant-numeric: tabular-nums;
   line-height: 1.25;
+}
+
+.mobile-location-card__summary {
+  display: -webkit-box;
+  margin: 5px 0 0;
+  overflow: hidden;
+  color: rgba(28, 28, 30, 0.82);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .mobile-location-card__record-type {

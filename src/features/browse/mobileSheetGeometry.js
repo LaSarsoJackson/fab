@@ -66,6 +66,7 @@ export const getDefaultMobileSheetState = ({
 };
 
 export const getMobileSheetSnapHeight = ({
+  forceFullHeight = false,
   headerHeight,
   maxHeight,
   minHeight,
@@ -97,6 +98,10 @@ export const getMobileSheetSnapHeight = ({
   }
 
   if (state === MOBILE_SHEET_STATES.FULL) {
+    if (forceFullHeight) {
+      return effectiveMaxHeight * SNAP_FULL_FRACTION;
+    }
+
     return contentCeilingHeight;
   }
 
@@ -104,6 +109,7 @@ export const getMobileSheetSnapHeight = ({
 };
 
 export const getMobileSheetStateFromHeight = ({
+  forceFullHeight = false,
   headerHeight,
   height,
   minHeight,
@@ -111,6 +117,7 @@ export const getMobileSheetStateFromHeight = ({
   visualViewportHeight,
 }) => {
   const collapsedHeight = getMobileSheetSnapHeight({
+    forceFullHeight,
     headerHeight,
     maxHeight: windowHeight,
     minHeight,
@@ -118,6 +125,7 @@ export const getMobileSheetStateFromHeight = ({
     visualViewportHeight,
   });
   const peekHeight = getMobileSheetSnapHeight({
+    forceFullHeight,
     headerHeight,
     maxHeight: windowHeight,
     minHeight,
@@ -125,6 +133,7 @@ export const getMobileSheetStateFromHeight = ({
     visualViewportHeight,
   });
   const fullHeight = getMobileSheetSnapHeight({
+    forceFullHeight,
     headerHeight,
     maxHeight: windowHeight,
     minHeight,

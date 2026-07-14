@@ -58,8 +58,10 @@ through `dev`; see [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md).
 
 Use short-lived work branches for product changes. Open those branches into
 `dev`; after `dev` CI passes, GitHub Actions opens or updates a `dev` ->
-`staging` PR and enables auto-merge. Promote `staging` to `main` manually when
-the public GitHub Pages/native-wrapper surface is ready.
+`staging` PR and enables merge-commit auto-merge. Promote `staging` to `main`
+manually with a merge commit when the public GitHub Pages/native-wrapper
+surface is ready. Promotions between `dev`, `staging`, and `main` preserve
+branch ancestry; squash or rebase only the short-lived branches entering `dev`.
 Short-lived branches should use `codex/`, `feature/`, `fix/`, `docs/`,
 `chore/`, `hotfix/`, `dependabot/`, or `renovate/`. Release branches may target
 `staging`; emergency hotfix branches may target `staging` or `main`.

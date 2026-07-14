@@ -37,4 +37,54 @@ describe("generated artifacts", () => {
     expect(firstMatchId).toMatch(/^burial:/);
     expect(firstMatchRecord).toHaveProperty("source", "tour");
   });
+
+  test("assigns each tour stop to at most one burial", () => {
+    const burialIdsByTourId = new Map();
+
+    Object.entries(TourMatches).forEach(([burialId, tourRecord]) => {
+      const tourId = tourRecord.id;
+      if (!burialIdsByTourId.has(tourId)) {
+        burialIdsByTourId.set(tourId, []);
+      }
+      burialIdsByTourId.get(tourId).push(burialId);
+    });
+
+    const duplicateAssignments = [...burialIdsByTourId.entries()]
+      .filter(([, burialIds]) => burialIds.length > 1);
+
+    expect(duplicateAssignments).toEqual([]);
+  });
+
+  test("enriches only the correct Marcus T. Reynolds burial", () => {
+    const reynoldsAssignments = Object.entries(TourMatches)
+      .filter(([, tourRecord]) => tourRecord.Tour_Bio === "Reynolds5")
+      .map(([burialId]) => burialId);
+    const searchRowsByObjectId = new Map(
+      SearchBurials.map((row) => [String(row.i), row])
+    );
+
+    expect(reynoldsAssignments).toEqual(["burial:28063:17:1:0"]);
+    expect(searchRowsByObjectId.get("28063")?.tk).toBe("Notable");
+    expect(searchRowsByObjectId.get("732")?.tk).toBe("");
+  });
+
+  test("keeps family collisions out while retaining known spelling variants", () => {
+    const searchRowsByObjectId = new Map(
+      SearchBurials.map((row) => [String(row.i), row])
+    );
+
+    expect(TourMatches).not.toHaveProperty("burial:100341:57:1:0");
+    expect(searchRowsByObjectId.get("100341")?.tk).toBe("");
+    expect(TourMatches["burial:52937:41:23:0"]?.Tour_Bio).toBe("Roessle172");
+    expect(TourMatches["burial:57969:8:15:0"]?.Tour_Bio).toBe("TenEyck163");
+    expect(TourMatches["burial:71095:34:2:0"]?.Tour_Bio).toBe("Lord145");
+  });
+
+  test("retains exact person-and-plot matches with bounded date transcription differences", () => {
+    expect(TourMatches["burial:71224:24:8:0"]?.Tour_Bio).toBe("Arthur18");
+    expect(TourMatches["burial:34158:41:11:0"]?.Tour_Bio).toBe("Dix9");
+    expect(TourMatches["burial:57991:18:31:0"]?.Tour_Bio).toBe("Knapp55");
+    expect(TourMatches["burial:96823:14:1:0"]?.Tour_Bio).toBe("Patterson60");
+    expect(TourMatches["burial:96601:55:1:0"]?.Tour_Bio).toBe("Gansevoort85");
+  });
 });
