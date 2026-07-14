@@ -63,6 +63,31 @@ test("PopupCardStackContent with 3 records renders all 3 names in the list and t
   expect(within(stack).getByRole("heading", { level: 3 })).toHaveTextContent("Anna Stack");
 });
 
+test("unrelated rerenders do not readjust the open popup viewport", () => {
+  const popup = {};
+  const schedulePopupLayout = jest.fn();
+  const { rerender } = render(
+    <PopupCardStackContent
+      records={stackRecords}
+      activeRecordId="one"
+      schedulePopupLayout={schedulePopupLayout}
+      getPopup={() => popup}
+    />
+  );
+  const initialLayoutCount = schedulePopupLayout.mock.calls.length;
+
+  rerender(
+    <PopupCardStackContent
+      records={stackRecords}
+      activeRecordId="one"
+      schedulePopupLayout={schedulePopupLayout}
+      getPopup={() => popup}
+    />
+  );
+
+  expect(schedulePopupLayout).toHaveBeenCalledTimes(initialLayoutCount);
+});
+
 test("desktop plot lists render an initial batch, preserve a hidden active person, and expand accessibly", () => {
   const manyRecords = Array.from({ length: 12 }, (_, index) => ({
     ...stackRecords[index % stackRecords.length],
