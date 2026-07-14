@@ -188,6 +188,7 @@ const buildPersonNameParts = (record = {}) => {
   return {
     firstName: firstNameTokens[0] || fullNameTokens[0] || "",
     firstInitial: (firstNameTokens[0] || fullNameTokens[0] || "").slice(0, 1),
+    firstNameIsInitial: (firstNameTokens[0] || fullNameTokens[0] || "").length === 1,
     surname: surnameTokens.join(""),
     surnameTail: surnameTokens[surnameTokens.length - 1] || "",
     fullNameNormalized: normalizeName(fullName),
@@ -376,7 +377,12 @@ const hasTourBurialIdentityEvidence = (tourRecord, burialRecord) => {
   );
 
   if (firstNamesMatch && surnamesMatch) return true;
-  if (firstInitialsMatch && surnamesMatch && sharedNameTokens >= 2) return true;
+  if (
+    firstInitialsMatch &&
+    (tourNameParts.firstNameIsInitial || burialNameParts.firstNameIsInitial) &&
+    surnamesMatch &&
+    sharedNameTokens >= 2
+  ) return true;
   if (burialNameParts.isSurnameOnly && surnamesMatch) return true;
 
   const matchingLifeDates = getMatchingLifeDateCount(tourRecord, burialRecord);
