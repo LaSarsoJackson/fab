@@ -64,7 +64,8 @@ jobs:
 
           Automated promotion from `dev` to `staging` after the `dev` CI run passed.
 
-          This PR is auto-merge enabled. Close it if staging should intentionally hold.
+          This PR is auto-merge enabled with an ancestry-preserving merge commit.
+          Close it if staging should intentionally hold.
 
           ## Validation
 
@@ -102,7 +103,7 @@ jobs:
           fi
 
           merge_args=(
-            --squash
+            --merge
             --subject "Promote dev to staging"
             --body "Automated promotion from dev to staging after CI passed."
           )

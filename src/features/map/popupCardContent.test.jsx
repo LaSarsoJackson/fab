@@ -1,10 +1,14 @@
 /** @jest-environment jsdom */
 
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import { PopupCardStackContent, PopupCardStackList } from "./popupCardContent";
+import {
+  PopupCardContent,
+  PopupCardStackContent,
+  PopupCardStackList,
+} from "./popupCardContent";
 
 const stackRecords = [
   {
@@ -47,11 +51,53 @@ test("PopupCardStackContent with 3 records renders all 3 names in the list and t
     />
   );
 
-  expect(screen.getByText("3 graves at this marker")).toBeInTheDocument();
+  expect(screen.getByText("3 people at this plot")).toBeInTheDocument();
   // All three names should appear in the list
   expect(screen.getAllByText("Anna Stack").length).toBeGreaterThanOrEqual(1);
   expect(screen.getByText("Beth Stack")).toBeInTheDocument();
   expect(screen.getByText("Clara Stack")).toBeInTheDocument();
+  const stack = screen.getByRole("group", { name: "3 people at this plot" });
+  expect(stack).toHaveClass("popup-card-stack");
+  expect(within(stack).getByRole("list", { name: "3 people at this plot" }))
+    .toBeInTheDocument();
+  expect(within(stack).getByRole("heading", { level: 3 })).toHaveTextContent("Anna Stack");
+});
+
+test("desktop plot lists render an initial batch, preserve a hidden active person, and expand accessibly", () => {
+  const manyRecords = Array.from({ length: 12 }, (_, index) => ({
+    ...stackRecords[index % stackRecords.length],
+    id: `person-${index + 1}`,
+    First_Name: `Person ${index + 1}`,
+  }));
+
+  render(
+    <PopupCardStackList
+      records={manyRecords}
+      activeRecordId="person-12"
+      onSelectRecord={jest.fn()}
+      stackDescription="12 people at this plot"
+    />
+  );
+
+  const list = screen.getByRole("list", { name: "12 people at this plot" });
+  expect(within(list).getAllByRole("button")).toHaveLength(9);
+  expect(within(list).getByRole("button", { name: /Person 12 Stack/i }))
+    .toHaveAttribute("aria-current", "true");
+
+  const showMore = screen.getByRole("button", { name: "Show more" });
+  expect(showMore).toHaveAttribute("aria-controls", list.id);
+  expect(showMore).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(showMore);
+
+  expect(within(list).getAllByRole("button")).toHaveLength(12);
+  expect(screen.getByText("12 of 12 shown")).toBeInTheDocument();
+  const showFewer = screen.getByRole("button", { name: "Show fewer" });
+  expect(showFewer).toHaveAttribute("aria-expanded", "true");
+  fireEvent.click(showFewer);
+
+  expect(within(list).getAllByRole("button")).toHaveLength(9);
+  expect(within(list).getByRole("button", { name: /Person 12 Stack/i }))
+    .toBeInTheDocument();
 });
 
 test("clicking a non-active option calls onSelectRecord with that record and the card switches to it", () => {
@@ -112,7 +158,7 @@ test("with a single record the list does not render", () => {
     />
   );
 
-  expect(screen.queryByText(/graves at this marker/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/people at this plot/)).not.toBeInTheDocument();
   expect(screen.queryByRole("list")).not.toBeInTheDocument();
 });
 
@@ -125,7 +171,7 @@ test("PopupCardStackList with fewer than 2 valid records returns null", () => {
     />
   );
 
-  expect(screen.queryByText(/graves at this marker/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/people at this plot/)).not.toBeInTheDocument();
   expect(screen.queryByRole("list")).not.toBeInTheDocument();
 });
 
@@ -143,4 +189,39 @@ test("popup actions render when action handlers are provided", () => {
 
   expect(screen.getByRole("button", { name: "Navigate" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+});
+
+test("the default map popup includes biography facts, portrait, and directions", () => {
+  const onNavigate = jest.fn();
+
+  render(
+    <PopupCardContent
+      record={{
+        id: "reynolds",
+        source: "tour",
+        displayName: "Marcus T. Reynolds",
+        Section: "17",
+        Lot: "1",
+        Birth: "8/20/1869",
+        Death: "3/18/1937",
+        extraTitle: "Albany Architect",
+        portraitImageName: "Reynolds5d.png",
+        biographyLink: "Reynolds5",
+      }}
+      onNavigate={onNavigate}
+      onRemove={jest.fn()}
+      schedulePopupLayout={jest.fn()}
+      getPopup={() => ({})}
+      showActions
+    />
+  );
+
+  expect(screen.getByText("Albany Architect")).toHaveClass("popup-card__paragraph");
+  expect(screen.getByRole("img", { name: "Marcus T. Reynolds portrait" }))
+    .toHaveAttribute("src", expect.stringContaining("/images/Reynolds5d.png"));
+  expect(screen.getByRole("link", { name: "Details" }))
+    .toHaveAttribute("href", "https://www.albany.edu/arce/Reynolds5.html");
+
+  fireEvent.click(screen.getByRole("button", { name: "Navigate" }));
+  expect(onNavigate).toHaveBeenCalledTimes(1);
 });

@@ -29,8 +29,12 @@ git switch -c feature/short-description
 Open pull requests in this order:
 
 1. `feature/*`, `fix/*`, `docs/*`, `chore/*`, `codex/*` -> `dev`
-2. `dev` -> `staging` through the generated auto-merge promotion PR
-3. `staging` -> `main` manually after final validation
+2. `dev` -> `staging` through the generated merge-commit auto-merge promotion PR
+3. `staging` -> `main` manually with a merge commit after final validation
+
+Only short-lived work should be squashed or rebased. Promotions between the
+three long-lived branches preserve ancestry with merge commits so the next
+promotion is based on history Git can recognize instead of a copied tree.
 
 GitHub Pages deploys from the `main` branch build through GitHub Actions. The
 legacy `gh-pages` branch is not part of the normal deployment path.

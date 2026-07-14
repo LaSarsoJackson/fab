@@ -183,16 +183,28 @@ export default function App() {
     if (typeof window === "undefined") return undefined;
 
     const viewport = window.visualViewport;
+    let viewportSyncFrame = null;
+    const scheduleViewportMetricsSync = () => {
+      if (viewportSyncFrame !== null) return;
+
+      viewportSyncFrame = window.requestAnimationFrame(() => {
+        viewportSyncFrame = null;
+        syncViewportMetrics();
+      });
+    };
     syncViewportMetrics();
 
-    window.addEventListener("resize", syncViewportMetrics);
-    viewport?.addEventListener("resize", syncViewportMetrics);
-    viewport?.addEventListener("scroll", syncViewportMetrics);
+    window.addEventListener("resize", scheduleViewportMetricsSync);
+    viewport?.addEventListener("resize", scheduleViewportMetricsSync);
+    viewport?.addEventListener("scroll", scheduleViewportMetricsSync, { passive: true });
 
     return () => {
-      window.removeEventListener("resize", syncViewportMetrics);
-      viewport?.removeEventListener("resize", syncViewportMetrics);
-      viewport?.removeEventListener("scroll", syncViewportMetrics);
+      window.removeEventListener("resize", scheduleViewportMetricsSync);
+      viewport?.removeEventListener("resize", scheduleViewportMetricsSync);
+      viewport?.removeEventListener("scroll", scheduleViewportMetricsSync);
+      if (viewportSyncFrame !== null) {
+        window.cancelAnimationFrame(viewportSyncFrame);
+      }
     };
   }, []);
 

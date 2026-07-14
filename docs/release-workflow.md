@@ -13,6 +13,9 @@ retired.
 - Use short-lived branches named `codex/*`, `feature/*`, `fix/*`, `docs/*`,
   `chore/*`, or `hotfix/*`.
 - Promote in order: short-lived branch -> `dev` -> `staging` -> `main`.
+- Squash or rebase short-lived pull requests into `dev`. Use merge commits for
+  `dev` -> `staging` and `staging` -> `main` so the long-lived branches retain
+  shared ancestry and future promotion pull requests stay conflict-free.
 - `dev` -> `staging` promotion is automated after green `dev` CI by
   `.github/workflows/promote-dev-to-staging.yml`; close the generated PR if
   staging should intentionally hold.
@@ -45,10 +48,12 @@ promotes it.
 3. Run `bun run check` locally for cross-cutting work.
 4. Open a pull request into `dev`.
 5. After `dev` CI passes, GitHub Actions opens or updates a `dev` -> `staging`
-   PR and enables auto-merge once that promotion PR's required checks pass.
-6. Promote `staging` to `main` manually after final validation.
-7. CI runs lint, tests, generated-shell drift, release metadata, and branch
-   policy checks.
+   PR and enables merge-commit auto-merge once that promotion PR's required
+   checks pass.
+6. Promote `staging` to `main` manually with a merge commit after final
+   validation.
+7. CI runs lint, unit/DOM tests, Playwright browser regressions,
+   generated-shell drift, release metadata, and branch policy checks.
 8. Merge after the required checks pass.
 9. For a numbered release, tag the merge commit as `vX.Y.Z` where `X.Y.Z`
    exactly matches `package.json`.
@@ -69,15 +74,18 @@ For `main`, require:
 - pull requests from `staging` or `hotfix/*`
 - status checks:
   `CI / Lint and test`, `CI / Release metadata`,
-  `CI / Pull request branch policy`, and `CI / Generated shell drift`
+  `CI / Browser regression`, `CI / Pull request branch policy`, and
+  `CI / Generated shell drift`
 - branches to be up to date before merging when practical
-- linear history, conversation resolution, no force pushes, and no deletions
+- merge commits enabled for `staging` promotions; conversation resolution, no
+  force pushes, and no deletions
 
 For `staging`, require:
 
 - pull requests from `dev`, `release/*`, or `hotfix/*`
 - the same status checks as `main`
-- linear history, conversation resolution, no force pushes, and no deletions
+- merge commits enabled for `dev` promotions; conversation resolution, no
+  force pushes, and no deletions
 - auto-merge may be enabled for the generated `dev` -> `staging` promotion PR
 
 For `dev`, require:
@@ -85,8 +93,15 @@ For `dev`, require:
 - pull requests from short-lived work branches
 - status checks to pass before merging:
   `CI / Lint and test`, `CI / Release metadata`,
-  `CI / Pull request branch policy`, and `CI / Generated shell drift`
+  `CI / Browser regression`, `CI / Pull request branch policy`, and
+  `CI / Generated shell drift`
 - linear history, conversation resolution, no force pushes, and no deletions
+
+Linear history remains appropriate for `dev`, where short-lived work is
+squashed or rebased. It must be disabled on `staging` and `main`: squashing or
+rebasing between long-lived branches rewrites the promoted commits, destroys
+their common ancestry, and eventually turns otherwise routine promotions into
+conflict resolutions.
 
 These settings live in GitHub, not in the repository, so this document and the
 workflow checks are the repo-side contract.

@@ -130,14 +130,6 @@ select,
   background-color: #c8d2c9;
 }
 
-.custom-div-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: 0;
-}
-
 /* "You are here": the universal blue dot. A calm pulse keeps it findable under
    tree canopy and sun glare without competing with the green cemetery markers. */
 .location-marker-icon {
@@ -199,36 +191,6 @@ select,
     opacity: 0.4;
     transform: translate(-50%, -50%) scale(1.8);
   }
-}
-
-.custom-div-icon__badge {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.96);
-  background: var(--marker-color, #e41a1c);
-  box-shadow: 0 8px 16px rgba(20, 33, 43, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1;
-  transition:
-    width 0.2s ease,
-    height 0.2s ease,
-    border-width 0.2s ease,
-    box-shadow 0.2s ease,
-    font-size 0.2s ease;
-}
-
-.custom-div-icon--highlighted .custom-div-icon__badge {
-  width: 32px;
-  height: 32px;
-  border-width: 3px;
-  box-shadow: 0 12px 24px rgba(20, 33, 43, 0.26);
-  font-size: 16px;
 }
 
 /* Sidebar shell, browse workspace, selection cards, and result-list chrome. */
@@ -1281,15 +1243,27 @@ select,
   box-shadow: 0 4px 10px rgba(20, 33, 43, 0.26);
 }
 
-.selected-burial-cluster .cemetery-cluster__count {
-  background: linear-gradient(180deg, #507e6a 0%, #34604f 100%);
+.selected-location-marker .cemetery-cluster__count {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 7px;
+  border-radius: 16px;
+  background: #176449;
   border-color: rgba(255, 255, 255, 0.95);
   color: rgba(255, 255, 255, 0.97);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  box-shadow:
+    0 0 0 1px rgba(13, 61, 44, 0.12),
+    0 4px 12px rgba(20, 33, 43, 0.24);
 }
 
-.selected-burial-cluster--highlighted .cemetery-cluster__count {
-  transform: scale(1.1);
-  box-shadow: 0 0 0 3px rgba(47, 107, 87, 0.3), 0 4px 12px rgba(20, 33, 43, 0.3);
+.selected-location-marker--highlighted .cemetery-cluster__count {
+  transform: scale(1.06);
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.9),
+    0 0 0 6px rgba(23, 100, 73, 0.28),
+    0 6px 16px rgba(20, 33, 43, 0.3);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1354,6 +1328,7 @@ select,
 .leaflet-popup-content {
   margin: 0;
   font-family: 'Manrope', sans-serif;
+  overflow: hidden;
 }
 
 .leaflet-container a.leaflet-popup-close-button {
@@ -1430,6 +1405,45 @@ select,
   gap: 2px;
   max-height: 184px;
   overflow-y: auto;
+}
+
+.popup-card__stack-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -0.1rem 0 0.55rem;
+}
+
+.popup-card__stack-progress {
+  color: var(--muted-text);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.popup-card__stack-toggle {
+  min-height: 44px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition-property: background-color, scale;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.popup-card__stack-toggle:hover {
+  background: rgba(47, 107, 87, 0.18);
+}
+
+.popup-card__stack-toggle:active {
+  scale: 0.96;
 }
 
 .popup-card__stack-option {
@@ -1600,6 +1614,101 @@ select,
   border-color: rgba(20, 33, 43, 0.08);
   color: var(--muted-text);
   box-shadow: 0 6px 14px rgba(20, 33, 43, 0.04);
+}
+
+.leaflet-popup .popup-card {
+  display: flex;
+  flex-direction: column;
+  max-height: min(70vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.leaflet-popup .popup-card-stack {
+  max-height: min(70vh, 420px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.leaflet-popup .popup-card-stack > .popup-card {
+  max-height: none;
+  overflow: visible;
+}
+
+.leaflet-popup .popup-card-stack .popup-card__stack-list {
+  max-height: none;
+  flex-direction: row;
+  gap: 0.35rem;
+  padding-bottom: 0.2rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.leaflet-popup .popup-card-stack .popup-card__stack-list > li {
+  flex: 0 0 calc(50% - 0.175rem);
+  min-width: 0;
+}
+
+.leaflet-popup .popup-card-stack .popup-card__stack-option {
+  height: 100%;
+  padding: 4px 6px;
+}
+
+.leaflet-popup .popup-card-stack .popup-card__stack-option-name {
+  font-size: 0.8rem;
+  line-height: 1.15;
+}
+
+.leaflet-popup .popup-card-stack .popup-card__stack-option-meta {
+  font-size: 0.72rem;
+}
+
+.leaflet-popup .popup-card-stack .popup-card__actions {
+  order: 2;
+}
+
+.leaflet-popup .popup-card-stack .popup-card__details {
+  order: 3;
+}
+
+.leaflet-popup .popup-card__actions {
+  order: 3;
+  margin-top: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  gap: 0.4rem;
+}
+
+.leaflet-popup .popup-card__action {
+  width: 100%;
+  padding-right: 0.4rem;
+  padding-left: 0.4rem;
+}
+
+.leaflet-popup .popup-card__media {
+  order: 4;
+  margin-top: 0.75rem;
+}
+
+.leaflet-popup .popup-card__body {
+  order: 1;
+}
+
+.leaflet-popup .popup-card__details {
+  order: 2;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.leaflet-popup .popup-card__image {
+  width: auto;
+  max-width: 100%;
+  height: 128px;
+  max-height: 128px;
+  object-fit: cover;
 }
 
 .left-sidebar__selected-place-card {
@@ -1959,6 +2068,11 @@ select,
 [data-rsbs-scroll] {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+[data-rsbs-scroll]::-webkit-scrollbar {
+  display: none;
 }
 
 [data-rsbs-content] {
@@ -2087,6 +2201,337 @@ select,
   opacity: 1;
 }
 
+/* Selected mobile place: the bottom sheet becomes the popup instead of
+ * competing with a second Leaflet card above the map. */
+[data-rsbs-header]:has(.mobile-location-header) {
+  padding-bottom: 8px;
+  box-shadow: none;
+}
+
+.mobile-location-header {
+  display: grid;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.mobile-location-header__back.MuiButtonBase-root {
+  justify-self: start;
+  min-width: 0;
+  min-height: 44px;
+  margin-left: -8px;
+  padding: 0 10px 0 6px;
+  border-radius: 12px;
+  color: #176449;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.15px;
+  transition-property: background-color, scale;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.mobile-location-header__back.MuiButtonBase-root:hover {
+  background-color: rgba(23, 100, 73, 0.08);
+}
+
+.mobile-location-header__back.MuiButtonBase-root:active {
+  scale: 0.96;
+}
+
+.mobile-location-header__back .MuiSvgIcon-root {
+  width: 18px;
+  height: 18px;
+  margin-right: 3px;
+}
+
+.mobile-location-header__copy {
+  min-width: 0;
+  padding: 0 2px 3px;
+  text-align: left;
+}
+
+.mobile-location-header__title.MuiTypography-root {
+  margin: 0;
+  color: #164f3d;
+  font-family: inherit;
+  font-size: clamp(23px, 6.5vw, 28px);
+  font-weight: 750;
+  letter-spacing: -0.75px;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.mobile-location-header__subtitle.MuiTypography-root {
+  margin: 5px 0 0;
+  color: rgba(60, 60, 67, 0.68);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-wrap: pretty;
+}
+
+.mobile-location-card {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 4px 14px 10px;
+}
+
+.mobile-location-card__people-rail {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+  margin: 0 -14px;
+  padding: 3px 14px 5px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+  scroll-padding-inline: 14px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-location-card__people-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-location-card__people-tablist {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+}
+
+.mobile-location-card__people-toggle.MuiButtonBase-root {
+  flex: 0 0 auto;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 112px;
+  min-height: 50px;
+  padding: 6px 13px;
+  border-radius: 16px;
+  background: rgba(23, 100, 73, 0.08);
+  color: #14533e;
+  box-shadow: 0 0 0 1px rgba(23, 100, 73, 0.12);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: left;
+  transition-property: background-color, box-shadow, scale;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.mobile-location-card__people-toggle.MuiButtonBase-root:hover {
+  background: rgba(23, 100, 73, 0.12);
+}
+
+.mobile-location-card__people-toggle.MuiButtonBase-root:active {
+  scale: 0.96;
+}
+
+.mobile-location-card__people-progress {
+  margin-top: 2px;
+  color: rgba(60, 60, 67, 0.66);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.mobile-location-card__person-chip.MuiButtonBase-root {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 50px;
+  max-width: 170px;
+  padding: 6px 13px 6px 7px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #243b34;
+  box-shadow:
+    0 0 0 1px rgba(20, 33, 43, 0.08),
+    0 2px 4px rgba(20, 33, 43, 0.05);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: left;
+  content-visibility: auto;
+  contain-intrinsic-inline-size: 132px;
+  transition-property: background-color, box-shadow, color, scale;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.mobile-location-card__person-chip.MuiButtonBase-root:active {
+  scale: 0.96;
+}
+
+.mobile-location-card__person-chip.MuiButtonBase-root:focus-visible {
+  outline: 3px solid rgba(23, 100, 73, 0.25);
+  outline-offset: 2px;
+}
+
+.mobile-location-card__person-chip--active.MuiButtonBase-root {
+  background: rgba(242, 249, 246, 0.98);
+  color: #14533e;
+  box-shadow:
+    0 0 0 1.5px #176449,
+    0 3px 8px rgba(20, 33, 43, 0.08);
+}
+
+.mobile-location-card__person-chip > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-location-card__person-chip-image {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: 10px;
+  object-fit: cover;
+  outline: 1px solid rgba(0, 0, 0, 0.1);
+  outline-offset: -1px;
+}
+
+.mobile-location-card__person-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    0 0 0 1px rgba(20, 33, 43, 0.055),
+    0 1px 2px -1px rgba(20, 33, 43, 0.08),
+    0 8px 24px rgba(20, 33, 43, 0.07);
+}
+
+.mobile-location-card__active-person {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+
+.mobile-location-card__active-person .left-sidebar__selected-place-visual {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  outline: 1px solid rgba(0, 0, 0, 0.1);
+  outline-offset: -1px;
+}
+
+.mobile-location-card__active-copy {
+  min-width: 0;
+}
+
+.mobile-location-card__person-name {
+  margin: 0;
+  color: #164f3d;
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -0.45px;
+  line-height: 1.13;
+  text-wrap: balance;
+}
+
+.mobile-location-card__life-dates,
+.mobile-location-card__record-type {
+  margin: 0;
+  color: rgba(60, 60, 67, 0.7);
+  text-wrap: pretty;
+}
+
+.mobile-location-card__life-dates {
+  margin-top: 5px;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+
+.mobile-location-card__summary {
+  display: -webkit-box;
+  margin: 5px 0 0;
+  overflow: hidden;
+  color: rgba(28, 28, 30, 0.82);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.mobile-location-card__record-type {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.3;
+}
+
+.mobile-location-card__actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.mobile-location-card__action.MuiButton-root {
+  min-height: 48px;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.15px;
+  text-transform: none;
+  transition-property: background-color, box-shadow, color, scale;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.mobile-location-card__action.MuiButton-root:active {
+  scale: 0.96;
+}
+
+.mobile-location-card__action--primary.MuiButton-root {
+  padding-left: 16px;
+  padding-right: 14px;
+  background: #176449;
+  color: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(10, 66, 46, 0.16),
+    0 4px 10px rgba(16, 79, 57, 0.2);
+}
+
+.mobile-location-card__action--primary.MuiButton-root:hover {
+  background: #12563e;
+}
+
+.mobile-location-card__action--secondary.MuiButton-root {
+  background: rgba(255, 255, 255, 0.86);
+  color: #175842;
+  box-shadow:
+    0 0 0 1px rgba(20, 33, 43, 0.09),
+    0 1px 2px rgba(20, 33, 43, 0.05);
+}
+
+.mobile-location-card__action--secondary.MuiButton-root:hover {
+  background: rgba(245, 249, 247, 0.98);
+}
+
+.mobile-location-card__details {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(20, 33, 43, 0.08);
+}
+
 /* Ensure our MUI chips, buttons, etc. still look right inside the sheet */
 .left-sidebar--mobile .left-sidebar__panel--browse,
 .left-sidebar--mobile .left-sidebar__panel--selected,
@@ -2148,48 +2593,6 @@ select,
   align-items: stretch;
 }
 
-.left-sidebar--mobile .left-sidebar__panel--selected-summary {
-  border-radius: 18px;
-}
-
-.left-sidebar--mobile .left-sidebar__selection-summary-header--mobile {
-  min-height: 32px;
-}
-
-.left-sidebar--mobile .left-sidebar__selected-place-card--compact {
-  padding: 0.74rem 0.78rem 0.78rem;
-}
-
-.left-sidebar--mobile .left-sidebar__selected-place-hero {
-  grid-template-columns: 64px minmax(0, 1fr);
-  gap: 0.72rem;
-}
-
-.left-sidebar--mobile .left-sidebar__selected-place-visual {
-  width: 64px;
-  height: 64px;
-  border-radius: 12px;
-}
-
-.left-sidebar--mobile .left-sidebar__selected-place-source {
-  margin-top: 0.22rem;
-}
-
-.left-sidebar--mobile .left-sidebar__selected-place-card--compact .popup-card__subtitle {
-  margin-top: 0.32rem;
-  font-size: 0.86rem;
-  line-height: 1.28;
-}
-
-.left-sidebar--mobile .left-sidebar__selected-place-card--compact .popup-card__hint {
-  margin-top: 0.32rem;
-}
-
-.left-sidebar--mobile .left-sidebar__selected-place-card--compact .popup-card__actions {
-  margin-top: 0.62rem;
-  gap: 0.5rem;
-}
-
 /* Autocomplete popper should sit above the sheet */
 .left-sidebar__autocomplete-popper {
   z-index: 1600 !important;
@@ -2199,6 +2602,22 @@ select,
   .map-container {
     height: var(--app-height);
     min-height: var(--app-height);
+  }
+
+  .leaflet-popup .popup-card {
+    max-height: min(50svh, 420px);
+  }
+
+  .leaflet-popup .popup-card-stack {
+    max-height: min(45svh, 380px);
+  }
+
+  .leaflet-popup .popup-card__image {
+    width: auto;
+    max-width: 100%;
+    height: 112px;
+    max-height: 112px;
+    object-fit: cover;
   }
 
   .leaflet-top.leaflet-right {

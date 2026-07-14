@@ -70,19 +70,6 @@ export const buildClearBrowseQueryIntent = () => ({
   shouldSetBrowseQuery: true,
 });
 
-export const buildBrowseResultSelectIntent = ({
-  isMobile = false,
-  selectedBurialsLength = 0,
-} = {}) => {
-  const shouldSetSelectedSummaryExpanded = Boolean(isMobile)
-    && Number(selectedBurialsLength) === 0;
-
-  return {
-    isSelectedSummaryExpandedToSet: shouldSetSelectedSummaryExpanded ? true : null,
-    shouldSetSelectedSummaryExpanded,
-  };
-};
-
 export const buildTourSelectionIntent = ({
   hasTourBrowse = false,
   tourName = "",
@@ -228,7 +215,6 @@ export const buildClearAllBrowseStateIntent = ({
   return {
     browseQueryToSet: "",
     browseSourceToSet: "all",
-    isSelectedSummaryExpandedToSet: false,
     lotTierFilterToSet: "",
     selectedTourToSet: null,
     shouldClearSectionFilters: hasSectionFilter,
@@ -336,7 +322,6 @@ export const buildMobileSheetRevealIntent = ({
     shouldExpandMobileSheet: (
       (
         shouldRevealSelectedRecord
-        && resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED
       ) ||
       (
         shouldRevealBrowseContext
@@ -939,18 +924,13 @@ export function useBurialSidebarMobileSheetState({
     isMobile,
   });
   const [mobileSheetState, setMobileSheetState] = useState(() => initialMobileSheetState);
-  const [isSelectedSummaryExpanded, setIsSelectedSummaryExpanded] = useState(
-    () => selectedBurialsLength > 1
-  );
   const sheetRef = useRef(null);
   const requestedMobileSheetStateRef = useRef(null);
   // Last layout metrics reported by the bottom sheet. Spring-end bucketing must
   // use the same inputs the snap points were computed from, otherwise a short
   // content measurement gets mistaken for a collapsed drawer.
   const sheetLayoutMetricsRef = useRef({ headerHeight: null, maxHeight: null, minHeight: null });
-  const previousSelectedCountRef = useRef(selectedBurialsLength);
   const previousIsMobileRef = useRef(isMobile);
-  const previousHasActiveBrowseContextRef = useRef(hasActiveBrowseContext);
   const currentMobileSheetState = getDefaultMobileSheetState({
     hasBrowseContext: hasActiveBrowseContext,
     hasSelectedBurials: selectedBurialsLength > 0,
@@ -962,6 +942,10 @@ export function useBurialSidebarMobileSheetState({
   const resolvedMobileSheetState = isMobile && !previousIsMobileRef.current
     ? currentMobileSheetState
     : mobileSheetState;
+  // Selected-place content changes as portraits and biography metadata settle.
+  // Do not let an early, short content measurement collapse a requested full
+  // location card back onto the browse peek height.
+  const forceFullHeight = selectedBurialsLength > 0;
 
   const mobileSnapPoints = useCallback(({ headerHeight, maxHeight, minHeight }) => {
     sheetLayoutMetricsRef.current = { headerHeight, maxHeight, minHeight };
@@ -971,6 +955,7 @@ export function useBurialSidebarMobileSheetState({
     const visualViewportHeight = getCurrentVisualViewportHeight();
     const snapPoints = [
       getMobileSheetSnapHeight({
+        forceFullHeight,
         headerHeight,
         maxHeight,
         minHeight,
@@ -978,6 +963,7 @@ export function useBurialSidebarMobileSheetState({
         visualViewportHeight,
       }),
       getMobileSheetSnapHeight({
+        forceFullHeight,
         headerHeight,
         maxHeight,
         minHeight,
@@ -985,6 +971,7 @@ export function useBurialSidebarMobileSheetState({
         visualViewportHeight,
       }),
       getMobileSheetSnapHeight({
+        forceFullHeight,
         headerHeight,
         maxHeight,
         minHeight,
@@ -994,13 +981,14 @@ export function useBurialSidebarMobileSheetState({
     ];
 
     return Array.from(new Set(snapPoints)).sort((a, b) => a - b);
-  }, []);
+  }, [forceFullHeight]);
 
   const mobileDefaultSnap = useCallback(({ headerHeight, maxHeight, minHeight, snapPoints }) => {
     const visualViewportHeight = getCurrentVisualViewportHeight();
 
     if (resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
       return snapPoints[0] || getMobileSheetSnapHeight({
+        forceFullHeight,
         headerHeight,
         maxHeight,
         minHeight,
@@ -1011,6 +999,7 @@ export function useBurialSidebarMobileSheetState({
 
     if (resolvedMobileSheetState === MOBILE_SHEET_STATES.FULL) {
       return snapPoints[snapPoints.length - 1] || getMobileSheetSnapHeight({
+        forceFullHeight,
         headerHeight,
         maxHeight,
         minHeight,
@@ -1020,13 +1009,14 @@ export function useBurialSidebarMobileSheetState({
     }
 
     return snapPoints[Math.min(1, snapPoints.length - 1)] || getMobileSheetSnapHeight({
+      forceFullHeight,
       headerHeight,
       maxHeight,
       minHeight,
       state: MOBILE_SHEET_STATES.PEEK,
       visualViewportHeight,
     });
-  }, [resolvedMobileSheetState]);
+  }, [forceFullHeight, resolvedMobileSheetState]);
 
   const setAndSnapMobileSheet = useCallback((state) => {
     if (!isMobile) return;
@@ -1036,6 +1026,7 @@ export function useBurialSidebarMobileSheetState({
     setMobileSheetState(state);
     if (sheetRef.current) {
       sheetRef.current.snapTo(({ headerHeight, maxHeight, minHeight }) => getMobileSheetSnapHeight({
+        forceFullHeight,
         headerHeight,
         maxHeight,
         minHeight,
@@ -1043,7 +1034,7 @@ export function useBurialSidebarMobileSheetState({
         visualViewportHeight: getCurrentVisualViewportHeight(),
       }));
     }
-  }, [isMobile]);
+  }, [forceFullHeight, isMobile]);
 
   const maximizeMobileSheet = useCallback(() => {
     setAndSnapMobileSheet(MOBILE_SHEET_STATES.FULL);
@@ -1069,6 +1060,7 @@ export function useBurialSidebarMobileSheetState({
 
       const metrics = sheetLayoutMetricsRef.current;
       const targetHeight = getMobileSheetSnapHeight({
+        forceFullHeight,
         headerHeight: metrics.headerHeight,
         maxHeight: metrics.maxHeight || window.innerHeight,
         minHeight: metrics.minHeight,
@@ -1078,6 +1070,7 @@ export function useBurialSidebarMobileSheetState({
 
       if (Math.abs((sheetRef.current.height || 0) - targetHeight) > 8) {
         sheetRef.current.snapTo(({ headerHeight, maxHeight, minHeight }) => getMobileSheetSnapHeight({
+          forceFullHeight,
           headerHeight,
           maxHeight,
           minHeight,
@@ -1094,6 +1087,7 @@ export function useBurialSidebarMobileSheetState({
     // short content measurement can never get misread as a collapsed drawer.
     const { headerHeight, maxHeight, minHeight } = sheetLayoutMetricsRef.current;
     const nextState = getMobileSheetStateFromHeight({
+      forceFullHeight,
       headerHeight,
       height: sheetRef.current.height,
       minHeight,
@@ -1102,7 +1096,7 @@ export function useBurialSidebarMobileSheetState({
     });
     requestedMobileSheetStateRef.current = nextState;
     setMobileSheetState(nextState);
-  }, []);
+  }, [forceFullHeight]);
 
   useEffect(() => {
     const wasMobile = previousIsMobileRef.current;
@@ -1118,66 +1112,14 @@ export function useBurialSidebarMobileSheetState({
     }
   }, [currentMobileSheetState, isMobile, mobileSheetState]);
 
-  useEffect(() => {
-    const previousSelectedCount = previousSelectedCountRef.current;
-    const previousHasActiveBrowseContext = previousHasActiveBrowseContextRef.current;
-
-    if (!isMobile) {
-      previousSelectedCountRef.current = selectedBurialsLength;
-      previousHasActiveBrowseContextRef.current = hasActiveBrowseContext;
-      return;
-    }
-
-    // Mobile drawer behavior follows context changes automatically so search-
-    // first flows stay lightweight while explicit selections still expand the
-    // working area when the user needs it.
-    if (selectedBurialsLength === 0 && previousSelectedCount > 0) {
-      setIsSelectedSummaryExpanded(false);
-      if (!hasActiveBrowseContext && resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
-        expandMobileSheet();
-      }
-    } else if (selectedBurialsLength > previousSelectedCount && selectedBurialsLength > 1) {
-      setIsSelectedSummaryExpanded(true);
-      if (resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED) {
-        expandMobileSheet();
-      }
-    } else if (
-      !previousHasActiveBrowseContext
-      && hasActiveBrowseContext
-      && initialBrowseSource !== "all"
-      && resolvedMobileSheetState === MOBILE_SHEET_STATES.COLLAPSED
-    ) {
-      expandMobileSheet();
-    } else if (previousHasActiveBrowseContext && !hasActiveBrowseContext && selectedBurialsLength === 0) {
-      setIsSelectedSummaryExpanded(false);
-    }
-
-    previousSelectedCountRef.current = selectedBurialsLength;
-    previousHasActiveBrowseContextRef.current = hasActiveBrowseContext;
-  }, [
-    expandMobileSheet,
-    hasActiveBrowseContext,
-    initialBrowseSource,
-    isMobile,
-    resolvedMobileSheetState,
-    selectedBurialsLength,
-  ]);
-
-  const toggleSelectedSummary = useCallback(() => {
-    setIsSelectedSummaryExpanded((current) => !current);
-  }, []);
-
   return {
     collapseMobileSheet,
     expandMobileSheet,
     handleSheetSpringEnd,
-    isSelectedSummaryExpanded,
     maximizeMobileSheet,
     mobileDefaultSnap,
     mobileSnapPoints,
     resolvedMobileSheetState,
-    setIsSelectedSummaryExpanded,
     sheetRef,
-    toggleSelectedSummary,
   };
 }

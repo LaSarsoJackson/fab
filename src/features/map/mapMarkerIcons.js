@@ -49,7 +49,6 @@ const SECTION_CLUSTER_DENSITY_FALLBACK = {
   label: "fewer than 20 records",
 };
 
-const numberedMarkerIcons = new Map();
 const sectionPoiIcons = new Map();
 
 const escapeHtml = (value = "") => String(value)
@@ -160,36 +159,6 @@ export const createLocationMarkerIcon = () => {
   return locationMarkerIcon;
 };
 
-export const createNumberedMarkerIcon = (number) => {
-  const cacheKey = String(number);
-  const cachedIcon = numberedMarkerIcons.get(cacheKey);
-  if (cachedIcon) {
-    return cachedIcon;
-  }
-
-  const colorIndex = (number - 1) % MAP_MARKER_COLORS.length;
-  const color = MAP_MARKER_COLORS[colorIndex];
-
-  const icon = L.divIcon({
-    className: "custom-div-icon",
-    html: `
-      <div
-        class="custom-div-icon__badge"
-        data-marker-number="${number}"
-        style="--marker-color: ${color};"
-      >
-        ${number}
-      </div>
-    `,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -16],
-  });
-
-  numberedMarkerIcons.set(cacheKey, icon);
-  return icon;
-};
-
 export const createCemeteryClusterIcon = ({
   count = 0,
   label = String(Math.max(0, Number(count) || 0)),
@@ -223,16 +192,16 @@ export const createCemeteryClusterIcon = ({
   });
 };
 
-export const createSelectedBurialStackIcon = ({ count = 0, isHighlighted = false } = {}) => (
+export const createSelectedLocationIcon = ({ count = 0, isHighlighted = false } = {}) => (
   createCemeteryClusterIcon({
     count,
     size: 34,
     wrapperClassName: [
       "cemetery-cluster",
-      "selected-burial-cluster",
-      isHighlighted ? "selected-burial-cluster--highlighted" : "",
+      "selected-location-marker",
+      isHighlighted ? "selected-location-marker--highlighted" : "",
     ].filter(Boolean).join(" "),
-    className: "custom-cluster-icon selected-burial-cluster-icon",
+    className: "custom-cluster-icon selected-location-marker-icon",
   })
 );
 
