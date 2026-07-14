@@ -241,11 +241,11 @@ test.describe("desktop", () => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
 
-    await page.getByRole("button", { name: "Explore Sections" }).click();
+    await page.getByRole("button", { name: "Sections", exact: true }).click();
     const sectionBrowseDetail = page.locator(".left-sidebar__browse-detail--section");
     const browseSearchInput = page.locator(".left-sidebar__browse-composer input").first();
 
-    await expect(sectionBrowseDetail).toContainText(/one section, then refine inside it\./i);
+    await expect(sectionBrowseDetail).toContainText("Choose a section to zoom in.");
 
     const sectionInput = page.getByRole("combobox", { name: "Section" });
     await sectionInput.click();
@@ -253,7 +253,7 @@ test.describe("desktop", () => {
     await page.getByRole("option", { name: "Section 215" }).click();
     await expect(sectionInput).toHaveValue("Section 215");
     await expect(browseSearchInput).toHaveAttribute("placeholder", "Search this section");
-    await expect(sectionBrowseDetail.getByRole("heading", { name: "Refine" })).toBeVisible();
+    await expect(sectionBrowseDetail.getByRole("heading", { name: "Filter records" })).toBeVisible();
     await expect(page.locator(".left-sidebar__panel--browse")).toContainText("114 results");
 
     const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
@@ -267,8 +267,8 @@ test.describe("desktop", () => {
     await sectionBrowseDetail.getByRole("button", { name: "Clear" }).click();
     await expect(sectionInput).toHaveValue("");
     await expect(browseSearchInput).toHaveAttribute("placeholder", "Select a section to browse");
-    await expect(sectionBrowseDetail.getByRole("heading", { name: "Refine" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Show section markers" })).toHaveCount(0);
+    await expect(sectionBrowseDetail.getByRole("heading", { name: "Filter records" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /grave markers in this section/i })).toHaveCount(0);
   });
 
   test("tour browsing loads stops and lets a user inspect a tour stop popup", async ({ page }) => {
