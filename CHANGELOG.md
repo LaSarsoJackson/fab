@@ -14,6 +14,9 @@ contract releases.
   move through people at the same plot without dragging the bottom sheet.
 - Kept compact selected-plot sheets attached to the bottom with the map,
   marker, directions, and record details visible on short screens.
+- Kept manually adjusted map views stable while live on-site routes refresh.
+- Opened external Maps directly from the trusted Navigate action so desktop
+  browsers do not silently block the directions tab.
 
 ## [0.2.0] - 2026-07-13
 
