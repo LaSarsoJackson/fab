@@ -52,8 +52,8 @@ promotes it.
    checks pass.
 6. Promote `staging` to `main` manually with a merge commit after final
    validation.
-7. CI runs lint, tests, generated-shell drift, release metadata, and branch
-   policy checks.
+7. CI runs lint, unit/DOM tests, Playwright browser regressions,
+   generated-shell drift, release metadata, and branch policy checks.
 8. Merge after the required checks pass.
 9. For a numbered release, tag the merge commit as `vX.Y.Z` where `X.Y.Z`
    exactly matches `package.json`.
@@ -74,7 +74,8 @@ For `main`, require:
 - pull requests from `staging` or `hotfix/*`
 - status checks:
   `CI / Lint and test`, `CI / Release metadata`,
-  `CI / Pull request branch policy`, and `CI / Generated shell drift`
+  `CI / Browser regression`, `CI / Pull request branch policy`, and
+  `CI / Generated shell drift`
 - branches to be up to date before merging when practical
 - merge commits enabled for `staging` promotions; conversation resolution, no
   force pushes, and no deletions
@@ -92,7 +93,8 @@ For `dev`, require:
 - pull requests from short-lived work branches
 - status checks to pass before merging:
   `CI / Lint and test`, `CI / Release metadata`,
-  `CI / Pull request branch policy`, and `CI / Generated shell drift`
+  `CI / Browser regression`, `CI / Pull request branch policy`, and
+  `CI / Generated shell drift`
 - linear history, conversation resolution, no force pushes, and no deletions
 
 Linear history remains appropriate for `dev`, where short-lived work is
