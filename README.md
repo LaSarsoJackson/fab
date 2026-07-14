@@ -168,8 +168,10 @@ after `staging` is promoted to `main`.
 Production work flows through three long-lived branches: `dev` for integration,
 `staging` for pre-production validation, and `main` for production. Open
 short-lived work branches into `dev`; when `dev` CI passes, GitHub Actions opens
-or updates a `dev` -> `staging` PR and enables auto-merge. Promote `staging` to
-`main` manually when ready for the public GitHub Pages/native-wrapper surface.
+or updates a `dev` -> `staging` PR and enables merge-commit auto-merge. Promote
+`staging` to `main` manually with a merge commit when ready for the public
+GitHub Pages/native-wrapper surface. Merge commits preserve ancestry between
+the long-lived branches; short-lived work entering `dev` may still be squashed.
 Short-lived branches should use prefixes such as `feature/`, `fix/`, `docs/`,
 `chore/`, `hotfix/`, or `codex/`.
 
