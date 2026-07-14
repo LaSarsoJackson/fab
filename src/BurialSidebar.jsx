@@ -14,8 +14,10 @@ import {
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import DirectionsIcon from "@mui/icons-material/Directions";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { BottomSheet } from "react-spring-bottom-sheet";
 import "react-spring-bottom-sheet/dist/style.css";
@@ -46,18 +48,17 @@ import {
   buildSelectedBurialLookup,
   buildSelectedPlaceDetailPresentation,
   buildSelectedSummaryPresentation,
+  buildSelectedLocationLabel,
   buildSelectedPlaceInitials,
   getSelectedPlaceTypeLabel,
   hasFieldPacketContent,
 } from "./features/browse/selectedRecordPresentation";
 import { buildFieldPacketPanelPresentation } from "./features/fieldPackets";
-import { PopupCardStackList } from "./features/map/popupCardContent";
 import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordPresentation";
 import { resolvePortraitImageName } from "./features/tours/tourDerivedData";
 import { MOBILE_SHEET_STATES } from "./features/browse/mobileSheetGeometry";
 import {
   buildBrowseQueryChangeIntent,
-  buildBrowseResultSelectIntent,
   buildSidebarBrowseFlags,
   buildBrowseSourceChangeIntent,
   buildClearAllBrowseStateIntent,
@@ -86,6 +87,16 @@ import {
  * mobile drawer behavior. Pure result shaping and mobile-sheet state live in
  * feature/hooks modules so this file can stay focused on composing the UI.
  */
+const MOBILE_LOCATION_INITIAL_PERSON_LIMIT = 8;
+
+const buildMobileLocationTabId = (tabSetId, recordId) => (
+  `${tabSetId}-tab-${encodeURIComponent(cleanRecordValue(recordId)).replace(/%/g, "_")}`
+);
+
+const buildMobileLocationTabSetId = (records = [], fallbackId = "plot") => (
+  `mobile-location-${encodeURIComponent(cleanRecordValue(records[0]?.id || fallbackId)).replace(/%/g, "_")}`
+);
+
 const rowShellStyles = {
   transition: "background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease",
   borderRadius: 3,
@@ -498,8 +509,10 @@ function BrowseResultsPanel({
   sectionFilter,
   selectedBurials,
   selectedTour,
+  setVisibleCount,
   scopeChips = EMPTY_PACKET_RECORDS,
   tourStyles,
+  visibleCount,
 }) {
   const {
     selectedBurialCount,
@@ -510,7 +523,6 @@ function BrowseResultsPanel({
   );
   const onBrowseResultSelectRef = useRef(onBrowseResultSelect);
   const onHoverBurialChangeRef = useRef(onHoverBurialChange);
-  const [visibleCount, setVisibleCount] = useState(batchSize);
 
   onBrowseResultSelectRef.current = onBrowseResultSelect;
   onHoverBurialChangeRef.current = onHoverBurialChange;
@@ -522,20 +534,6 @@ function BrowseResultsPanel({
   const handleHoverBurialChange = useCallback((burialId) => {
     onHoverBurialChangeRef.current?.(burialId);
   }, []);
-
-  useEffect(() => {
-    // Scope changes should reset incremental pagination so newly selected
-    // sections/tours start from the top of their result list.
-    setVisibleCount(batchSize);
-  }, [
-    activeBurialId,
-    batchSize,
-    browseResults.length,
-    browseSource,
-    query,
-    sectionFilter,
-    selectedTour,
-  ]);
 
   const panelPresentation = useMemo(
     () => buildBrowseResultsPanelPresentation({
@@ -1109,27 +1107,195 @@ function SelectionLeadCard({
   );
 }
 
+const MobileLocationPersonChip = memo(function MobileLocationPersonChip({
+  controlsId,
+  isActive,
+  onKeyDown,
+  onSelect,
+  record,
+  tabId,
+}) {
+  const popupView = useMemo(() => buildPopupViewModel(record), [record]);
+  const [mediaUrl, setMediaUrl] = useState(() => popupView.imageUrl || "");
+
+  useEffect(() => {
+    setMediaUrl(popupView.imageUrl || "");
+  }, [popupView.imageUrl, record?.id]);
+
+  return (
+    <ButtonBase
+      component="button"
+      type="button"
+      role="tab"
+      id={tabId}
+      aria-controls={controlsId}
+      aria-selected={isActive}
+      tabIndex={isActive ? 0 : -1}
+      className={[
+        "mobile-location-card__person-chip",
+        isActive ? "mobile-location-card__person-chip--active" : "",
+      ].filter(Boolean).join(" ")}
+      onClick={() => onSelect?.(record)}
+      onKeyDown={(event) => onKeyDown?.(event, record)}
+    >
+      {mediaUrl && (
+        <img
+          className="mobile-location-card__person-chip-image"
+          src={mediaUrl}
+          alt=""
+          loading="lazy"
+          onError={() => setMediaUrl("")}
+        />
+      )}
+      <span>{popupView.heading}</span>
+    </ButtonBase>
+  );
+});
+
+const MobileLocationPeopleTabs = memo(function MobileLocationPeopleTabs({
+  activeRecordId,
+  onSelectRecord,
+  panelId,
+  records,
+  tabSetId,
+}) {
+  const [visibleLimit, setVisibleLimit] = useState(MOBILE_LOCATION_INITIAL_PERSON_LIMIT);
+  const activeRecord = useMemo(
+    () => records.find((record) => record.id === activeRecordId) || records[0],
+    [activeRecordId, records]
+  );
+  const visibleRecords = useMemo(() => {
+    const initialRecords = records.slice(0, visibleLimit);
+    return activeRecord && !initialRecords.some((record) => record.id === activeRecord.id)
+      ? [...initialRecords, activeRecord]
+      : initialRecords;
+  }, [activeRecord, records, visibleLimit]);
+  const hasHiddenRecords = visibleRecords.length < records.length;
+  const canCollapse = !hasHiddenRecords && visibleLimit > MOBILE_LOCATION_INITIAL_PERSON_LIMIT;
+  const tabListId = `${tabSetId}-list`;
+  const activeTabId = buildMobileLocationTabId(tabSetId, activeRecord?.id);
+
+  useEffect(() => {
+    const activeTab = document.getElementById(activeTabId);
+    if (typeof activeTab?.scrollIntoView === "function") {
+      activeTab.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+  }, [activeTabId, visibleLimit]);
+
+  const handleTabKeyDown = useCallback((event, record) => {
+    const currentIndex = visibleRecords.findIndex((candidate) => candidate.id === record.id);
+    if (currentIndex < 0) return;
+
+    let nextIndex = null;
+    if (event.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % visibleRecords.length;
+    } else if (event.key === "ArrowLeft") {
+      nextIndex = (currentIndex - 1 + visibleRecords.length) % visibleRecords.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = visibleRecords.length - 1;
+    }
+
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    const nextRecord = visibleRecords[nextIndex];
+    const nextTab = document.getElementById(buildMobileLocationTabId(tabSetId, nextRecord.id));
+    onSelectRecord?.(nextRecord);
+    nextTab?.focus();
+    if (typeof nextTab?.scrollIntoView === "function") {
+      nextTab.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+  }, [onSelectRecord, tabSetId, visibleRecords]);
+
+  const handleToggleVisibleRecords = useCallback(() => {
+    setVisibleLimit((currentLimit) => (
+      currentLimit >= records.length
+        ? MOBILE_LOCATION_INITIAL_PERSON_LIMIT
+        : Math.min(records.length, currentLimit + MOBILE_LOCATION_INITIAL_PERSON_LIMIT)
+    ));
+  }, [records.length]);
+
+  return (
+    <Box className="mobile-location-card__people-rail">
+      <Box
+        id={tabListId}
+        className="mobile-location-card__people-tablist"
+        role="tablist"
+        aria-label={`${records.length} people at this plot`}
+      >
+        {visibleRecords.map((record) => (
+          <MobileLocationPersonChip
+            key={record.id}
+            controlsId={panelId}
+            record={record}
+            tabId={buildMobileLocationTabId(tabSetId, record.id)}
+            isActive={record.id === activeRecord?.id}
+            onKeyDown={handleTabKeyDown}
+            onSelect={onSelectRecord}
+          />
+        ))}
+      </Box>
+      {(hasHiddenRecords || canCollapse) && (
+        <ButtonBase
+          component="button"
+          type="button"
+          className="mobile-location-card__people-toggle"
+          aria-controls={tabListId}
+          aria-expanded={visibleLimit > MOBILE_LOCATION_INITIAL_PERSON_LIMIT}
+          aria-label={hasHiddenRecords
+            ? `Show more people. ${visibleRecords.length} of ${records.length} shown.`
+            : `Show fewer people. ${visibleRecords.length} of ${records.length} shown.`}
+          onClick={handleToggleVisibleRecords}
+        >
+          <span>{hasHiddenRecords ? "Show more" : "Show fewer"}</span>
+          <span className="mobile-location-card__people-progress">
+            {visibleRecords.length} of {records.length}
+          </span>
+        </ButtonBase>
+      )}
+    </Box>
+  );
+});
+
 function SelectedPlaceCard({
   burial,
   isRouteActive,
+  locationLabel,
+  locationRecordCount,
   markerColor,
   onNavigateToBurial,
-  onRemoveSelectedBurial,
   onStopRouting,
   stackList = null,
   tourStyle,
 }) {
   const popupView = useMemo(() => buildPopupViewModel(burial), [burial]);
   const popupKey = burial?.id || popupView.heading;
+  const locationRecords = stackList?.records || [burial];
+  const tabSetId = buildMobileLocationTabSetId(locationRecords, popupKey);
+  const tabPanelId = `${tabSetId}-panel`;
+  const hasPeopleTabs = locationRecords.length > 1;
   const locationSummary = buildLocationSummary(burial);
   const lifeSummary = buildLifeDatesSummary(burial);
   const placeTypeLabel = getSelectedPlaceTypeLabel(burial);
+  const recordContextLabel = popupView.sourceLabel || placeTypeLabel;
+  const tourContextLabel = burial.tourName || tourStyle?.name || "";
+  const summaryParagraphs = popupView.paragraphs || [];
+  const detailRows = popupView.rows.filter(({ label, value }) => !(
+    label === "Role" && summaryParagraphs.includes(cleanRecordValue(value))
+  ));
+  const shouldAppendTourContext = Boolean(
+    tourStyle
+    && cleanRecordValue(tourContextLabel)
+    && cleanRecordValue(tourContextLabel) !== cleanRecordValue(recordContextLabel)
+  );
   const [mediaUrl, setMediaUrl] = useState(() => popupView.imageUrl || "");
   const [isDetailExpanded, setIsDetailExpanded] = useState(false);
   const detailPresentation = buildSelectedPlaceDetailPresentation({
     detailLinkUrl: popupView.biographyLink || popupView.imageLinkUrl,
     isExpanded: isDetailExpanded,
-    rows: popupView.rows,
+    rows: detailRows,
     visibleRowLimit: DEFAULT_SELECTED_PLACE_DETAIL_ROW_LIMIT,
   });
 
@@ -1149,55 +1315,28 @@ function SelectedPlaceCard({
     });
   }, [popupView.imageFallbackUrl]);
 
-  const hasCompactMeta = Boolean(isRouteActive || tourStyle);
-  const actionGroup = (
-    <Box className="popup-card__actions left-sidebar__selected-place-card-actions left-sidebar__selected-place-card-actions--inline">
-      <button
-        type="button"
-        className="popup-card__action popup-card__action--primary"
-        onClick={() => {
-          if (isRouteActive) {
-            onStopRouting?.();
-            return;
-          }
-
-          onNavigateToBurial?.(burial);
-        }}
-      >
-        {isRouteActive ? "Stop Navigation" : "Navigate"}
-      </button>
-      {detailPresentation.detailLinkUrl && (
-        <a
-          className="popup-card__action popup-card__action--secondary"
-          href={detailPresentation.detailLinkUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Details
-        </a>
-      )}
-      <button
-        type="button"
-        className="popup-card__action popup-card__action--ghost"
-        onClick={() => onRemoveSelectedBurial(burial.id)}
-      >
-        Close
-      </button>
-    </Box>
-  );
-
   return (
-    <Box
-      sx={{
-        mt: 0,
-        borderRadius: 2,
-        border: "1px solid var(--panel-border)",
-        backgroundColor: "rgba(255, 255, 255, 0.92)",
-        overflow: "hidden",
-      }}
-    >
-      <Box className="popup-card left-sidebar__selected-place-card left-sidebar__selected-place-card--compact">
-        <Box className="left-sidebar__selected-place-hero">
+    <Box className="mobile-location-card">
+      {hasPeopleTabs && (
+        <MobileLocationPeopleTabs
+          key={locationRecords[0]?.id || popupKey}
+          activeRecordId={burial.id}
+          onSelectRecord={stackList?.onSelectRecord}
+          panelId={tabPanelId}
+          records={locationRecords}
+          tabSetId={tabSetId}
+        />
+      )}
+
+      <Box
+        id={hasPeopleTabs ? tabPanelId : undefined}
+        className="mobile-location-card__person-panel"
+        role={hasPeopleTabs ? "tabpanel" : undefined}
+        aria-labelledby={hasPeopleTabs
+          ? buildMobileLocationTabId(tabSetId, burial.id)
+          : undefined}
+      >
+        <Box className="mobile-location-card__active-person">
           <SelectedPlaceVisual
             fallbackLabel={placeTypeLabel}
             heading={popupView.heading}
@@ -1207,81 +1346,94 @@ function SelectedPlaceCard({
             markerColor={markerColor}
             onImageError={handleImageError}
           />
-          <Box className="left-sidebar__selected-place-copy">
-            <Box component="p" className="popup-card__eyebrow">
-              {placeTypeLabel}
-            </Box>
-            <Box component="h3" className="popup-card__title">
+          <Box className="mobile-location-card__active-copy">
+            <Box component="h3" className="mobile-location-card__person-name">
               {popupView.heading}
             </Box>
-            {popupView.sourceLabel && popupView.sourceLabel !== placeTypeLabel && (
-              <Box component="p" className="left-sidebar__selected-place-source">
-                {popupView.sourceLabel}
-              </Box>
-            )}
-            {actionGroup}
-            {locationSummary && (
-              <Box component="p" className="popup-card__subtitle">
-                {locationSummary}
-              </Box>
-            )}
             {lifeSummary && (
-              <Box component="p" className="popup-card__hint">
+              <Box component="p" className="mobile-location-card__life-dates">
                 {lifeSummary}
               </Box>
             )}
-          </Box>
-        </Box>
-        {stackList && (
-          <PopupCardStackList
-            records={stackList.records}
-            activeRecordId={stackList.activeRecordId}
-            onSelectRecord={stackList.onSelectRecord}
-            stackDescription={stackList.description}
-          />
-        )}
-        {detailPresentation.visibleRows.length > 0 && (
-          <Box component="dl" className="left-sidebar__selected-place-facts">
-            {detailPresentation.visibleRows.map(({ label, value }) => (
-              <Box key={`${popupKey}-compact-${label}`} className="left-sidebar__selected-place-fact">
-                <dt>{label}</dt>
-                <dd>{value}</dd>
+            {summaryParagraphs.map((paragraph, index) => (
+              <Box
+                key={`${popupKey}-mobile-summary-${index}`}
+                component="p"
+                className="mobile-location-card__summary"
+              >
+                {paragraph}
               </Box>
             ))}
+            <Box component="p" className="mobile-location-card__record-type">
+              {recordContextLabel}
+              {shouldAppendTourContext ? ` · ${tourContextLabel}` : ""}
+            </Box>
           </Box>
-        )}
-        {detailPresentation.hasMoreRows && (
-          <button
-            type="button"
-            className="popup-card__action popup-card__action--ghost left-sidebar__detail-toggle"
-            onClick={() => setIsDetailExpanded((prev) => !prev)}
+        </Box>
+
+        <Box className="mobile-location-card__actions">
+          <Button
+            className="mobile-location-card__action mobile-location-card__action--primary"
+            fullWidth
+            variant="contained"
+            startIcon={<DirectionsIcon />}
+            onClick={() => {
+              if (isRouteActive) {
+                onStopRouting?.();
+                return;
+              }
+
+              onNavigateToBurial?.(burial);
+            }}
           >
-            {isDetailExpanded
-              ? "Fewer details"
-              : `More details (${detailPresentation.hiddenCount})`}
-          </button>
-        )}
-        {hasCompactMeta && (
-          <Box className="left-sidebar__selected-place-card-meta">
-            {isRouteActive && (
-              <Chip
+            {isRouteActive ? "Stop Navigation" : "Navigate"}
+          </Button>
+          <Button
+            className="mobile-location-card__action mobile-location-card__action--secondary"
+            fullWidth
+            variant="text"
+            color="inherit"
+            startIcon={<InfoOutlinedIcon />}
+            aria-expanded={isDetailExpanded}
+            aria-controls={`mobile-location-details-${burial.id}`}
+            onClick={() => setIsDetailExpanded((current) => !current)}
+          >
+            Details
+          </Button>
+        </Box>
+
+        {isDetailExpanded && (
+          <Box
+            id={`mobile-location-details-${burial.id}`}
+            className="mobile-location-card__details"
+          >
+            <Box component="dl" className="left-sidebar__selected-place-facts">
+              <Box className="left-sidebar__selected-place-fact">
+                <dt>Plot</dt>
+                <dd>{locationLabel || locationSummary || "Location unavailable"}</dd>
+              </Box>
+              <Box className="left-sidebar__selected-place-fact">
+                <dt>Records here</dt>
+                <dd>{locationRecordCount}</dd>
+              </Box>
+              {detailPresentation.allDetailRows.map(({ label, value }) => (
+                <Box key={`${popupKey}-mobile-${label}`} className="left-sidebar__selected-place-fact">
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </Box>
+              ))}
+            </Box>
+            {detailPresentation.detailLinkUrl && (
+              <Button
+                component="a"
+                href={detailPresentation.detailLinkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                color="inherit"
                 size="small"
-                label="Route active"
-                sx={{
-                  backgroundColor: "var(--accent-soft)",
-                  color: "var(--accent-strong)",
-                }}
-              />
-            )}
-            {tourStyle && (
-              <Chip
-                size="small"
-                label={burial.tourName || tourStyle.name}
-                sx={{
-                  backgroundColor: tourStyle.color,
-                  color: "white",
-                }}
-              />
+              >
+                View biography
+              </Button>
             )}
           </Box>
         )}
@@ -1297,7 +1449,6 @@ function SelectedSummaryPanel({
   activeBurialId,
   activeRouteBurialId,
   hoveredBurialId,
-  isExpanded,
   isMobile,
   markerColors,
   onClearSelectedBurials,
@@ -1306,7 +1457,6 @@ function SelectedSummaryPanel({
   onNavigateToBurial,
   onRemoveSelectedBurial,
   onStopRouting,
-  onToggleExpanded,
   selectedBurialCoordinateGroups = [],
   selectedBurialRefs,
   selectedBurials,
@@ -1316,7 +1466,6 @@ function SelectedSummaryPanel({
     () => buildSelectedSummaryPresentation({
       activeBurialId,
       activeRouteBurialId,
-      isExpanded,
       isMobile,
       selectedBurialCoordinateGroups,
       selectedBurials,
@@ -1324,175 +1473,132 @@ function SelectedSummaryPanel({
     [
       activeBurialId,
       activeRouteBurialId,
-      isExpanded,
       isMobile,
       selectedBurialCoordinateGroups,
       selectedBurials,
     ]
   );
+  const handleSelectLocationRecord = useCallback((record) => {
+    onFocusSelectedBurial(record);
+  }, [onFocusSelectedBurial]);
 
   if (!summaryPresentation) return null;
 
   const {
-    hasMultipleSelectedBurials,
     isLeadBurialActive,
     isRouteActive,
     leadBurial,
     leadBurialIndex,
     leadStackList,
-    mobileSelectionSummaryTitle,
+    locationLabel,
     secondarySelectedBurials,
     selectedBurialOrderById,
     selectionSummaryLabel,
     selectionSummaryTitle,
     shouldShowSecondarySelections,
-    shouldShowSelectionToggle,
   } = summaryPresentation;
   const leadTourStyle = tourStyles[leadBurial.tourKey];
   const interactiveLeadStackList = leadStackList
     ? {
         ...leadStackList,
-        onSelectRecord: (record) => onFocusSelectedBurial(record),
+        onSelectRecord: handleSelectLocationRecord,
       }
     : null;
+
+  if (isMobile) {
+    return (
+      <SelectedPlaceCard
+        burial={leadBurial}
+        isRouteActive={isRouteActive}
+        locationLabel={locationLabel}
+        locationRecordCount={interactiveLeadStackList?.records.length || 1}
+        markerColor={markerColors[leadBurialIndex % markerColors.length]}
+        onNavigateToBurial={onNavigateToBurial}
+        onStopRouting={onStopRouting}
+        stackList={interactiveLeadStackList}
+        tourStyle={leadTourStyle}
+      />
+    );
+  }
 
   return (
     <Box
       className="left-sidebar__panel left-sidebar__panel--selected-summary left-sidebar__panel--surface"
       sx={{
         ...panelSurfaceStyles,
-        p: isMobile ? 1.15 : 2,
+        p: 2,
         display: "grid",
-        gap: isMobile ? 0.75 : 0,
+        gap: 0,
       }}
     >
-      {isMobile ? (
-        <Box
-          className="left-sidebar__selection-summary-header left-sidebar__selection-summary-header--mobile"
-        >
-          <Typography
-            variant="subtitle2"
-            className="left-sidebar__selection-summary-title"
-          >
-            {mobileSelectionSummaryTitle}
-          </Typography>
-          <Box className="left-sidebar__selection-summary-actions">
-            {shouldShowSelectionToggle && (
-              <Button
-                className="left-sidebar__selection-summary-list-button"
-                size="small"
-                variant={isExpanded ? "outlined" : "contained"}
-                onClick={onToggleExpanded}
-                aria-label={isExpanded ? "Hide grave list" : "Show all graves at this spot"}
-                endIcon={(
-                  <ArrowDropDownIcon
-                    sx={{
-                      transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
-                      transition: "transform 0.2s ease",
-                    }}
-                  />
-                )}
-              >
-                {isExpanded ? "Hide" : "List"}
-              </Button>
-            )}
-            {hasMultipleSelectedBurials && (
-              <Button
-                className="left-sidebar__selection-summary-clear"
-                size="small"
-                color="inherit"
-                onClick={onClearSelectedBurials}
-              >
-                Clear all
-              </Button>
-            )}
-          </Box>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) auto",
+          columnGap: 1,
+          rowGap: 0.85,
+          alignItems: "start",
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="subtitle2">{selectionSummaryTitle}</Typography>
         </Box>
-      ) : (
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1fr) auto",
-            columnGap: 1,
-            rowGap: 0.85,
-            alignItems: "start",
-          }}
-        >
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle2">{selectionSummaryTitle}</Typography>
-          </Box>
-          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-            <Chip size="small" color="primary" label={selectedBurials.length} />
-          </Box>
-          {selectionSummaryLabel && (
-            <Typography
-              variant="body2"
-              sx={{
-                gridColumn: "1 / -1",
-                color: "var(--muted-text)",
-                lineHeight: 1.45,
-              }}
-            >
-              {selectionSummaryLabel}
-            </Typography>
-          )}
-          <Box
+        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+          <Chip size="small" color="primary" label={selectedBurials.length} />
+        </Box>
+        {selectionSummaryLabel && (
+          <Typography
+            variant="body2"
             sx={{
               gridColumn: "1 / -1",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              flexWrap: "wrap",
-              gap: 0.75,
+              color: "var(--muted-text)",
+              lineHeight: 1.45,
             }}
           >
-            <Button size="small" color="inherit" onClick={onClearSelectedBurials}>
-              Clear
-            </Button>
-          </Box>
+            {selectionSummaryLabel}
+          </Typography>
+        )}
+        <Box
+          sx={{
+            gridColumn: "1 / -1",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            flexWrap: "wrap",
+            gap: 0.75,
+          }}
+        >
+          <Button size="small" color="inherit" onClick={onClearSelectedBurials}>
+            Clear
+          </Button>
         </Box>
-      )}
+      </Box>
 
-      {isMobile ? (
-        <SelectedPlaceCard
-          burial={leadBurial}
-          isRouteActive={isRouteActive}
-          markerColor={markerColors[leadBurialIndex % markerColors.length]}
-          onNavigateToBurial={onNavigateToBurial}
-          onRemoveSelectedBurial={onRemoveSelectedBurial}
-          onStopRouting={onStopRouting}
-          stackList={interactiveLeadStackList}
-          tourStyle={leadTourStyle}
-        />
-      ) : (
-        <SelectionLeadCard
-          burial={leadBurial}
-          burialIndex={leadBurialIndex}
-          isActive={isLeadBurialActive}
-          isHovered={hoveredBurialId === leadBurial.id}
-          isMobile={isMobile}
-          isRouteActive={isRouteActive}
-          markerColor={markerColors[leadBurialIndex % markerColors.length]}
-          onFocusSelectedBurial={onFocusSelectedBurial}
-          onHoverBurialChange={onHoverBurialChange}
-          onNavigateToBurial={onNavigateToBurial}
-          onRemoveSelectedBurial={onRemoveSelectedBurial}
-          tourStyle={leadTourStyle}
-        />
-      )}
+      <SelectionLeadCard
+        burial={leadBurial}
+        burialIndex={leadBurialIndex}
+        isActive={isLeadBurialActive}
+        isHovered={hoveredBurialId === leadBurial.id}
+        isMobile={false}
+        isRouteActive={isRouteActive}
+        markerColor={markerColors[leadBurialIndex % markerColors.length]}
+        onFocusSelectedBurial={onFocusSelectedBurial}
+        onHoverBurialChange={onHoverBurialChange}
+        onNavigateToBurial={onNavigateToBurial}
+        onRemoveSelectedBurial={onRemoveSelectedBurial}
+        tourStyle={leadTourStyle}
+      />
 
       {shouldShowSecondarySelections && (
         <Box
           className="left-sidebar__selected-scroll left-sidebar__selected-scroll--summary"
           sx={{
             mt: 1.65,
-            ...(isMobile ? null : {
-              maxHeight: "none",
-              overflow: "visible",
-              paddingRight: 0,
-              marginRight: 0,
-              scrollbarGutter: "auto",
-            }),
+            maxHeight: "none",
+            overflow: "visible",
+            paddingRight: 0,
+            marginRight: 0,
+            scrollbarGutter: "auto",
           }}
         >
           <Divider sx={{ mb: 1.5 }} />
@@ -1500,7 +1606,7 @@ function SelectedSummaryPanel({
             activeBurialId={activeBurialId}
             activeRouteBurialId={activeRouteBurialId}
             hoveredBurialId={hoveredBurialId}
-            isMobile={isMobile}
+            isMobile={false}
             markerColors={markerColors}
             onFocusSelectedBurial={onFocusSelectedBurial}
             onHoverBurialChange={onHoverBurialChange}
@@ -1839,18 +1945,62 @@ function BurialSidebar({
     selectedTour,
     tourResults,
   });
+  const browseResultScopeKey = useMemo(
+    () => JSON.stringify([
+      resultLimit,
+      browseResults.length,
+      browseSource,
+      browseQuery,
+      sectionFilter,
+      selectedTour,
+    ]),
+    [
+      browseQuery,
+      browseResults.length,
+      browseSource,
+      resultLimit,
+      sectionFilter,
+      selectedTour,
+    ]
+  );
+  const [browsePagination, setBrowsePagination] = useState(() => ({
+    scopeKey: browseResultScopeKey,
+    visibleCount: resultLimit,
+  }));
+  const visibleBrowseResultCount = browsePagination.scopeKey === browseResultScopeKey
+    ? browsePagination.visibleCount
+    : resultLimit;
+  const setVisibleBrowseResultCount = useCallback((nextVisibleCount) => {
+    setBrowsePagination((currentPagination) => {
+      const currentVisibleCount = currentPagination.scopeKey === browseResultScopeKey
+        ? currentPagination.visibleCount
+        : resultLimit;
+      const resolvedVisibleCount = typeof nextVisibleCount === "function"
+        ? nextVisibleCount(currentVisibleCount)
+        : nextVisibleCount;
+
+      if (
+        currentPagination.scopeKey === browseResultScopeKey
+        && currentPagination.visibleCount === resolvedVisibleCount
+      ) {
+        return currentPagination;
+      }
+
+      return {
+        scopeKey: browseResultScopeKey,
+        visibleCount: resolvedVisibleCount,
+      };
+    });
+  }, [browseResultScopeKey, resultLimit]);
   const {
     collapseMobileSheet,
     expandMobileSheet,
     handleSheetSpringEnd,
-    isSelectedSummaryExpanded,
     maximizeMobileSheet,
     mobileDefaultSnap,
     mobileSnapPoints,
     resolvedMobileSheetState,
-    setIsSelectedSummaryExpanded,
     sheetRef,
-    toggleSelectedSummary,
   } = useBurialSidebarMobileSheetState({
     hasActiveBrowseContext,
     initialBrowseSource,
@@ -1974,10 +2124,15 @@ function BurialSidebar({
       return;
     }
 
-    // Mobile keeps the map usable by default, then reveals the drawer when a
-    // user action creates a result or selection worth inspecting.
+    // Browse contexts keep the map visible at the peek height. A selected
+    // location opens fully so the primary Navigate action is immediately
+    // reachable even when the record includes a portrait and biography.
     if (revealIntent.shouldExpandMobileSheet) {
-      expandMobileSheet();
+      if (revealIntent.shouldRevealSelectedRecord) {
+        maximizeMobileSheet();
+      } else {
+        expandMobileSheet();
+      }
     }
 
     if (revealIntent.shouldScrollMobileSheetToTop) {
@@ -1987,6 +2142,7 @@ function BurialSidebar({
     activeBurialId,
     expandMobileSheet,
     isMobile,
+    maximizeMobileSheet,
     resolvedMobileSheetState,
     scrollMobileSheetToTop,
     sectionFilter,
@@ -2017,22 +2173,8 @@ function BurialSidebar({
   }, [setBrowseQuery]);
 
   const handleBrowseResultSelect = useCallback((result) => {
-    const intent = buildBrowseResultSelectIntent({
-      isMobile,
-      selectedBurialsLength: selectedBurials.length,
-    });
-
     onBrowseResultSelect(result);
-
-    if (intent.shouldSetSelectedSummaryExpanded) {
-      setIsSelectedSummaryExpanded(intent.isSelectedSummaryExpandedToSet);
-    }
-  }, [
-    isMobile,
-    onBrowseResultSelect,
-    selectedBurials.length,
-    setIsSelectedSummaryExpanded,
-  ]);
+  }, [onBrowseResultSelect]);
 
   const handleSectionSelection = useCallback((nextSection) => {
     const intent = buildSectionSelectionIntent({ nextSection });
@@ -2244,7 +2386,6 @@ function BurialSidebar({
 
     setBrowseQuery(intent.browseQueryToSet);
     setBrowseSource(intent.browseSourceToSet);
-    setIsSelectedSummaryExpanded(intent.isSelectedSummaryExpandedToSet);
 
     if (intent.shouldClearSectionFilters) {
       onClearSectionFilters();
@@ -2274,7 +2415,6 @@ function BurialSidebar({
     selectedTour,
     setBrowseQuery,
     setBrowseSource,
-    setIsSelectedSummaryExpanded,
   ]);
 
   const sidebarClassName = getSidebarClassName({ isMobile });
@@ -2451,8 +2591,10 @@ function BurialSidebar({
       sectionFilter={sectionFilter}
       selectedBurials={selectedBurials}
       selectedTour={selectedTour}
+      setVisibleCount={setVisibleBrowseResultCount}
       scopeChips={browseScopeChips}
       tourStyles={tourStyles}
+      visibleCount={visibleBrowseResultCount}
     />
   ) : null;
 
@@ -2461,7 +2603,6 @@ function BurialSidebar({
       activeBurialId={activeBurialId}
       activeRouteBurialId={activeRouteBurialId}
       hoveredBurialId={hoveredBurialId}
-      isExpanded={isSelectedSummaryExpanded}
       isMobile={isMobile}
       markerColors={markerColors}
       onClearSelectedBurials={onClearSelectedBurials}
@@ -2470,13 +2611,24 @@ function BurialSidebar({
       onNavigateToBurial={onNavigateToBurial}
       onRemoveSelectedBurial={onRemoveSelectedBurial}
       onStopRouting={onStopRouting}
-      onToggleExpanded={toggleSelectedSummary}
       selectedBurialCoordinateGroups={selectedBurialCoordinateGroups}
       selectedBurialRefs={selectedBurialRefs}
       selectedBurials={selectedBurials}
       tourStyles={tourStyles}
     />
   ) : null;
+  const mobileActiveBurial = selectedBurials.find((burial) => burial.id === activeBurialId)
+    || selectedBurials[0]
+    || null;
+  const mobileActiveLocationGroup = mobileActiveBurial
+    ? selectedBurialCoordinateGroups.find((group) => group.recordIds.includes(mobileActiveBurial.id))
+    : null;
+  const mobileLocationRecordCount = mobileActiveLocationGroup?.records.length
+    || (mobileActiveBurial ? 1 : 0);
+  const mobileLocationLabel = mobileActiveBurial
+    ? buildSelectedLocationLabel(mobileActiveBurial)
+    : "";
+  const hasMobileLocationSelection = isMobile && Boolean(mobileActiveBurial);
 
   const browseWorkspaceContent = (
     <BrowseWorkspacePanel
@@ -2664,7 +2816,31 @@ function BurialSidebar({
   // search field stay visible at every snap height while the body scrolls
   // underneath. The collapsed snap point equals this header's measured height,
   // so nothing in it can ever be clipped.
-  const mobileSheetHeader = (
+  const mobileSheetHeader = hasMobileLocationSelection ? (
+    <Box className="mobile-location-header">
+      <ButtonBase
+        component="button"
+        type="button"
+        className="mobile-location-header__back"
+        onClick={onClearSelectedBurials}
+      >
+        <ArrowBackIosNewIcon fontSize="small" />
+        <span>Back to results</span>
+      </ButtonBase>
+      <Box className="mobile-location-header__copy">
+        <Typography component="h2" className="mobile-location-header__title">
+          {mobileLocationRecordCount === 1
+            ? "1 person at this plot"
+            : `${mobileLocationRecordCount} people at this plot`}
+        </Typography>
+        {mobileLocationLabel && (
+          <Typography component="p" className="mobile-location-header__subtitle">
+            {mobileLocationLabel}
+          </Typography>
+        )}
+      </Box>
+    </Box>
+  ) : (
     <Box className="mobile-sheet-header">
       <Box className="mobile-sheet-header__top">
         <Box
@@ -2709,7 +2885,7 @@ function BurialSidebar({
       className="left-sidebar__mobile-body"
       data-mobile-sheet-state={resolvedMobileSheetState}
     >
-      {bodyContent}
+      {hasMobileLocationSelection ? selectedSummaryContent : bodyContent}
     </Box>
   );
 

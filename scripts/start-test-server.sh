@@ -49,7 +49,11 @@ else
   IMAGE_SERVER_PID=$!
 fi
 
+# Browser tests need stable assets, not hot-reload instrumentation. Fast
+# Refresh can leave its development-only runtime request in flight when staged
+# data hydration replaces the browse worker, surfacing a harmless abort.
 BROWSER=none \
+FAST_REFRESH=false \
 HOST=127.0.0.1 \
 PORT="$APP_PORT" \
 REACT_APP_ENVIRONMENT=development \

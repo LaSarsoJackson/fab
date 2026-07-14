@@ -147,9 +147,8 @@ manual.
       3. `bun run release:check`
       4. `bun run pr:check` on pull requests
       5. `bun run test` (bun + jest suites)
-      6. (Optional, can be a second job) Playwright smoke — start with
-         `--grep` on a small critical-path subset; the full `e2e/app.spec.js`
-         is huge and will be slow/flaky as a PR gate.
+      6. Playwright Chromium browser regressions in a separate job, with traces,
+         screenshots, videos, and the HTML report retained on failure.
 - [x] Generated-file drift check (from Phase 3): run `sync:profile-shell`,
       fail on `git diff --exit-code public/index.html public/manifest.json`.
 - [x] `deploy.yml` on push to main: replace the manual

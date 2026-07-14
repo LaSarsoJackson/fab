@@ -9,6 +9,7 @@ import {
   areLocationCandidatesEquivalent,
   areRouteLatLngTuplesEquivalent,
   buildRecordCoordinateGroups,
+  buildRecordLocationIndex,
   beginLeafletSectionHover,
   buildLocationAccuracyGeoJson,
   buildSectionAffordanceMarkers,
@@ -21,8 +22,6 @@ import {
   createViewportIntentController,
   formatSectionOverviewMarkerLabel,
   getClusterIconCount,
-  getDistinctMarkerLocationCount,
-  getSameCoordinateMarkerBurialRecords,
   getPopupViewportPadding,
   MAP_PRESENTATION_POLICY,
   getSectionBurialMarkerStyle,
@@ -40,6 +39,7 @@ import {
   resolveSectionClusterMarkerVisibility,
   resolveClusterExpansionZoom,
   resolveMapPresentationPolicy,
+  resolveRecordLocationGroup,
   resolveSectionAffordanceMarkerVisibility,
   resolveSectionBurialDisableClusteringZoom,
   resolveSectionOverlayVisibility,
@@ -61,14 +61,6 @@ import {
 } from "../src/features/map/mapDomain";
 
 describe("mapDomain", () => {
-  const markerAt = (lat, lng) => ({
-    getLatLng: () => ({ lat, lng }),
-  });
-  const burialMarkerAt = (lat, lng, burialRecord) => ({
-    burialRecord,
-    getLatLng: () => ({ lat, lng }),
-  });
-
   describe("location tracking", () => {
     test("normalizes browser geolocation readings into shared candidates", () => {
       expect(normalizeLocationPosition({
@@ -528,74 +520,10 @@ describe("mapDomain", () => {
       })).toBe(16);
     });
 
-    test("keeps cluster badges tied to underlying burial records", () => {
-      const markers = [
-        markerAt(42.709101, -73.734101),
-        markerAt(42.709101, -73.734101),
-        markerAt(42.709202, -73.734202),
-        markerAt(42.709202, -73.734202),
-        markerAt(42.709303, -73.734303),
-      ];
+    test("keeps cluster badges tied to physical child locations", () => {
+      const markers = [{}, {}, {}, {}, {}];
 
-      expect(getDistinctMarkerLocationCount(markers)).toBe(3);
       expect(getClusterIconCount({ getChildCount: () => markers.length }, markers)).toBe(5);
-    });
-
-    test("keeps same-coordinate marker stacks counted by burial record", () => {
-      const markers = [
-        markerAt(42.709101, -73.734101),
-        markerAt(42.709101, -73.734101),
-        markerAt(42.709101, -73.734101),
-      ];
-
-      expect(getDistinctMarkerLocationCount(markers)).toBe(1);
-      expect(getClusterIconCount({ getChildCount: () => markers.length }, markers)).toBe(3);
-    });
-
-    test("returns every burial record in a same-coordinate marker stack", () => {
-      const markers = [
-        burialMarkerAt(42.709101, -73.734101, { id: "one", Section: "50", Lot: "1" }),
-        burialMarkerAt(42.709101, -73.734101, { id: "two", Section: "50", Lot: "1" }),
-        burialMarkerAt(42.709101, -73.734101, { id: "three", Section: "50", Lot: "1" }),
-      ];
-
-      expect(getSameCoordinateMarkerBurialRecords(markers)).toEqual([
-        { id: "one", Section: "50", Lot: "1" },
-        { id: "two", Section: "50", Lot: "1" },
-        { id: "three", Section: "50", Lot: "1" },
-      ]);
-    });
-
-    test("ignores mixed-location and non-burial clusters for stack selection", () => {
-      expect(getSameCoordinateMarkerBurialRecords([
-        burialMarkerAt(42.709101, -73.734101, { Section: "50", Lot: "1" }),
-        burialMarkerAt(42.709202, -73.734202, { Section: "50", Lot: "1" }),
-      ])).toEqual([]);
-
-      expect(getSameCoordinateMarkerBurialRecords([
-        burialMarkerAt(42.709101, -73.734101, { Section: "50", Lot: "1" }),
-        markerAt(42.709101, -73.734101),
-      ])).toEqual([]);
-    });
-
-    test("keeps stack detection tied to source coordinates when display positions differ", () => {
-      const records = [
-        { id: "one", Section: "50", Lot: "1", coordinates: [-73.731094, 42.709337] },
-        { id: "two", Section: "50", Lot: "1", coordinates: [-73.731094, 42.709337] },
-      ];
-      const markers = [
-        {
-          burialRecord: records[0],
-          getLatLng: () => ({ lat: 42.70933701, lng: -73.73109401 }),
-        },
-        {
-          burialRecord: records[1],
-          getLatLng: () => ({ lat: 42.70933709, lng: -73.73109409 }),
-        },
-      ];
-
-      expect(getDistinctMarkerLocationCount(markers)).toBe(2);
-      expect(getSameCoordinateMarkerBurialRecords(markers)).toEqual(records);
     });
 
     test("keeps road rendering tied to the explicit overlay toggle", () => {
@@ -813,6 +741,26 @@ describe("mapDomain", () => {
       expect(coordinateGroups[0].coordinates).toEqual([-73.731094, 42.709337]);
       expect(coordinateGroups[1].recordIds).toEqual(["separate"]);
       expect(records[0].coordinates).toEqual([-73.731094, 42.709337]);
+    });
+
+    test("indexes one physical location for every person mapped to the same plot", () => {
+      const first = { id: "one", coordinates: [-73.731094, 42.709337] };
+      const second = {
+        id: "tour-two",
+        matchedBurialId: "two",
+        coordinates: [-73.731094, 42.709337],
+      };
+      const separate = { id: "three", coordinates: [-73.731239, 42.709374] };
+      const index = buildRecordLocationIndex([first, second, separate]);
+
+      expect(index.groups).toHaveLength(2);
+      expect(index.byRecordId.get("one")?.records).toEqual([first, second]);
+      expect(index.byRecordId.get("two")?.records).toEqual([first, second]);
+      expect(resolveRecordLocationGroup(second, index)?.records).toEqual([first, second]);
+      expect(resolveRecordLocationGroup({
+        id: "unindexed-tour-record",
+        coordinates: [-73.731239, 42.709374],
+      }, index)?.records).toEqual([separate]);
     });
 
     test("hides section burial singletons until the close-in preview zoom", () => {

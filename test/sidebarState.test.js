@@ -8,7 +8,6 @@ import {
   buildClearBrowseQueryIntent,
   buildClearSectionFiltersIntent,
   buildClearTourSelectionIntent,
-  buildBrowseResultSelectIntent,
   buildFilterTypeSelectionIntent,
   buildLotTierChangeIntent,
   buildMobileSearchPanelCollapseResetIntent,
@@ -61,7 +60,7 @@ describe("sidebar state helpers", () => {
     });
   });
 
-  test("scrolls a mobile selection change without re-expanding an already open sheet", () => {
+  test("returns an open mobile sheet to the place-card peek when selection changes", () => {
     expect(buildMobileSheetRevealIntent({
       activeBurialId: "grave-2",
       isMobile: true,
@@ -70,7 +69,7 @@ describe("sidebar state helpers", () => {
       resolvedMobileSheetState: MOBILE_SHEET_STATES.FULL,
       selectedBurials: [{ id: "grave-1" }, { id: "grave-2" }],
     })).toMatchObject({
-      shouldExpandMobileSheet: false,
+      shouldExpandMobileSheet: true,
       shouldRevealSelectedRecord: true,
       shouldScrollMobileSheetToTop: true,
     });
@@ -199,7 +198,6 @@ describe("sidebar state helpers", () => {
     })).toEqual({
       browseQueryToSet: "",
       browseSourceToSet: "all",
-      isSelectedSummaryExpandedToSet: false,
       lotTierFilterToSet: "",
       selectedTourToSet: null,
       shouldClearSectionFilters: true,
@@ -228,7 +226,6 @@ describe("sidebar state helpers", () => {
     expect(buildClearAllBrowseStateIntent()).toEqual({
       browseQueryToSet: "",
       browseSourceToSet: "all",
-      isSelectedSummaryExpandedToSet: false,
       lotTierFilterToSet: "",
       selectedTourToSet: null,
       shouldClearSectionFilters: false,
@@ -398,34 +395,6 @@ describe("sidebar state helpers", () => {
     })).toEqual({
       isMobileSearchPanelCollapsedByControlToSet: null,
       shouldSetMobileSearchPanelCollapsedByControl: false,
-    });
-  });
-
-  test("builds browse-result select intent to reveal an empty mobile selection summary", () => {
-    expect(buildBrowseResultSelectIntent({
-      isMobile: true,
-      selectedBurialsLength: 0,
-    })).toEqual({
-      isSelectedSummaryExpandedToSet: true,
-      shouldSetSelectedSummaryExpanded: true,
-    });
-  });
-
-  test("does not expand selected summary for desktop or existing mobile selections", () => {
-    expect(buildBrowseResultSelectIntent({
-      isMobile: false,
-      selectedBurialsLength: 0,
-    })).toEqual({
-      isSelectedSummaryExpandedToSet: null,
-      shouldSetSelectedSummaryExpanded: false,
-    });
-
-    expect(buildBrowseResultSelectIntent({
-      isMobile: true,
-      selectedBurialsLength: 2,
-    })).toEqual({
-      isSelectedSummaryExpandedToSet: null,
-      shouldSetSelectedSummaryExpanded: false,
     });
   });
 

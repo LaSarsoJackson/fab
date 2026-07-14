@@ -2,8 +2,27 @@ import { cleanRecordValue } from "../map/mapRecordPresentation";
 
 export const DEFAULT_SELECTED_PLACE_DETAIL_ROW_LIMIT = 4;
 const DETAIL_ROW_EXCLUDE_LABELS = ["Location", "Born", "Died"];
-const SINGLE_SELECTION_PANEL_TITLE = "Selected grave";
-const STACK_SELECTION_PANEL_TITLE = "Graves at this spot";
+const SINGLE_SELECTION_PANEL_TITLE = "Selected burial";
+const STACK_SELECTION_PANEL_TITLE = "People at this plot";
+
+const formatLocationValue = (value) => {
+  const normalized = cleanRecordValue(value);
+  return normalized && normalized !== "0" ? normalized : "";
+};
+
+export const buildSelectedLocationLabel = (record = {}) => {
+  const section = formatLocationValue(record.Section ?? record.section);
+  const lot = formatLocationValue(record.Lot ?? record.lot);
+  const tier = formatLocationValue(record.Tier ?? record.tier);
+  const grave = formatLocationValue(record.Grave ?? record.grave);
+
+  return [
+    section ? `Section ${section}` : "",
+    lot ? `Lot ${lot}` : "",
+    tier ? `Tier ${tier}` : "",
+    grave ? `Grave ${grave}` : "",
+  ].filter(Boolean).join(" · ");
+};
 
 export const buildSelectedBurialLookup = ({
   selectedBurials = [],
@@ -30,7 +49,6 @@ export const buildSelectedBurialLookup = ({
 export const buildSelectedSummaryPresentation = ({
   activeBurialId = "",
   activeRouteBurialId = "",
-  isExpanded = false,
   isMobile = false,
   selectedBurialCoordinateGroups = [],
   selectedBurials = [],
@@ -51,16 +69,17 @@ export const buildSelectedSummaryPresentation = ({
     ? STACK_SELECTION_PANEL_TITLE
     : SINGLE_SELECTION_PANEL_TITLE;
   const mobileSelectionSummaryTitle = hasMultipleSelectedBurials
-    ? `${selectedBurials.length} graves here`
+    ? `${selectedBurials.length} people at this plot`
     : selectionSummaryTitle;
   const selectionSummaryLabel = hasMultipleSelectedBurials
-    ? `${selectedBurials.length} graves share this map location.`
+    ? `${selectedBurials.length} burial records share this mapped cemetery location.`
     : "";
   const leadCoordinateGroup = selectedBurialCoordinateGroups.find((group) => (
     group.recordIds.includes(leadBurial.id)
   ));
   const leadStackRecords = leadCoordinateGroup?.records || [];
   const activeStackIndex = leadStackRecords.findIndex((record) => record.id === leadBurial.id);
+  const isSingleLocationSelection = leadStackRecords.length === selectedBurials.length;
   const leadStackList = isMobile && leadStackRecords.length > 1 && activeStackIndex >= 0
     ? {
         records: leadStackRecords,
@@ -76,13 +95,14 @@ export const buildSelectedSummaryPresentation = ({
     leadBurial,
     leadBurialIndex,
     leadStackList,
+    locationLabel: buildSelectedLocationLabel(leadBurial),
     mobileSelectionSummaryTitle,
     secondarySelectedBurials,
     selectedBurialOrderById,
     selectionSummaryLabel,
     selectionSummaryTitle,
-    shouldShowSecondarySelections: secondarySelectedBurials.length > 0 && (!isMobile || isExpanded),
-    shouldShowSelectionToggle: isMobile && hasMultipleSelectedBurials,
+    shouldShowSecondarySelections: secondarySelectedBurials.length > 0
+      && !isSingleLocationSelection,
   };
 };
 
