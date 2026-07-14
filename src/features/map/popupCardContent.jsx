@@ -3,7 +3,7 @@
  * event isolation and layout recalculation that Leaflet cannot infer from
  * React image/font updates.
  */
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Box } from "@mui/material";
 
 import { stopMapInteractionPropagation } from "./mapDomain";
@@ -334,6 +334,13 @@ export function PopupCardStackContent({
   records = [],
   schedulePopupLayout,
 }) {
+  const getPopupRef = useRef(getPopup);
+
+  useLayoutEffect(() => {
+    getPopupRef.current = getPopup;
+  }, [getPopup]);
+
+  const resolvePopup = useCallback(() => getPopupRef.current?.(), []);
   const stackRecords = useMemo(() => records.filter(Boolean), [records]);
   const recordIds = useMemo(
     () => stackRecords.map((record) => cleanRecordValue(record?.id)),
@@ -369,8 +376,8 @@ export function PopupCardStackContent({
   const activeRecord = stackRecords[activeIndex];
 
   useLayoutEffect(() => {
-    schedulePopupLayout?.(getPopup?.());
-  }, [activeIndex, getPopup, schedulePopupLayout]);
+    schedulePopupLayout?.(resolvePopup());
+  }, [activeIndex, resolvePopup, schedulePopupLayout]);
 
   if (!activeRecord) {
     return null;
@@ -380,7 +387,7 @@ export function PopupCardStackContent({
     const nextRecordId = cleanRecordValue(record?.id);
     setCurrentRecordId(nextRecordId);
     onSelectRecord?.(record);
-    schedulePopupLayout?.(getPopup?.());
+    schedulePopupLayout?.(resolvePopup());
   };
 
   return (
@@ -401,7 +408,7 @@ export function PopupCardStackContent({
         onNavigate={(event) => onNavigate?.(event, activeRecord)}
         onRemove={() => onRemove?.(activeRecord)}
         showActions={Boolean(onNavigate || onRemove)}
-        getPopup={getPopup}
+        getPopup={resolvePopup}
         schedulePopupLayout={schedulePopupLayout}
       />
     </div>
