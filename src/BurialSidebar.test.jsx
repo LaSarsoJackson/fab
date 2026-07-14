@@ -1222,15 +1222,15 @@ describe("BurialSidebar", () => {
       .toHaveAttribute("aria-expanded", "true");
   });
 
-  domTest("opens selected locations fully on short phones without changing short-phone browse peek", () => {
+  domTest("opens selected locations fully without changing the browse peek", () => {
     Object.defineProperty(window, "innerHeight", {
       writable: true,
       configurable: true,
-      value: 667,
+      value: 844,
     });
 
     const { unmount } = renderSidebar({ isMobile: true });
-    expect(getCurrentMobileSheetSnap(667)).toBeCloseTo(667 * 0.43);
+    expect(getCurrentMobileSheetSnap(844)).toBeCloseTo(844 * 0.43);
     unmount();
 
     renderSidebar({
@@ -1239,7 +1239,7 @@ describe("BurialSidebar", () => {
       selectedBurials: [burialRecords[0]],
     });
 
-    expect(getCurrentMobileSheetSnap(667)).toBeCloseTo(667 * 0.92);
+    expect(getCurrentMobileSheetSnap(844)).toBeCloseTo(844 * 0.92);
   });
 
   domTest("uses the bottom-sheet overlay as the mobile viewport padding root", () => {

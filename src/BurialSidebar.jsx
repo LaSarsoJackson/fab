@@ -88,7 +88,6 @@ import {
  * feature/hooks modules so this file can stay focused on composing the UI.
  */
 const MOBILE_LOCATION_INITIAL_PERSON_LIMIT = 8;
-const SHORT_MOBILE_LOCATION_VIEWPORT_HEIGHT = 760;
 
 const buildMobileLocationTabId = (tabSetId, recordId) => (
   `${tabSetId}-tab-${encodeURIComponent(cleanRecordValue(recordId)).replace(/%/g, "_")}`
@@ -2125,16 +2124,11 @@ function BurialSidebar({
       return;
     }
 
-    // Mobile keeps the map usable by default, then reveals the drawer when a
-    // user action creates a result or selection worth inspecting.
+    // Browse contexts keep the map visible at the peek height. A selected
+    // location opens fully so the primary Navigate action is immediately
+    // reachable even when the record includes a portrait and biography.
     if (revealIntent.shouldExpandMobileSheet) {
-      const visualViewportHeight = typeof window === "undefined"
-        ? Number.POSITIVE_INFINITY
-        : (window.visualViewport?.height || window.innerHeight);
-      const shouldMaximizeShortLocation = revealIntent.shouldRevealSelectedRecord
-        && visualViewportHeight <= SHORT_MOBILE_LOCATION_VIEWPORT_HEIGHT;
-
-      if (shouldMaximizeShortLocation) {
+      if (revealIntent.shouldRevealSelectedRecord) {
         maximizeMobileSheet();
       } else {
         expandMobileSheet();
