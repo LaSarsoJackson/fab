@@ -232,7 +232,6 @@ const GEOLOCATION_PERMISSION_DENIED = 1;
 const ROUTING_LOCATION_REQUIRED_MESSAGE = LOCATION_MESSAGES.routeLocationRequired ||
   "Continue with Maps for now. On-site navigation will start when you arrive.";
 const NAVIGATION_NOTICE_AUTO_HIDE_MS = 6000;
-const NAVIGATION_LOCATION_DECISION_WAIT_MS = 1400;
 const ROUTE_LOCATION_REFRESH_INTERVAL_MS = 5000;
 const ROUTE_LOCATION_WATCH_STALE_MS = 15000;
 const ROUTE_LOCATION_REFRESH_OPTIONS = {
@@ -2923,21 +2922,6 @@ export default function BurialMap() {
     );
   }, [roadRoutingGraph]);
 
-  const waitForOnSiteNavigationLocation = useCallback(async () => {
-    const currentLocation = acceptedLocationRef.current;
-    if (isLocationReadyForOnSiteNavigation(currentLocation)) {
-      return currentLocation;
-    }
-
-    ensureLocationWatchActive();
-    const location = await waitForAcceptedLocation(NAVIGATION_LOCATION_DECISION_WAIT_MS);
-    return isLocationReadyForOnSiteNavigation(location) ? location : null;
-  }, [
-    ensureLocationWatchActive,
-    isLocationReadyForOnSiteNavigation,
-    waitForAcceptedLocation,
-  ]);
-
   const openExternalDirections = useCallback((
     burial,
     { notice = "Opening driving directions...", travelMode = "driving" } = {}
@@ -3039,7 +3023,7 @@ export default function BurialMap() {
     clearNavigationDestination();
   }, [clearNavigationDestination, commitRoutingOrigin]);
 
-  const handleNavigateToBurial = useCallback(async (eventOrBurial, maybeBurial = null) => {
+  const handleNavigateToBurial = useCallback((eventOrBurial, maybeBurial = null) => {
     const burial = maybeBurial || eventOrBurial;
     if (maybeBurial) {
       eventOrBurial?.stopPropagation?.();
@@ -3068,15 +3052,12 @@ export default function BurialMap() {
       return;
     }
 
-    const quickLocation = currentLocation ? null : await waitForOnSiteNavigationLocation();
-    if (quickLocation) {
-      showNavigationNotice("You're near the cemetery. Switching to on-site navigation.");
-      startOnSiteRouting(navigationBurial, { location: quickLocation });
-      return;
-    }
-
     setRouteError("");
     activeNavigationBurialRef.current = navigationBurial;
+    // External map apps must open during the trusted click. Waiting for a new
+    // geolocation fix first can cause desktop browsers to block window.open as
+    // an unsolicited popup. The saved destination starts the location watch in
+    // the background and still enables the on-site route when the user returns.
     openExternalDirections(navigationBurial, {
       notice: "Opening driving directions...",
       travelMode: "driving",
@@ -3098,7 +3079,6 @@ export default function BurialMap() {
     showNavigationNotice,
     startOnSiteRouting,
     stopRouting,
-    waitForOnSiteNavigationLocation,
   ]);
 
   const continueNavigationDestinationOnSite = useCallback((location = acceptedLocationRef.current) => {
