@@ -204,6 +204,27 @@ async function getSelectedMarkerCenter(page) {
   };
 }
 
+async function waitForStableSelectedMarkerCenter(page, tolerance = 1) {
+  let previousCenter = null;
+  let currentCenter = null;
+  let stableSamples = 0;
+
+  await expect.poll(async () => {
+    currentCenter = await getSelectedMarkerCenter(page);
+    const isStable = previousCenter
+      && Math.abs(currentCenter.x - previousCenter.x) <= tolerance
+      && Math.abs(currentCenter.y - previousCenter.y) <= tolerance;
+    stableSamples = isStable ? stableSamples + 1 : 0;
+    previousCenter = currentCenter;
+    return stableSamples;
+  }, {
+    intervals: [100, 100, 100, 150, 250],
+    timeout: 15_000,
+  }).toBeGreaterThanOrEqual(3);
+
+  return currentCenter;
+}
+
 async function dragMapBy(page, { deltaX, deltaY }) {
   const mapBox = await page.locator(".leaflet-container").boundingBox();
   if (!mapBox) {
@@ -520,17 +541,23 @@ test.describe("desktop", () => {
 
     const centeredMarker = await getSelectedMarkerCenter(page);
     await dragMapBy(page, { deltaX: 180, deltaY: -70 });
-    const pannedMarker = await getSelectedMarkerCenter(page);
+    const pannedMarker = await waitForStableSelectedMarkerCenter(page);
     expect(Math.abs(pannedMarker.x - centeredMarker.x)).toBeGreaterThan(20);
 
+    const routePathBeforeRefresh = await routeLine.getAttribute("d");
+    expect(routePathBeforeRefresh).toBeTruthy();
+
     await context.setGeolocation({
-      latitude: 42.7051,
-      longitude: -73.7304,
+      latitude: 42.712719,
+      longitude: -73.736092,
     });
 
     await expect(page.getByText("Starting on-site navigation...")).toHaveCount(0, { timeout: 15_000 });
     await expect(routeLine).toBeVisible();
-    const refreshedMarker = await getSelectedMarkerCenter(page);
+    await expect.poll(() => routeLine.getAttribute("d"), {
+      timeout: 15_000,
+    }).not.toBe(routePathBeforeRefresh);
+    const refreshedMarker = await waitForStableSelectedMarkerCenter(page);
 
     expect(Math.abs(refreshedMarker.x - pannedMarker.x)).toBeLessThanOrEqual(3);
     expect(Math.abs(refreshedMarker.y - pannedMarker.y)).toBeLessThanOrEqual(3);
