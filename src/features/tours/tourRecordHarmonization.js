@@ -313,10 +313,60 @@ const doKnownDatesMatch = (leftValue, rightValue) => {
   return Boolean(left && right && !areKnownDatesConflicting(leftValue, rightValue));
 };
 
+const areComparableDatesExact = (left, right) => Boolean(
+  left &&
+  right &&
+  left.year === right.year &&
+  left.month === right.month &&
+  left.day === right.day
+);
+
+const differByOneDayDigit = (leftDay, rightDay) => {
+  if (leftDay === null || rightDay === null) return false;
+
+  const leftDigits = String(leftDay).padStart(2, "0");
+  const rightDigits = String(rightDay).padStart(2, "0");
+  return [...leftDigits].filter((digit, index) => digit !== rightDigits[index]).length === 1;
+};
+
 /**
- * A tour biography must never enrich a burial whose known life dates identify
- * a different person. Missing dates remain neutral because many legacy records
- * legitimately omit one or both fields.
+ * A few independently maintained tour/burial rows have an otherwise exact
+ * identity and plot but a bounded transcription discrepancy. Keep this
+ * narrower than general date fuzziness: either the year is off by one with
+ * month/day intact, or one day digit differs with year/month intact.
+ */
+const isBoundedDateTranscriptionDiscrepancy = (left, right) => {
+  if (
+    !left ||
+    !right ||
+    left.month === null ||
+    right.month === null ||
+    left.day === null ||
+    right.day === null
+  ) {
+    return false;
+  }
+
+  if (
+    Math.abs(left.year - right.year) === 1 &&
+    left.month === right.month &&
+    left.day === right.day
+  ) {
+    return true;
+  }
+
+  return (
+    left.year === right.year &&
+    left.month === right.month &&
+    differByOneDayDigit(left.day, right.day)
+  );
+};
+
+/**
+ * Reports any literal conflict between known tour and burial life dates.
+ * Missing dates remain neutral because many legacy records legitimately omit
+ * one or both fields. Match scoring separately handles a narrowly corroborated
+ * transcription discrepancy while keeping the raw conflict observable here.
  */
 export const hasKnownLifeDateConflict = (tourRecord = {}, burialRecord = {}) => (
   areKnownDatesConflicting(tourRecord.Birth, burialRecord.Birth) ||
@@ -341,6 +391,59 @@ const hasTourSiteIdentityEvidence = (tourName, tourNameParts, burialNameParts) =
     !GENERIC_SITE_NAME_TOKENS.has(token) && burialTokens.has(token)
   ));
 };
+
+const hasExactSourcePersonIdentity = (tourRecord, burialRecord) => {
+  const tourFirstName = normalizeName(tourRecord.First_Name);
+  const burialFirstName = normalizeName(burialRecord.First_Name);
+  const tourLastName = normalizeName(tourRecord.Last_Name);
+  const burialLastName = normalizeName(burialRecord.Last_Name);
+
+  return Boolean(
+    tourFirstName &&
+    burialFirstName &&
+    tourLastName &&
+    burialLastName &&
+    tourFirstName === burialFirstName &&
+    tourLastName === burialLastName
+  );
+};
+
+const hasCorroboratedDateTranscriptionDiscrepancy = (tourRecord, burialRecord) => {
+  const tourSectionLot = buildSectionLotKey(tourRecord);
+  if (
+    !tourSectionLot ||
+    tourSectionLot !== buildSectionLotKey(burialRecord) ||
+    !hasExactSourcePersonIdentity(tourRecord, burialRecord)
+  ) {
+    return false;
+  }
+
+  const comparableDatePairs = [
+    [tourRecord.Birth, burialRecord.Birth],
+    [tourRecord.Death, burialRecord.Death],
+  ]
+    .map(([tourValue, burialValue]) => [
+      parseComparableRecordDate(tourValue),
+      parseComparableRecordDate(burialValue),
+    ])
+    .filter(([tourDate, burialDate]) => tourDate && burialDate);
+
+  if (comparableDatePairs.length === 0) return false;
+
+  let foundBoundedDiscrepancy = false;
+  for (const [tourDate, burialDate] of comparableDatePairs) {
+    if (areComparableDatesExact(tourDate, burialDate)) continue;
+    if (!isBoundedDateTranscriptionDiscrepancy(tourDate, burialDate)) return false;
+    foundBoundedDiscrepancy = true;
+  }
+
+  return foundBoundedDiscrepancy;
+};
+
+const hasDisqualifyingKnownLifeDateConflict = (tourRecord, burialRecord) => (
+  hasKnownLifeDateConflict(tourRecord, burialRecord) &&
+  !hasCorroboratedDateTranscriptionDiscrepancy(tourRecord, burialRecord)
+);
 
 /**
  * Location narrows the candidate pool, but it is not identity evidence: a
@@ -417,7 +520,7 @@ const getRecordDistanceMeters = (left, right) => {
  * artifact builder score records the same way.
  */
 export const scoreTourBurialMatch = (tourRecord, burialRecord) => {
-  if (hasKnownLifeDateConflict(tourRecord, burialRecord)) {
+  if (hasDisqualifyingKnownLifeDateConflict(tourRecord, burialRecord)) {
     return Number.NEGATIVE_INFINITY;
   }
 

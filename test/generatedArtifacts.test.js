@@ -79,4 +79,12 @@ describe("generated artifacts", () => {
     expect(TourMatches["burial:57969:8:15:0"]?.Tour_Bio).toBe("TenEyck163");
     expect(TourMatches["burial:71095:34:2:0"]?.Tour_Bio).toBe("Lord145");
   });
+
+  test("retains exact person-and-plot matches with bounded date transcription differences", () => {
+    expect(TourMatches["burial:71224:24:8:0"]?.Tour_Bio).toBe("Arthur18");
+    expect(TourMatches["burial:34158:41:11:0"]?.Tour_Bio).toBe("Dix9");
+    expect(TourMatches["burial:57991:18:31:0"]?.Tour_Bio).toBe("Knapp55");
+    expect(TourMatches["burial:96823:14:1:0"]?.Tour_Bio).toBe("Patterson60");
+    expect(TourMatches["burial:96601:55:1:0"]?.Tour_Bio).toBe("Gansevoort85");
+  });
 });

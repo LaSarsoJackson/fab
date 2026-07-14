@@ -4,6 +4,7 @@ import AfricanAmericanTour from "../src/data/AfricanAmericanTour20.json";
 import AlbanyMayorsTour from "../src/data/AlbanyMayors_fixed.json";
 import CivilWarTour from "../src/data/CivilWarTour20.json";
 import GeoBurials from "../src/data/Geo_Burials.json";
+import IndependenceTour from "../src/data/IndependenceTour20.json";
 import NotablesTour from "../src/data/NotablesTour20.json";
 import {
   buildBurialLookup,
@@ -222,6 +223,72 @@ describe("harmonizeTourBrowseResult", () => {
     expect(unchangedUnrelatedBurial).not.toHaveProperty("Bio_Portra");
     expect(unchangedUnrelatedBurial).not.toHaveProperty("portraitImageName");
     expect(unchangedUnrelatedBurial).not.toHaveProperty("biographyLink");
+  });
+
+  test("accepts only tightly bounded date transcriptions for an exact person and plot", () => {
+    const expectedMatches = [
+      [NotablesTour, "Arthur18", 71224],
+      [NotablesTour, "Dix9", 34158],
+      [NotablesTour, "Knapp55", 57991],
+      [IndependenceTour, "Patterson60", 96823],
+      [IndependenceTour, "Gansevoort85", 96601],
+    ];
+
+    expectedMatches.forEach(([tourDataset, tourBio, burialObjectId]) => {
+      const tourFeature = tourDataset.features.find((feature) => (
+        feature.properties?.Tour_Bio === tourBio
+      ));
+      const burialFeature = GeoBurials.features.find((feature) => (
+        feature.properties?.OBJECTID === burialObjectId
+      ));
+      const tourContext = tourDataset === IndependenceTour
+        ? { tourKey: "Indep", tourName: "Independence Tour 2020" }
+        : { tourKey: "Notable", tourName: "Notables Tour 2020" };
+      const tourRecord = buildTourBrowseResult(tourFeature, tourContext);
+      const burialRecord = buildBurialBrowseResult(burialFeature);
+      const plotBurialRecords = GeoBurials.features
+        .filter((feature) => (
+          String(feature.properties?.Section) === burialRecord.Section &&
+          String(feature.properties?.Lot) === burialRecord.Lot
+        ))
+        .map((feature) => buildBurialBrowseResult(feature));
+
+      expect(hasKnownLifeDateConflict(tourRecord, burialRecord)).toBe(true);
+      expect(findMatchingBurialRecord(
+        tourRecord,
+        buildBurialLookup(plotBurialRecords)
+      )?.id).toBe(burialRecord.id);
+      expect(Object.keys(buildTourBurialMatches([tourRecord], plotBurialRecords)))
+        .toEqual([burialRecord.id]);
+    });
+
+    const arthurTourFeature = NotablesTour.features.find((feature) => (
+      feature.properties?.Tour_Bio === "Arthur18"
+    ));
+    const arthurNamesakeFeatures = GeoBurials.features.filter((feature) => (
+      String(feature.properties?.Section) === "24" &&
+      String(feature.properties?.Lot) === "8" &&
+      feature.properties?.First_Name === "Chester Alan" &&
+      feature.properties?.Last_Name === "Arthur" &&
+      feature.properties?.OBJECTID !== 71224
+    ));
+    const arthurTour = buildTourBrowseResult(arthurTourFeature, {
+      tourKey: "Notable",
+      tourName: "Notables Tour 2020",
+    });
+    const arthurNamesakes = arthurNamesakeFeatures.map((feature) => (
+      buildBurialBrowseResult(feature)
+    ));
+
+    expect(arthurNamesakes).toHaveLength(2);
+    arthurNamesakes.forEach((namesake) => {
+      expect(hasKnownLifeDateConflict(arthurTour, namesake)).toBe(true);
+    });
+    expect(findMatchingBurialRecord(
+      arthurTour,
+      buildBurialLookup(arthurNamesakes)
+    )).toBeNull();
+    expect(buildTourBurialMatches([arthurTour], arthurNamesakes)).toEqual({});
   });
 
   test("rejects a nearby same-surname relative when person identity does not match", () => {
