@@ -250,6 +250,43 @@ describe("harmonizeTourBrowseResult", () => {
     )).toEqual({});
   });
 
+  test("does not treat two full first names as matching initials", () => {
+    const tourRecord = buildTourBrowseResult(
+      {
+        properties: {
+          OBJECTID: 1,
+          Full_Name: "John Allen Smith",
+          Section: 1,
+          Lot: 1,
+        },
+        geometry: {
+          coordinates: [-73.73, 42.7],
+        },
+      },
+      {
+        tourKey: "Notable",
+        tourName: "Notables Tour 2020",
+      }
+    );
+    const burialRecord = buildBurialBrowseResult({
+      properties: {
+        OBJECTID: 2,
+        First_Name: "James Allen",
+        Last_Name: "Smith",
+        Section: 1,
+        Lot: 1,
+      },
+      geometry: {
+        coordinates: [-73.73, 42.7],
+      },
+    });
+
+    expect(findMatchingBurialRecord(
+      tourRecord,
+      buildBurialLookup([burialRecord])
+    )).toBeNull();
+  });
+
   test("preserves bounded spelling, initial, and compound-surname matches", () => {
     const roessleTourFeature = AfricanAmericanTour.features.find((feature) => (
       feature.properties?.Tour_Bio === "Roessle172"
