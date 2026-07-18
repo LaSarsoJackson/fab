@@ -241,7 +241,7 @@ export const buildSearchShellNotices = ({
     notices.push({
       key: "offline",
       tone: "warning",
-      label: "Offline. Cached searches and cemetery layers may still work after a prior load; live maps, links, and GPS can be limited.",
+      label: "Offline. Cached searches and cemetery layers may still work; maps, links, and GPS can be limited.",
     });
   } else if (isBurialDataLoading) {
     notices.push({
@@ -257,7 +257,7 @@ export const buildSearchShellNotices = ({
     notices.push({
       key: "search-readying",
       tone: "neutral",
-      label: "Preparing fast search…",
+      label: "Preparing search…",
     });
   } else if (loadingTourName) {
     notices.push({
@@ -271,7 +271,7 @@ export const buildSearchShellNotices = ({
     notices.push({
       key: "install",
       tone: "neutral",
-      label: "Safari: Share → Add to Home Screen",
+      label: "In Safari, use Add to Home Screen to save this map.",
     });
   }
 

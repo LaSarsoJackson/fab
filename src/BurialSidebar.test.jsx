@@ -832,7 +832,7 @@ describe("BurialSidebar", () => {
     expect(screen.queryByText("Browse: Section")).not.toBeInTheDocument();
     const annaResultCard = screen.getByText("Anna Tracy").closest(".left-sidebar__result-card");
     expect(within(annaResultCard).queryByText("Section 99")).not.toBeInTheDocument();
-    expect(within(annaResultCard).getByText(/Lot 18 • Tier 0/i)).toBeInTheDocument();
+    expect(within(annaResultCard).getByText(/Lot 18 · Tier 0 · Grave 0/i)).toBeInTheDocument();
 
     const sectionPanel = screen.getByRole("combobox", { name: "Section" }).closest(".left-sidebar__browse-detail");
     fireEvent.click(within(sectionPanel).getByRole("button", { name: "Clear" }));
@@ -964,7 +964,7 @@ describe("BurialSidebar", () => {
   domTest("keeps the share link panel hidden until there is a selection or saved link state", () => {
     renderSidebar();
 
-    expect(screen.queryByText("Share Link")).not.toBeInTheDocument();
+    expect(screen.queryByText("Share this map")).not.toBeInTheDocument();
   });
 
   domTest("keeps global search results visible after a selection so browse context stays available", () => {
@@ -1092,7 +1092,8 @@ describe("BurialSidebar", () => {
       onCopyFieldPacketLink,
     });
 
-    expect(screen.getByText("Share Link")).toBeInTheDocument();
+    expect(screen.getByText("Share this map")).toBeInTheDocument();
+    expect(screen.getByText("Copy a link to these records and this map view.")).toBeInTheDocument();
     expect(screen.getByText("1 selected record ready to share.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Copy share link" }));
@@ -1181,6 +1182,27 @@ describe("BurialSidebar", () => {
       "href",
       "https://apps.apple.com/us/app/albany-grave-finder/id6746413050"
     );
+  });
+
+  domTest("explains how to save a shared map from Safari", () => {
+    renderSidebar({
+      selectedBurials: [burialRecords[0]],
+      fieldPacket: {
+        version: 1,
+        activeBurialId: burialRecords[0].id,
+        selectedBurialIds: [burialRecords[0].id],
+        selectedRecords: [burialRecords[0]],
+      },
+      sharedLinkLandingState: {
+        restoredAt: Date.now(),
+      },
+      showIosInstallHint: true,
+    });
+
+    const sharePanel = screen.getByText("Share this map").closest(".left-sidebar__panel--field-packet");
+    expect(within(sharePanel).getByText(
+      "In Safari, use Add to Home Screen to save this map."
+    )).toBeInTheDocument();
   });
 
   domTest("turns mobile browse results into a focused location card", () => {
@@ -1684,7 +1706,7 @@ describe("BurialSidebar", () => {
 
     expect(screen.getByText("Using your current location for directions.")).toBeInTheDocument();
     expect(screen.getByText(
-      "Offline. Cached searches and cemetery layers may still work after a prior load; live maps, links, and GPS can be limited."
+      "Offline. Cached searches and cemetery layers may still work; maps, links, and GPS can be limited."
     )).toBeInTheDocument();
   });
 

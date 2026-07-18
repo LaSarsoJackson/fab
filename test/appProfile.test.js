@@ -26,6 +26,13 @@ const boundsContain = (outer, inner) => (
 );
 
 describe("app profile", () => {
+  test("uses direct map loading and route copy", () => {
+    expect(APP_PROFILE.brand.mapLoadingMessage).toBe("Loading cemetery map…");
+    expect(APP_PROFILE.map.locationMessages.routeLocationRequired).toBe(
+      "On-site navigation will start when you arrive."
+    );
+  });
+
   test("exposes the active data modules through the shared profile", () => {
     expect(DATA_MODULES).toEqual(APP_PROFILE.dataModules);
     expect(APP_PROFILE.moduleIds.primaryRecord).toBe("burials");

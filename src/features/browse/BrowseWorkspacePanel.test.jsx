@@ -176,7 +176,7 @@ describe("BrowseWorkspacePanel tour controls", () => {
     renderPanel({ isTourBrowseVisible: true });
     expect(screen.getByText("Choose tour")).toBeInTheDocument();
     expect(
-      screen.getByText("Switch to one curated route when you want guided stops.")
+      screen.getByText("Choose a tour to follow its stops.")
     ).toBeInTheDocument();
   });
 

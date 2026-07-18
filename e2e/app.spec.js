@@ -142,7 +142,7 @@ async function searchForLamont(page) {
 
   const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
   await expect(browseResults.first()).toContainText("Thomas E LaMont");
-  await expect(page.getByText("Preparing fast search…")).toHaveCount(0);
+  await expect(page.getByText("Preparing search…")).toHaveCount(0);
 
   return browseResults;
 }
@@ -665,7 +665,7 @@ test.describe("desktop", () => {
     await selectedPeoplePanel.getByRole("button", { name: "Navigate" }).click();
 
     await expect(selectedPeoplePanel).toContainText("Route active");
-    await expect(page.getByText("Starting on-site navigation...")).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByText("Calculating route…")).toHaveCount(0, { timeout: 15_000 });
     const routeLine = page.locator("path[stroke='#0f67c6']").first();
     await expect(routeLine).toBeVisible();
     expect(externalRouteRequestCount).toBe(0);
@@ -692,7 +692,7 @@ test.describe("desktop", () => {
     await selectedPeoplePanel.getByRole("button", { name: "Navigate" }).click();
 
     await expect(selectedPeoplePanel).toContainText("Route active");
-    await expect(page.getByText("Starting on-site navigation...")).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByText("Calculating route…")).toHaveCount(0, { timeout: 15_000 });
     const routeLine = page.locator("path[stroke='#0f67c6']").first();
     await expect(routeLine).toBeVisible();
 
@@ -709,7 +709,7 @@ test.describe("desktop", () => {
       longitude: -73.736092,
     });
 
-    await expect(page.getByText("Starting on-site navigation...")).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByText("Calculating route…")).toHaveCount(0, { timeout: 15_000 });
     await expect(routeLine).toBeVisible();
     await expect.poll(() => routeLine.getAttribute("d"), {
       timeout: 15_000,

@@ -299,7 +299,7 @@ describe("browse sidebar presentation helpers", () => {
       {
         key: "install",
         tone: "neutral",
-        label: "Safari: Share → Add to Home Screen",
+        label: "In Safari, use Add to Home Screen to save this map.",
       },
     ]);
 
@@ -319,7 +319,29 @@ describe("browse sidebar presentation helpers", () => {
       {
         key: "offline",
         tone: "warning",
-        label: "Offline. Cached searches and cemetery layers may still work after a prior load; live maps, links, and GPS can be limited.",
+        label: "Offline. Cached searches and cemetery layers may still work; maps, links, and GPS can be limited.",
+      },
+    ]);
+  });
+
+  test("uses direct copy while the search index is preparing", () => {
+    expect(buildSearchShellNotices({
+      burialRecordCount: 100,
+      defaultLocationStatus: "Location inactive",
+      activeLocationStatus: "Location active",
+      locatingLocationStatus: "Locating...",
+      isBurialDataLoading: false,
+      isInstalled: true,
+      isOnline: true,
+      isSearchIndexReady: false,
+      loadingTourName: "",
+      showIosInstallHint: false,
+      status: "Location inactive",
+    })).toEqual([
+      {
+        key: "search-readying",
+        tone: "neutral",
+        label: "Preparing search…",
       },
     ]);
   });

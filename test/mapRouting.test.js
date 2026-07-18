@@ -322,10 +322,18 @@ describe("map routing helpers", () => {
     });
   });
 
+  test("uses record-focused copy when route coordinates are missing", async () => {
+    await expect(calculateWalkingRoute({
+      roadGraph: buildRoadRoutingGraph(SIMPLE_ROADS),
+      from: null,
+      to: [42.70908, -73.72157],
+    })).rejects.toThrow("Directions aren’t available for this record.");
+  });
+
   test("surfaces local routing errors with user-facing copy", () => {
     expect(getRoutingErrorMessage({
       code: "LOCAL_ROUTING_OUT_OF_RANGE",
-    })).toBe("Continue with Maps for now. On-site navigation will start when you arrive.");
+    })).toBe("On-site route unavailable. Try Navigate again.");
     expect(getRoutingErrorMessage({})).toBe("Unable to start on-site navigation. Try Navigate again.");
     expect(getRoutingErrorMessage(new Error("No route found"))).toBe("No route found");
   });

@@ -427,7 +427,7 @@ export const APP_PROFILE = {
   brand: {
     appName: FAB_SITE_NAME,
     mapLoadingTitle: FAB_SITE_NAME,
-    mapLoadingMessage: "Loading map experience…",
+    mapLoadingMessage: "Loading cemetery map…",
   },
   shell: {
     homeUrl: FAB_HOME_URL,
@@ -524,7 +524,7 @@ export const APP_PROFILE = {
       unavailable: "Location is unavailable. Search by name or section, or open directions.",
       permissionDenied: "Location is off. Enable it in settings, or search by name or section.",
       outOfBounds: `Search by name or section, then tap Navigate for directions to ${FAB_SITE_NAME}.`,
-      routeLocationRequired: `Continue with Maps for now. On-site navigation will start when you arrive.`,
+      routeLocationRequired: "On-site navigation will start when you arrive.",
     },
     defaultBasemapId: "world-hillshade",
     basemaps: MAP_BASEMAPS,

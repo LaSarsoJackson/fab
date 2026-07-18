@@ -426,23 +426,6 @@ const BrowseResultCard = memo(function BrowseResultCard({
           ].filter(Boolean).join(" ")}
         >
           <Box className="left-sidebar__result-card-copy">
-            {presentation.metadataSummary && (
-              <Typography
-                variant="caption"
-                sx={{
-                  display: "block",
-                  position: "relative",
-                  zIndex: 1,
-                  mb: 0.45,
-                  color: "var(--muted-text)",
-                  fontWeight: 700,
-                  letterSpacing: "0.03em",
-                  textTransform: "uppercase",
-                }}
-              >
-                {presentation.metadataSummary}
-              </Typography>
-            )}
             <Typography variant="subtitle2" sx={{ position: "relative", zIndex: 1, lineHeight: 1.25 }}>
               {presentation.displayName}
             </Typography>
@@ -1934,9 +1917,9 @@ function FieldPacketPanel({
     >
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1.25, mb: 1 }}>
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="subtitle2">Share Link</Typography>
+          <Typography variant="subtitle2">Share this map</Typography>
           <Typography variant="body2" sx={{ color: "var(--muted-text)", mt: 0.45 }}>
-            Send someone straight to this selection and map view.
+            Copy a link to these records and this map view.
           </Typography>
         </Box>
         <Chip
@@ -1990,7 +1973,7 @@ function FieldPacketPanel({
           )}
           {showIosInstallHint && !canInstallApp && (
             <Typography variant="caption" sx={{ display: "block", mt: 0.85, color: "var(--muted-text)" }}>
-              Or save it to your Home Screen from Safari for one-tap return visits.
+              In Safari, use Add to Home Screen to save this map.
             </Typography>
           )}
         </Box>

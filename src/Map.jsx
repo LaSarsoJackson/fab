@@ -234,8 +234,13 @@ const GEOLOCATION_FALLBACK_REQUEST_OPTIONS = {
   timeout: 10000,
 };
 const GEOLOCATION_PERMISSION_DENIED = 1;
+const ROUTE_ARRIVAL_MESSAGE = "On-site navigation will start when you arrive.";
 const ROUTING_LOCATION_REQUIRED_MESSAGE = LOCATION_MESSAGES.routeLocationRequired ||
-  "Continue with Maps for now. On-site navigation will start when you arrive.";
+  ROUTE_ARRIVAL_MESSAGE;
+const DIRECTIONS_UNAVAILABLE_MESSAGE = "Directions aren’t available for this record.";
+const OPENING_DRIVING_DIRECTIONS_MESSAGE = "Opening driving directions…";
+const ROUTE_FALLBACK_MESSAGE = "On-site route unavailable. Opening driving directions…";
+const ROUTE_STARTING_MESSAGE = "Starting on-site route…";
 const NAVIGATION_NOTICE_AUTO_HIDE_MS = 6000;
 const ROUTE_LOCATION_REFRESH_INTERVAL_MS = 5000;
 const ROUTE_LOCATION_WATCH_STALE_MS = 15000;
@@ -3036,10 +3041,10 @@ export default function BurialMap() {
 
   const openExternalDirections = useCallback((
     burial,
-    { notice = "Opening driving directions...", travelMode = "driving" } = {}
+    { notice = OPENING_DRIVING_DIRECTIONS_MESSAGE, travelMode = "driving" } = {}
   ) => {
     if (!hasBurialNavigationCoordinates(burial)) {
-      setStatus('Directions unavailable for this burial');
+      setStatus(DIRECTIONS_UNAVAILABLE_MESSAGE);
       return false;
     }
 
@@ -3056,7 +3061,7 @@ export default function BurialMap() {
     });
 
     if (!link) {
-      setStatus('Directions unavailable for this burial');
+      setStatus(DIRECTIONS_UNAVAILABLE_MESSAGE);
       return false;
     }
 
@@ -3075,7 +3080,7 @@ export default function BurialMap() {
 
   const startOnSiteRouting = useCallback((burial, { location = acceptedLocationRef.current } = {}) => {
     if (!hasBurialNavigationCoordinates(burial)) {
-      setStatus('Directions unavailable for this burial');
+      setStatus(DIRECTIONS_UNAVAILABLE_MESSAGE);
       return false;
     }
 
@@ -3142,7 +3147,7 @@ export default function BurialMap() {
     }
 
     if (!hasBurialNavigationCoordinates(burial)) {
-      setStatus('Directions unavailable for this burial');
+      setStatus(DIRECTIONS_UNAVAILABLE_MESSAGE);
       return;
     }
 
@@ -3159,7 +3164,7 @@ export default function BurialMap() {
     const currentLocation = acceptedLocationRef.current;
 
     if (isLocationReadyForOnSiteNavigation(currentLocation)) {
-      showNavigationNotice("You're near the cemetery. Switching to on-site navigation.");
+      showNavigationNotice(ROUTE_STARTING_MESSAGE);
       startOnSiteRouting(navigationBurial, { location: currentLocation });
       return;
     }
@@ -3171,14 +3176,14 @@ export default function BurialMap() {
     // an unsolicited popup. The saved destination starts the location watch in
     // the background and still enables the on-site route when the user returns.
     openExternalDirections(navigationBurial, {
-      notice: "Opening driving directions...",
+      notice: OPENING_DRIVING_DIRECTIONS_MESSAGE,
       travelMode: "driving",
     });
 
     if (typeof window !== "undefined") {
       window.setTimeout(() => {
         if (destination && navigationDestinationRef.current?.id === destination.id) {
-          showNavigationNotice("On-site navigation will begin when you arrive.", {
+          showNavigationNotice(ROUTE_ARRIVAL_MESSAGE, {
             autoHideMs: 8000,
           });
         }
@@ -3204,7 +3209,7 @@ export default function BurialMap() {
       return false;
     }
 
-    showNavigationNotice("You're near the cemetery. Switching to on-site navigation.");
+    showNavigationNotice(ROUTE_STARTING_MESSAGE);
     return startOnSiteRouting(destination, { location });
   }, [
     isLocationReadyForOnSiteNavigation,
@@ -3296,7 +3301,7 @@ export default function BurialMap() {
       if (shouldFallbackToExternal) {
         suppressAutoOnSiteNavigationUntilRef.current = Date.now() + 60000;
         openExternalDirectionsRef.current?.(fallbackBurial, {
-          notice: "Opening driving directions...",
+          notice: ROUTE_FALLBACK_MESSAGE,
           travelMode: "driving",
         });
       }

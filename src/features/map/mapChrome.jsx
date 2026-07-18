@@ -1005,7 +1005,7 @@ export function RouteStatusOverlay({
   }
 
   const isError = Boolean(routingError);
-  const message = routingError || (hasSummary ? summaryLabel : (routingNotice || "Starting on-site navigation..."));
+  const message = routingError || (hasSummary ? summaryLabel : (routingNotice || "Calculating route…"));
   const placementSx = isMobile
     ? {
         top: "calc(env(safe-area-inset-top, 0px) + 10px)",

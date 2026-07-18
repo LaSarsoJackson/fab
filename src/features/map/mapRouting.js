@@ -461,7 +461,7 @@ const calculateClientSideWalkingRoute = ({
   // Inputs are [lat, lng] because they come from UI/geolocation state. The road
   // graph stores GeoJSON-style [lng, lat], so conversions stay local to routing.
   if (!Array.isArray(from) || !Array.isArray(to)) {
-    throw createRoutingError("Directions unavailable for this burial.", {
+    throw createRoutingError("Directions aren’t available for this record.", {
       code: "LOCAL_ROUTING_MISSING_COORDINATES",
       provider: "local",
       status: 400,
@@ -598,7 +598,7 @@ export const isCoordinateNearRoadNetwork = (
 
 export const getRoutingErrorMessage = (error) => {
   if (error?.code === "LOCAL_ROUTING_OUT_OF_RANGE") {
-    return "Continue with Maps for now. On-site navigation will start when you arrive.";
+    return "On-site route unavailable. Try Navigate again.";
   }
 
   if (typeof error?.message === "string" && error.message.trim()) {
