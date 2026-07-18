@@ -10,6 +10,42 @@ const readCssBlock = (css, selector) => {
   return match?.[1] || "";
 };
 
+const readCssContainer = (css, header) => {
+  const headerIndex = css.indexOf(header);
+  const openingBraceIndex = css.indexOf("{", headerIndex);
+  if (headerIndex < 0 || openingBraceIndex < 0) return "";
+
+  let depth = 1;
+  for (let index = openingBraceIndex + 1; index < css.length; index += 1) {
+    if (css[index] === "{") depth += 1;
+    if (css[index] !== "}") continue;
+    depth -= 1;
+    if (depth === 0) return css.slice(openingBraceIndex + 1, index);
+  }
+
+  return "";
+};
+
+const stripCssComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, "");
+
+const readCssDeclarationValues = (css, property) => [
+  ...css.matchAll(
+    new RegExp(`(?:^|[;{])\\s*${escapeRegExp(property)}\\s*:\\s*([^;}]+)`, "gm")
+  ),
+].map((match) => match[1].trim());
+
+const containsAllKeyword = (value) => value
+  .split(/[\s,]+/)
+  .some((token) => token === "all");
+
+const readBroadTransitionValues = (css) => {
+  const source = stripCssComments(css);
+  return [
+    ...readCssDeclarationValues(source, "transition"),
+    ...readCssDeclarationValues(source, "transition-property"),
+  ].filter(containsAllKeyword);
+};
+
 describe("UI asset contracts", () => {
   test("bundles Leaflet CSS locally instead of loading it from unpkg", () => {
     expect(readText("src/index.js")).toContain("import 'leaflet/dist/leaflet.css';");
@@ -87,6 +123,17 @@ describe("UI asset contracts", () => {
     expect(moreButton).toContain("min-height: 40px");
   });
 
+  test("expands the More control to 44px for coarse pointers", () => {
+    const css = readText("src/index.css");
+    const coarsePointerCss = readCssContainer(css, "@media (pointer: coarse)");
+    const moreButton = readCssBlock(
+      coarsePointerCss,
+      ".left-sidebar__more-button.MuiButton-root"
+    );
+
+    expect(moreButton).toContain("min-height: 44px");
+  });
+
   test("keeps changing route measurements visually stable", () => {
     const css = readText("src/index.css");
     const routeStatusContent = readCssBlock(css, ".route-status-overlay__content");
@@ -101,10 +148,31 @@ describe("UI asset contracts", () => {
     expect(mobileHeaderIcon).toContain("transition-property: background-color, scale");
   });
 
-  test("avoids broad transitions and permanent compositor hints", () => {
-    const css = readText("src/index.css");
+  test("detects broad transition keywords in either shorthand order", () => {
+    const fixture = `
+      /* .ignored { transition: all 150ms; } */
+      .property-first { transition: all 150ms ease; }
+      .duration-first { transition: 150ms ease all; }
+      .property-list { transition-property: opacity, all; }
+    `;
 
-    expect(css).not.toMatch(/transition\s*:\s*all(?:\s|;)/);
-    expect(css).not.toMatch(/will-change\s*:/);
+    expect(readBroadTransitionValues(fixture)).toEqual([
+      "all 150ms ease",
+      "150ms ease all",
+      "opacity, all",
+    ]);
+  });
+
+  test("avoids broad transitions and permanent compositor hints on refined controls", () => {
+    const css = stripCssComments(readText("src/index.css"));
+    const moreButton = readCssBlock(css, ".left-sidebar__more-button.MuiButton-root");
+    const mobileHeaderIcon = readCssBlock(
+      css,
+      ".mobile-sheet-header__icon-button.MuiIconButton-root"
+    );
+
+    expect(readBroadTransitionValues(css)).toEqual([]);
+    expect(moreButton).not.toMatch(/will-change\s*:/);
+    expect(mobileHeaderIcon).not.toMatch(/will-change\s*:/);
   });
 });

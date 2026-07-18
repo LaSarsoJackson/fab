@@ -2907,7 +2907,8 @@ select,
 /* Touch devices get full 44px targets on the compact pill buttons. */
 @media (pointer: coarse) {
   .left-sidebar__browse-actions .MuiButton-root,
-  .left-sidebar__selection-summary-actions .MuiButton-root {
+  .left-sidebar__selection-summary-actions .MuiButton-root,
+  .left-sidebar__more-button.MuiButton-root {
     min-height: 44px;
   }
 }
