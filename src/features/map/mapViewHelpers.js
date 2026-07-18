@@ -13,6 +13,25 @@ import { isLatLngBoundsExpressionValid } from "../../shared/geoJsonBounds";
 
 const LOCATION_BUFFER_BOUNDARY = APP_PROFILE.map.locationBufferBoundary;
 
+export const MAP_POPUP_PRESENTATION_MODES = Object.freeze({
+  COMPACT: "compact",
+  FULL: "full",
+  NONE: "none",
+});
+
+export const resolveMapPopupPresentationMode = ({
+  isMobile = false,
+  isSearchPanelVisible = true,
+} = {}) => {
+  if (isMobile) {
+    return MAP_POPUP_PRESENTATION_MODES.NONE;
+  }
+
+  return isSearchPanelVisible
+    ? MAP_POPUP_PRESENTATION_MODES.COMPACT
+    : MAP_POPUP_PRESENTATION_MODES.FULL;
+};
+
 /**
  * Reports whether a geolocation candidate falls inside the cemetery buffer.
  * Off-site fixes are rejected so routing and recentering stay within the map.

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  buildAppMenuPresentation,
   buildAutocompletePresentation,
   buildBrowseEmptyActionSpecs,
   buildBrowseResultsPanelPresentation,
@@ -19,6 +20,25 @@ import {
 } from "../src/features/browse/sidebarPresentation";
 
 describe("browse sidebar presentation helpers", () => {
+  test("builds utility-menu action availability", () => {
+    expect(buildAppMenuPresentation()).toEqual({
+      canClearSavedShareDetails: false,
+      canCopyShareLink: false,
+      canInstallApp: false,
+      hasActions: false,
+    });
+
+    expect(buildAppMenuPresentation({
+      canClearSavedShareDetails: true,
+    }).hasActions).toBe(true);
+    expect(buildAppMenuPresentation({
+      canCopyShareLink: true,
+    }).hasActions).toBe(true);
+    expect(buildAppMenuPresentation({
+      canInstallApp: true,
+    }).hasActions).toBe(true);
+  });
+
   test("builds autocomplete overlay presentation for desktop and mobile", () => {
     expect(buildAutocompletePresentation({ isMobile: false })).toEqual({
       componentsProps: {

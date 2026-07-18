@@ -3,6 +3,23 @@
  * out of the React component lets tests cover empty/loading/offline states
  * without rendering the full map/sidebar shell.
  */
+export const buildAppMenuPresentation = ({
+  canClearSavedShareDetails = false,
+  canCopyShareLink = false,
+  canInstallApp = false,
+} = {}) => {
+  const actions = {
+    canClearSavedShareDetails: Boolean(canClearSavedShareDetails),
+    canCopyShareLink: Boolean(canCopyShareLink),
+    canInstallApp: Boolean(canInstallApp),
+  };
+
+  return {
+    ...actions,
+    hasActions: Object.values(actions).some(Boolean),
+  };
+};
+
 export const buildAutocompletePresentation = ({
   isMobile = false,
 } = {}) => ({
