@@ -37,6 +37,7 @@ import {
   buildTourBrowseResult,
   findSectionBrowseDetailDefinition,
   formatBrowseResultName,
+  formatTourFeatureName,
   inflateSearchBurialRow,
   resolveSectionBrowseRecords,
 } from "./features/browse/browseResults";
@@ -332,20 +333,20 @@ const createTourMarker = (tourKey, tourStyles) => {
 
   return (feature, latlng) => {
     if (feature.geometry?.type === "Point") {
+      const markerTitle = `${formatTourFeatureName(feature)} tour stop`;
       const icon = L.divIcon({
         className: "tour-marker",
-        html: `<div style="
-          width: 12px;
-          height: 12px;
+        html: `<span class="tour-marker__dot" style="
           background-color: ${tourInfo.color};
-          border-radius: 50%;
-          border: 2px solid white;
-          box-shadow: 0 0 4px rgba(0,0,0,0.4);
-        "></div>`,
-        iconSize: [12, 12],
-        iconAnchor: [6, 6],
+        "></span>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
       });
-      return L.marker(latlng, { icon });
+      return L.marker(latlng, {
+        icon,
+        keyboard: true,
+        title: markerTitle,
+      });
     }
 
     return L.circleMarker(latlng, {
@@ -383,6 +384,7 @@ const bindReactPopup = ({
   layer.bindPopup(popupContainer, {
     maxWidth: 300,
     className: "custom-popup",
+    closeButton: false,
   });
 
   const renderPopup = () => {
@@ -4783,7 +4785,7 @@ export default function BurialMap() {
                 zIndexOffset={isHighlighted ? 1300 : 1100}
               >
                 {shouldUseMapPopups && (
-                  <Popup>
+                  <Popup closeButton={false}>
                     <PopupCardStackContent
                       records={records}
                       activeRecordId={activeBurialId}

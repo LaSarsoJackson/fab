@@ -386,6 +386,7 @@ test.describe("desktop", () => {
     const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
     await expect(popupCard).toBeVisible();
     await expect(popupCard).toHaveClass(/popup-card--compact/);
+    await expect(page.locator(".leaflet-popup-close-button")).toHaveCount(0);
     await expect(popupCard.locator(".popup-card__title")).toHaveText("Thomas E LaMont");
     await expect(popupCard.locator(".popup-card__subtitle")).toContainText("Section 215, Lot 30, Tier 0, Grave 0");
     await expect(popupCard.getByRole("button", { name: "Navigate" })).toHaveCount(0);
@@ -420,6 +421,7 @@ test.describe("desktop", () => {
     await expect(page.locator(".left-sidebar--desktop")).toHaveCount(0);
     await expect(popupCard).toBeVisible();
     await expect(popupCard).not.toHaveClass(/popup-card--compact/);
+    await expect(page.locator(".leaflet-popup-close-button")).toHaveCount(0);
     await expect(popupCard.getByRole("button", { name: "Navigate" })).toBeVisible();
     await expect(popupCard.getByRole("button", { name: "Close" })).toBeVisible();
 
@@ -495,12 +497,15 @@ test.describe("desktop", () => {
     const selectedHeading = (await browseResults.first().getByRole("heading").textContent()).trim();
     const tourMarker = page.locator(".leaflet-marker-icon.tour-marker").first();
     await expect(tourMarker).toBeVisible();
+    await expect(tourMarker).toHaveAttribute("title", `${selectedHeading} tour stop`);
+    await expectHitTarget(tourMarker);
     await tourMarker.click();
 
     const popupCard = page.locator(".leaflet-popup .popup-card");
     await expect(popupCard).toBeVisible();
     await expect(page.locator(".leaflet-popup .popup-card-stack")).toHaveCount(0);
     await expect(popupCard).toHaveClass(/popup-card--compact/);
+    await expect(page.locator(".leaflet-popup-close-button")).toHaveCount(0);
     await expect(popupCard.locator(".popup-card__eyebrow")).toHaveCount(0);
     await expect(popupCard.getByRole("button", { name: "Navigate" })).toHaveCount(0);
     await expect(popupCard.getByRole("button", { name: "Close" })).toHaveCount(0);

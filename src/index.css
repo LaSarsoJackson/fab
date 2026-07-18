@@ -1322,18 +1322,24 @@ select,
 }
 
 .tour-marker {
-  transition: transform 0.3s ease;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
 }
 
-.tour-marker:hover {
-  transform: scale(1.2);
+.tour-marker__dot {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+  transition-property: transform, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
-.tour-marker div {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.tour-marker:hover div {
+.tour-marker:hover .tour-marker__dot,
+.tour-marker:focus-visible .tour-marker__dot {
   transform: scale(1.2);
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
 }
@@ -1353,33 +1359,6 @@ select,
   margin: 0;
   font-family: 'Manrope', sans-serif;
   overflow: hidden;
-}
-
-.leaflet-container a.leaflet-popup-close-button {
-  top: 8px;
-  right: 8px;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border-radius: 999px;
-  background: rgba(247, 250, 251, 0.94);
-  color: var(--muted-text);
-  font-size: 20px;
-  line-height: 28px;
-  box-shadow: 0 6px 14px rgba(20, 33, 43, 0.1);
-}
-
-.leaflet-container a.leaflet-popup-close-button:hover {
-  background: rgba(255, 255, 255, 0.98);
-  color: var(--text-main);
-}
-
-/* Extend the 28px visual close button to a 44px hit target. */
-.leaflet-container a.leaflet-popup-close-button::after {
-  content: "";
-  position: absolute;
-  inset: -8px;
-  border-radius: 999px;
 }
 
 /* Popup card styles are shared by Leaflet popups and selected-record cards. */

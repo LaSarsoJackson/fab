@@ -58,7 +58,6 @@ describe("UI asset contracts", () => {
     const leafletLayerToggle = readCssBlock(css, ".leaflet-control-layers-toggle");
     const popupAction = readCssBlock(css, ".popup-card__action");
     const popupStackOption = readCssBlock(css, ".popup-card__stack-option");
-    const popupCloseHitTarget = readCssBlock(css, ".leaflet-container a.leaflet-popup-close-button::after");
     const sheetHeaderButtonHitTarget = readCssBlock(css, ".mobile-sheet-header__icon-button.MuiIconButton-root::after");
     const markerToggle = readCssBlock(css, ".left-sidebar__marker-toggle.MuiButton-root");
     const quickTourButton = readCssBlock(css, ".left-sidebar__quick-tour-button.MuiButton-root");
@@ -67,10 +66,25 @@ describe("UI asset contracts", () => {
     expect(leafletLayerToggle).toContain("height: 44px");
     expect(popupAction).toContain("min-height: 44px");
     expect(popupStackOption).toContain("min-height: 44px");
-    expect(popupCloseHitTarget).toContain("inset: -8px");
     expect(sheetHeaderButtonHitTarget).toContain("inset: -4px");
     expect(markerToggle).toContain("min-height: 44px");
     expect(quickTourButton).toContain("min-height: 44px");
+  });
+
+  test("disables Leaflet's duplicate popup close control", () => {
+    const mapSource = readText("src/Map.jsx");
+
+    expect(mapSource).toContain("closeButton: false");
+    expect(mapSource).toContain("<Popup closeButton={false}>");
+  });
+
+  test("labels keyboard tour markers and gives them full hit targets", () => {
+    const mapSource = readText("src/Map.jsx");
+
+    expect(mapSource).toContain("iconSize: [44, 44]");
+    expect(mapSource).toContain("iconAnchor: [22, 22]");
+    expect(mapSource).toContain("keyboard: true");
+    expect(mapSource).toContain("title: markerTitle");
   });
 
   test("keeps stacked popup content in one bounded scroll region", () => {
