@@ -1479,10 +1479,14 @@ describe("BurialSidebar", () => {
   });
 
   domTest("keeps selected mobile actions in the location card above the map", () => {
+    const onOpenAppMenu = jest.fn();
+
     renderSidebar({
       isMobile: true,
       activeBurialId: burialRecords[0].id,
+      hasAppMenuActions: true,
       initialQuery: "anna",
+      onOpenAppMenu,
       selectedBurials: [burialRecords[0]],
     });
 
@@ -1493,7 +1497,28 @@ describe("BurialSidebar", () => {
     expect(getBrowseWorkspace()).toBeNull();
     expect(screen.queryByLabelText("Search burials")).not.toBeInTheDocument();
     expect(within(selectionPanel).getByRole("button", { name: "Navigate" })).toBeInTheDocument();
+    const backButton = screen.getByRole("button", { name: "Back to results" });
+    const moreButton = screen.getByRole("button", { name: "More options" });
+
+    expect(backButton.parentElement).toBe(moreButton.parentElement);
+    expect(moreButton.parentElement).toHaveClass("mobile-location-header__top");
+
+    fireEvent.click(moreButton);
+
+    expect(onOpenAppMenu).toHaveBeenCalledTimes(1);
+  });
+
+  domTest("omits More options from the selected mobile place when no app-menu action is available", () => {
+    renderSidebar({
+      isMobile: true,
+      activeBurialId: burialRecords[0].id,
+      selectedBurials: [burialRecords[0]],
+    });
+
+    flushBrowseTimers();
+
     expect(screen.getByRole("button", { name: "Back to results" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "More options" })).not.toBeInTheDocument();
   });
 
   domTest("keeps selection-only state inside the browse workspace without idle results", () => {

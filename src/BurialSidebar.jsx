@@ -3069,15 +3069,18 @@ function BurialSidebar({
   // so nothing in it can ever be clipped.
   const mobileSheetHeader = hasMobileLocationSelection ? (
     <Box className="mobile-location-header">
-      <ButtonBase
-        component="button"
-        type="button"
-        className="mobile-location-header__back"
-        onClick={onClearSelectedBurials}
-      >
-        <ArrowBackIosNewIcon fontSize="small" />
-        <span>Back to results</span>
-      </ButtonBase>
+      <Box className="mobile-location-header__top">
+        <ButtonBase
+          component="button"
+          type="button"
+          className="mobile-location-header__back"
+          onClick={onClearSelectedBurials}
+        >
+          <ArrowBackIosNewIcon fontSize="small" />
+          <span>Back to results</span>
+        </ButtonBase>
+        {mobileMoreButton}
+      </Box>
       <Box className="mobile-location-header__copy">
         <Typography component="h2" className="mobile-location-header__title">
           {mobileLocationLabel || (mobileLocationRecordCount === 1

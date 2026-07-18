@@ -2270,6 +2270,15 @@ select,
   padding-top: 2px;
 }
 
+.mobile-location-header__top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  min-height: 44px;
+}
+
 .mobile-location-header__back.MuiButtonBase-root {
   justify-self: start;
   min-width: 0;
