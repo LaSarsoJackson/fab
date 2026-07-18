@@ -203,6 +203,15 @@ async function expectExternalMapsNavigation(page, triggerNavigation) {
 async function expectHitTarget(locator) {
   await expect(locator).toBeVisible();
   await expect(locator).toBeInViewport({ ratio: 1 });
+  const targetBounds = await locator.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return {
+      height: bounds.height,
+      width: bounds.width,
+    };
+  });
+  expect(targetBounds.width).toBeGreaterThanOrEqual(44);
+  expect(targetBounds.height).toBeGreaterThanOrEqual(44);
   await expect.poll(() => locator.evaluate((element) => {
     const bounds = element.getBoundingClientRect();
     const topElement = document.elementFromPoint(
@@ -391,7 +400,7 @@ test.describe("desktop", () => {
     ));
   });
 
-  test("collapsing desktop search upgrades the open popup to full controls", async ({ page }) => {
+  test("collapsing desktop search upgrades the open popup to a full popup with controls", async ({ page }) => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
     const browseResults = await searchForLamont(page);
