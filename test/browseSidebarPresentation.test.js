@@ -19,24 +19,56 @@ import {
   getSearchShellNoticeStyles,
 } from "../src/features/browse/sidebarPresentation";
 
+const APP_MENU_ACTION_KEYS = [
+  "canClearSavedShareDetails",
+  "canCopyShareLink",
+  "canInstallApp",
+];
+
 describe("browse sidebar presentation helpers", () => {
   test("builds utility-menu action availability", () => {
+    const disabledActions = {
+      canClearSavedShareDetails: false,
+      canCopyShareLink: false,
+      canInstallApp: false,
+    };
+
     expect(buildAppMenuPresentation()).toEqual({
+      ...disabledActions,
+      hasActions: false,
+    });
+
+    for (const actionKey of APP_MENU_ACTION_KEYS) {
+      expect(buildAppMenuPresentation({ [actionKey]: true })).toEqual({
+        ...disabledActions,
+        [actionKey]: true,
+        hasActions: true,
+      });
+    }
+  });
+
+  test("normalizes utility-menu action inputs to booleans", () => {
+    expect(buildAppMenuPresentation({
+      canClearSavedShareDetails: "available",
+      canCopyShareLink: 0,
+      canInstallApp: 1,
+    })).toEqual({
+      canClearSavedShareDetails: true,
+      canCopyShareLink: false,
+      canInstallApp: true,
+      hasActions: true,
+    });
+
+    expect(buildAppMenuPresentation({
+      canClearSavedShareDetails: "",
+      canCopyShareLink: null,
+      canInstallApp: undefined,
+    })).toEqual({
       canClearSavedShareDetails: false,
       canCopyShareLink: false,
       canInstallApp: false,
       hasActions: false,
     });
-
-    expect(buildAppMenuPresentation({
-      canClearSavedShareDetails: true,
-    }).hasActions).toBe(true);
-    expect(buildAppMenuPresentation({
-      canCopyShareLink: true,
-    }).hasActions).toBe(true);
-    expect(buildAppMenuPresentation({
-      canInstallApp: true,
-    }).hasActions).toBe(true);
   });
 
   test("builds autocomplete overlay presentation for desktop and mobile", () => {

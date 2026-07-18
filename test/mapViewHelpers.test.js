@@ -24,6 +24,20 @@ const ringAverage = firstBoundaryRing.reduce(
 );
 
 describe("resolveMapPopupPresentationMode", () => {
+  test("exposes stable popup presentation mode values", () => {
+    expect(MAP_POPUP_PRESENTATION_MODES).toEqual({
+      COMPACT: "compact",
+      FULL: "full",
+      NONE: "none",
+    });
+  });
+
+  test("uses compact map popups by default", () => {
+    expect(resolveMapPopupPresentationMode()).toBe(
+      MAP_POPUP_PRESENTATION_MODES.COMPACT
+    );
+  });
+
   test("hides map popups on mobile", () => {
     expect(resolveMapPopupPresentationMode({ isMobile: true })).toBe(
       MAP_POPUP_PRESENTATION_MODES.NONE
