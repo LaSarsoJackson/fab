@@ -9,6 +9,7 @@ import {
   PopupCardStackContent,
   PopupCardStackList,
 } from "./popupCardContent";
+import { MAP_POPUP_PRESENTATION_MODES } from "./mapViewHelpers";
 
 const stackRecords = [
   {
@@ -39,6 +40,78 @@ const stackRecords = [
     Grave: "3",
   },
 ];
+
+const reynoldsRecord = {
+  id: "reynolds",
+  source: "tour",
+  displayName: "Marcus T. Reynolds",
+  Section: "17",
+  Lot: "1",
+  Birth: "8/20/1869",
+  Death: "3/18/1937",
+  extraTitle: "Albany Architect",
+  portraitImageName: "Reynolds5d.png",
+  biographyLink: "Reynolds5",
+};
+
+test("compact popup content keeps only spatial context", () => {
+  render(
+    <PopupCardContent
+      record={reynoldsRecord}
+      recordCount={3}
+      presentationMode={MAP_POPUP_PRESENTATION_MODES.COMPACT}
+      onNavigate={jest.fn()}
+      onRemove={jest.fn()}
+      schedulePopupLayout={jest.fn()}
+      getPopup={() => ({})}
+      showActions
+    />
+  );
+
+  const compactCard = screen.getByRole("group", {
+    name: /Marcus T\. Reynolds.*Section 17, Lot 1.*3 people at this plot/i,
+  });
+  expect(compactCard).toHaveClass("popup-card", "popup-card--compact");
+  expect(screen.getByRole("heading", { name: "Marcus T. Reynolds" })).toBeInTheDocument();
+  expect(screen.getByText("Section 17, Lot 1")).toBeInTheDocument();
+  expect(screen.getByText("3 people at this plot")).toHaveClass("popup-card__context-count");
+  expect(screen.queryByText("Burial record")).not.toBeInTheDocument();
+  expect(screen.queryByText("Albany Architect")).not.toBeInTheDocument();
+  expect(screen.queryByRole("img", { name: "Marcus T. Reynolds portrait" }))
+    .not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Details" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Navigate" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();
+  expect(screen.queryAllByRole("term")).toHaveLength(0);
+});
+
+test("compact stacked popup content omits the person list and action controls", () => {
+  render(
+    <PopupCardStackContent
+      records={stackRecords}
+      activeRecordId="one"
+      presentationMode={MAP_POPUP_PRESENTATION_MODES.COMPACT}
+      onNavigate={jest.fn()}
+      onRemove={jest.fn()}
+      onSelectRecord={jest.fn()}
+      schedulePopupLayout={jest.fn()}
+      getPopup={() => ({})}
+    />
+  );
+
+  const compactStack = screen.getByRole("group", { name: "3 people at this plot" });
+  expect(compactStack).toHaveClass("popup-card-stack", "popup-card-stack--compact");
+  expect(within(compactStack).getByRole("heading", { name: "Anna Stack" }))
+    .toBeInTheDocument();
+  expect(within(compactStack).getByText("Section 50, Lot 1, Tier 0, Grave 1"))
+    .toBeInTheDocument();
+  expect(within(compactStack).getByText("3 people at this plot"))
+    .toHaveClass("popup-card__context-count");
+  expect(within(compactStack).queryByRole("list")).not.toBeInTheDocument();
+  expect(within(compactStack).queryByRole("button")).not.toBeInTheDocument();
+  expect(within(compactStack).queryByRole("link", { name: "Details" }))
+    .not.toBeInTheDocument();
+});
 
 test("PopupCardStackContent with 3 records renders all 3 names in the list and the correct heading", () => {
   render(
@@ -221,18 +294,7 @@ test("the default map popup includes biography facts, portrait, and directions",
 
   render(
     <PopupCardContent
-      record={{
-        id: "reynolds",
-        source: "tour",
-        displayName: "Marcus T. Reynolds",
-        Section: "17",
-        Lot: "1",
-        Birth: "8/20/1869",
-        Death: "3/18/1937",
-        extraTitle: "Albany Architect",
-        portraitImageName: "Reynolds5d.png",
-        biographyLink: "Reynolds5",
-      }}
+      record={reynoldsRecord}
       onNavigate={onNavigate}
       onRemove={jest.fn()}
       schedulePopupLayout={jest.fn()}

@@ -49,4 +49,11 @@ describe("UI asset contracts", () => {
     expect(stackedList).toContain("overflow-x: auto");
     expect(stackedList).toContain("overflow-y: hidden");
   });
+
+  test("uses tabular numerals for compact shared-plot counts", () => {
+    const css = readText("src/index.css");
+    const popupContextCount = readCssBlock(css, ".popup-card__context-count");
+
+    expect(popupContextCount).toContain("font-variant-numeric: tabular-nums");
+  });
 });

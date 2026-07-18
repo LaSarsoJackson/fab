@@ -8,6 +8,7 @@ import { Box } from "@mui/material";
 
 import { stopMapInteractionPropagation } from "./mapDomain";
 import { buildPopupViewModel, cleanRecordValue } from "./mapRecordPresentation";
+import { MAP_POPUP_PRESENTATION_MODES } from "./mapViewHelpers";
 
 export const createMapRecordKey = (record, index = 0) => (
   record?.id || `${record?.OBJECTID}_${record?.Section}_${record?.Lot}_${record?.Grave}_${index}`
@@ -23,6 +24,8 @@ export function PopupCardContent({
   schedulePopupLayout,
   showActions = false,
   showDetails = true,
+  presentationMode = MAP_POPUP_PRESENTATION_MODES.FULL,
+  recordCount = 1,
 }) {
   const popupView = buildPopupViewModel(record);
   const popupKey = createMapRecordKey(record, 0);
@@ -33,7 +36,16 @@ export function PopupCardContent({
       label === "Role" && popupView.paragraphs.includes(cleanRecordValue(value))
     )
   ));
-  const shouldShowActions = showActions && (onNavigate || onRemove);
+  const isCompact = presentationMode === MAP_POPUP_PRESENTATION_MODES.COMPACT;
+  const shouldShowDetails = showDetails && !isCompact;
+  const shouldShowActions = !isCompact && showActions && (onNavigate || onRemove);
+  const locationLabel = cleanRecordValue(popupView.subtitle || locationRow?.value);
+  const sharedPlotLabel = recordCount > 1 ? `${recordCount} people at this plot` : "";
+  const compactAccessibleLabel = [
+    popupView.heading,
+    locationLabel,
+    sharedPlotLabel,
+  ].filter(Boolean).join(", ");
 
   const handlePopupInteraction = useCallback((event) => {
     // Popup controls sit inside the Leaflet map container. Stop propagation so
@@ -87,13 +99,18 @@ export function PopupCardContent({
 
   return (
     <Box
-      className="popup-card"
+      className={[
+        "popup-card",
+        isCompact ? "popup-card--compact" : "",
+      ].filter(Boolean).join(" ")}
+      role={isCompact ? "group" : undefined}
+      aria-label={isCompact ? compactAccessibleLabel : undefined}
       onClick={handlePopupInteraction}
       onMouseDown={handlePopupInteraction}
       onPointerDown={handlePopupInteraction}
       onTouchStart={handlePopupInteraction}
     >
-      {popupView.sourceLabel && (
+      {!isCompact && popupView.sourceLabel && (
         <Box component="p" className="popup-card__eyebrow">
           {popupView.sourceLabel}
         </Box>
@@ -101,17 +118,17 @@ export function PopupCardContent({
       <Box component="h3" className="popup-card__title">
         {popupView.heading}
       </Box>
-      {popupView.subtitle && (
+      {locationLabel && (
         <Box component="p" className="popup-card__subtitle">
-          {popupView.subtitle}
+          {locationLabel}
         </Box>
       )}
-      {!popupView.subtitle && locationRow?.value && (
-        <Box component="p" className="popup-card__subtitle">
-          {locationRow.value}
+      {isCompact && sharedPlotLabel && (
+        <Box component="p" className="popup-card__context-count">
+          {sharedPlotLabel}
         </Box>
       )}
-      {showDetails && popupView.paragraphs?.length > 0 && (
+      {shouldShowDetails && popupView.paragraphs?.length > 0 && (
         <Box className="popup-card__body">
           {popupView.paragraphs.map((paragraph, index) => (
             <Box
@@ -124,7 +141,7 @@ export function PopupCardContent({
           ))}
         </Box>
       )}
-      {showDetails && detailRows.length > 0 && (
+      {shouldShowDetails && detailRows.length > 0 && (
         <Box component="dl" className="popup-card__details">
           {detailRows.map(({ label, value }) => (
             <Box key={`${popupKey}-${label}`} className="popup-card__row">
@@ -134,7 +151,7 @@ export function PopupCardContent({
           ))}
         </Box>
       )}
-      {showDetails && mediaUrl && (
+      {shouldShowDetails && mediaUrl && (
         <Box className="popup-card__media">
           {popupView.imageHint && (
             <Box component="p" className="popup-card__hint">
@@ -184,7 +201,7 @@ export function PopupCardContent({
               Navigate
             </button>
           )}
-          {showDetails && popupView.biographyLink && (
+          {shouldShowDetails && popupView.biographyLink && (
             <a
               className="popup-card__action popup-card__action--secondary"
               href={popupView.biographyLink}
@@ -331,6 +348,7 @@ export function PopupCardStackContent({
   onNavigate,
   onRemove,
   onSelectRecord,
+  presentationMode = MAP_POPUP_PRESENTATION_MODES.FULL,
   records = [],
   schedulePopupLayout,
 }) {
@@ -374,6 +392,7 @@ export function PopupCardStackContent({
     stackRecords.findIndex((record) => cleanRecordValue(record?.id) === currentRecordId)
   );
   const activeRecord = stackRecords[activeIndex];
+  const isCompact = presentationMode === MAP_POPUP_PRESENTATION_MODES.COMPACT;
 
   useLayoutEffect(() => {
     schedulePopupLayout?.(resolvePopup());
@@ -392,19 +411,26 @@ export function PopupCardStackContent({
 
   return (
     <div
-      className="popup-card-stack"
+      className={[
+        "popup-card-stack",
+        isCompact ? "popup-card-stack--compact" : "",
+      ].filter(Boolean).join(" ")}
       role="group"
       aria-label={`${stackRecords.length} people at this plot`}
     >
-      <PopupCardStackList
-        key={recordSignature}
-        records={stackRecords}
-        activeRecordId={currentRecordId}
-        onSelectRecord={handleSelectRecord}
-        stackDescription={`${stackRecords.length} people at this plot`}
-      />
+      {!isCompact && (
+        <PopupCardStackList
+          key={recordSignature}
+          records={stackRecords}
+          activeRecordId={currentRecordId}
+          onSelectRecord={handleSelectRecord}
+          stackDescription={`${stackRecords.length} people at this plot`}
+        />
+      )}
       <PopupCardContent
         record={activeRecord}
+        recordCount={stackRecords.length}
+        presentationMode={presentationMode}
         onNavigate={(event) => onNavigate?.(event, activeRecord)}
         onRemove={() => onRemove?.(activeRecord)}
         showActions={Boolean(onNavigate || onRemove)}

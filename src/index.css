@@ -1366,6 +1366,20 @@ select,
   color: var(--text-main);
 }
 
+.popup-card--compact {
+  min-width: 196px;
+  max-width: min(240px, calc(100vw - 44px));
+  padding: 0.78rem 0.85rem 0.8rem;
+}
+
+.popup-card__context-count {
+  margin: 0.42rem 0 0;
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
 .popup-card__eyebrow {
   margin: 0 0 0.35rem;
   font-size: 0.72rem;
@@ -1631,6 +1645,12 @@ select,
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
+}
+
+.leaflet-popup .popup-card--compact,
+.leaflet-popup .popup-card-stack--compact {
+  max-height: none;
+  overflow: visible;
 }
 
 .leaflet-popup .popup-card-stack > .popup-card {
