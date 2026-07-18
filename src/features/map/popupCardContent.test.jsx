@@ -44,6 +44,7 @@ const stackRecords = [
 const reynoldsRecord = {
   id: "reynolds",
   source: "tour",
+  tourName: "Notables Tour 2020",
   displayName: "Marcus T. Reynolds",
   Section: "17",
   Lot: "1",
@@ -75,7 +76,7 @@ test("compact popup content keeps only spatial context", () => {
   expect(screen.getByRole("heading", { name: "Marcus T. Reynolds" })).toBeInTheDocument();
   expect(screen.getByText("Section 17, Lot 1")).toBeInTheDocument();
   expect(screen.getByText("3 people at this plot")).toHaveClass("popup-card__context-count");
-  expect(screen.queryByText("Burial record")).not.toBeInTheDocument();
+  expect(screen.queryByText("Notables Tour 2020")).not.toBeInTheDocument();
   expect(screen.queryByText("Albany Architect")).not.toBeInTheDocument();
   expect(screen.queryByRole("img", { name: "Marcus T. Reynolds portrait" }))
     .not.toBeInTheDocument();
@@ -159,6 +160,56 @@ test("unrelated rerenders do not readjust the open popup viewport", () => {
   );
 
   expect(schedulePopupLayout).toHaveBeenCalledTimes(initialLayoutCount);
+});
+
+test("popup presentation changes readjust layout without reacting to unchanged rerenders", () => {
+  const popup = {};
+  const getPopup = () => popup;
+  const schedulePopupLayout = jest.fn();
+  const { rerender } = render(
+    <PopupCardStackContent
+      records={stackRecords}
+      activeRecordId="one"
+      presentationMode={MAP_POPUP_PRESENTATION_MODES.FULL}
+      schedulePopupLayout={schedulePopupLayout}
+      getPopup={getPopup}
+    />
+  );
+  const initialLayoutCount = schedulePopupLayout.mock.calls.length;
+
+  rerender(
+    <PopupCardStackContent
+      records={stackRecords}
+      activeRecordId="one"
+      presentationMode={MAP_POPUP_PRESENTATION_MODES.COMPACT}
+      schedulePopupLayout={schedulePopupLayout}
+      getPopup={getPopup}
+    />
+  );
+  const compactLayoutCount = schedulePopupLayout.mock.calls.length;
+  expect(compactLayoutCount).toBeGreaterThan(initialLayoutCount);
+
+  rerender(
+    <PopupCardStackContent
+      records={stackRecords}
+      activeRecordId="one"
+      presentationMode={MAP_POPUP_PRESENTATION_MODES.COMPACT}
+      schedulePopupLayout={schedulePopupLayout}
+      getPopup={getPopup}
+    />
+  );
+  expect(schedulePopupLayout).toHaveBeenCalledTimes(compactLayoutCount);
+
+  rerender(
+    <PopupCardStackContent
+      records={stackRecords}
+      activeRecordId="one"
+      presentationMode={MAP_POPUP_PRESENTATION_MODES.FULL}
+      schedulePopupLayout={schedulePopupLayout}
+      getPopup={getPopup}
+    />
+  );
+  expect(schedulePopupLayout.mock.calls.length).toBeGreaterThan(compactLayoutCount);
 });
 
 test("desktop plot lists render an initial batch, preserve a hidden active person, and expand accessibly", () => {
@@ -303,6 +354,7 @@ test("the default map popup includes biography facts, portrait, and directions",
     />
   );
 
+  expect(screen.getByText("Notables Tour 2020")).toHaveClass("popup-card__eyebrow");
   expect(screen.getByText("Albany Architect")).toHaveClass("popup-card__paragraph");
   expect(screen.getByRole("img", { name: "Marcus T. Reynolds portrait" }))
     .toHaveAttribute("src", expect.stringContaining("/images/Reynolds5d.png"));

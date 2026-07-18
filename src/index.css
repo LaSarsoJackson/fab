@@ -1368,7 +1368,7 @@ select,
 
 .popup-card--compact {
   min-width: 196px;
-  max-width: min(240px, calc(100vw - 44px));
+  max-width: min(240px, calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 44px));
   padding: 0.78rem 0.85rem 0.8rem;
 }
 
@@ -1647,10 +1647,15 @@ select,
   scrollbar-width: thin;
 }
 
-.leaflet-popup .popup-card--compact,
+.leaflet-popup .popup-card--compact {
+  max-height: min(70vh, 420px);
+  overflow-y: auto;
+}
+
 .leaflet-popup .popup-card-stack--compact {
-  max-height: none;
-  overflow: visible;
+  max-height: min(70vh, 420px);
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .leaflet-popup .popup-card-stack > .popup-card {

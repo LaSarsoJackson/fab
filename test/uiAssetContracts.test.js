@@ -56,4 +56,27 @@ describe("UI asset contracts", () => {
 
     expect(popupContextCount).toContain("font-variant-numeric: tabular-nums");
   });
+
+  test("preserves safe-area insets in compact popup width", () => {
+    const css = readText("src/index.css");
+    const compactPopup = readCssBlock(css, ".popup-card--compact");
+
+    expect(compactPopup).toContain(
+      "max-width: min(240px, calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 44px))"
+    );
+  });
+
+  test("keeps compact Leaflet popups in bounded scroll regions", () => {
+    const css = readText("src/index.css");
+    const compactPopup = readCssBlock(css, ".leaflet-popup .popup-card--compact");
+    const compactStack = readCssBlock(css, ".leaflet-popup .popup-card-stack--compact");
+
+    expect([
+      compactPopup.includes("max-height: min(70vh, 420px)"),
+      compactPopup.includes("overflow-y: auto"),
+      compactStack.includes("max-height: min(70vh, 420px)"),
+      compactStack.includes("overflow-x: hidden"),
+      compactStack.includes("overflow-y: auto"),
+    ]).toEqual([true, true, true, true, true]);
+  });
 });

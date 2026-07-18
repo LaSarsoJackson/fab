@@ -74,7 +74,7 @@ export function PopupCardContent({
 
   useLayoutEffect(() => {
     handlePopupLayoutChange();
-  }, [handlePopupLayoutChange, mediaUrl]);
+  }, [handlePopupLayoutChange, isCompact, mediaUrl]);
 
   useLayoutEffect(() => {
     handlePopupLayoutChange();
