@@ -16,6 +16,11 @@ const APP_HOSTS = new Set([
 
 const TEST_APP_PATH = "/";
 const isIgnorableConsoleError = (text = "") => /^Failed to load resource:/i.test(text);
+const REMOVED_INERT_APP_MENU_ROWS = [
+  "App installed on this device",
+  "App install unavailable in this browser",
+  "Safari: Share → Add to Home Screen",
+];
 const buildAppPath = (searchParams = "") => {
   if (!searchParams) {
     return TEST_APP_PATH;
@@ -208,6 +213,21 @@ async function expectHitTarget(locator) {
   })).toBe(true);
 }
 
+async function expectEnabledShareUtilityMenu(page, trigger) {
+  await trigger.click();
+
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: "Copy share link", exact: true })).toBeEnabled();
+
+  for (const removedRow of REMOVED_INERT_APP_MENU_ROWS) {
+    await expect(page.getByText(removedRow, { exact: true })).toHaveCount(0);
+  }
+
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+}
+
 async function getSelectedMarkerCenter(page) {
   const marker = page.locator(".selected-location-marker-icon").first();
   await expect(marker).toBeVisible();
@@ -359,7 +379,11 @@ test.describe("desktop", () => {
     await expect(popupCard.getByRole("button", { name: "Close" })).toHaveCount(0);
     await expect(popupCard.getByRole("link", { name: "Details" })).toHaveCount(0);
     await expect(selectedPeoplePanel.getByRole("button", { name: "Navigate" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "More", exact: true })).toBeVisible();
+    const moreButton = page.getByRole("button", { name: "More", exact: true });
+    await expect(moreButton).toBeVisible();
+    await expectEnabledShareUtilityMenu(page, moreButton);
+    await expect(popupCard).toHaveClass(/popup-card--compact/);
+    await expect(selectedPeoplePanel).toContainText("Thomas E LaMont");
     await waitForStableSelectedMarkerCenter(page);
 
     await expectExternalMapsNavigation(page, () => (
@@ -466,8 +490,12 @@ test.describe("desktop", () => {
     await expect(popupCard).toHaveClass(/popup-card--compact/);
     await expect(popupCard.locator(".popup-card__eyebrow")).toHaveCount(0);
     await expect(popupCard.getByRole("button", { name: "Navigate" })).toHaveCount(0);
+    await expect(popupCard.getByRole("button", { name: "Close" })).toHaveCount(0);
+    await expect(popupCard.getByRole("link", { name: "Details" })).toHaveCount(0);
     await expect(popupCard.locator(".popup-card__title")).toHaveText(selectedHeading);
-    await expect(page.locator(".left-sidebar__panel--selected-summary")).toContainText(selectedHeading);
+    const selectedSummary = page.locator(".left-sidebar__panel--selected-summary");
+    await expect(selectedSummary).toContainText(selectedHeading);
+    await expect(selectedSummary.getByRole("button", { name: "Navigate" })).toBeVisible();
     await popupCard.evaluate((element) => {
       element.setAttribute("data-e2e-popup-instance", "tour-popup-before-collapse");
     });
@@ -480,6 +508,7 @@ test.describe("desktop", () => {
     await expect(popupCard.locator(".popup-card__eyebrow")).toContainText("Notables Tour 2020");
     await expect(popupCard.getByRole("button", { name: "Navigate" })).toBeVisible();
     await expect(popupCard.getByRole("button", { name: "Close" })).toBeVisible();
+    await expect(popupCard.getByRole("link", { name: "Details" })).toBeVisible();
   });
 
   test("keyboard activation makes a tour stop authoritative in the sidebar", async ({ page }) => {
@@ -566,10 +595,16 @@ test.describe("desktop", () => {
   test("deep links restore the selected burial and popup state", async ({ page }) => {
     await waitForAppReady(page, buildAppPath("view=burials&q=lamont"));
 
-    const popupCard = page.locator(".popup-card");
+    const popupCard = page.locator(".leaflet-popup .popup-card");
+    const selectedSummary = page.locator(".left-sidebar__panel--selected-summary");
     await expect(popupCard).toBeVisible({ timeout: 60_000 });
+    await expect(popupCard).toHaveClass(/popup-card--compact/);
     await expect(popupCard.locator(".popup-card__title")).toHaveText("Thomas E LaMont");
-    await expect(page.locator(".left-sidebar__panel--selected-summary")).toContainText("Thomas E LaMont");
+    await expect(popupCard.getByRole("button", { name: "Navigate" })).toHaveCount(0);
+    await expect(popupCard.getByRole("button", { name: "Close" })).toHaveCount(0);
+    await expect(popupCard.getByRole("link", { name: "Details" })).toHaveCount(0);
+    await expect(selectedSummary).toContainText("Thomas E LaMont");
+    await expect(selectedSummary.getByRole("button", { name: "Navigate" })).toBeVisible();
   });
 
   test("packed shared links restore current burial data and landing state", async ({ page }) => {
@@ -744,6 +779,7 @@ test.describe("mobile", () => {
   test("a short shared plot stays attached to the bottom without hiding the map", async ({ page }) => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
+    await expect(page.getByRole("button", { name: "More options", exact: true })).toHaveCount(0);
 
     const searchInput = await getVisibleSearchInput(page);
     await searchInput.fill("anna m gardiner waller");
@@ -762,6 +798,11 @@ test.describe("mobile", () => {
     await expect(page.getByRole("heading", { name: "Section 53 · Lot 7" })).toBeVisible();
     await expect(page.getByText("4 people at this plot", { exact: true })).toBeVisible();
     const locationCard = page.locator(".mobile-location-card");
+    const moreOptionsButton = page.getByRole("button", { name: "More options", exact: true });
+    await expect(moreOptionsButton).toBeVisible();
+    await expectEnabledShareUtilityMenu(page, moreOptionsButton);
+    await expect(locationCard).toBeVisible();
+    await expect(locationCard.getByRole("heading", { name: "Anna M. Gardiner Waller" })).toBeVisible();
     const pickerTrigger = locationCard.getByRole("button", {
       name: /Choose person.*Anna M\. Gardiner Waller selected.*4 people at this plot/i,
     });
