@@ -519,6 +519,50 @@ test.describe("desktop", () => {
     await expect(page.locator(".selected-location-marker-icon")).toHaveCount(1);
   });
 
+  test("a detached tour stop falls back to its retained selected marker popup", async ({ page }) => {
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
+
+    await page.getByRole("button", { name: "Tours", exact: true }).click();
+
+    const tourInput = page.getByRole("combobox", { name: "Tour" });
+    await tourInput.click();
+    await page.getByRole("option", { name: "Notables Tour 2020" }).click();
+
+    await expect(page.getByText("Loading Notables Tour 2020…")).toHaveCount(0, { timeout: 45_000 });
+
+    const tourSearchInput = await getVisibleSearchInput(page);
+    await tourSearchInput.fill("Harmanus Bleecker");
+
+    // This unmatched stop stays source: "tour", which exercises the cached-layer fallback.
+    const retainedTourStop = page
+      .locator(".left-sidebar__panel--browse .left-sidebar__result-card")
+      .filter({ has: page.getByRole("heading", { name: "Harmanus Bleecker", exact: true }) });
+    await expect(retainedTourStop).toBeVisible({ timeout: 45_000 });
+    await retainedTourStop.click();
+
+    const selectedSummary = page.locator(".left-sidebar__panel--selected-summary");
+    const selectedMarker = page.locator(".selected-location-marker-icon");
+    await expect(selectedSummary).toContainText("Harmanus Bleecker");
+    await expect(selectedMarker).toHaveCount(1);
+    await expect(page.locator(".leaflet-popup .popup-card-stack")).toHaveCount(0);
+
+    const tourBrowseDetail = page.locator(".left-sidebar__browse-detail--tour");
+    await tourBrowseDetail.getByRole("button", { name: "Clear" }).click();
+
+    await expect(tourInput).toHaveValue("");
+    await expect(page.locator(".leaflet-marker-icon.tour-marker")).toHaveCount(0);
+    await expect(selectedMarker).toHaveCount(1);
+    await expect(selectedSummary).toContainText("Harmanus Bleecker");
+
+    await selectedSummary.getByRole("button", { name: /Harmanus Bleecker/ }).click();
+
+    const selectedMarkerPopup = page.locator(".leaflet-popup .popup-card-stack");
+    await expect(selectedMarkerPopup).toBeVisible();
+    await expect(selectedMarkerPopup.locator(".popup-card")).toHaveClass(/popup-card--compact/);
+    await expect(selectedMarkerPopup).toContainText("Harmanus Bleecker");
+  });
+
   test("deep links restore the selected burial and popup state", async ({ page }) => {
     await waitForAppReady(page, buildAppPath("view=burials&q=lamont"));
 

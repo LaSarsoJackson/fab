@@ -2112,7 +2112,7 @@ export default function BurialMap() {
     const tourLayer = burial.source === "tour"
       ? tourFeatureLayersRef.current.get(burial.id)
       : null;
-    if (tourLayer) {
+    if (tourLayer && getMapInstance()?.hasLayer?.(tourLayer)) {
       return tourLayer;
     }
 
@@ -2126,7 +2126,7 @@ export default function BurialMap() {
     }
 
     return sectionMarkersByIdRef.current.get(getSectionBurialMarkerId(burial)) || null;
-  }, []);
+  }, [getMapInstance]);
   const handlePopupBurialOpen = useCallback((burial) => {
     popupBurialIdRef.current = burial?.id || null;
   }, []);
