@@ -680,13 +680,21 @@ const createOnEachTourFeature = (
   layer.on("mouseout", () => {
     onHoverEnd?.(browseResult.id);
   });
-  layer.on("click", () => {
+  const selectTourStop = () => {
     onSelect(browseResult, {
       animate: false,
       openTourPopup: true,
       preserveViewport: true,
       selectionSource: SELECTION_SOURCES.TOUR_STOP,
     });
+  };
+  layer.on("click", selectTourStop);
+  layer.on("keypress", (event) => {
+    if (event?.originalEvent?.key !== "Enter") {
+      return;
+    }
+
+    selectTourStop();
   });
 };
 
@@ -2101,13 +2109,20 @@ export default function BurialMap() {
   const getPopupLayerForBurial = useCallback((burial) => {
     if (!burial) return null;
 
+    const tourLayer = burial.source === "tour"
+      ? tourFeatureLayersRef.current.get(burial.id)
+      : null;
+    if (tourLayer) {
+      return tourLayer;
+    }
+
     const selectedMarker = selectedMarkerLayersRef.current.get(burial.id);
     if (selectedMarker) {
       return selectedMarker;
     }
 
     if (burial.source === "tour") {
-      return tourFeatureLayersRef.current.get(burial.id) || null;
+      return null;
     }
 
     return sectionMarkersByIdRef.current.get(getSectionBurialMarkerId(burial)) || null;

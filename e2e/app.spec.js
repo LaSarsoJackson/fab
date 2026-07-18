@@ -462,6 +462,7 @@ test.describe("desktop", () => {
 
     const popupCard = page.locator(".leaflet-popup .popup-card");
     await expect(popupCard).toBeVisible();
+    await expect(page.locator(".leaflet-popup .popup-card-stack")).toHaveCount(0);
     await expect(popupCard).toHaveClass(/popup-card--compact/);
     await expect(popupCard.locator(".popup-card__eyebrow")).toHaveCount(0);
     await expect(popupCard.getByRole("button", { name: "Navigate" })).toHaveCount(0);
@@ -479,6 +480,43 @@ test.describe("desktop", () => {
     await expect(popupCard.locator(".popup-card__eyebrow")).toContainText("Notables Tour 2020");
     await expect(popupCard.getByRole("button", { name: "Navigate" })).toBeVisible();
     await expect(popupCard.getByRole("button", { name: "Close" })).toBeVisible();
+  });
+
+  test("keyboard activation makes a tour stop authoritative in the sidebar", async ({ page }) => {
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
+
+    await page.getByRole("button", { name: "Tours", exact: true }).click();
+
+    const tourInput = page.getByRole("combobox", { name: "Tour" });
+    await tourInput.click();
+    await page.getByRole("option", { name: "Notables Tour 2020" }).click();
+
+    await expect(page.getByText("Loading Notables Tour 2020…")).toHaveCount(0, { timeout: 45_000 });
+
+    const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
+    await expect(browseResults.first()).toBeVisible({ timeout: 45_000 });
+
+    const selectedHeading = (await browseResults.first().getByRole("heading").textContent()).trim();
+    const tourMarker = page.locator(".leaflet-marker-icon.tour-marker").first();
+    const selectedSummary = page.locator(".left-sidebar__panel--selected-summary");
+    await expect(tourMarker).toBeVisible();
+    await tourMarker.focus();
+    await expect(tourMarker).toBeFocused();
+
+    await tourMarker.press("a");
+    await expect(selectedSummary).toHaveCount(0);
+
+    await tourMarker.press("Enter");
+
+    const popupCard = page.locator(".leaflet-popup .popup-card");
+    await expect(popupCard).toBeVisible();
+    await expect(page.locator(".leaflet-popup .popup-card-stack")).toHaveCount(0);
+    await expect(popupCard).toHaveClass(/popup-card--compact/);
+    await expect(popupCard.getByRole("button", { name: "Navigate" })).toHaveCount(0);
+    await expect(selectedSummary).toContainText(selectedHeading);
+    await expect(selectedSummary.getByRole("button", { name: "Navigate" })).toBeVisible();
+    await expect(page.locator(".selected-location-marker-icon")).toHaveCount(1);
   });
 
   test("deep links restore the selected burial and popup state", async ({ page }) => {
