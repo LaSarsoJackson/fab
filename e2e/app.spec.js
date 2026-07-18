@@ -341,20 +341,55 @@ async function waitForSettledSheetTop(locator, tolerance = 1) {
 }
 
 test.describe("desktop", () => {
-  test("searching for a burial opens the map popup and external maps popup", async ({ page }) => {
+  test("searching for a burial keeps map actions in the selected summary", async ({ page }) => {
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
+    await expect(page.getByRole("button", { name: "More", exact: true })).toHaveCount(0);
+    const browseResults = await searchForLamont(page);
+
+    await browseResults.first().click();
+
+    const popupCard = page.locator(".leaflet-popup .popup-card");
+    const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
+    await expect(popupCard).toBeVisible();
+    await expect(popupCard).toHaveClass(/popup-card--compact/);
+    await expect(popupCard.locator(".popup-card__title")).toHaveText("Thomas E LaMont");
+    await expect(popupCard.locator(".popup-card__subtitle")).toContainText("Section 215, Lot 30, Tier 0, Grave 0");
+    await expect(popupCard.getByRole("button", { name: "Navigate" })).toHaveCount(0);
+    await expect(popupCard.getByRole("button", { name: "Close" })).toHaveCount(0);
+    await expect(popupCard.getByRole("link", { name: "Details" })).toHaveCount(0);
+    await expect(selectedPeoplePanel.getByRole("button", { name: "Navigate" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "More", exact: true })).toBeVisible();
+    await waitForStableSelectedMarkerCenter(page);
+
+    await expectExternalMapsNavigation(page, () => (
+      selectedPeoplePanel.getByRole("button", { name: "Navigate" }).click()
+    ));
+  });
+
+  test("collapsing desktop search upgrades the open popup to full controls", async ({ page }) => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
     const browseResults = await searchForLamont(page);
 
     await browseResults.first().click();
 
-    const popupCard = page.locator(".popup-card");
+    const popupCard = page.locator(".leaflet-popup .popup-card");
     await expect(popupCard).toBeVisible();
-    await expect(popupCard.locator(".popup-card__title")).toHaveText("Thomas E LaMont");
-    await expect(popupCard.locator(".popup-card__subtitle")).toContainText("Section 215, Lot 30, Tier 0, Grave 0");
-    await waitForStableSelectedMarkerCenter(page);
+    await expect(popupCard).toHaveClass(/popup-card--compact/);
 
-    await expectExternalMapsNavigation(page, () => popupCard.getByRole("button", { name: "Navigate" }).click());
+    await page.getByRole("button", { name: "Collapse" }).click();
+
+    await expect(page.locator(".left-sidebar--desktop")).toHaveCount(0);
+    await expect(popupCard).toBeVisible();
+    await expect(popupCard).not.toHaveClass(/popup-card--compact/);
+    await expect(popupCard.getByRole("button", { name: "Navigate" })).toBeVisible();
+    await expect(popupCard.getByRole("button", { name: "Close" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Search" }).click();
+
+    await expect(page.locator(".left-sidebar--desktop")).toBeVisible();
+    await expect(await getVisibleSearchInput(page, { requireEditable: false })).toBeVisible();
   });
 
   test("desktop search panel can be hidden and restored", async ({ page }) => {
@@ -427,13 +462,23 @@ test.describe("desktop", () => {
 
     const popupCard = page.locator(".leaflet-popup .popup-card");
     await expect(popupCard).toBeVisible();
-    await expect(popupCard.locator(".popup-card__eyebrow")).toContainText("Notables Tour 2020");
+    await expect(popupCard).toHaveClass(/popup-card--compact/);
+    await expect(popupCard.locator(".popup-card__eyebrow")).toHaveCount(0);
+    await expect(popupCard.getByRole("button", { name: "Navigate" })).toHaveCount(0);
     await expect(popupCard.locator(".popup-card__title")).toHaveText(selectedHeading);
     await expect(page.locator(".left-sidebar__panel--selected-summary")).toContainText(selectedHeading);
+    await popupCard.evaluate((element) => {
+      element.setAttribute("data-e2e-popup-instance", "tour-popup-before-collapse");
+    });
 
-    await page.waitForTimeout(750);
+    await page.getByRole("button", { name: "Collapse" }).click();
+
     await expect(popupCard).toBeVisible();
-    await expect(page.locator(".left-sidebar__panel--selected-summary")).toContainText(selectedHeading);
+    await expect(popupCard).toHaveAttribute("data-e2e-popup-instance", "tour-popup-before-collapse");
+    await expect(popupCard).not.toHaveClass(/popup-card--compact/);
+    await expect(popupCard.locator(".popup-card__eyebrow")).toContainText("Notables Tour 2020");
+    await expect(popupCard.getByRole("button", { name: "Navigate" })).toBeVisible();
+    await expect(popupCard.getByRole("button", { name: "Close" })).toBeVisible();
   });
 
   test("deep links restore the selected burial and popup state", async ({ page }) => {

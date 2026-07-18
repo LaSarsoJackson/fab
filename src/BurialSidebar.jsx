@@ -2095,6 +2095,7 @@ function BurialSidebar({
   fieldPacketNotice,
   filterType,
   getTourName,
+  hasAppMenuActions = false,
   hoveredBurialId,
   initialQuery,
   installPromptEvent,
@@ -2760,18 +2761,19 @@ function BurialSidebar({
     sectionFilter,
     selectedTour,
   ]);
-  const desktopMoreButton = !isMobile ? (
+  const desktopMoreButton = !isMobile && hasAppMenuActions ? (
     <Button
       variant="text"
       size="small"
       color="inherit"
       onClick={onOpenAppMenu}
       startIcon={<MoreHorizIcon />}
+      className="left-sidebar__more-button"
     >
       More
     </Button>
   ) : null;
-  const mobileMoreButton = isMobile ? (
+  const mobileMoreButton = isMobile && hasAppMenuActions ? (
     <IconButton
       size="small"
       color="inherit"

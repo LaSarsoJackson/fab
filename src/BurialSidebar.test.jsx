@@ -112,6 +112,7 @@ const createBaseProps = () => ({
   fieldPacketNotice: null,
   filterType: "lot",
   getTourName,
+  hasAppMenuActions: false,
   hoveredBurialId: null,
   initialQuery: "",
   installPromptEvent: null,
@@ -338,7 +339,7 @@ describe("BurialSidebar", () => {
     expect(screen.queryByRole("combobox", { name: "Section" })).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Search graves & landmarks/i)).toBeInTheDocument();
     expect(screen.queryByText("Start with a section")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "More options" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "More options" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Clear all browse filters")).not.toBeInTheDocument();
 
     const input = screen.getByPlaceholderText(/Search graves & landmarks/i);
@@ -360,6 +361,51 @@ describe("BurialSidebar", () => {
     expect(input).toHaveValue("");
     expect(getCurrentMobileSheetSnap()).toBeCloseTo(920);
     expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(1);
+  });
+
+  domTest("omits desktop and mobile More controls when no app-menu action is available", () => {
+    const { rerender } = renderSidebar();
+
+    expect(screen.queryByRole("button", { name: "More", exact: true })).not.toBeInTheDocument();
+
+    rerender(
+      <BurialSidebar
+        {...createBaseProps()}
+        isMobile
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "More options" })).not.toBeInTheDocument();
+  });
+
+  domTest("opens the app menu from the actionable desktop More control", () => {
+    const onOpenAppMenu = jest.fn();
+
+    renderSidebar({
+      hasAppMenuActions: true,
+      onOpenAppMenu,
+    });
+
+    const moreButton = screen.getByRole("button", { name: "More", exact: true });
+    expect(moreButton).toHaveClass("left-sidebar__more-button");
+
+    fireEvent.click(moreButton);
+
+    expect(onOpenAppMenu).toHaveBeenCalledTimes(1);
+  });
+
+  domTest("opens the app menu from the actionable mobile More options control", () => {
+    const onOpenAppMenu = jest.fn();
+
+    renderSidebar({
+      hasAppMenuActions: true,
+      isMobile: true,
+      onOpenAppMenu,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "More options" }));
+
+    expect(onOpenAppMenu).toHaveBeenCalledTimes(1);
   });
 
   domTest("lets mobile users collapse and reopen the search panel", () => {

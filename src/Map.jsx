@@ -41,6 +41,9 @@ import {
   resolveSectionBrowseRecords,
 } from "./features/browse/browseResults";
 import {
+  buildAppMenuPresentation,
+} from "./features/browse/sidebarPresentation";
+import {
   buildSearchIndex,
   smartSearch,
   sortSectionValues,
@@ -140,6 +143,8 @@ import {
   getMapMaxZoom,
   isLocationCandidateWithinBuffer,
   isRenderableBounds,
+  MAP_POPUP_PRESENTATION_MODES,
+  resolveMapPopupPresentationMode,
 } from "./features/map/mapViewHelpers";
 import {
   PopupCardContent,
@@ -353,7 +358,10 @@ const createTourMarker = (tourKey, tourStyles) => {
  * Binds a React popup to an imperative Leaflet layer. This is used for layers
  * created outside React, such as markercluster children and cached tour GeoJSON.
  */
+const tourPopupRenderers = new WeakMap();
+
 const bindReactPopup = ({
+  getPresentationMode = () => MAP_POPUP_PRESENTATION_MODES.FULL,
   layer,
   record,
   onNavigate,
@@ -373,13 +381,18 @@ const bindReactPopup = ({
   });
 
   const renderPopup = () => {
+    const presentationMode = getPresentationMode();
+    const isFullPresentation = presentationMode === MAP_POPUP_PRESENTATION_MODES.FULL;
+
     ReactDOM.render(
       (
         <PopupCardContent
           record={record}
           onNavigate={onNavigate}
           onRemove={onRemove}
-          showActions={Boolean(onNavigate || onRemove)}
+          presentationMode={presentationMode}
+          showActions={isFullPresentation && Boolean(onNavigate || onRemove)}
+          showDetails={isFullPresentation}
           getPopup={() => layer.getPopup?.()}
           schedulePopupLayout={schedulePopupLayout}
         />
@@ -387,6 +400,7 @@ const bindReactPopup = ({
       popupContainer
     );
   };
+  tourPopupRenderers.set(layer, renderPopup);
 
   const unmountPopup = () => {
     if (popupContainer.hasChildNodes()) {
@@ -394,6 +408,9 @@ const bindReactPopup = ({
     }
   };
 
+  layer.on("add", () => {
+    tourPopupRenderers.set(layer, renderPopup);
+  });
   layer.on("popupopen", ({ popup }) => {
     if (!shouldRenderPopup()) {
       layer.closePopup();
@@ -408,7 +425,10 @@ const bindReactPopup = ({
     onPopupClose?.(record);
     unmountPopup();
   });
-  layer.on("remove", unmountPopup);
+  layer.on("remove", () => {
+    tourPopupRenderers.delete(layer);
+    unmountPopup();
+  });
 };
 
 /**
@@ -440,6 +460,40 @@ function MapTourController({ selectedTour, overlayMaps, tourNames }) {
   }, [map, selectedTour, overlayMaps, tourNames]);
 
   return null;
+}
+
+function PopupPreservingSidebarToggleControl({ isSearchPanelVisible, onToggle }) {
+  const controlContainerRef = useRef(null);
+
+  useEffect(() => {
+    const controlContainer = controlContainerRef.current;
+    if (!controlContainer) {
+      return undefined;
+    }
+
+    // This custom control lives inside Leaflet's event root. Mark it like a
+    // native Leaflet control so toggling sidebar chrome does not emit the map
+    // preclick that closes the popup before its presentation mode can update.
+    L.DomEvent.disableClickPropagation(controlContainer);
+
+    return () => {
+      L.DomEvent.off(
+        controlContainer,
+        "mousedown touchstart dblclick contextmenu",
+        L.DomEvent.stopPropagation
+      );
+      delete controlContainer._leaflet_disable_click;
+    };
+  }, []);
+
+  return (
+    <div ref={controlContainerRef} style={{ width: "max-content" }}>
+      <SidebarToggleControl
+        isSearchPanelVisible={isSearchPanelVisible}
+        onToggle={onToggle}
+      />
+    </div>
+  );
 }
 
 const MapRoadLayers = memo(function MapRoadLayers({ roadsData }) {
@@ -513,7 +567,7 @@ const MapStaticLayers = memo(function MapStaticLayers({
           fitMapBounds={fitMapBoundsInViewport}
         />
         {(!isMobile || !isSearchPanelVisible) && (
-          <SidebarToggleControl
+          <PopupPreservingSidebarToggleControl
             isSearchPanelVisible={isSearchPanelVisible}
             onToggle={onToggleSearchPanel}
           />
@@ -590,6 +644,7 @@ const createOnEachTourFeature = (
   onRemoveResult,
   onRegisterLayer,
   resolveTourBrowseResult,
+  getPresentationMode,
   schedulePopupLayout,
   shouldRenderPopup
 ) => (feature, layer) => {
@@ -599,6 +654,7 @@ const createOnEachTourFeature = (
     : baseBrowseResult;
 
   bindReactPopup({
+    getPresentationMode,
     layer,
     record: browseResult,
     onNavigate: (event) => {
@@ -930,7 +986,24 @@ export default function BurialMap() {
       )
     )
   );
-  const appMenuOpen = Boolean(appMenuAnchorEl);
+  const appMenuPresentation = useMemo(() => buildAppMenuPresentation({
+    canClearSavedShareDetails: Boolean(
+      isFieldPacketsEnabled && fieldPacket?.selectedRecords?.length
+    ),
+    canCopyShareLink: Boolean(
+      isFieldPacketsEnabled && (
+        fieldPacket?.selectedRecords?.length || selectedBurials.length
+      )
+    ),
+    canInstallApp: Boolean(!isInstalled && installPromptEvent),
+  }), [
+    fieldPacket?.selectedRecords?.length,
+    installPromptEvent,
+    isFieldPacketsEnabled,
+    isInstalled,
+    selectedBurials.length,
+  ]);
+  const appMenuOpen = appMenuPresentation.hasActions && Boolean(appMenuAnchorEl);
   const isAppleMobile = useMemo(() => {
     if (typeof navigator === 'undefined') return false;
 
@@ -979,10 +1052,12 @@ export default function BurialMap() {
 
     return isMobile;
   }, [isMobile]);
-  // Mobile uses one bottom place card as the selected-location surface. A
-  // Leaflet popup would create a second, competing panel and can be physically
-  // covered by the sheet, so anchored popups remain desktop-only.
-  const shouldUseMapPopups = !isMobile;
+  const popupPresentationMode = resolveMapPopupPresentationMode({
+    isMobile,
+    isSearchPanelVisible,
+  });
+  const shouldUseMapPopups = popupPresentationMode !== MAP_POPUP_PRESENTATION_MODES.NONE;
+  const popupPresentationModeRef = useRef(popupPresentationMode);
   const shouldUseMapPopupsRef = useRef(shouldUseMapPopups);
   const handleBasemapChange = useCallback((nextBasemapId) => {
     setActiveBasemapId(nextBasemapId);
@@ -1262,6 +1337,7 @@ export default function BurialMap() {
   }, [getMapInstance, isMobile, isSearchPanelVisible]);
 
   useEffect(() => {
+    popupPresentationModeRef.current = popupPresentationMode;
     shouldUseMapPopupsRef.current = shouldUseMapPopups;
 
     if (shouldUseMapPopups) {
@@ -1269,7 +1345,28 @@ export default function BurialMap() {
     }
 
     closeMapPopup();
-  }, [closeMapPopup, shouldUseMapPopups]);
+  }, [closeMapPopup, popupPresentationMode, shouldUseMapPopups]);
+
+  useEffect(() => {
+    const openTourLayer = tourFeatureLayersRef.current.get(popupBurialIdRef.current);
+    const openTourPopup = openTourLayer?.getPopup?.();
+    const renderOpenTourPopup = tourPopupRenderers.get(openTourLayer);
+
+    if (!openTourPopup?.isOpen?.() || !renderOpenTourPopup) {
+      return;
+    }
+
+    renderOpenTourPopup();
+    schedulePopupLayout(openTourPopup);
+  }, [popupPresentationMode, schedulePopupLayout]);
+
+  useEffect(() => {
+    if (appMenuPresentation.hasActions) {
+      return;
+    }
+
+    setAppMenuAnchorEl(null);
+  }, [appMenuPresentation.hasActions]);
 
   useEffect(() => {
     if (isFieldPacketsEnabled) return;
@@ -4299,6 +4396,7 @@ export default function BurialMap() {
             tourFeatureLayersRef.current.set(browseResult.id, featureLayer);
           },
           resolveTourBrowseResult,
+          () => popupPresentationModeRef.current,
           schedulePopupLayout,
           () => shouldUseMapPopupsRef.current
         )
@@ -4423,6 +4521,7 @@ export default function BurialMap() {
           fieldPacketNotice={fieldPacketNotice}
           filterType={filterType}
           getTourName={getTourName}
+          hasAppMenuActions={appMenuPresentation.hasActions}
           hoveredBurialId={hoveredBurialId}
           initialQuery={initialBrowseQuery}
           installPromptEvent={installPromptEvent}
@@ -4490,9 +4589,8 @@ export default function BurialMap() {
         open={appMenuOpen}
         onClose={handleCloseAppMenu}
       >
-        {isFieldPacketsEnabled && (
+        {appMenuPresentation.canCopyShareLink && (
           <MenuItem
-            disabled={!fieldPacket?.selectedRecords?.length && selectedBurials.length === 0}
             onClick={() => {
               handleCloseAppMenu();
               void copyFieldPacketLink();
@@ -4501,7 +4599,7 @@ export default function BurialMap() {
             Copy share link
           </MenuItem>
         )}
-        {isFieldPacketsEnabled && fieldPacket?.selectedRecords?.length > 0 && (
+        {appMenuPresentation.canClearSavedShareDetails && (
           <MenuItem
             onClick={() => {
               handleCloseAppMenu();
@@ -4511,8 +4609,7 @@ export default function BurialMap() {
             Clear saved share details
           </MenuItem>
         )}
-        {isInstalled && <MenuItem disabled>App installed on this device</MenuItem>}
-        {!isInstalled && installPromptEvent && (
+        {appMenuPresentation.canInstallApp && (
           <MenuItem
             onClick={async () => {
               handleCloseAppMenu();
@@ -4521,12 +4618,6 @@ export default function BurialMap() {
           >
             Install on this device
           </MenuItem>
-        )}
-        {!isInstalled && showIosInstallHint && (
-          <MenuItem disabled>Safari: Share → Add to Home Screen</MenuItem>
-        )}
-        {!isInstalled && !installPromptEvent && !showIosInstallHint && (
-          <MenuItem disabled>App install unavailable in this browser</MenuItem>
         )}
       </Menu>
 
@@ -4676,6 +4767,7 @@ export default function BurialMap() {
                     <PopupCardStackContent
                       records={records}
                       activeRecordId={activeBurialId}
+                      presentationMode={popupPresentationMode}
                       onSelectRecord={(record) => {
                         selectMapBurial(record, {
                           animate: false,
