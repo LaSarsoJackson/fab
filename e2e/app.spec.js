@@ -203,6 +203,7 @@ async function expectExternalMapsNavigation(page, triggerNavigation) {
 async function expectHitTarget(locator) {
   await expect(locator).toBeVisible();
   await expect(locator).toBeInViewport({ ratio: 1 });
+  await expect(locator).toBeEnabled();
   const targetBounds = await locator.evaluate((element) => {
     const bounds = element.getBoundingClientRect();
     return {
@@ -227,6 +228,9 @@ async function expectEnabledShareUtilityMenu(page, trigger) {
 
   const menu = page.getByRole("menu");
   await expect(menu).toBeVisible();
+  const menuItems = menu.getByRole("menuitem");
+  await expect(menuItems).toHaveCount(1);
+  await expect(menuItems).toBeEnabled();
   await expect(menu.getByRole("menuitem", { name: "Copy share link", exact: true })).toBeEnabled();
 
   for (const removedRow of REMOVED_INERT_APP_MENU_ROWS) {
