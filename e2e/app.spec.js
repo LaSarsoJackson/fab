@@ -665,9 +665,9 @@ test.describe("desktop", () => {
     await selectedPeoplePanel.getByRole("button", { name: "Navigate" }).click();
 
     await expect(selectedPeoplePanel).toContainText("Route active");
-    await expect(page.getByText("Calculating route…")).toHaveCount(0, { timeout: 15_000 });
     const routeLine = page.locator("path[stroke='#0f67c6']").first();
     await expect(routeLine).toBeVisible();
+    await expect(page.getByText("Calculating route…")).toHaveCount(0, { timeout: 15_000 });
     expect(externalRouteRequestCount).toBe(0);
 
     await selectedPeoplePanel.getByRole("button", { name: "Stop Navigation" }).click();
@@ -692,9 +692,9 @@ test.describe("desktop", () => {
     await selectedPeoplePanel.getByRole("button", { name: "Navigate" }).click();
 
     await expect(selectedPeoplePanel).toContainText("Route active");
-    await expect(page.getByText("Calculating route…")).toHaveCount(0, { timeout: 15_000 });
     const routeLine = page.locator("path[stroke='#0f67c6']").first();
     await expect(routeLine).toBeVisible();
+    await expect(page.getByText("Calculating route…")).toHaveCount(0, { timeout: 15_000 });
 
     const centeredMarker = await getSelectedMarkerCenter(page);
     await dragMapBy(page, { deltaX: 180, deltaY: -70 });
@@ -709,11 +709,11 @@ test.describe("desktop", () => {
       longitude: -73.736092,
     });
 
-    await expect(page.getByText("Calculating route…")).toHaveCount(0, { timeout: 15_000 });
     await expect(routeLine).toBeVisible();
     await expect.poll(() => routeLine.getAttribute("d"), {
       timeout: 15_000,
     }).not.toBe(routePathBeforeRefresh);
+    await expect(page.getByText("Calculating route…")).toHaveCount(0, { timeout: 15_000 });
     const refreshedMarker = await waitForStableSelectedMarkerCenter(page);
 
     expect(Math.abs(refreshedMarker.x - pannedMarker.x)).toBeLessThanOrEqual(3);
