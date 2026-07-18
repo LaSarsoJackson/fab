@@ -1054,7 +1054,10 @@ export function RouteStatusOverlay({
         WebkitBackdropFilter: "blur(16px)",
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: hasSummary ? "8px" : 0 }}>
+      <Box
+        className="route-status-overlay__content"
+        sx={{ display: "flex", alignItems: "center", gap: hasSummary ? "8px" : 0 }}
+      >
         {hasSummary && (
           <DirectionsWalkIcon
             fontSize="small"

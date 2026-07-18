@@ -250,6 +250,18 @@ select,
   letter-spacing: 0;
 }
 
+.left-sidebar__more-button.MuiButton-root {
+  min-height: 40px;
+  border-radius: 12px;
+  transition-property: background-color, color, scale;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.left-sidebar__more-button.MuiButton-root:active {
+  scale: 0.96;
+}
+
 .left-sidebar .MuiButton-contained {
   background: var(--accent);
   box-shadow: 0 8px 16px rgba(47, 107, 87, 0.16);
@@ -944,6 +956,15 @@ select,
   min-width: 0;
 }
 
+.left-sidebar__result-name {
+  text-wrap: balance;
+}
+
+.left-sidebar__result-location,
+.left-sidebar__result-supporting {
+  text-wrap: pretty;
+}
+
 .left-sidebar__result-thumbnail {
   width: 72px;
   height: 78px;
@@ -1008,6 +1029,10 @@ select,
 
 .left-sidebar__results-empty-actions .MuiButton-text:hover {
   background: rgba(255, 255, 255, 0.82);
+}
+
+.route-status-overlay__content {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Leaflet-rendered section labels, clusters, section affordances, and tour pins. */
@@ -1298,7 +1323,6 @@ select,
 
 .tour-marker {
   transition: transform 0.3s ease;
-  will-change: transform;
 }
 
 .tour-marker:hover {
@@ -2178,11 +2202,18 @@ select,
   border: none;
   background-color: rgba(120, 120, 128, 0.16);
   color: rgba(60, 60, 67, 0.6);
+  transition-property: background-color, scale;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
 .mobile-sheet-header__icon-button.MuiIconButton-root:hover,
 .mobile-sheet-header__icon-button.MuiIconButton-root:active {
   background-color: rgba(120, 120, 128, 0.24);
+}
+
+.mobile-sheet-header__icon-button.MuiIconButton-root:active {
+  scale: 0.96;
 }
 
 /* 36px visual button, 44px hit target. */
@@ -2890,5 +2921,10 @@ select,
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .left-sidebar__more-button.MuiButton-root:active,
+  .mobile-sheet-header__icon-button.MuiIconButton-root:active {
+    scale: 1 !important;
   }
 }

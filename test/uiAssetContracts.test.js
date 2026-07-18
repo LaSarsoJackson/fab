@@ -79,4 +79,32 @@ describe("UI asset contracts", () => {
       compactStack.includes("overflow-y: auto"),
     ]).toEqual([true, true, true, true, true]);
   });
+
+  test("keeps secondary map controls comfortably tappable", () => {
+    const css = readText("src/index.css");
+    const moreButton = readCssBlock(css, ".left-sidebar__more-button.MuiButton-root");
+
+    expect(moreButton).toContain("min-height: 40px");
+  });
+
+  test("keeps changing route measurements visually stable", () => {
+    const css = readText("src/index.css");
+    const routeStatusContent = readCssBlock(css, ".route-status-overlay__content");
+
+    expect(routeStatusContent).toContain("font-variant-numeric: tabular-nums");
+  });
+
+  test("limits mobile header icon motion to the properties it changes", () => {
+    const css = readText("src/index.css");
+    const mobileHeaderIcon = readCssBlock(css, ".mobile-sheet-header__icon-button.MuiIconButton-root");
+
+    expect(mobileHeaderIcon).toContain("transition-property: background-color, scale");
+  });
+
+  test("avoids broad transitions and permanent compositor hints", () => {
+    const css = readText("src/index.css");
+
+    expect(css).not.toMatch(/transition\s*:\s*all(?:\s|;)/);
+    expect(css).not.toMatch(/will-change\s*:/);
+  });
 });

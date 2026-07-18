@@ -426,21 +426,40 @@ const BrowseResultCard = memo(function BrowseResultCard({
           ].filter(Boolean).join(" ")}
         >
           <Box className="left-sidebar__result-card-copy">
-            <Typography variant="subtitle2" sx={{ position: "relative", zIndex: 1, lineHeight: 1.25 }}>
+            <Typography
+              className="left-sidebar__result-name"
+              variant="subtitle2"
+              sx={{ position: "relative", zIndex: 1, lineHeight: 1.25 }}
+            >
               {presentation.displayName}
             </Typography>
             {presentation.locationSummary && (
-              <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.5 }}>
+              <Typography
+                className="left-sidebar__result-location"
+                variant="body2"
+                color="text.secondary"
+                sx={{ position: "relative", zIndex: 1, mt: 0.5 }}
+              >
                 {presentation.locationSummary}
               </Typography>
             )}
             {presentation.secondarySummary && (
-              <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.5 }}>
+              <Typography
+                className="left-sidebar__result-supporting"
+                variant="body2"
+                color="text.secondary"
+                sx={{ position: "relative", zIndex: 1, mt: 0.5 }}
+              >
                 {presentation.secondarySummary}
               </Typography>
             )}
             {presentation.lifeSummary && (
-              <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.35 }}>
+              <Typography
+                className="left-sidebar__result-supporting"
+                variant="body2"
+                color="text.secondary"
+                sx={{ position: "relative", zIndex: 1, mt: 0.35 }}
+              >
                 {presentation.lifeSummary}
               </Typography>
             )}
@@ -666,7 +685,7 @@ function BrowseResultsPanel({
           sx={{
             borderRadius: 3,
             border: "1px dashed rgba(20, 33, 43, 0.12)",
-            background: "linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(245, 248, 250, 0.56))",
+            backgroundColor: "rgba(248, 250, 252, 0.78)",
             boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.72)",
             p: 1.5,
           }}
@@ -1935,7 +1954,7 @@ function FieldPacketPanel({
             p: 1.35,
             borderRadius: "18px",
             border: "1px solid rgba(47, 107, 87, 0.16)",
-            background: "linear-gradient(180deg, rgba(47, 107, 87, 0.12), rgba(47, 107, 87, 0.05))",
+            backgroundColor: "rgba(47, 107, 87, 0.08)",
           }}
         >
           <Typography
