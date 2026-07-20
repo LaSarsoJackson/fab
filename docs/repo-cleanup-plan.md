@@ -1,37 +1,35 @@
-# Repo Cleanup & Maintainability Plan
+# Repository cleanup and maintainability plan
 
-Goal: a newcomer can clone, run, test, and confidently change this repo within
-an hour, and the structure stops accumulating friction as it grows.
+Goal: a newcomer can clone, run, test, and confidently change this repository
+in less than one hour. The structure does not add friction as it grows.
 
-This plan is ordered by leverage-per-effort. Each phase is independently
-shippable; stop at any point and the repo is still better than before. Items
-are checkboxes so this doc can double as a tracking board.
+The plan puts high-value, low-effort work first. You can ship each phase
+independently. The checkboxes make this document a tracking board.
 
-Current state in one paragraph: the docs are much stronger than the average
-small React app, and this branch now adds Quickstart guidance, CI/CD,
-release-policy checks, generated-file documentation, and real app screenshots.
-The remaining friction is mostly a dirty working tree, four toolchains
-(Bun, Node/Jest, Playwright, Python/uv), tests split across two runners and two
-directories, two large orchestration components, and 60MB+ of data checked into
-git.
+The branch has Quickstart guidance, CI/CD, release checks, generated-file
+documentation, and app screenshots. The remaining problems include a dirty
+working tree and four toolchains.
+
+Tests use two runners and two directories. Two orchestration components are
+large. Git also contains more than 60 MB of data.
 
 ---
 
 ## Phase 0 — Stabilize the working tree (do first, ~1 hour)
 
-The repo currently has ~25 modified files, a deleted `package-lock.json`, and
-untracked new modules. Nothing else in this plan should land on top of an
+The repository now has approximately 25 modified files, a deleted
+`package-lock.json`, and untracked modules. Do not start other plan work on an
 ambiguous baseline.
 
 - [ ] Review and commit (or revert) the in-flight changes. The untracked
       `src/features/map/mapMarkerDeclutter.js`, `test/mapMarkerDeclutter.test.js`,
       and `test/uiAssetContracts.test.js` look like a finished feature — commit
       them with the related modified files.
-- [ ] Commit the `package-lock.json` deletion. `bun.lock` is the lockfile now;
-      a deleted-but-uncommitted npm lockfile reads as an accident.
-- [ ] Add to `.gitignore`: `.claude/`, `.env` (see Phase 1), and either ignore
-      `.vscode/` or commit a minimal curated `.vscode/settings.json` +
-      `extensions.json` and ignore the rest (`.vscode/*` with `!` exceptions).
+- [ ] Commit the `package-lock.json` deletion. `bun.lock` is now the lockfile.
+      An uncommitted npm lockfile deletion looks accidental.
+- [ ] Add `.claude/` and `.env` to `.gitignore` (see Phase 1).
+- [ ] Select one `.vscode/` approach. Ignore the directory or commit curated
+      settings. If you commit settings, ignore all other files.
 
 **Done when:** `git status` is clean and every future change in this plan is
 its own small commit.
@@ -39,7 +37,7 @@ its own small commit.
 ## Phase 1 — Secrets & git hygiene (~1 hour, do before anything public)
 
 - [x] **Keep local secrets out of git.** `.env` is ignored and `.env.example`
-      documents safe local defaults. Real local values should stay in `.env` or
+      documents safe local defaults. Real local values must stay in `.env` or
       `.env.local`.
 - [ ] **Rotate/restrict the key.** Note: any `REACT_APP_*` var ships in the
       client bundle, so this key is public *at runtime* regardless. The real
@@ -58,27 +56,24 @@ key in history is dead or restricted.
 README content is good but assumes context. Optimize for the first hour of a
 new contributor.
 
-- [ ] Add a **Quickstart** block at the very top of `README.md`:
-      prerequisites table (Bun 1.3.8 via `packageManager`, Node 20 via
-      `.nvmrc`, Python 3.11 + `uv` *optional, only for data refresh scripts*),
-      then literally: `bun install`, `bun run doctor`, `bun run start`.
+- [ ] Add a **Quickstart** block at the top of `README.md`. Include a
+      prerequisite table for Bun, Node, Python, and `uv`. Show `bun install`,
+      `bun run doctor`, and `bun run start`.
 - [ ] **Fix the hidden `ripgrep` dependency.** `test:bun`, `test:watch`, and
       `test:coverage` in `package.json` shell out to `rg`. A newcomer without
       ripgrep gets a cryptic failure from the most basic command (`bun run test`).
       Replace with `bun test` native glob discovery, a small JS glob script, or
-      `find`; alternatively have `dev-doctor.sh` check for `rg` and say so.
+      `find`. Alternatively, make `dev-doctor.sh` check for `rg`.
 - [ ] Extend `scripts/dev-doctor.sh` to check *everything* the scripts assume:
       bun version, node version, rg (until removed), python3, uv,
-      playwright browsers. Doctor should be the single answer to "why doesn't
-      X run on my machine."
-- [ ] Add a "Which scripts are for me?" section to README or CONTRIBUTING:
-      contributors need `start` / `test` / `lint`; maintainers use
+      Playwright browsers. Doctor must explain why a command cannot run.
+- [ ] Add a `Which scripts are for me?` section to README or CONTRIBUTING.
+      Contributors need `start`, `test`, and `lint`. Maintainers use
       `build:*`, `deploy`, `download_*.py`, geoparquet tooling. Right now all
       ~20 scripts present with equal weight.
 
-**Done when:** a fresh clone on a machine with only Bun + Node installed gets
-a running app and passing unit tests from README instructions alone, or a
-clear doctor message saying what's missing.
+**Done when:** README instructions start a fresh clone on a machine with Bun
+and Node. Otherwise, Doctor gives a clear missing-tool message.
 
 ## Phase 3 — Make generated vs. source unmistakable (~half a day)
 
@@ -94,10 +89,10 @@ will edit the wrong one.
 | `public/data/Search_Burials.json` | `src/data/Geo_Burials.*` | `scripts/precalculate-metadata.js` |
 
 - [ ] Add this table (or equivalent) to `docs/codebase-structure.md` and link
-      it from CONTRIBUTING's checklist.
+      it from the CONTRIBUTING checklist.
 - [ ] `public/index.html` already gets a "Generated by…" header comment —
       add the same self-identifying marker to every generated JSON above
-      where format allows (e.g. a `"__generated__"` key, or a sibling
+      where the format permits. Use a `"__generated__"` key or a sibling
       `.generated` marker note in the directory).
 - [ ] Consider a `// @generated` grep-able convention so tooling and reviewers
       can spot hand-edits to generated files in PRs.
@@ -109,13 +104,13 @@ and the docs list them all in one place.
 
 ## Phase 4 — One mental model for tests (~1 day)
 
-Today: `test/**/*.test.js` runs under **Bun**, `src/**/*.test.jsx` runs under
-**Jest/jsdom**, `e2e/` under Playwright — three runners, two discovery roots,
-and test names that don't always match the module they cover.
+Now, `test/**/*.test.js` runs under **Bun**. `src/**/*.test.jsx` runs under
+**Jest/jsdom**. `e2e/` runs under Playwright. Some test names do not match
+their modules.
 
-Recommendation: **don't** force a single runner now (Bun can't do jsdom DOM
-tests well yet, and a Vitest migration belongs with the bundler decision in
-Phase 7). Instead, make the split a documented rule rather than archaeology:
+Do not force a single runner now. Bun cannot run jsdom DOM tests well. A Vitest
+migration belongs with the Phase 7 bundler decision. Document the current
+runner split.
 
 - [ ] Write the convention down in CONTRIBUTING:
       - Pure logic test → `test/<module>.test.js`, runs under `bun test`.
@@ -123,13 +118,13 @@ Phase 7). Instead, make the split a documented rule rather than archaeology:
         under Jest.
       - Browser flow → `e2e/`.
 - [ ] **Audit test-to-module mapping** and rename files so the covered module
-      is obvious from the test filename (e.g. if `test/appProfile.test.js`
+      is obvious from the test filename. For example, if `test/appProfile.test.js`
       actually exercises `sidebarState.js`, split or rename it). One module ↔
       one obviously-named test file.
-- [ ] Make `bun run test` the only command anyone needs (it already chains
-      both runners via `run-tests.sh`) and say so loudly in README; demote
+- [ ] Make `bun run test` the primary command. It already chains both runners
+      through `run-tests.sh`. Move
       `test:bun`/`test:dom` to "advanced" docs.
-- [ ] Unify coverage output locations so `test:coverage` doesn't produce two
+- [ ] Unify coverage output locations so `test:coverage` does not produce two
       disjoint reports silently (at minimum, document where each lands).
 
 **Done when:** CONTRIBUTING answers "where do I put a test for file X" in one
@@ -138,7 +133,7 @@ sentence, and filenames make test→module mapping greppable.
 ## Phase 5 — CI (~half a day, highest ongoing payoff)
 
 Initial repo-side enforcement now lives in `.github/workflows/`. Every future
-cleanup item should either add a fast automated check or explain why it remains
+cleanup item must add a fast automated check or explain why it remains
 manual.
 
 - [x] `ci.yml` on PR + push to main/staging/dev:
@@ -151,13 +146,12 @@ manual.
          screenshots, videos, and the HTML report retained on failure.
 - [x] Generated-file drift check (from Phase 3): run `sync:profile-shell`,
       fail on `git diff --exit-code public/index.html public/manifest.json`.
-- [x] `deploy.yml` on push to main: replace the manual
-      `deploy-production.sh` / gh-pages flow with the official GitHub Pages
-      actions, so deploys are reproducible and don't depend on one laptop. The
-      shell script now performs a local production build check only.
-- [x] `promote-dev-to-staging.yml`: after a successful `dev` push CI run, open
-      or update the `dev` -> `staging` PR and enable auto-merge once the
-      promotion PR checks pass.
+- [x] `deploy.yml` on push to main: replace the manual deployment flow with
+      the official GitHub Pages actions. These actions make deployment
+      reproducible and independent of one laptop. The shell script now does
+      only a local production build check.
+- [x] `promote-dev-to-staging.yml`: open or update the promotion pull request
+      after a successful `dev` CI run. Enable auto-merge after its checks pass.
 - [x] `release.yml` on `v*.*.*` tags: validate package/changelog/tag metadata,
       build the production app, and create a GitHub Release.
 
@@ -166,16 +160,17 @@ itself.
 
 ## Phase 6 — Shrink the god components (ongoing, PR-sized chunks)
 
-The two files everyone is afraid of:
+The two largest files are:
 
 - `src/Map.jsx` — **4,756 lines** (Leaflet wiring, selection state, popup
   lifecycle, viewport logic)
 - `src/BurialSidebar.jsx` — **2,685 lines** (search, browse, record detail,
   mobile bottom sheet)
 
-The extraction pattern already exists and works — `mapDomain.js`,
-`mapMarkerIcons.js`, `mapChrome.jsx`, `mapMarkerDeclutter.js` were all carved
-out of `Map.jsx`. Continue it; do **not** attempt a big-bang rewrite.
+The extraction pattern already exists and works. The team extracted
+`mapDomain.js`, `mapMarkerIcons.js`, `mapChrome.jsx`, and
+`mapMarkerDeclutter.js` from `Map.jsx`. Continue this pattern. Do not do a
+large rewrite.
 
 Rules for every extraction PR:
 1. Behavior-preserving only — no feature changes in the same PR.
@@ -190,24 +185,22 @@ Suggested order (smallest risk first):
       `src/features/map/selection.js` (likely the single biggest win).
 - [ ] `Map.jsx`: extract popup lifecycle (open/close/update orchestration)
       next to `popupCardContent.jsx`.
-- [ ] `BurialSidebar.jsx`: split into `features/browse/` components — search
-      input, results list, record detail, mobile-sheet shell — it already
-      has a 1,599-line co-located test that documents the expected behavior;
-      keep it green throughout.
+- [ ] `BurialSidebar.jsx`: split search, results, record detail, and the mobile
+      sheet into `features/browse/` components. Its 1,599-line test documents
+      the expected behavior. Keep the test green.
 - [ ] `src/features/map/mapDomain.js` (1,497 lines): once `Map.jsx` shrinks,
       evaluate splitting the reducer by concern (selection vs. viewport vs.
-      popup) — only if it's still hard to navigate.
-- [ ] Also move the remaining root-level feature files (`Map.jsx`,
-      `BurialSidebar.jsx`) into `src/features/` once they're thin
-      orchestrators, so `src/` root is just app shell (`index.js`, `App.js`,
-      CSS).
+      popup) only if the file remains difficult to navigate.
+- [ ] Move the remaining root-level feature files into `src/features/` after
+      they become thin orchestrators. Keep only the app shell in `src/`.
 
 **Done when:** no file in `src/` exceeds ~800 lines, and `src/` root contains
 only the app shell.
 
 ## Phase 7 — Data weight & dependency modernization (deliberate, later)
 
-These are real but expensive; schedule them, don't let them block Phases 0–6.
+These items are necessary but expensive. Schedule them after Phases 0 through
+6.
 
 **Repo size.** Git tracks ~57MB in `src/data/` (404 files, including the 31MB
 `Geo_Burials.json` and a 3.1MB parquet equivalent) plus 9.2MB of basemap
@@ -215,22 +208,21 @@ tiles. Every clone pays this forever, and git history grows with each data
 refresh.
 
 - [ ] Short term: document that `Geo_Burials.parquet` is the compact
-      equivalent of the 31MB JSON; if the parquet path is mature, stop
+      equivalent of the 31 MB JSON. If the parquet path is mature, stop
       shipping/refreshing the JSON and make `download_geojson.py` +
       `build:geoparquet` the refresh path.
-- [ ] Decide one of: keep as-is (simplest; data rarely changes), Git LFS for
-      `src/data/**` + `public/basemaps/**`, or fetch-on-setup (gitignore the
-      data, have doctor/setup run the download scripts). Fetch-on-setup hurts
-      the "clone and run" goal — prefer LFS or status quo unless clone size
-      actually becomes a complaint.
+- [ ] Select one data approach. Keep the files as-is, use Git LFS, or fetch the
+      data during setup. Prefer Git LFS or the current state unless clone size
+      becomes a problem.
 
-**Dependencies.** Not "cleanup," but flag it so it's a decision, not drift:
+**Dependencies.** This work is not cleanup. Record the decision to prevent
+drift:
 
 - [ ] React 17 + react-scripts 5 (CRA is deprecated upstream) + Jest 27. The
       eventual move is React 18 + Vite + Vitest, which would *also* collapse
       the two-test-runner split from Phase 4 into one. Treat as its own
       project after CI (Phase 5) exists to catch regressions.
-- [ ] Add Prettier + `.editorconfig` (cheap, do anytime; enforce in CI once
+- [ ] Add Prettier and `.editorconfig`. Enforce the format in CI after
       Phase 5 lands). One `bun run format` script, format-check in CI.
 
 ---
@@ -240,7 +232,7 @@ refresh.
 | Phase | What | Effort | Why this order |
 |---|---|---|---|
 | 0 | Clean working tree, gitignore | 1 h | Baseline for everything else |
-| 1 | `.env` secret out of git | 1 h | Security; cheap |
+| 1 | `.env` secret out of git | 1 h | Low-cost security work |
 | 2 | Quickstart + doctor + rm `rg` dep | ½ day | First-hour experience |
 | 3 | Generated-vs-source clarity | ½ day | Stops wrong-file edits |
 | 4 | Test conventions + renames | 1 day | One mental model |
@@ -248,6 +240,5 @@ refresh.
 | 6 | God-component extraction | ongoing | PR-sized, behavior-preserving |
 | 7 | Data weight, React 18/Vite | later | Big, schedule deliberately |
 
-Non-goals (explicitly out of scope for "cleanup"): rewriting features,
-changing the map UX, redesigning the data pipeline, or any refactor that
-isn't behavior-preserving.
+The cleanup does not include feature rewrites, map UX changes, or data-pipeline
+redesigns. It also excludes refactors that change behavior.

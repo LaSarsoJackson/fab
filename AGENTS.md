@@ -8,6 +8,7 @@ This file is the fast orientation guide for automated maintainers working in
 1. [`README.md`](./README.md) for the product/runtime overview and core commands
 2. [`CONTRIBUTING.md`](./CONTRIBUTING.md) for setup, validation, and review expectations
 3. [`docs/architecture-index.md`](./docs/architecture-index.md) for the shortest path to the right architecture note
+4. [`docs/ste-style-guide.md`](./docs/ste-style-guide.md) for documentation rules
 
 Then read only the task-specific note you need:
 
@@ -26,8 +27,8 @@ Then read only the task-specific note you need:
 - Put pure record transforms in the owning feature folder under [`src/features/`](./src/features).
 - Put domain-neutral helpers in [`src/shared/`](./src/shared).
 - Keep FAB-only branding, hosted URLs, presentation callbacks, and profile wiring in [`src/features/fab/profile.js`](./src/features/fab/profile.js) and tour definitions in [`src/features/fab/tours.js`](./src/features/fab/tours.js).
-- Import from the owning module directly; do not add barrel `index.js` files
-  that only re-export nearby helpers.
+- Import from the owning module directly.
+- Do not add barrel `index.js` files that only re-export nearby helpers.
 - Do not add new helpers back into the retired flat `src/lib` layout.
 
 ## High-value entry points
@@ -87,15 +88,16 @@ If you change runtime/profile wiring:
 - `bun run doctor`: local prerequisite and env check
 - `bun run start`: dev startup wrapper, alias refresh, image server, React dev server
 - `bun run test`: Bun unit tests plus Jest DOM tests
-- `bun run check`: doctor plus the default automated test suite
-- `bun run deploy`: local production build check; GitHub Actions deploys `main`
+- `bun run docs:check`: Simplified Technical English documentation check
+- `bun run check`: doctor plus all default automated checks
+- `bun run deploy`: local production build check. GitHub Actions deploys `main`.
 
 ## Contributor priorities
 
 - Keep moves additive when possible. The worktree may contain in-flight architecture cleanup already.
-- Keep active development on short-lived branches, merge through `dev`, let
-  GitHub Actions auto-promote green `dev` builds to `staging`, and manually
-  promote `staging` to `main`.
+- Keep active development on short-lived branches and merge through `dev`.
+- Let GitHub Actions promote a green `dev` build to `staging`.
+- Manually promote `staging` to `main`.
 - Treat FABFG alignment as shared-contract work first and wrapper-specific work second.
 - Favor clearer Apple-HIG-inspired interaction patterns over decorative UI churn: safer spacing, fewer gestures, stronger hierarchy, and obvious states.
 
@@ -103,4 +105,5 @@ If you change runtime/profile wiring:
 
 - GitHub Pages serves the app under `/fab`, so public asset URLs must respect `process.env.PUBLIC_URL`.
 - The native wrapper app (`FABFG`) consumes hosted `fab` URLs, so deep-link changes can affect both web and native flows.
-- The worktree may contain in-flight refactors. Prefer additive changes and avoid broad moves unless the task requires them.
+- The worktree may contain in-flight refactors. Prefer additive changes. Do not
+  make broad moves unless the task requires them.

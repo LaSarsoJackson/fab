@@ -7,7 +7,7 @@
 | Bun 1.3.8 | `packageManager` in [package.json](./package.json) | Installs dependencies and runs package scripts. |
 | Node 20 | [.nvmrc](./.nvmrc) | Runtime baseline for React, Jest, and build tooling. |
 | Python 3 | System `python3` | Required for the local development image server. |
-| `uv` and Python data tooling | Optional | Used by data download and GeoParquet workflows; not required for ordinary web development. |
+| `uv` and Python data tooling | Optional | Use these tools for data download and GeoParquet workflows. Ordinary web work does not need them. |
 
 ```bash
 bun install
@@ -81,17 +81,18 @@ REACT_APP_DEV_IMAGE_SERVER_ORIGIN=http://127.0.0.1:8000
 
 Notes:
 
-- `Navigate` automatically hands far-away users to Apple Maps or Google Maps
-  and starts bundled cemetery-road routing when the user is on site.
-- External directions links are built from `src/shared/routing.js`; in-app
-  cemetery routing still runs in the browser with no hosted routing API or
+- For far-away users, `Navigate` opens Apple Maps or Google Maps.
+- For on-site users, `Navigate` starts bundled cemetery-road routing.
+- `src/shared/routing.js` builds external directions links.
+- In-app cemetery routing runs in the browser without a hosted routing API or
   local routing proxy.
 - `bun run start` defaults `REACT_APP_DEV_IMAGE_SERVER_ORIGIN` to the local
   companion image server on `http://127.0.0.1:8000`.
-- Development-only surfaces such as the static admin studio, custom renderer,
-  PMTiles previews, and site-twin tools should stay on short-lived branches
-  until they are ready for the shared `dev` pipeline; see
-  [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md).
+- Keep development-only surfaces on short-lived branches until the shared
+  `dev` pipeline can receive them.
+- These surfaces include the static admin studio, custom renderer, PMTiles
+  previews, and site-twin tools.
+- See [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md).
 
 ### Run the app
 
@@ -127,13 +128,14 @@ Useful overrides:
 - `bun run start`: start the development environment
 - `bun run doctor`: check local prerequisites and optional tooling
 - `bun run lint`: run the repository ESLint baseline across app, unit, and browser tests
+- `bun run docs:check`: check Markdown prose against the repository STE rules
 - `bun run test`: run the default automated test suite
 - `bun run check`: run `doctor`, `lint`, release metadata validation, and the default test suite
 - `bun run release:check`: verify SemVer, changelog, and release tag metadata
 - `bun run pr:check`: verify pull request branch policy when GitHub provides PR context
 - `bun run build`: create a production build
-- `bun run deploy`: create a local production build; GitHub Actions deploys
-  `main`
+- `bun run deploy`: create a local production build. GitHub Actions deploys
+  `main`.
 - `bun run build:tour-data`: regenerate tour biography aliases
 - `bun run build:basemaps`: refresh checked-in NYS ortho basemap images
 - `bun run build:data`: regenerate search data, tour matches, and generated map
@@ -156,24 +158,33 @@ Most contributors usually need `bun run start`, `bun run test`, and
 `bun run lint`. Run `bun run doctor` when setting up the repo or when a local
 command fails unexpectedly.
 
-Maintainer, data, and release work uses the more specialized commands:
+Maintainer, data, and release work uses specialized commands. These commands
+include:
+
 `bun run check`, `bun run build:data`, `bun run build:tour-data`,
 `bun run build:geoparquet`, `bun run validate:geoparquet`, `bun run build`,
 `bun run release:check`, and the Playwright or mobile smoke commands when
-release coverage is needed. Production deploys happen through GitHub Actions
-after `staging` is promoted to `main`.
+release coverage is necessary.
+
+GitHub Actions starts a production deployment after the promotion from
+`staging` to `main`.
 
 ## Branches and Releases
 
-Production work flows through three long-lived branches: `dev` for integration,
-`staging` for pre-production validation, and `main` for production. Open
-short-lived work branches into `dev`; when `dev` CI passes, GitHub Actions opens
-or updates a `dev` -> `staging` PR and enables merge-commit auto-merge. Promote
-`staging` to `main` manually with a merge commit when ready for the public
-GitHub Pages/native-wrapper surface. Merge commits preserve ancestry between
-the long-lived branches; short-lived work entering `dev` may still be squashed.
-Short-lived branches should use prefixes such as `feature/`, `fix/`, `docs/`,
-`chore/`, `hotfix/`, or `codex/`.
+Production work uses three long-lived branches. `dev` is the integration
+branch. `staging` is the pre-production branch. `main` is the production
+branch.
+
+Open short-lived work branches into `dev`. When `dev` CI passes, GitHub Actions
+opens or updates a `dev` to `staging` pull request. GitHub Actions also enables
+merge-commit auto-merge.
+
+Manually promote `staging` to `main` with a merge commit. Merge commits preserve
+ancestry between the long-lived branches. You can squash short-lived work that
+enters `dev`.
+
+Short-lived branches must use an approved prefix. Examples include `feature/`,
+`fix/`, `docs/`, `chore/`, `hotfix/`, and `codex/`.
 
 Versioned releases use SemVer in [`package.json`](./package.json), matching
 entries in [`CHANGELOG.md`](./CHANGELOG.md), and tags named `vX.Y.Z`. See
@@ -227,6 +238,8 @@ Start with these documents:
   dev/staging/main branch workflow
 - [docs/release-workflow.md](./docs/release-workflow.md) for production branch,
   versioning, release tags, and CI/CD rules
+- [docs/ste-style-guide.md](./docs/ste-style-guide.md) for documentation
+  language and structure rules
 
 Common entry points:
 
@@ -257,9 +270,8 @@ The app is served under `/fab` on GitHub Pages, so public asset URLs must honor
 `process.env.PUBLIC_URL`. If a data fetch returns `<!DOCTYPE html>`, check the
 requested path first.
 
-Because `FABFG` consumes hosted `fab` URLs, any change to shared routing,
-selection state, or deep links should be checked in both the web app and the
-native wrapper.
+`FABFG` consumes hosted `fab` URLs. Thus, test shared routing, selection, and
+deep-link changes in the web app and native wrapper.
 
 ## Contributing
 

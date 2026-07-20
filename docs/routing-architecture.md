@@ -25,12 +25,13 @@ Use [`src/shared/routing.js`](../src/shared/routing.js) for route and URL contra
 
 - Add new query params and external directions-link builders to
   `src/shared/routing.js` first.
-- Keep map rendering and route state in `src/Map.jsx`; do not add URL-builder
-  logic there.
-- Keep walking-route calculation in `mapRouting.js`; do not move road-graph
-  routing into shared URL helpers.
-- Keep saved navigation destination shaping in `mapNavigationDestination.js`;
-  `Map.jsx` should only decide when to save, resume, or clear it.
+- Keep map rendering and route state in `src/Map.jsx`.
+- Do not add URL-builder logic to `src/Map.jsx`.
+- Keep walking-route calculation in `mapRouting.js`.
+- Do not move road-graph routing into shared URL helpers.
+- Keep saved navigation destination shaping in
+  `mapNavigationDestination.js`.
+- `Map.jsx` only selects when to save, resume, or clear the destination.
 - Keep packed share payload structure and current-data hydration in
-  `src/features/fieldPackets.js`; the shared routing module only owns the public
-  query-key contract.
+  `src/features/fieldPackets.js`.
+- The shared routing module owns only the public query-key contract.

@@ -11,6 +11,7 @@ Start with these documents:
 1. [README.md](./README.md)
 2. [AGENTS.md](./AGENTS.md)
 3. [docs/architecture-index.md](./docs/architecture-index.md)
+4. [docs/ste-style-guide.md](./docs/ste-style-guide.md)
 
 If you are changing a specific subsystem, follow the relevant note from the
 architecture index before you start moving files around.
@@ -40,31 +41,38 @@ bun run start
 Common commands:
 
 - `bun run lint`: run the repository ESLint baseline
-- `bun run test`: run the default automated test suite; use this as the
-  standard local test command for ordinary changes
+- `bun run test`: run the default automated test suite. Use this command for
+  ordinary changes.
+- `bun run docs:check`: check Markdown prose against the repository STE rules
 - `bun run check`: run `doctor`, `lint`, release metadata validation, and the
   default test suite
 - `bun run release:check`: verify SemVer, changelog, and release tag metadata
 - `bun run pr:check`: verify pull request branch policy when GitHub provides PR context
 - `bun run build:data`: regenerate search data, tour matches, and generated
   bounds
-- `bun run deploy`: create a local production build; GitHub Actions deploys
-  `main`
+- `bun run deploy`: create a local production build. GitHub Actions deploys
+  `main`.
 
-Development work starts on short-lived branches and enters the shared pipeline
-through `dev`; see [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md).
+Development work starts on short-lived branches. The work enters the shared
+pipeline through `dev`. See
+[docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md).
 
 ## Branches and releases
 
 Use short-lived work branches for product changes. Open those branches into
-`dev`; after `dev` CI passes, GitHub Actions opens or updates a `dev` ->
-`staging` PR and enables merge-commit auto-merge. Promote `staging` to `main`
-manually with a merge commit when the public GitHub Pages/native-wrapper
-surface is ready. Promotions between `dev`, `staging`, and `main` preserve
-branch ancestry; squash or rebase only the short-lived branches entering `dev`.
-Short-lived branches should use `codex/`, `feature/`, `fix/`, `docs/`,
-`chore/`, `hotfix/`, `dependabot/`, or `renovate/`. Release branches may target
-`staging`; emergency hotfix branches may target `staging` or `main`.
+`dev`.
+
+After `dev` CI passes, GitHub Actions opens or updates a `dev` to `staging`
+pull request. GitHub Actions also enables merge-commit auto-merge. Manually
+promote `staging` to `main` when the public surface is ready.
+
+Promotions between the long-lived branches preserve branch ancestry. Squash or
+rebase only the short-lived branches that enter `dev`.
+
+Short-lived branches must use an approved prefix. Approved prefixes include
+`codex/`, `feature/`, `fix/`, `docs/`, `chore/`, `hotfix/`, `dependabot/`, and
+`renovate/`. Release branches can target `staging`. Emergency hotfix branches
+can target `staging` or `main`.
 
 FAB versions are SemVer values in [`package.json`](./package.json). Any
 production release must also update [`CHANGELOG.md`](./CHANGELOG.md) with a
@@ -96,9 +104,10 @@ If you are not sure where a change belongs, stop at
 
 - Keep React state, refs, and runtime orchestration in the top-level shells such
   as [`src/Map.jsx`](./src/Map.jsx) and [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx).
-- Keep pure map business rules in [`src/features/map/mapDomain.js`](./src/features/map/mapDomain.js)
-  so selection state, section logic, hover rules, geolocation filtering, and map-specific
-  styling stay discoverable.
+- Keep pure map business rules in
+  [`src/features/map/mapDomain.js`](./src/features/map/mapDomain.js).
+- Keep selection, section, hover, location, and map-style rules discoverable in
+  that module.
 - Keep walking-route calculation and bundled-road routing in
   [`src/features/map/mapRouting.js`](./src/features/map/mapRouting.js) so map
   navigation logic has one home.
@@ -106,10 +115,13 @@ If you are not sure where a change belongs, stop at
   [`src/shared/routing.js`](./src/shared/routing.js).
 - Put pure transforms in the owning feature folder under [`src/features/`](./src/features).
 - Put domain-neutral helpers in [`src/shared/`](./src/shared).
-- Keep FAB-only behavior in [`src/features/fab/profile.js`](./src/features/fab/profile.js) for app/profile/presentation defaults and [`src/features/fab/tours.js`](./src/features/fab/tours.js) for tour definitions.
-- Add comments when they explain boundaries, runtime constraints, generated
-  data rules, or non-obvious browser/Leaflet behavior; avoid comments that only
-  restate ordinary code.
+- Keep app and presentation defaults in
+  [`src/features/fab/profile.js`](./src/features/fab/profile.js).
+- Keep tour definitions in
+  [`src/features/fab/tours.js`](./src/features/fab/tours.js).
+- Add comments that explain boundaries, runtime constraints, generated data,
+  or non-obvious browser and Leaflet behavior.
+- Do not add comments that only restate ordinary code.
 - Do not add new helpers back under the retired `src/lib` layout.
 
 ## Source and generated files
@@ -163,11 +175,11 @@ Targeted and advanced checks:
 - DOM/component retest: `bun run test:dom`
 - Browser-flow retest: `bun run test:e2e`
 - Cross-cutting or release-ready gate: `bun run check`
+- Documentation check: `bun run docs:check`
 - Narrow iteration: `bun test <path-to-test>` or
   `node_modules/.bin/jest --config ./jest.dom.config.cjs <path-to-test>`
-- Coverage: `bun run test:coverage`. Bun prints coverage for pure logic tests in
-  the terminal, and Jest writes DOM coverage files to the default root
-  `coverage/` directory.
+- Coverage: `bun run test:coverage`. Bun prints pure-logic coverage in the
+  terminal. Jest writes DOM coverage to `coverage/`.
 
 If you change map or selection behavior:
 
@@ -187,9 +199,10 @@ If you change source data:
 
 If you change runtime or profile wiring:
 
-1. Verify runtime toggles and environment-specific behavior in both development and production.
-2. Run the automated tests for the touched modules.
-3. Check whether `FABFG` needs a corresponding change.
+1. Verify runtime toggles in development and production.
+2. Verify environment-specific behavior in development and production.
+3. Run the automated tests for the touched modules.
+4. Check whether `FABFG` needs a corresponding change.
 
 If you change shared UI:
 
@@ -203,6 +216,15 @@ If you change shared UI:
 - Call out any effect on hosted URLs, deep links, or `FABFG` behavior.
 - Mention regenerated artifacts when source data changed.
 - List the commands you ran.
-- Pick the release impact in the pull request template: none, patch, minor, or
-  major.
+- Select the release impact in the pull request template.
+- Use one of these values: none, patch, minor, or major.
 - Prefer additive refactors over broad moves unless the move is the work.
+
+## Documentation
+
+- Follow [the STE style guide](./docs/ste-style-guide.md) for all Markdown
+  prose.
+- Put exact commands, paths, code symbols, labels, and messages in code
+  formatting.
+- Run `bun run docs:check` after each documentation change.
+- Review vocabulary, active voice, and technical terms manually.

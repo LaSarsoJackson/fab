@@ -1,8 +1,7 @@
 # Release workflow
 
-FAB uses a small SemVer release model with pull requests as the production
-gate. The current production branch is `main`; the old `master` branch has been
-retired.
+FAB uses a small SemVer release model. Pull requests are the production gate.
+The current production branch is `main`. The old `master` branch is retired.
 
 ## Branch model
 
@@ -13,14 +12,13 @@ retired.
 - Use short-lived branches named `codex/*`, `feature/*`, `fix/*`, `docs/*`,
   `chore/*`, or `hotfix/*`.
 - Promote in order: short-lived branch -> `dev` -> `staging` -> `main`.
-- Squash or rebase short-lived pull requests into `dev`. Use merge commits for
-  `dev` -> `staging` and `staging` -> `main` so the long-lived branches retain
-  shared ancestry and future promotion pull requests stay conflict-free.
-- `dev` -> `staging` promotion is automated after green `dev` CI by
-  `.github/workflows/promote-dev-to-staging.yml`; close the generated PR if
-  staging should intentionally hold.
-- Allow `release/*` branches into `staging` for release preparation.
-- Allow `hotfix/*` branches into `staging` or `main` for emergency production
+- Squash or rebase short-lived pull requests into `dev`.
+- Use merge commits for long-lived branch promotions. These commits preserve
+  shared ancestry and prevent promotion conflicts.
+- `.github/workflows/promote-dev-to-staging.yml` promotes `dev` after green CI.
+- Close the generated pull request when `staging` must remain unchanged.
+- Accept `release/*` branches into `staging` for release preparation.
+- Accept `hotfix/*` branches into `staging` or `main` for emergency production
   fixes.
 - Do not push directly to `dev`, `staging`, or `main` except for emergency
   rollback. Protect these branches in GitHub and require the CI checks in this
@@ -47,23 +45,23 @@ promotes it.
 2. Make the smallest coherent production change, including tests and docs.
 3. Run `bun run check` locally for cross-cutting work.
 4. Open a pull request into `dev`.
-5. After `dev` CI passes, GitHub Actions opens or updates a `dev` -> `staging`
-   PR and enables merge-commit auto-merge once that promotion PR's required
-   checks pass.
-6. Promote `staging` to `main` manually with a merge commit after final
+5. After `dev` CI passes, GitHub Actions opens or updates the promotion pull
+   request.
+6. GitHub Actions enables merge-commit auto-merge after the required checks
+   pass.
+7. Promote `staging` to `main` manually with a merge commit after final
    validation.
-7. CI runs lint, unit/DOM tests, Playwright browser regressions,
+8. CI runs lint, unit/DOM tests, Playwright browser regressions,
    generated-shell drift, release metadata, and branch policy checks.
-8. Merge after the required checks pass.
-9. For a numbered release, tag the merge commit as `vX.Y.Z` where `X.Y.Z`
+9. Merge after the required checks pass.
+10. For a numbered release, tag the merge commit as `vX.Y.Z` where `X.Y.Z`
    exactly matches `package.json`.
 
 GitHub Actions then:
 
-- deploys `main` to GitHub Pages from a reproducible build using the official
-  Pages artifact workflow;
-- validates release tags with `bun run release:check`;
-- creates a GitHub Release for SemVer tags.
+- Deploys `main` to GitHub Pages with the official Pages artifact workflow.
+- Validates release tags with `bun run release:check`.
+- Creates a GitHub Release for SemVer tags.
 
 ## GitHub branch protection
 
@@ -77,15 +75,17 @@ For `main`, require:
   `CI / Browser regression`, `CI / Pull request branch policy`, and
   `CI / Generated shell drift`
 - branches to be up to date before merging when practical
-- merge commits enabled for `staging` promotions; conversation resolution, no
-  force pushes, and no deletions
+- merge commits for `staging` promotions
+- conversation resolution
+- no force pushes or deletions
 
 For `staging`, require:
 
 - pull requests from `dev`, `release/*`, or `hotfix/*`
 - the same status checks as `main`
-- merge commits enabled for `dev` promotions; conversation resolution, no
-  force pushes, and no deletions
+- merge commits for `dev` promotions
+- conversation resolution
+- no force pushes or deletions
 - auto-merge may be enabled for the generated `dev` -> `staging` promotion PR
 
 For `dev`, require:
@@ -97,11 +97,11 @@ For `dev`, require:
   `CI / Generated shell drift`
 - linear history, conversation resolution, no force pushes, and no deletions
 
-Linear history remains appropriate for `dev`, where short-lived work is
-squashed or rebased. It must be disabled on `staging` and `main`: squashing or
-rebasing between long-lived branches rewrites the promoted commits, destroys
-their common ancestry, and eventually turns otherwise routine promotions into
-conflict resolutions.
+Use linear history for `dev`, where short-lived work is squashed or rebased.
+Disable linear history on `staging` and `main`.
+
+Squashing or rebasing between long-lived branches rewrites promoted commits.
+It also destroys common ancestry and causes promotion conflicts.
 
 These settings live in GitHub, not in the repository, so this document and the
 workflow checks are the repo-side contract.

@@ -16,29 +16,32 @@ These rules keep `fab` aligned with the current product direction: clearer, fast
 - Prefer one clear action per row or panel instead of many competing controls.
 - Use simple gestures for common actions. If a gesture exists, provide a visible control too.
 - Keep tap targets comfortable on mobile.
-- Honor safe areas and avoid controls that compete with system edges.
+- Honor safe areas. Do not use controls that compete with system edges.
 
 ## Visual rules
 
 - Use the shared tokens in [`src/App.js`](../src/App.js) and [`src/index.css`](../src/index.css) before adding one-off colors or shadows.
 - Keep hierarchy strong: section labels, titles, supporting text, then metadata.
 - Prefer calm surfaces and strong contrast over decorative gradients that reduce legibility.
-- Treat the map as the primary surface. Sidebars and sheets should support it, not overpower it.
+- Treat the map as the primary surface. Sidebars and sheets must support the
+  map without obscuring it.
 
 ## Accessibility rules
 
 - Every form control needs a label or accessible name.
-- Async notices and status updates should use `aria-live="polite"` when they matter.
+- Use `aria-live="polite"` for important asynchronous notices and status
+  updates.
 - Icon-only controls need explicit labels.
 - Focus styles must remain visible.
-- Reduced-motion users should not be forced through long animated transitions.
-- State should never rely on color alone.
+- Do not force reduced-motion users through long animated transitions.
+- Do not use color as the only indication of state.
 
 ## Performance rules
 
 - Keep high-frequency interactions cheap: typing, filtering, drawer changes, and map panning.
 - Prefer CSS/layout solutions over measurement-heavy JavaScript.
-- Large lists should use `content-visibility`, virtualization, or another bounded rendering strategy.
+- Large lists must use `content-visibility`, virtualization, or another bounded
+  rendering strategy.
 - Defer toolchain-level performance work until shared boundaries are stable enough to migrate safely.
 
 ## File placement

@@ -10,7 +10,10 @@ the one app that actually ships.
 
 ## Current split
 
-- [`src/features/fab/profile.js`](../src/features/fab/profile.js): direct source of truth for FAB-only hosted URL roots, branding, shell copy, record presentation callbacks, bundled data modules and data-module lookup helpers, map defaults, basemap/source registries, optimization-artifact metadata, field aliases, and feature registrations.
+- [`src/features/fab/profile.js`](../src/features/fab/profile.js): source of truth
+  for FAB configuration. It owns hosted URLs, branding, shell copy, and record
+  presentation. It also owns data modules, map defaults, field aliases, and
+  feature registrations.
 - [`src/features/fab/tours.js`](../src/features/fab/tours.js): FAB tour definitions, styling, and tour-record enrichment.
 - [`src/features/browse/browseResults.js`](../src/features/browse/browseResults.js): reads field aliases from the profile so source-field assumptions are not embedded directly in the browse pipeline.
 
@@ -21,14 +24,15 @@ Only shipped product toggles belong in `RUNTIME_FEATURE_FLAGS` inside
 
 - `fieldPackets`
 
-Stable FAB product features such as tours and record presentation should stay in
+Stable FAB product features such as tours and record presentation must stay in
 [`APP_PROFILE.features`](../src/features/fab/profile.js) instead of pretending to
 be rollout flags.
 
-Development-only surfaces are kept off `main`. Static admin, custom renderer,
-PMTiles previews, site-twin tooling, and similar DevEx/DevOps surfaces should
-stay on short-lived branches until they are ready for the shared `dev`
-pipeline; see [`dev-branch-workflow.md`](./dev-branch-workflow.md).
+Keep development-only surfaces off `main`. Keep these surfaces on short-lived
+branches until the shared `dev` pipeline can receive them.
+
+These surfaces include static admin, custom renderer, PMTiles previews, and
+site-twin tooling. See [`dev-branch-workflow.md`](./dev-branch-workflow.md).
 
 ## Editing guidance
 
@@ -37,18 +41,20 @@ When adding generic asset-management behavior:
 1. Extend the shared shell or the profile contract.
 2. Put FAB-only logic under `src/features/fab/`.
 3. Import [`APP_PROFILE`](../src/features/fab/profile.js) or its exported data-module helpers directly instead of routing through another alias layer.
-4. Avoid importing Albany datasets, ARCE URLs, or tour metadata directly from the app shell.
+4. Do not import Albany datasets, ARCE URLs, or tour metadata from the app
+   shell.
 5. Prefer profile fields or feature callbacks over new hardcoded branches in shared code.
 
-The static web shell follows the same rule: [`public/index.html`](../public/index.html)
-and [`public/manifest.json`](../public/manifest.json) are synced from
+The static web shell follows the same rule. The sync command creates
+[`public/index.html`](../public/index.html) and
+[`public/manifest.json`](../public/manifest.json) from
 [`public/index.template.html`](../public/index.template.html),
 [`public/manifest.template.json`](../public/manifest.template.json), and the
-FAB app profile via `bun run sync:profile-shell`.
+FAB app profile with `bun run sync:profile-shell`.
 
 For map work specifically:
 
-- put basemap declarations, overlay-source declarations, and static optimization
-  artifact metadata in `APP_PROFILE.map`
-- document branch-only experiment formats on short-lived work branches, and promote only
-  production-ready profile fields back to `main`
+- Put basemap declarations, overlay-source declarations, and optimization
+  metadata in `APP_PROFILE.map`.
+- Document branch-only experiment formats on short-lived work branches.
+- Promote only production-ready profile fields to `main`.

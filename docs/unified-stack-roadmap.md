@@ -1,6 +1,6 @@
 # Unified stack roadmap
 
-This is the current staged plan for the next round of `fab` work.
+The roadmap gives the current stages for the next round of `fab` work.
 
 The goals are:
 

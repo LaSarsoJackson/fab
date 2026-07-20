@@ -12,7 +12,7 @@ the current source-of-truth boundaries explicit.
   compatibility layers that only hide dead code.
 - Add comments for constraints, invariants, and browser/runtime tradeoffs. Do
   not add comments that restate the next line of code.
-- Keep generated outputs generated. Source data and tour definitions should
+- Keep generated outputs generated. Source data and tour definitions must
   drive artifacts through the build scripts.
 - After consolidation, search docs and tests for the old module names before
   treating the cleanup as done.
@@ -54,10 +54,10 @@ risky. Examples worth keeping:
   `buildPublicAssetUrl`.
 - Tour and burial datasets are not one-to-one, so matching must stay heuristic
   and centralized.
-- Full-cemetery search should defer large scans so mobile drawer animation and
+- Full-cemetery search must defer large scans so mobile drawer animation and
   typing stay responsive.
 
-Comments to avoid:
+Comments that are not permitted:
 
 - Line-by-line narration of ordinary JavaScript.
 - Historical notes that no longer affect the current code.
@@ -99,13 +99,13 @@ bun run build:data
    `docs/` for the old name.
 4. Update tests that describe the current behavior, not legacy behavior.
 5. Update docs in the same change when ownership or commands move.
-6. Run the narrow test first, then widen to the appropriate gate.
+6. Run the narrow test first. Then, run the applicable gate.
 
 ## Validation matrix
 
 | Change Type | Minimum Gate |
 | --- | --- |
-| Docs and comments only | `git diff --check` |
+| Docs and comments only | `bun run docs:check` and `git diff --check` |
 | Pure helper or data-shaping logic | `bun run test:bun` |
 | React/sidebar/component UI | `bun run test:dom` |
 | Map interaction, selection, routing, or deep links | `bun run check` and `bun run test:e2e` when behavior changed |
@@ -115,11 +115,17 @@ bun run build:data
 
 ## Review hotspots
 
-- `Map.jsx` and `BurialSidebar.jsx` should stay orchestration/composition files,
+- `Map.jsx` and `BurialSidebar.jsx` must stay orchestration and composition files,
   not new homes for pure rules.
 - `src/lib` is retired. Do not add new helpers there.
 - Development-only surfaces belong on short-lived branches unless they are
   being promoted through `dev`, `staging`, and `main`.
-- `Navigate` is the user-facing action; Map.jsx decides between local-road
-  routing and the external Maps handoff.
+- `Navigate` is the user-facing action. `Map.jsx` selects local-road routing or
+  the external Maps handoff.
 - Shared URLs affect both the web app and `FABFG`.
+
+## Documentation standard
+
+- Follow [the STE style guide](./ste-style-guide.md) for all Markdown prose.
+- Run `bun run docs:check` after a documentation change.
+- Review technical terms, active voice, and word meanings manually.
