@@ -5,20 +5,32 @@
 
 ## Purpose
 
-Refine the shipped FAB map around its primary job: help a visitor find a burial, understand the mapped location, and start navigation with as little friction as possible. Tours and section browsing remain important secondary paths. The work should feel closer to Apple Maps without copying it mechanically: clear hierarchy, direct actions, comfortable touch targets, restrained motion, and plain language.
+Refine the shipped FAB map around its primary task. Help a visitor find a
+burial, understand its location, and start navigation. Tours and section browse
+remain important secondary paths.
 
-This is an interaction refinement, not a routing rewrite or visual rebrand. It preserves the current Leaflet map, selection reducer, deep-link contract, mobile bottom sheet, local cemetery-road routing, and external Maps handoff.
+Use an Apple Maps-inspired design without copying it. Use clear hierarchy,
+direct actions, large touch targets, restrained motion, and plain language.
+
+The work refines interactions. It does not change routing or branding. Keep the
+Leaflet map, selection reducer, deep links, mobile sheet, local routing, and
+external Maps handoff.
 
 ## Evidence from the current app
 
-The design is based on a live review of the local app at desktop and 390×844 mobile viewports, plus the repository's UI, map, routing, and maintainability notes.
+The design uses a live review at desktop and 390×844 mobile viewports. It also
+uses the repository UI, map, routing, and maintainability notes.
 
-- The mobile selected-location flow is already strong: Back to results, plot context, person selection, a primary Navigate action, and progressive Details disclosure.
+- The mobile selected-location flow has clear steps. These steps are Back to
+  results, plot context, person selection, Navigate, and Details.
 - Desktop selection repeats the same active burial, location, and actions in the sidebar and a full map popup. The duplication obscures the map and creates two competing action surfaces.
 - Search cards repeat section, lot, and tier metadata in both an eyebrow and the location line.
-- More is always rendered even when every menu item is disabled, producing a dead end on common desktop and mobile browser states.
-- Some user-facing text sounds promotional or abstract, including "Loading map experience…", "Preparing fast search…", and "Send someone straight to this selection and map view."
-- Search and map performance already use appropriate safeguards: worker-backed searching, result paging, `content-visibility`, idle loading, memoized map layers, and bounded rendering. There is no evidence for a broad performance rewrite.
+- More appears when all menu items are disabled. This control is a dead end in
+  common browser states.
+- Some user-facing text is promotional or abstract. Examples include
+  `Loading map experience…`, `Preparing fast search…`, and the old share text.
+- Search and map performance use suitable safeguards. There is no evidence that
+  supports a broad performance rewrite.
 
 ## Goals
 
@@ -47,8 +59,8 @@ The map remains the primary surface. Search is the first control in both layouts
 
 Result cards use one hierarchy:
 
-1. person or place name;
-2. one complete plot line using middle-dot separators;
+1. Person or place name
+2. One complete plot line with middle-dot separators
 3. life dates or the most useful supporting detail.
 
 Ordinary burial results do not repeat the plot in an eyebrow. A tour result may retain a small tour-context label when that context distinguishes the item.
@@ -59,7 +71,9 @@ When the desktop sidebar is visible, it is the authoritative place for selected-
 
 When the sidebar is collapsed, the popup returns to its existing full presentation so the map remains independently usable. The full popup retains the stack selector, details, Navigate, and Close behavior.
 
-Search, section, tour, marker, and restored-link selections continue to update the same selection reducer. Popup presentation changes based only on viewport and sidebar visibility; it does not create a second selection state.
+Search, section, tour, marker, and restored-link selections update the same
+selection reducer. Popup presentation uses only viewport and sidebar
+visibility. It does not create another selection state.
 
 ### Mobile selection
 
@@ -99,7 +113,11 @@ The More control appears only when the menu contains at least one enabled comman
 
 Installed state, unavailable installation, and iOS Add to Home Screen instructions are not disabled menu items. They belong in the relevant share/install notice, where explanatory text is useful. If no command is available, the More button is omitted on desktop and mobile and the remaining header controls keep their alignment.
 
-Menu availability is derived by a pure presentation helper. `Map.jsx` still owns install, packet, and selection state and renders the MUI menu; `BurialSidebar.jsx` only receives whether an actionable utility control should be shown and the existing open-menu callback.
+A pure presentation helper gives menu availability. `Map.jsx` owns install,
+packet, and selection state. It also renders the MUI menu.
+
+`BurialSidebar.jsx` receives the menu-visibility value and the open-menu
+callback. It does not own menu state.
 
 ## Component and ownership design
 
@@ -114,7 +132,8 @@ Menu availability is derived by a pure presentation helper. `Map.jsx` still owns
 
 - Add an explicit compact record-context presentation.
 - Keep the current full card and stacked-record presentations intact.
-- Ensure compact content has a useful accessible label and no duplicated action buttons.
+- Make sure that compact content has a useful accessible label and no duplicate
+  action buttons.
 
 ### `src/BurialSidebar.jsx`
 
@@ -135,7 +154,8 @@ No new barrel module or dependency is introduced.
 ## Visual and motion language
 
 - Reuse the existing neutral, accent, spacing, radius, and shadow tokens before adding values.
-- Use layered shadows for elevated cards and buttons; retain borders for dividers and form-control outlines.
+- Use layered shadows for elevated cards and buttons.
+- Retain borders for dividers and form-control outlines.
 - Keep nested radii concentric where surfaces are visually adjacent.
 - Use `text-wrap: balance` for short headings and `text-wrap: pretty` for short supporting copy where browser support makes it useful.
 - Preserve root font smoothing and use tabular numerals for changing route distance, duration, counts, and pagination summaries.
@@ -149,21 +169,24 @@ No new barrel module or dependency is introduced.
 
 | Current | Revised |
 | --- | --- |
-| Loading map experience… | Loading cemetery map… |
-| Preparing fast search… | Preparing search… |
-| Switch to one curated route when you want guided stops. | Choose a tour to follow its stops. |
-| Share Link | Share this map |
-| Send someone straight to this selection and map view. | Copy a link to these records and this map view. |
-| Or save it to your Home Screen from Safari for one-tap return visits. | In Safari, use Add to Home Screen to save this map. |
-| Directions unavailable for this burial | Directions aren’t available for this record. |
+| `Loading map experience…` | `Loading cemetery map…` |
+| `Preparing fast search…` | `Preparing search…` |
+| `Switch to one curated route when you want guided stops.` | `Choose a tour to follow its stops.` |
+| `Share Link` | `Share this map` |
+| `Send someone straight to this selection and map view.` | `Copy a link to these records and this map view.` |
+| `Or save it to your Home Screen from Safari for one-tap return visits.` | `In Safari, use Add to Home Screen to save this map.` |
+| `Directions unavailable for this burial` | `Directions aren’t available for this record.` |
 
-Copy stays factual and task-oriented. It avoids promotional adjectives, abstract "experience" language, chatbot-like encouragement, and unnecessary instructions when the control itself is clear.
+Copy stays factual and task-oriented. It does not use promotional adjectives,
+abstract experience language, chatbot-like encouragement, or unnecessary
+instructions.
 
 ## Error, loading, and unavailable states
 
 - Map, burial-data, tour, offline, and route failures continue to use existing status or alert surfaces.
 - Relevant async updates remain in polite live regions.
-- A failed on-site route may fall back to external directions using the existing behavior, with one concise notice explaining the change.
+- A failed on-site route can use external directions. Show one concise notice
+  that explains the change.
 - Missing coordinates disable or omit navigation at the owning record surface and expose the direct unavailable message.
 - Search preparation does not block Tours, Sections, map controls, or already-cached results.
 - Unsupported installation does not create a control that cannot act.
@@ -198,16 +221,16 @@ Implementation follows red-green-refactor for each behavior.
 
 Run the existing browser suite and directly exercise:
 
-1. search result selection;
-2. direct burial-marker selection;
-3. section polygon and section-marker selection;
-4. tour stop selection;
-5. deep-link restoration;
-6. desktop sidebar collapse and full-popup fallback;
-7. off-site Navigate handoff without a blocked popup;
-8. on-site route start or its mocked browser-test equivalent;
-9. mobile sheet search, place mode, person switching, Details, and Back to results;
-10. keyboard traversal, visible focus, reduced motion, and 44px mobile targets.
+1. Search result selection
+2. Direct burial-marker selection
+3. Section polygon and section-marker selection
+4. Tour stop selection
+5. Deep-link restoration
+6. Desktop sidebar collapse and full-popup fallback
+7. Off-site Navigate handoff without a blocked popup
+8. On-site route start or its browser-test equivalent
+9. Mobile search, place mode, person selection, Details, and Back to results
+10. Keyboard traversal, visible focus, reduced motion, and 44 px mobile targets
 
 Rendered QA uses a desktop viewport and 390×844 mobile viewport. Each pass checks page identity, meaningful content, framework overlays, console errors/warnings, screenshot evidence, and an interaction state change.
 
@@ -222,4 +245,6 @@ Rendered QA uses a desktop viewport and 390×844 mobile viewport. Each pass chec
 - Approved plain-language copy appears in the rendered states.
 - Search, section, tour, marker, deep-link, external directions, and on-site routing contracts remain unchanged.
 - Focus, touch targets, safe areas, reduced motion, and live statuses meet the repository UI principles.
-- Targeted unit and DOM tests, the full default test suite, lint/check gates, production build, and relevant Playwright flows pass with no unexplained application errors.
+- Targeted unit and DOM tests pass.
+- The default test suite, checks, production build, and relevant Playwright
+  flows pass without unexplained application errors.

@@ -2,9 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make search-to-navigation clearer, remove duplicate desktop and result-card UI, hide inert utility controls, and replace abstract product copy while preserving the current map, selection, deep-link, and routing contracts.
+**Goal:** Make search-to-navigation clearer. Remove duplicate UI and inert
+controls. Replace abstract copy. Preserve map, selection, deep-link, and routing
+contracts.
 
-**Architecture:** Keep `Map.jsx` as the owner of viewport, selection, route, install, and share state. Add pure presentation decisions in the existing map and browse helper modules, teach the popup components an explicit compact/full mode, and let `BurialSidebar.jsx` render only the controls that the map says are actionable. Preserve the mobile place sheet and all current performance safeguards.
+**Architecture:** Keep `Map.jsx` as the owner of viewport, selection, route,
+install, and share state. Add pure presentation decisions to the existing map
+and browse helpers.
+
+Give the popup components explicit compact and full modes. Let
+`BurialSidebar.jsx` render only actionable controls. Preserve the mobile place
+sheet and all performance safeguards.
 
 **Tech Stack:** React 17, MUI 5, Leaflet/React-Leaflet, Bun unit tests, Jest + Testing Library DOM tests, Playwright browser tests, CSS in `src/index.css`.
 
@@ -15,8 +23,10 @@
 - Do not change public query keys, packed share payloads, burial/tour data, route-selection rules, or the trusted-click external Maps handoff.
 - Do not add a dependency, global listener, full-dataset pass, barrel module, or compatibility wrapper.
 - Keep the existing worker search, paging, `content-visibility`, lazy burial data, idle tour loading, memoized indexes, marker decluttering, and reduced-motion behavior.
-- Preserve the unrelated untracked `.agents/` directory and `skills-lock.json`; stage only files named in each task.
-- Follow red-green-refactor within each task. Run the stated failing test before production edits, then rerun it after the smallest implementation.
+- Preserve the unrelated untracked `.agents/` directory and `skills-lock.json`.
+- Stage only files that each task names.
+- Follow red-green-refactor in each task. Run the stated failing test before
+  production edits. Then, run it after the smallest implementation.
 - Use the approved design as the source of truth: `docs/superpowers/specs/2026-07-18-map-ui-navigation-refinement-design.md`.
 
 ## Task 1: Add pure popup-mode and utility-menu policies
@@ -173,10 +183,10 @@
 
   Import `MAP_POPUP_PRESENTATION_MODES` from `./mapViewHelpers` in `popupCardContent.test.jsx`. Add one test for `PopupCardContent` and one for `PopupCardStackContent` asserting:
 
-  - the active name and complete location remain visible;
-  - `3 people at this plot` is visible for a shared marker;
-  - the compact root has `popup-card--compact` and a useful accessible group label;
-  - the stack has `popup-card-stack--compact`;
+  - the active name and complete location remain visible.
+  - `3 people at this plot` is visible for a shared marker.
+  - the compact root has `popup-card--compact` and a useful accessible group label.
+  - the stack has `popup-card-stack--compact`.
   - no person list, biography paragraph/image, Details link, Navigate button, or Close button is rendered.
 
   Use the existing Reynolds record for the biography/image assertions and `stackRecords` for the shared-marker assertion:
@@ -232,15 +242,15 @@
 
   In `PopupCardContent`:
 
-  - import `MAP_POPUP_PRESENTATION_MODES`;
-  - add `presentationMode = MAP_POPUP_PRESENTATION_MODES.FULL` and `recordCount = 1` props;
-  - derive `isCompact`, `shouldShowDetails`, and `shouldShowActions`;
-  - append `popup-card--compact` only in compact mode;
-  - set `role="group"` and an `aria-label` containing the heading, location, and shared count in compact mode;
-  - suppress the source eyebrow, paragraphs, detail rows, image, and action row in compact mode;
+  - import `MAP_POPUP_PRESENTATION_MODES`.
+  - add `presentationMode = MAP_POPUP_PRESENTATION_MODES.FULL` and `recordCount = 1` props.
+  - derive `isCompact`, `shouldShowDetails`, and `shouldShowActions`.
+  - append `popup-card--compact` only in compact mode.
+  - set `role="group"` and an `aria-label` containing the heading, location, and shared count in compact mode.
+  - suppress the source eyebrow, paragraphs, detail rows, image, and action row in compact mode.
   - render a `popup-card__context-count` paragraph only when `recordCount > 1`.
 
-  The key logic should be:
+  The key logic must be:
 
   ```js
   const isCompact = presentationMode === MAP_POPUP_PRESENTATION_MODES.COMPACT;
@@ -259,11 +269,11 @@
 
   In `PopupCardStackContent`:
 
-  - accept the same `presentationMode` prop with a full default;
-  - derive `isCompact`;
-  - append `popup-card-stack--compact` in compact mode;
-  - omit `PopupCardStackList` in compact mode;
-  - pass `recordCount={stackRecords.length}` and `presentationMode` to `PopupCardContent`;
+  - accept the same `presentationMode` prop with a full default.
+  - derive `isCompact`.
+  - append `popup-card-stack--compact` in compact mode.
+  - omit `PopupCardStackList` in compact mode.
+  - pass `recordCount={stackRecords.length}` and `presentationMode` to `PopupCardContent`.
   - preserve the current list, active-person switching, Navigate, Close, and details behavior in full mode.
 
 - [ ] **Step 5: Add restrained compact-popup styling and a CSS contract.**
@@ -338,11 +348,14 @@
 
   Run: `node_modules/.bin/jest --config ./jest.dom.config.cjs src/BurialSidebar.test.jsx --runInBand`
 
-  Expected: FAIL because both More controls currently render unconditionally.
+  Expected: FAIL because both More controls now render unconditionally.
 
 - [ ] **Step 3: Gate both Sidebar More controls.**
 
-  Add `hasAppMenuActions = false` to `BurialSidebar` props. Build `desktopMoreButton` and `mobileMoreButton` only when their viewport condition and `hasAppMenuActions` are both true. Give the desktop button class `left-sidebar__more-button`; retain the mobile `aria-label="More options"`.
+  Add `hasAppMenuActions = false` to `BurialSidebar` props. Build each More
+  button only when its viewport condition and `hasAppMenuActions` are true.
+  Give the desktop button the `left-sidebar__more-button` class. Retain the
+  mobile `aria-label="More options"`.
 
 - [ ] **Step 4: Derive menu availability once in `Map.jsx`.**
 
@@ -373,8 +386,8 @@
 
   Render only these enabled items:
 
-  - `Copy share link` when `canCopyShareLink`;
-  - `Clear saved share details` when `canClearSavedShareDetails`;
+  - `Copy share link` when `canCopyShareLink`.
+  - `Clear saved share details` when `canClearSavedShareDetails`.
   - `Install on this device` when `canInstallApp`.
 
   Delete all disabled installed/unavailable/iOS-instruction `MenuItem` branches. Keep iOS Add to Home Screen guidance in the existing notice/share panel instead.
@@ -401,13 +414,17 @@
 
   For tour layers:
 
-  - add `getPresentationMode = () => MAP_POPUP_PRESENTATION_MODES.FULL` to `bindReactPopup`;
-  - read the current mode inside `renderPopup`;
-  - pass it to `PopupCardContent`;
-  - set `showDetails` and `showActions` only for full mode;
+  - add `getPresentationMode = () => MAP_POPUP_PRESENTATION_MODES.FULL` to `bindReactPopup`.
+  - read the current mode inside `renderPopup`.
+  - pass it to `PopupCardContent`.
+  - set `showDetails` and `showActions` only for full mode.
   - add `getPresentationMode` to `createOnEachTourFeature` and pass `() => popupPresentationModeRef.current` from `ensureTourLayerLoaded`.
 
-  Use a module-level `WeakMap` from Leaflet layer to `renderPopup`. When `popupPresentationMode` changes and an imperative tour popup is currently open, call its stored renderer and `schedulePopupLayout` so collapsing/restoring the sidebar updates the open card without closing it or clearing reducer focus. Delete the renderer when the layer is removed.
+  Use a module-level `WeakMap` from each Leaflet layer to `renderPopup`. If an
+  imperative tour popup is open, call its stored renderer after a mode change.
+
+  Call `schedulePopupLayout` after the renderer. Keep the popup open and keep
+  reducer focus. Delete the renderer when you remove the layer.
 
 - [ ] **Step 7: Run focused DOM and pure tests.**
 
@@ -467,9 +484,9 @@
 
   In `browseResultPresentation.js`:
 
-  - replace `RESULT_METADATA_SEPARATOR` with `RESULT_LOCATION_SEPARATOR = " · "`;
-  - join the filtered `buildLocationParts(result)` with the middle-dot separator;
-  - delete `shouldShowSectionChip`, `metadataSummary`, and the returned `metadataSummary` key;
+  - replace `RESULT_METADATA_SEPARATOR` with `RESULT_LOCATION_SEPARATOR = " · "`.
+  - join the filtered `buildLocationParts(result)` with the middle-dot separator.
+  - delete `shouldShowSectionChip`, `metadataSummary`, and the returned `metadataSummary` key.
   - preserve `secondarySummary` and tour-chip behavior.
 
   Remove the `presentation.metadataSummary` Typography block from `BrowseResultCard`. Leave the visible hierarchy as name, location, supporting detail/life dates, then state/tour chips.
@@ -478,13 +495,13 @@
 
   Update or add focused expectations for:
 
-  - `test/appProfile.test.js`: `Loading cemetery map…`;
-  - `test/browseSidebarPresentation.test.js`: `Preparing search…`, the concise offline notice, and `In Safari, use Add to Home Screen to save this map.`;
-  - `BrowseWorkspacePanel.test.jsx`: `Choose a tour to follow its stops.`;
-  - `BurialSidebar.test.jsx`: `Share this map`, `Copy a link to these records and this map view.`, and the revised Safari sentence;
-  - `mapChrome.test.jsx`: `Calculating route…` for an active calculation with no more-specific notice;
-  - `mapChrome.test.jsx`: `On-site navigation will start when you arrive.` when that notice is supplied;
-  - `test/mapRouting.test.js`: direct directions/on-site error copy where the old burial-specific or “Continue with Maps for now” text was asserted;
+  - `test/appProfile.test.js`: `Loading cemetery map…`.
+  - `test/browseSidebarPresentation.test.js`: `Preparing search…`, the concise offline notice, and `In Safari, use Add to Home Screen to save this map.`.
+  - `BrowseWorkspacePanel.test.jsx`: `Choose a tour to follow its stops.`.
+  - `BurialSidebar.test.jsx`: `Share this map`, `Copy a link to these records and this map view.`, and the revised Safari sentence.
+  - `mapChrome.test.jsx`: `Calculating route…` for an active calculation with no more-specific notice.
+  - `mapChrome.test.jsx`: `On-site navigation will start when you arrive.` when that notice is supplied.
+  - `test/mapRouting.test.js`: direct directions/on-site error copy where the old burial-specific or “Continue with Maps for now” text was asserted.
   - `e2e/app.spec.js`: replace readiness checks for `Preparing fast search…` and `Starting on-site navigation...` with the revised strings.
 
 - [ ] **Step 5: Run the copy-owning tests and confirm they fail.**
@@ -523,7 +540,8 @@
 
   In `Map.jsx`, define constants for the repeated navigation strings near the existing route constants and replace all four missing-coordinate status branches. Keep `window.open` inside the trusted click and do not move, await, or wrap the external handoff.
 
-  In `mapRouting.js`, change only user-visible error strings; do not alter snapping, graph, or fallback logic.
+  In `mapRouting.js`, change only user-visible error strings. Do not alter
+  snapping, graph, or fallback logic.
 
 - [ ] **Step 7: Run all focused result/copy tests and commit.**
 
@@ -553,9 +571,9 @@
 
   Extend `test/uiAssetContracts.test.js` to assert:
 
-  - `.left-sidebar__more-button.MuiButton-root` contains `min-height: 40px`;
-  - `.route-status-overlay__content` contains `font-variant-numeric: tabular-nums`;
-  - `.mobile-sheet-header__icon-button.MuiIconButton-root` names `background-color` and `scale` in `transition-property`;
+  - `.left-sidebar__more-button.MuiButton-root` contains `min-height: 40px`.
+  - `.route-status-overlay__content` contains `font-variant-numeric: tabular-nums`.
+  - `.mobile-sheet-header__icon-button.MuiIconButton-root` names `background-color` and `scale` in `transition-property`.
   - the stylesheet contains no `transition: all` declaration.
 
 - [ ] **Step 2: Run the CSS contract test and confirm it fails.**
@@ -568,9 +586,9 @@
 
   In `BurialSidebar.jsx`:
 
-  - add semantic result-copy classes to the name, location, secondary, and life-date Typography elements;
-  - replace the empty-result informational gradient with a solid translucent neutral surface;
-  - replace the shared-link informational gradient with a solid accent-tinted surface;
+  - add semantic result-copy classes to the name, location, secondary, and life-date Typography elements.
+  - replace the empty-result informational gradient with a solid translucent neutral surface.
+  - replace the shared-link informational gradient with a solid accent-tinted surface.
   - keep primary-button gradients because they identify actions rather than decorate an informational panel.
 
   In `mapChrome.jsx`, give the route message wrapper class `route-status-overlay__content`.
@@ -639,40 +657,48 @@
 
   In `searching for a burial opens the map popup and external maps popup`:
 
-  - assert the Leaflet popup is visible and has `popup-card--compact`;
-  - retain the name and plot assertions;
-  - assert the popup has no Navigate, Close, or Details control;
+  - assert the Leaflet popup is visible and has `popup-card--compact`.
+  - retain the name and plot assertions.
+  - assert the popup has no Navigate, Close, or Details control.
   - trigger `expectExternalMapsNavigation` from the sidebar selected-summary Navigate button instead of the popup.
 
 - [ ] **Step 2: Add a desktop full-popup fallback test.**
 
   Search for and select LaMont, collapse the sidebar, then assert:
 
-  - `.left-sidebar--desktop` is absent;
-  - the open popup no longer has `popup-card--compact`;
-  - full popup Navigate and Close buttons are visible;
+  - `.left-sidebar--desktop` is absent.
+  - the open popup no longer has `popup-card--compact`.
+  - full popup Navigate and Close buttons are visible.
   - the map Search control restores the sidebar.
 
   This test must not click Close because that changes the selection and would test a separate behavior.
 
 - [ ] **Step 3: Add actionable-only utility-menu coverage.**
 
-  On initial desktop and initial 390×844 mobile states, assert no More/More options button exists. After selecting a burial with field packets enabled, assert More appears, opens a menu with enabled `Copy share link`, and contains none of the removed installed/unavailable disabled rows.
+  In initial desktop and 390×844 mobile states, make sure that no More button
+  exists. Select a burial with field packets enabled.
+
+  Make sure that More appears and opens the menu. Make sure that `Copy share
+  link` is enabled. The removed disabled rows must not appear.
 
 - [ ] **Step 4: Update tour and deep-link popup assertions.**
 
-  Keep the existing selection/sidebar assertions. Add `popup-card--compact` and no-action assertions while the desktop sidebar is visible. Preserve the tour source label only in full/sidebar-hidden presentation; compact tour context should be carried by the selected sidebar rather than the map card.
+  Keep the existing selection and sidebar assertions. Add compact-popup and
+  no-action assertions while the desktop sidebar is visible.
+
+  Keep the tour source label only in full presentation. The selected sidebar
+  must show compact tour context instead of the map card.
 
 - [ ] **Step 5: Preserve mobile place mode and hit-target coverage.**
 
   Keep the existing tests for:
 
-  - no Leaflet popup;
-  - one selected-location marker and plot count;
-  - Back to results;
-  - person switching;
-  - Navigate and Details;
-  - Details expansion/collapse;
+  - no Leaflet popup.
+  - one selected-location marker and plot count.
+  - Back to results.
+  - person switching.
+  - Navigate and Details.
+  - Details expansion/collapse.
   - short-phone visibility and 44px targets.
 
   Add an initial-state no-More assertion before making a selection. Do not change sheet snap points or geometry thresholds.
@@ -730,7 +756,7 @@
 
   Expected: PASS, including search, section, tour, deep-link, external directions, on-site routing, and mobile sheet flows.
 
-- [ ] **Step 5: Perform desktop rendered QA in the in-app Browser.**
+- [ ] **Step 5: Do desktop rendered QA in the in-app Browser.**
 
   Start the app on an unused local port, for example:
 
@@ -740,35 +766,38 @@
 
   Open `http://127.0.0.1:3010/fab` and verify:
 
-  1. initial More is absent;
-  2. search cards show one middle-dot plot line;
-  3. selection produces a compact popup and authoritative sidebar actions;
-  4. More appears only after a share/install command is actionable;
-  5. sidebar collapse restores the full popup;
-  6. section selection, section marker selection, tour stop selection, and a restored deep link still resolve to the same record;
-  7. keyboard focus is visible and map controls remain usable;
+  1. initial More is absent.
+  2. search cards show one middle-dot plot line.
+  3. selection produces a compact popup and authoritative sidebar actions.
+  4. More appears only after a share/install command is actionable.
+  5. sidebar collapse restores the full popup.
+  6. section selection, section marker selection, tour stop selection, and a restored deep link still resolve to the same record.
+  7. keyboard focus is visible and map controls remain usable.
   8. console contains no unexplained app error or framework overlay.
 
   Capture screenshots of initial, compact-selection, and collapsed/full-popup states.
 
-- [ ] **Step 6: Perform 390×844 mobile rendered QA.**
+- [ ] **Step 6: Do 390×844 mobile rendered QA.**
 
   In the same app session, emulate a 390×844 touch viewport and verify:
 
-  1. initial More is absent and the header remains aligned;
-  2. search opens results without duplicated plot metadata;
-  3. selecting a shared plot opens no Leaflet popup;
-  4. Back to results, person selector, Navigate, Details, and collapse behavior remain intact;
-  5. icon controls and actions have at least 44×44px hit areas;
-  6. safe-area placement and sheet/map balance remain correct;
-  7. reduced-motion emulation removes meaningful transition duration;
+  1. initial More is absent and the header remains aligned.
+  2. search opens results without duplicated plot metadata.
+  3. selecting a shared plot opens no Leaflet popup.
+  4. Back to results, person selector, Navigate, Details, and collapse behavior remain intact.
+  5. icon controls and actions have at least 44×44px hit areas.
+  6. safe-area placement and sheet/map balance remain correct.
+  7. reduced-motion emulation removes meaningful transition duration.
   8. console contains no unexplained app error.
 
   Capture screenshots of initial, selected-place, and Details-expanded states.
 
 - [ ] **Step 7: Review the final diff for scope and performance regressions.**
 
-  Confirm that the diff introduces no new dependency, no new global event listener, no data regeneration, no route-algorithm change, no public URL/query change, no `transition: all`, and no `will-change: all`.
+  Confirm that the diff adds no dependency, global event listener, or data
+  regeneration. Confirm that it changes no route algorithm or public URL.
+
+  Confirm that the diff does not add `transition: all` or `will-change: all`.
 
   Run: `git status --short --branch`
 
@@ -782,11 +811,11 @@
 
 Report:
 
-- the desktop compact/full popup behavior;
-- the unchanged mobile place-sheet behavior;
-- actionable-only More behavior;
-- result-card and copy changes;
-- routing contract preservation;
-- exact validation commands and outcomes;
-- desktop/mobile rendered QA evidence;
+- the desktop compact/full popup behavior.
+- the unchanged mobile place-sheet behavior.
+- actionable-only More behavior.
+- result-card and copy changes.
+- routing contract preservation.
+- exact validation commands and outcomes.
+- desktop/mobile rendered QA evidence.
 - any expected warning that remains, with its source and why it is safe.
