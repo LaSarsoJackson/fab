@@ -8,6 +8,7 @@ import {
   filterBurialRecordsBySection,
   findSectionBrowseDetailDefinition,
   formatBrowseResultName,
+  formatTourFeatureName,
   getBrowseSourceMode,
   inflateSearchBurialRow,
   resolveSectionBrowseRecords,
@@ -90,6 +91,16 @@ describe("buildBurialBrowseResult", () => {
 });
 
 describe("buildTourBrowseResult", () => {
+  test("uses configured tour aliases for accessible feature names", () => {
+    expect(formatTourFeatureName({
+      properties: {
+        First_name: "James",
+        Last_Name: "Hall",
+        Full_Name: "James Hall",
+      },
+    })).toBe("James Hall");
+  });
+
   test("supports named tour stops", () => {
     const tourRecord = buildTourBrowseResult(
       {

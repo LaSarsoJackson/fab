@@ -37,9 +37,13 @@ import {
   buildTourBrowseResult,
   findSectionBrowseDetailDefinition,
   formatBrowseResultName,
+  formatTourFeatureName,
   inflateSearchBurialRow,
   resolveSectionBrowseRecords,
 } from "./features/browse/browseResults";
+import {
+  buildAppMenuPresentation,
+} from "./features/browse/sidebarPresentation";
 import {
   buildSearchIndex,
   smartSearch,
@@ -140,6 +144,8 @@ import {
   getMapMaxZoom,
   isLocationCandidateWithinBuffer,
   isRenderableBounds,
+  MAP_POPUP_PRESENTATION_MODES,
+  resolveMapPopupPresentationMode,
 } from "./features/map/mapViewHelpers";
 import {
   PopupCardContent,
@@ -229,8 +235,13 @@ const GEOLOCATION_FALLBACK_REQUEST_OPTIONS = {
   timeout: 10000,
 };
 const GEOLOCATION_PERMISSION_DENIED = 1;
+const ROUTE_ARRIVAL_MESSAGE = "On-site navigation will start when you arrive.";
 const ROUTING_LOCATION_REQUIRED_MESSAGE = LOCATION_MESSAGES.routeLocationRequired ||
-  "Continue with Maps for now. On-site navigation will start when you arrive.";
+  ROUTE_ARRIVAL_MESSAGE;
+const DIRECTIONS_UNAVAILABLE_MESSAGE = "Directions aren’t available for this record.";
+const OPENING_DRIVING_DIRECTIONS_MESSAGE = "Opening driving directions…";
+const ROUTE_FALLBACK_MESSAGE = "On-site route unavailable. Opening driving directions…";
+const ROUTE_STARTING_MESSAGE = "Starting on-site route…";
 const NAVIGATION_NOTICE_AUTO_HIDE_MS = 6000;
 const ROUTE_LOCATION_REFRESH_INTERVAL_MS = 5000;
 const ROUTE_LOCATION_WATCH_STALE_MS = 15000;
@@ -322,20 +333,20 @@ const createTourMarker = (tourKey, tourStyles) => {
 
   return (feature, latlng) => {
     if (feature.geometry?.type === "Point") {
+      const markerTitle = `${formatTourFeatureName(feature)} tour stop`;
       const icon = L.divIcon({
         className: "tour-marker",
-        html: `<div style="
-          width: 12px;
-          height: 12px;
+        html: `<span class="tour-marker__dot" style="
           background-color: ${tourInfo.color};
-          border-radius: 50%;
-          border: 2px solid white;
-          box-shadow: 0 0 4px rgba(0,0,0,0.4);
-        "></div>`,
-        iconSize: [12, 12],
-        iconAnchor: [6, 6],
+        "></span>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
       });
-      return L.marker(latlng, { icon });
+      return L.marker(latlng, {
+        icon,
+        keyboard: true,
+        title: markerTitle,
+      });
     }
 
     return L.circleMarker(latlng, {
@@ -353,7 +364,10 @@ const createTourMarker = (tourKey, tourStyles) => {
  * Binds a React popup to an imperative Leaflet layer. This is used for layers
  * created outside React, such as markercluster children and cached tour GeoJSON.
  */
+const tourPopupRenderers = new WeakMap();
+
 const bindReactPopup = ({
+  getPresentationMode = () => MAP_POPUP_PRESENTATION_MODES.FULL,
   layer,
   record,
   onNavigate,
@@ -370,16 +384,22 @@ const bindReactPopup = ({
   layer.bindPopup(popupContainer, {
     maxWidth: 300,
     className: "custom-popup",
+    closeButton: false,
   });
 
   const renderPopup = () => {
+    const presentationMode = getPresentationMode();
+    const isFullPresentation = presentationMode === MAP_POPUP_PRESENTATION_MODES.FULL;
+
     ReactDOM.render(
       (
         <PopupCardContent
           record={record}
           onNavigate={onNavigate}
           onRemove={onRemove}
-          showActions={Boolean(onNavigate || onRemove)}
+          presentationMode={presentationMode}
+          showActions={isFullPresentation && Boolean(onNavigate || onRemove)}
+          showDetails={isFullPresentation}
           getPopup={() => layer.getPopup?.()}
           schedulePopupLayout={schedulePopupLayout}
         />
@@ -387,6 +407,7 @@ const bindReactPopup = ({
       popupContainer
     );
   };
+  tourPopupRenderers.set(layer, renderPopup);
 
   const unmountPopup = () => {
     if (popupContainer.hasChildNodes()) {
@@ -394,6 +415,9 @@ const bindReactPopup = ({
     }
   };
 
+  layer.on("add", () => {
+    tourPopupRenderers.set(layer, renderPopup);
+  });
   layer.on("popupopen", ({ popup }) => {
     if (!shouldRenderPopup()) {
       layer.closePopup();
@@ -408,7 +432,10 @@ const bindReactPopup = ({
     onPopupClose?.(record);
     unmountPopup();
   });
-  layer.on("remove", unmountPopup);
+  layer.on("remove", () => {
+    tourPopupRenderers.delete(layer);
+    unmountPopup();
+  });
 };
 
 /**
@@ -440,6 +467,40 @@ function MapTourController({ selectedTour, overlayMaps, tourNames }) {
   }, [map, selectedTour, overlayMaps, tourNames]);
 
   return null;
+}
+
+function PopupPreservingSidebarToggleControl({ isSearchPanelVisible, onToggle }) {
+  const controlContainerRef = useRef(null);
+
+  useEffect(() => {
+    const controlContainer = controlContainerRef.current;
+    if (!controlContainer) {
+      return undefined;
+    }
+
+    // This custom control lives inside Leaflet's event root. Mark it like a
+    // native Leaflet control so toggling sidebar chrome does not emit the map
+    // preclick that closes the popup before its presentation mode can update.
+    L.DomEvent.disableClickPropagation(controlContainer);
+
+    return () => {
+      L.DomEvent.off(
+        controlContainer,
+        "mousedown touchstart dblclick contextmenu",
+        L.DomEvent.stopPropagation
+      );
+      delete controlContainer._leaflet_disable_click;
+    };
+  }, []);
+
+  return (
+    <div ref={controlContainerRef} style={{ width: "max-content" }}>
+      <SidebarToggleControl
+        isSearchPanelVisible={isSearchPanelVisible}
+        onToggle={onToggle}
+      />
+    </div>
+  );
 }
 
 const MapRoadLayers = memo(function MapRoadLayers({ roadsData }) {
@@ -513,7 +574,7 @@ const MapStaticLayers = memo(function MapStaticLayers({
           fitMapBounds={fitMapBoundsInViewport}
         />
         {(!isMobile || !isSearchPanelVisible) && (
-          <SidebarToggleControl
+          <PopupPreservingSidebarToggleControl
             isSearchPanelVisible={isSearchPanelVisible}
             onToggle={onToggleSearchPanel}
           />
@@ -590,6 +651,7 @@ const createOnEachTourFeature = (
   onRemoveResult,
   onRegisterLayer,
   resolveTourBrowseResult,
+  getPresentationMode,
   schedulePopupLayout,
   shouldRenderPopup
 ) => (feature, layer) => {
@@ -599,6 +661,7 @@ const createOnEachTourFeature = (
     : baseBrowseResult;
 
   bindReactPopup({
+    getPresentationMode,
     layer,
     record: browseResult,
     onNavigate: (event) => {
@@ -624,13 +687,21 @@ const createOnEachTourFeature = (
   layer.on("mouseout", () => {
     onHoverEnd?.(browseResult.id);
   });
-  layer.on("click", () => {
+  const selectTourStop = () => {
     onSelect(browseResult, {
       animate: false,
       openTourPopup: true,
       preserveViewport: true,
       selectionSource: SELECTION_SOURCES.TOUR_STOP,
     });
+  };
+  layer.on("click", selectTourStop);
+  layer.on("keypress", (event) => {
+    if (event?.originalEvent?.key !== "Enter") {
+      return;
+    }
+
+    selectTourStop();
   });
 };
 
@@ -930,7 +1001,24 @@ export default function BurialMap() {
       )
     )
   );
-  const appMenuOpen = Boolean(appMenuAnchorEl);
+  const appMenuPresentation = useMemo(() => buildAppMenuPresentation({
+    canClearSavedShareDetails: Boolean(
+      isFieldPacketsEnabled && fieldPacket?.selectedRecords?.length
+    ),
+    canCopyShareLink: Boolean(
+      isFieldPacketsEnabled && (
+        fieldPacket?.selectedRecords?.length || selectedBurials.length
+      )
+    ),
+    canInstallApp: Boolean(!isInstalled && installPromptEvent),
+  }), [
+    fieldPacket?.selectedRecords?.length,
+    installPromptEvent,
+    isFieldPacketsEnabled,
+    isInstalled,
+    selectedBurials.length,
+  ]);
+  const appMenuOpen = appMenuPresentation.hasActions && Boolean(appMenuAnchorEl);
   const isAppleMobile = useMemo(() => {
     if (typeof navigator === 'undefined') return false;
 
@@ -979,10 +1067,12 @@ export default function BurialMap() {
 
     return isMobile;
   }, [isMobile]);
-  // Mobile uses one bottom place card as the selected-location surface. A
-  // Leaflet popup would create a second, competing panel and can be physically
-  // covered by the sheet, so anchored popups remain desktop-only.
-  const shouldUseMapPopups = !isMobile;
+  const popupPresentationMode = resolveMapPopupPresentationMode({
+    isMobile,
+    isSearchPanelVisible,
+  });
+  const shouldUseMapPopups = popupPresentationMode !== MAP_POPUP_PRESENTATION_MODES.NONE;
+  const popupPresentationModeRef = useRef(popupPresentationMode);
   const shouldUseMapPopupsRef = useRef(shouldUseMapPopups);
   const handleBasemapChange = useCallback((nextBasemapId) => {
     setActiveBasemapId(nextBasemapId);
@@ -1262,6 +1352,7 @@ export default function BurialMap() {
   }, [getMapInstance, isMobile, isSearchPanelVisible]);
 
   useEffect(() => {
+    popupPresentationModeRef.current = popupPresentationMode;
     shouldUseMapPopupsRef.current = shouldUseMapPopups;
 
     if (shouldUseMapPopups) {
@@ -1269,7 +1360,28 @@ export default function BurialMap() {
     }
 
     closeMapPopup();
-  }, [closeMapPopup, shouldUseMapPopups]);
+  }, [closeMapPopup, popupPresentationMode, shouldUseMapPopups]);
+
+  useEffect(() => {
+    const openTourLayer = tourFeatureLayersRef.current.get(popupBurialIdRef.current);
+    const openTourPopup = openTourLayer?.getPopup?.();
+    const renderOpenTourPopup = tourPopupRenderers.get(openTourLayer);
+
+    if (!openTourPopup?.isOpen?.() || !renderOpenTourPopup) {
+      return;
+    }
+
+    renderOpenTourPopup();
+    schedulePopupLayout(openTourPopup);
+  }, [popupPresentationMode, schedulePopupLayout]);
+
+  useEffect(() => {
+    if (appMenuPresentation.hasActions) {
+      return;
+    }
+
+    setAppMenuAnchorEl(null);
+  }, [appMenuPresentation.hasActions]);
 
   useEffect(() => {
     if (isFieldPacketsEnabled) return;
@@ -2004,17 +2116,24 @@ export default function BurialMap() {
   const getPopupLayerForBurial = useCallback((burial) => {
     if (!burial) return null;
 
+    const tourLayer = burial.source === "tour"
+      ? tourFeatureLayersRef.current.get(burial.id)
+      : null;
+    if (tourLayer && getMapInstance()?.hasLayer?.(tourLayer)) {
+      return tourLayer;
+    }
+
     const selectedMarker = selectedMarkerLayersRef.current.get(burial.id);
     if (selectedMarker) {
       return selectedMarker;
     }
 
     if (burial.source === "tour") {
-      return tourFeatureLayersRef.current.get(burial.id) || null;
+      return null;
     }
 
     return sectionMarkersByIdRef.current.get(getSectionBurialMarkerId(burial)) || null;
-  }, []);
+  }, [getMapInstance]);
   const handlePopupBurialOpen = useCallback((burial) => {
     popupBurialIdRef.current = burial?.id || null;
   }, []);
@@ -2924,10 +3043,10 @@ export default function BurialMap() {
 
   const openExternalDirections = useCallback((
     burial,
-    { notice = "Opening driving directions...", travelMode = "driving" } = {}
+    { notice = OPENING_DRIVING_DIRECTIONS_MESSAGE, travelMode = "driving" } = {}
   ) => {
     if (!hasBurialNavigationCoordinates(burial)) {
-      setStatus('Directions unavailable for this burial');
+      setStatus(DIRECTIONS_UNAVAILABLE_MESSAGE);
       return false;
     }
 
@@ -2944,7 +3063,7 @@ export default function BurialMap() {
     });
 
     if (!link) {
-      setStatus('Directions unavailable for this burial');
+      setStatus(DIRECTIONS_UNAVAILABLE_MESSAGE);
       return false;
     }
 
@@ -2963,7 +3082,7 @@ export default function BurialMap() {
 
   const startOnSiteRouting = useCallback((burial, { location = acceptedLocationRef.current } = {}) => {
     if (!hasBurialNavigationCoordinates(burial)) {
-      setStatus('Directions unavailable for this burial');
+      setStatus(DIRECTIONS_UNAVAILABLE_MESSAGE);
       return false;
     }
 
@@ -3030,7 +3149,7 @@ export default function BurialMap() {
     }
 
     if (!hasBurialNavigationCoordinates(burial)) {
-      setStatus('Directions unavailable for this burial');
+      setStatus(DIRECTIONS_UNAVAILABLE_MESSAGE);
       return;
     }
 
@@ -3047,7 +3166,7 @@ export default function BurialMap() {
     const currentLocation = acceptedLocationRef.current;
 
     if (isLocationReadyForOnSiteNavigation(currentLocation)) {
-      showNavigationNotice("You're near the cemetery. Switching to on-site navigation.");
+      showNavigationNotice(ROUTE_STARTING_MESSAGE);
       startOnSiteRouting(navigationBurial, { location: currentLocation });
       return;
     }
@@ -3059,14 +3178,14 @@ export default function BurialMap() {
     // an unsolicited popup. The saved destination starts the location watch in
     // the background and still enables the on-site route when the user returns.
     openExternalDirections(navigationBurial, {
-      notice: "Opening driving directions...",
+      notice: OPENING_DRIVING_DIRECTIONS_MESSAGE,
       travelMode: "driving",
     });
 
     if (typeof window !== "undefined") {
       window.setTimeout(() => {
         if (destination && navigationDestinationRef.current?.id === destination.id) {
-          showNavigationNotice("On-site navigation will begin when you arrive.", {
+          showNavigationNotice(ROUTE_ARRIVAL_MESSAGE, {
             autoHideMs: 8000,
           });
         }
@@ -3092,7 +3211,7 @@ export default function BurialMap() {
       return false;
     }
 
-    showNavigationNotice("You're near the cemetery. Switching to on-site navigation.");
+    showNavigationNotice(ROUTE_STARTING_MESSAGE);
     return startOnSiteRouting(destination, { location });
   }, [
     isLocationReadyForOnSiteNavigation,
@@ -3184,7 +3303,7 @@ export default function BurialMap() {
       if (shouldFallbackToExternal) {
         suppressAutoOnSiteNavigationUntilRef.current = Date.now() + 60000;
         openExternalDirectionsRef.current?.(fallbackBurial, {
-          notice: "Opening driving directions...",
+          notice: ROUTE_FALLBACK_MESSAGE,
           travelMode: "driving",
         });
       }
@@ -4299,6 +4418,7 @@ export default function BurialMap() {
             tourFeatureLayersRef.current.set(browseResult.id, featureLayer);
           },
           resolveTourBrowseResult,
+          () => popupPresentationModeRef.current,
           schedulePopupLayout,
           () => shouldUseMapPopupsRef.current
         )
@@ -4423,6 +4543,7 @@ export default function BurialMap() {
           fieldPacketNotice={fieldPacketNotice}
           filterType={filterType}
           getTourName={getTourName}
+          hasAppMenuActions={appMenuPresentation.hasActions}
           hoveredBurialId={hoveredBurialId}
           initialQuery={initialBrowseQuery}
           installPromptEvent={installPromptEvent}
@@ -4490,9 +4611,8 @@ export default function BurialMap() {
         open={appMenuOpen}
         onClose={handleCloseAppMenu}
       >
-        {isFieldPacketsEnabled && (
+        {appMenuPresentation.canCopyShareLink && (
           <MenuItem
-            disabled={!fieldPacket?.selectedRecords?.length && selectedBurials.length === 0}
             onClick={() => {
               handleCloseAppMenu();
               void copyFieldPacketLink();
@@ -4501,7 +4621,7 @@ export default function BurialMap() {
             Copy share link
           </MenuItem>
         )}
-        {isFieldPacketsEnabled && fieldPacket?.selectedRecords?.length > 0 && (
+        {appMenuPresentation.canClearSavedShareDetails && (
           <MenuItem
             onClick={() => {
               handleCloseAppMenu();
@@ -4511,8 +4631,7 @@ export default function BurialMap() {
             Clear saved share details
           </MenuItem>
         )}
-        {isInstalled && <MenuItem disabled>App installed on this device</MenuItem>}
-        {!isInstalled && installPromptEvent && (
+        {appMenuPresentation.canInstallApp && (
           <MenuItem
             onClick={async () => {
               handleCloseAppMenu();
@@ -4521,12 +4640,6 @@ export default function BurialMap() {
           >
             Install on this device
           </MenuItem>
-        )}
-        {!isInstalled && showIosInstallHint && (
-          <MenuItem disabled>Safari: Share → Add to Home Screen</MenuItem>
-        )}
-        {!isInstalled && !installPromptEvent && !showIosInstallHint && (
-          <MenuItem disabled>App install unavailable in this browser</MenuItem>
         )}
       </Menu>
 
@@ -4672,10 +4785,11 @@ export default function BurialMap() {
                 zIndexOffset={isHighlighted ? 1300 : 1100}
               >
                 {shouldUseMapPopups && (
-                  <Popup>
+                  <Popup closeButton={false}>
                     <PopupCardStackContent
                       records={records}
                       activeRecordId={activeBurialId}
+                      presentationMode={popupPresentationMode}
                       onSelectRecord={(record) => {
                         selectMapBurial(record, {
                           animate: false,

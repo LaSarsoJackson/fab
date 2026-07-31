@@ -16,6 +16,11 @@ const APP_HOSTS = new Set([
 
 const TEST_APP_PATH = "/";
 const isIgnorableConsoleError = (text = "") => /^Failed to load resource:/i.test(text);
+const REMOVED_INERT_APP_MENU_ROWS = [
+  "App installed on this device",
+  "App install unavailable in this browser",
+  "Safari: Share → Add to Home Screen",
+];
 const buildAppPath = (searchParams = "") => {
   if (!searchParams) {
     return TEST_APP_PATH;
@@ -142,7 +147,7 @@ async function searchForLamont(page) {
 
   const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
   await expect(browseResults.first()).toContainText("Thomas E LaMont");
-  await expect(page.getByText("Preparing fast search…")).toHaveCount(0);
+  await expect(page.getByText("Preparing search…")).toHaveCount(0);
 
   return browseResults;
 }
@@ -198,6 +203,16 @@ async function expectExternalMapsNavigation(page, triggerNavigation) {
 async function expectHitTarget(locator) {
   await expect(locator).toBeVisible();
   await expect(locator).toBeInViewport({ ratio: 1 });
+  await expect(locator).toBeEnabled();
+  const targetBounds = await locator.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return {
+      height: bounds.height,
+      width: bounds.width,
+    };
+  });
+  expect(targetBounds.width).toBeGreaterThanOrEqual(44);
+  expect(targetBounds.height).toBeGreaterThanOrEqual(44);
   await expect.poll(() => locator.evaluate((element) => {
     const bounds = element.getBoundingClientRect();
     const topElement = document.elementFromPoint(
@@ -206,6 +221,24 @@ async function expectHitTarget(locator) {
     );
     return topElement === element || element.contains(topElement);
   })).toBe(true);
+}
+
+async function expectEnabledShareUtilityMenu(page, trigger) {
+  await trigger.click();
+
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeVisible();
+  const menuItems = menu.getByRole("menuitem");
+  await expect(menuItems).toHaveCount(1);
+  await expect(menuItems).toBeEnabled();
+  await expect(menu.getByRole("menuitem", { name: "Copy share link", exact: true })).toBeEnabled();
+
+  for (const removedRow of REMOVED_INERT_APP_MENU_ROWS) {
+    await expect(page.getByText(removedRow, { exact: true })).toHaveCount(0);
+  }
+
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
 }
 
 async function getSelectedMarkerCenter(page) {
@@ -341,20 +374,61 @@ async function waitForSettledSheetTop(locator, tolerance = 1) {
 }
 
 test.describe("desktop", () => {
-  test("searching for a burial opens the map popup and external maps popup", async ({ page }) => {
+  test("searching for a burial keeps map actions in the selected summary", async ({ page }) => {
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
+    await expect(page.getByRole("button", { name: "More", exact: true })).toHaveCount(0);
+    const browseResults = await searchForLamont(page);
+
+    await browseResults.first().click();
+
+    const popupCard = page.locator(".leaflet-popup .popup-card");
+    const selectedPeoplePanel = page.locator(".left-sidebar__panel--selected-summary");
+    await expect(popupCard).toBeVisible();
+    await expect(popupCard).toHaveClass(/popup-card--compact/);
+    await expect(page.locator(".leaflet-popup-close-button")).toHaveCount(0);
+    await expect(popupCard.locator(".popup-card__title")).toHaveText("Thomas E LaMont");
+    await expect(popupCard.locator(".popup-card__subtitle")).toContainText("Section 215, Lot 30, Tier 0, Grave 0");
+    await expect(popupCard.getByRole("button", { name: "Navigate" })).toHaveCount(0);
+    await expect(popupCard.getByRole("button", { name: "Close" })).toHaveCount(0);
+    await expect(popupCard.getByRole("link", { name: "Details" })).toHaveCount(0);
+    await expect(selectedPeoplePanel.getByRole("button", { name: "Navigate" })).toBeVisible();
+    const moreButton = page.getByRole("button", { name: "More", exact: true });
+    await expect(moreButton).toBeVisible();
+    await expectEnabledShareUtilityMenu(page, moreButton);
+    await expect(popupCard).toHaveClass(/popup-card--compact/);
+    await expect(selectedPeoplePanel).toContainText("Thomas E LaMont");
+    await waitForStableSelectedMarkerCenter(page);
+
+    await expectExternalMapsNavigation(page, () => (
+      selectedPeoplePanel.getByRole("button", { name: "Navigate" }).click()
+    ));
+  });
+
+  test("collapsing desktop search upgrades the open popup to a full popup with controls", async ({ page }) => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
     const browseResults = await searchForLamont(page);
 
     await browseResults.first().click();
 
-    const popupCard = page.locator(".popup-card");
+    const popupCard = page.locator(".leaflet-popup .popup-card");
     await expect(popupCard).toBeVisible();
-    await expect(popupCard.locator(".popup-card__title")).toHaveText("Thomas E LaMont");
-    await expect(popupCard.locator(".popup-card__subtitle")).toContainText("Section 215, Lot 30, Tier 0, Grave 0");
-    await waitForStableSelectedMarkerCenter(page);
+    await expect(popupCard).toHaveClass(/popup-card--compact/);
 
-    await expectExternalMapsNavigation(page, () => popupCard.getByRole("button", { name: "Navigate" }).click());
+    await page.getByRole("button", { name: "Collapse" }).click();
+
+    await expect(page.locator(".left-sidebar--desktop")).toHaveCount(0);
+    await expect(popupCard).toBeVisible();
+    await expect(popupCard).not.toHaveClass(/popup-card--compact/);
+    await expect(page.locator(".leaflet-popup-close-button")).toHaveCount(0);
+    await expect(popupCard.getByRole("button", { name: "Navigate" })).toBeVisible();
+    await expect(popupCard.getByRole("button", { name: "Close" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Search" }).click();
+
+    await expect(page.locator(".left-sidebar--desktop")).toBeVisible();
+    await expect(await getVisibleSearchInput(page, { requireEditable: false })).toBeVisible();
   });
 
   test("desktop search panel can be hidden and restored", async ({ page }) => {
@@ -423,26 +497,132 @@ test.describe("desktop", () => {
     const selectedHeading = (await browseResults.first().getByRole("heading").textContent()).trim();
     const tourMarker = page.locator(".leaflet-marker-icon.tour-marker").first();
     await expect(tourMarker).toBeVisible();
+    await expect(tourMarker).toHaveAttribute("title", `${selectedHeading} tour stop`);
+    await expectHitTarget(tourMarker);
     await tourMarker.click();
 
     const popupCard = page.locator(".leaflet-popup .popup-card");
     await expect(popupCard).toBeVisible();
-    await expect(popupCard.locator(".popup-card__eyebrow")).toContainText("Notables Tour 2020");
+    await expect(page.locator(".leaflet-popup .popup-card-stack")).toHaveCount(0);
+    await expect(popupCard).toHaveClass(/popup-card--compact/);
+    await expect(page.locator(".leaflet-popup-close-button")).toHaveCount(0);
+    await expect(popupCard.locator(".popup-card__eyebrow")).toHaveCount(0);
+    await expect(popupCard.getByRole("button", { name: "Navigate" })).toHaveCount(0);
+    await expect(popupCard.getByRole("button", { name: "Close" })).toHaveCount(0);
+    await expect(popupCard.getByRole("link", { name: "Details" })).toHaveCount(0);
     await expect(popupCard.locator(".popup-card__title")).toHaveText(selectedHeading);
-    await expect(page.locator(".left-sidebar__panel--selected-summary")).toContainText(selectedHeading);
+    const selectedSummary = page.locator(".left-sidebar__panel--selected-summary");
+    await expect(selectedSummary).toContainText(selectedHeading);
+    await expect(selectedSummary.getByRole("button", { name: "Navigate" })).toBeVisible();
+    await popupCard.evaluate((element) => {
+      element.setAttribute("data-e2e-popup-instance", "tour-popup-before-collapse");
+    });
 
-    await page.waitForTimeout(750);
+    await page.getByRole("button", { name: "Collapse" }).click();
+
     await expect(popupCard).toBeVisible();
-    await expect(page.locator(".left-sidebar__panel--selected-summary")).toContainText(selectedHeading);
+    await expect(popupCard).toHaveAttribute("data-e2e-popup-instance", "tour-popup-before-collapse");
+    await expect(popupCard).not.toHaveClass(/popup-card--compact/);
+    await expect(popupCard.locator(".popup-card__eyebrow")).toContainText("Notables Tour 2020");
+    await expect(popupCard.getByRole("button", { name: "Navigate" })).toBeVisible();
+    await expect(popupCard.getByRole("button", { name: "Close" })).toBeVisible();
+    await expect(popupCard.getByRole("link", { name: "Details" })).toBeVisible();
+  });
+
+  test("keyboard activation makes a tour stop authoritative in the sidebar", async ({ page }) => {
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
+
+    await page.getByRole("button", { name: "Tours", exact: true }).click();
+
+    const tourInput = page.getByRole("combobox", { name: "Tour" });
+    await tourInput.click();
+    await page.getByRole("option", { name: "Notables Tour 2020" }).click();
+
+    await expect(page.getByText("Loading Notables Tour 2020…")).toHaveCount(0, { timeout: 45_000 });
+
+    const browseResults = page.locator(".left-sidebar__panel--browse .left-sidebar__result-card");
+    await expect(browseResults.first()).toBeVisible({ timeout: 45_000 });
+
+    const selectedHeading = (await browseResults.first().getByRole("heading").textContent()).trim();
+    const tourMarker = page.locator(".leaflet-marker-icon.tour-marker").first();
+    const selectedSummary = page.locator(".left-sidebar__panel--selected-summary");
+    await expect(tourMarker).toBeVisible();
+    await tourMarker.focus();
+    await expect(tourMarker).toBeFocused();
+
+    await tourMarker.press("a");
+    await expect(selectedSummary).toHaveCount(0);
+
+    await tourMarker.press("Enter");
+
+    const popupCard = page.locator(".leaflet-popup .popup-card");
+    await expect(popupCard).toBeVisible();
+    await expect(page.locator(".leaflet-popup .popup-card-stack")).toHaveCount(0);
+    await expect(popupCard).toHaveClass(/popup-card--compact/);
+    await expect(popupCard.getByRole("button", { name: "Navigate" })).toHaveCount(0);
+    await expect(selectedSummary).toContainText(selectedHeading);
+    await expect(selectedSummary.getByRole("button", { name: "Navigate" })).toBeVisible();
+    await expect(page.locator(".selected-location-marker-icon")).toHaveCount(1);
+  });
+
+  test("a detached tour stop falls back to its retained selected marker popup", async ({ page }) => {
+    await waitForAppReady(page);
+    await ensureBurialDataLoaded(page);
+
+    await page.getByRole("button", { name: "Tours", exact: true }).click();
+
+    const tourInput = page.getByRole("combobox", { name: "Tour" });
+    await tourInput.click();
+    await page.getByRole("option", { name: "Notables Tour 2020" }).click();
+
+    await expect(page.getByText("Loading Notables Tour 2020…")).toHaveCount(0, { timeout: 45_000 });
+
+    const tourSearchInput = await getVisibleSearchInput(page);
+    await tourSearchInput.fill("Harmanus Bleecker");
+
+    // This unmatched stop stays source: "tour", which exercises the cached-layer fallback.
+    const retainedTourStop = page
+      .locator(".left-sidebar__panel--browse .left-sidebar__result-card")
+      .filter({ has: page.getByRole("heading", { name: "Harmanus Bleecker", exact: true }) });
+    await expect(retainedTourStop).toBeVisible({ timeout: 45_000 });
+    await retainedTourStop.click();
+
+    const selectedSummary = page.locator(".left-sidebar__panel--selected-summary");
+    const selectedMarker = page.locator(".selected-location-marker-icon");
+    await expect(selectedSummary).toContainText("Harmanus Bleecker");
+    await expect(selectedMarker).toHaveCount(1);
+    await expect(page.locator(".leaflet-popup .popup-card-stack")).toHaveCount(0);
+
+    const tourBrowseDetail = page.locator(".left-sidebar__browse-detail--tour");
+    await tourBrowseDetail.getByRole("button", { name: "Clear" }).click();
+
+    await expect(tourInput).toHaveValue("");
+    await expect(page.locator(".leaflet-marker-icon.tour-marker")).toHaveCount(0);
+    await expect(selectedMarker).toHaveCount(1);
+    await expect(selectedSummary).toContainText("Harmanus Bleecker");
+
+    await selectedSummary.getByRole("button", { name: /Harmanus Bleecker/ }).click();
+
+    const selectedMarkerPopup = page.locator(".leaflet-popup .popup-card-stack");
+    await expect(selectedMarkerPopup).toBeVisible();
+    await expect(selectedMarkerPopup.locator(".popup-card")).toHaveClass(/popup-card--compact/);
+    await expect(selectedMarkerPopup).toContainText("Harmanus Bleecker");
   });
 
   test("deep links restore the selected burial and popup state", async ({ page }) => {
     await waitForAppReady(page, buildAppPath("view=burials&q=lamont"));
 
-    const popupCard = page.locator(".popup-card");
+    const popupCard = page.locator(".leaflet-popup .popup-card");
+    const selectedSummary = page.locator(".left-sidebar__panel--selected-summary");
     await expect(popupCard).toBeVisible({ timeout: 60_000 });
+    await expect(popupCard).toHaveClass(/popup-card--compact/);
     await expect(popupCard.locator(".popup-card__title")).toHaveText("Thomas E LaMont");
-    await expect(page.locator(".left-sidebar__panel--selected-summary")).toContainText("Thomas E LaMont");
+    await expect(popupCard.getByRole("button", { name: "Navigate" })).toHaveCount(0);
+    await expect(popupCard.getByRole("button", { name: "Close" })).toHaveCount(0);
+    await expect(popupCard.getByRole("link", { name: "Details" })).toHaveCount(0);
+    await expect(selectedSummary).toContainText("Thomas E LaMont");
+    await expect(selectedSummary.getByRole("button", { name: "Navigate" })).toBeVisible();
   });
 
   test("packed shared links restore current burial data and landing state", async ({ page }) => {
@@ -538,9 +718,9 @@ test.describe("desktop", () => {
     await selectedPeoplePanel.getByRole("button", { name: "Navigate" }).click();
 
     await expect(selectedPeoplePanel).toContainText("Route active");
-    await expect(page.getByText("Starting on-site navigation...")).toHaveCount(0, { timeout: 15_000 });
     const routeLine = page.locator("path[stroke='#0f67c6']").first();
     await expect(routeLine).toBeVisible();
+    await expect(page.getByText("Calculating route…")).toHaveCount(0, { timeout: 15_000 });
     expect(externalRouteRequestCount).toBe(0);
 
     await selectedPeoplePanel.getByRole("button", { name: "Stop Navigation" }).click();
@@ -565,9 +745,9 @@ test.describe("desktop", () => {
     await selectedPeoplePanel.getByRole("button", { name: "Navigate" }).click();
 
     await expect(selectedPeoplePanel).toContainText("Route active");
-    await expect(page.getByText("Starting on-site navigation...")).toHaveCount(0, { timeout: 15_000 });
     const routeLine = page.locator("path[stroke='#0f67c6']").first();
     await expect(routeLine).toBeVisible();
+    await expect(page.getByText("Calculating route…")).toHaveCount(0, { timeout: 15_000 });
 
     const centeredMarker = await getSelectedMarkerCenter(page);
     await dragMapBy(page, { deltaX: 180, deltaY: -70 });
@@ -582,11 +762,11 @@ test.describe("desktop", () => {
       longitude: -73.736092,
     });
 
-    await expect(page.getByText("Starting on-site navigation...")).toHaveCount(0, { timeout: 15_000 });
     await expect(routeLine).toBeVisible();
     await expect.poll(() => routeLine.getAttribute("d"), {
       timeout: 15_000,
     }).not.toBe(routePathBeforeRefresh);
+    await expect(page.getByText("Calculating route…")).toHaveCount(0, { timeout: 15_000 });
     const refreshedMarker = await waitForStableSelectedMarkerCenter(page);
 
     expect(Math.abs(refreshedMarker.x - pannedMarker.x)).toBeLessThanOrEqual(3);
@@ -617,6 +797,7 @@ test.describe("mobile", () => {
   test("a short shared plot stays attached to the bottom without hiding the map", async ({ page }) => {
     await waitForAppReady(page);
     await ensureBurialDataLoaded(page);
+    await expect(page.getByRole("button", { name: "More options", exact: true })).toHaveCount(0);
 
     const searchInput = await getVisibleSearchInput(page);
     await searchInput.fill("anna m gardiner waller");
@@ -635,6 +816,11 @@ test.describe("mobile", () => {
     await expect(page.getByRole("heading", { name: "Section 53 · Lot 7" })).toBeVisible();
     await expect(page.getByText("4 people at this plot", { exact: true })).toBeVisible();
     const locationCard = page.locator(".mobile-location-card");
+    const moreOptionsButton = page.getByRole("button", { name: "More options", exact: true });
+    await expect(moreOptionsButton).toBeVisible();
+    await expectEnabledShareUtilityMenu(page, moreOptionsButton);
+    await expect(locationCard).toBeVisible();
+    await expect(locationCard.getByRole("heading", { name: "Anna M. Gardiner Waller" })).toBeVisible();
     const pickerTrigger = locationCard.getByRole("button", {
       name: /Choose person.*Anna M\. Gardiner Waller selected.*4 people at this plot/i,
     });

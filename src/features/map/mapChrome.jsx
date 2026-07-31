@@ -1005,7 +1005,7 @@ export function RouteStatusOverlay({
   }
 
   const isError = Boolean(routingError);
-  const message = routingError || (hasSummary ? summaryLabel : (routingNotice || "Starting on-site navigation..."));
+  const message = routingError || (hasSummary ? summaryLabel : (routingNotice || "Calculating route…"));
   const placementSx = isMobile
     ? {
         top: "calc(env(safe-area-inset-top, 0px) + 10px)",
@@ -1054,7 +1054,10 @@ export function RouteStatusOverlay({
         WebkitBackdropFilter: "blur(16px)",
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: hasSummary ? "8px" : 0 }}>
+      <Box
+        className="route-status-overlay__content"
+        sx={{ display: "flex", alignItems: "center", gap: hasSummary ? "8px" : 0 }}
+      >
         {hasSummary && (
           <DirectionsWalkIcon
             fontSize="small"

@@ -59,6 +59,34 @@ const buildHeadstoneLabel = (section, lot, row, position) => (
     .join(" • ") || DEFAULT_TOUR_LOCATION_LABEL
 );
 
+const readTourFeatureIdentity = (feature = {}) => {
+  const properties = feature?.properties || feature || {};
+  const firstName = readRecordValue(properties, TOUR_RECORD_FIELDS, "firstName");
+  const lastName = readRecordValue(properties, TOUR_RECORD_FIELDS, "lastName");
+  const fullName = readRecordValue(properties, TOUR_RECORD_FIELDS, "fullName")
+    || `${firstName} ${lastName}`.trim();
+  const section = readRecordValue(properties, TOUR_RECORD_FIELDS, "section");
+  const lot = readRecordValue(properties, TOUR_RECORD_FIELDS, "lot");
+  const row = readRecordValue(properties, TOUR_RECORD_FIELDS, "row");
+  const position = readRecordValue(properties, TOUR_RECORD_FIELDS, "position");
+
+  return {
+    displayName: fullName || buildHeadstoneLabel(section, lot, row, position),
+    firstName,
+    fullName,
+    lastName,
+    lot,
+    position,
+    properties,
+    row,
+    section,
+  };
+};
+
+export const formatTourFeatureName = (feature = {}) => (
+  readTourFeatureIdentity(feature).displayName
+);
+
 export const formatBrowseResultName = (record = {}) => {
   const explicitLabel = cleanValue(record.displayName || record.fullName || record.label);
   if (explicitLabel) return explicitLabel;
@@ -221,18 +249,20 @@ export const inflateSearchBurialRow = (row = {}, { getTourName } = {}) => {
 };
 
 export const buildTourBrowseResult = (feature, { tourKey, tourName } = {}) => {
-  const properties = feature.properties || {};
   // Tour stops are not always one-to-one with burial source records, so build a
   // self-contained browse record first and let harmonization enrich it later.
-  const firstName = readRecordValue(properties, TOUR_RECORD_FIELDS, "firstName");
-  const lastName = readRecordValue(properties, TOUR_RECORD_FIELDS, "lastName");
-  const fullName = readRecordValue(properties, TOUR_RECORD_FIELDS, "fullName") || `${firstName} ${lastName}`.trim();
-  const section = readRecordValue(properties, TOUR_RECORD_FIELDS, "section");
-  const lot = readRecordValue(properties, TOUR_RECORD_FIELDS, "lot");
-  const row = readRecordValue(properties, TOUR_RECORD_FIELDS, "row");
-  const position = readRecordValue(properties, TOUR_RECORD_FIELDS, "position");
+  const {
+    displayName,
+    firstName,
+    fullName,
+    lastName,
+    lot,
+    position,
+    properties,
+    row,
+    section,
+  } = readTourFeatureIdentity(feature);
   const grave = readRecordValue(properties, TOUR_RECORD_FIELDS, "grave");
-  const displayName = fullName || buildHeadstoneLabel(section, lot, row, position);
   const coordinates = feature.geometry?.coordinates || properties.coordinates || null;
   const tourFeatureMetadata = typeof TOUR_FEATURE?.enrichRecord === "function"
     ? TOUR_FEATURE.enrichRecord({

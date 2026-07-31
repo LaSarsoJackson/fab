@@ -250,6 +250,18 @@ select,
   letter-spacing: 0;
 }
 
+.left-sidebar__more-button.MuiButton-root {
+  min-height: 40px;
+  border-radius: 12px;
+  transition-property: background-color, color, scale;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.left-sidebar__more-button.MuiButton-root:active {
+  scale: 0.96;
+}
+
 .left-sidebar .MuiButton-contained {
   background: var(--accent);
   box-shadow: 0 8px 16px rgba(47, 107, 87, 0.16);
@@ -944,6 +956,15 @@ select,
   min-width: 0;
 }
 
+.left-sidebar__result-name {
+  text-wrap: balance;
+}
+
+.left-sidebar__result-location,
+.left-sidebar__result-supporting {
+  text-wrap: pretty;
+}
+
 .left-sidebar__result-thumbnail {
   width: 72px;
   height: 78px;
@@ -1008,6 +1029,10 @@ select,
 
 .left-sidebar__results-empty-actions .MuiButton-text:hover {
   background: rgba(255, 255, 255, 0.82);
+}
+
+.route-status-overlay__content {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Leaflet-rendered section labels, clusters, section affordances, and tour pins. */
@@ -1297,19 +1322,24 @@ select,
 }
 
 .tour-marker {
-  transition: transform 0.3s ease;
-  will-change: transform;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
 }
 
-.tour-marker:hover {
-  transform: scale(1.2);
+.tour-marker__dot {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+  transition-property: transform, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
-.tour-marker div {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.tour-marker:hover div {
+.tour-marker:hover .tour-marker__dot,
+.tour-marker:focus-visible .tour-marker__dot {
   transform: scale(1.2);
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
 }
@@ -1331,39 +1361,26 @@ select,
   overflow: hidden;
 }
 
-.leaflet-container a.leaflet-popup-close-button {
-  top: 8px;
-  right: 8px;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border-radius: 999px;
-  background: rgba(247, 250, 251, 0.94);
-  color: var(--muted-text);
-  font-size: 20px;
-  line-height: 28px;
-  box-shadow: 0 6px 14px rgba(20, 33, 43, 0.1);
-}
-
-.leaflet-container a.leaflet-popup-close-button:hover {
-  background: rgba(255, 255, 255, 0.98);
-  color: var(--text-main);
-}
-
-/* Extend the 28px visual close button to a 44px hit target. */
-.leaflet-container a.leaflet-popup-close-button::after {
-  content: "";
-  position: absolute;
-  inset: -8px;
-  border-radius: 999px;
-}
-
 /* Popup card styles are shared by Leaflet popups and selected-record cards. */
 .popup-card {
   min-width: 228px;
   max-width: min(272px, calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 44px));
   padding: 0.95rem 0.95rem 0.9rem;
   color: var(--text-main);
+}
+
+.popup-card--compact {
+  min-width: 196px;
+  max-width: min(240px, calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 44px));
+  padding: 0.78rem 0.85rem 0.8rem;
+}
+
+.popup-card__context-count {
+  margin: 0.42rem 0 0;
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 
 .popup-card__eyebrow {
@@ -1631,6 +1648,17 @@ select,
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
+}
+
+.leaflet-popup .popup-card--compact {
+  max-height: min(70vh, 420px);
+  overflow-y: auto;
+}
+
+.leaflet-popup .popup-card-stack--compact {
+  max-height: min(70vh, 420px);
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .leaflet-popup .popup-card-stack > .popup-card {
@@ -2153,11 +2181,18 @@ select,
   border: none;
   background-color: rgba(120, 120, 128, 0.16);
   color: rgba(60, 60, 67, 0.6);
+  transition-property: background-color, scale;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
 .mobile-sheet-header__icon-button.MuiIconButton-root:hover,
 .mobile-sheet-header__icon-button.MuiIconButton-root:active {
   background-color: rgba(120, 120, 128, 0.24);
+}
+
+.mobile-sheet-header__icon-button.MuiIconButton-root:active {
+  scale: 0.96;
 }
 
 /* 36px visual button, 44px hit target. */
@@ -2212,6 +2247,15 @@ select,
   display: grid;
   gap: 6px;
   padding-top: 2px;
+}
+
+.mobile-location-header__top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  min-height: 44px;
 }
 
 .mobile-location-header__back.MuiButtonBase-root {
@@ -2851,7 +2895,8 @@ select,
 /* Touch devices get full 44px targets on the compact pill buttons. */
 @media (pointer: coarse) {
   .left-sidebar__browse-actions .MuiButton-root,
-  .left-sidebar__selection-summary-actions .MuiButton-root {
+  .left-sidebar__selection-summary-actions .MuiButton-root,
+  .left-sidebar__more-button.MuiButton-root {
     min-height: 44px;
   }
 }
@@ -2865,5 +2910,10 @@ select,
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .left-sidebar__more-button.MuiButton-root:active,
+  .mobile-sheet-header__icon-button.MuiIconButton-root:active {
+    scale: 1 !important;
   }
 }

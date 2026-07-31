@@ -2,10 +2,12 @@ import { describe, expect, test } from "bun:test";
 
 import { APP_PROFILE } from "../src/features/fab/profile";
 import {
+  MAP_POPUP_PRESENTATION_MODES,
   createRouteGeoJsonRenderKey,
   getMapMaxZoom,
   isLocationCandidateWithinBuffer,
   isRenderableBounds,
+  resolveMapPopupPresentationMode,
 } from "../src/features/map/mapViewHelpers";
 
 const BUFFER_BOUNDARY = APP_PROFILE.map.locationBufferBoundary;
@@ -20,6 +22,42 @@ const ringAverage = firstBoundaryRing.reduce(
   }),
   { longitude: 0, latitude: 0 }
 );
+
+describe("resolveMapPopupPresentationMode", () => {
+  test("exposes stable popup presentation mode values", () => {
+    expect(MAP_POPUP_PRESENTATION_MODES).toEqual({
+      COMPACT: "compact",
+      FULL: "full",
+      NONE: "none",
+    });
+  });
+
+  test("uses compact map popups by default", () => {
+    expect(resolveMapPopupPresentationMode()).toBe(
+      MAP_POPUP_PRESENTATION_MODES.COMPACT
+    );
+  });
+
+  test("hides map popups on mobile", () => {
+    expect(resolveMapPopupPresentationMode({ isMobile: true })).toBe(
+      MAP_POPUP_PRESENTATION_MODES.NONE
+    );
+  });
+
+  test("uses compact map popups when the desktop search panel is visible", () => {
+    expect(resolveMapPopupPresentationMode({
+      isMobile: false,
+      isSearchPanelVisible: true,
+    })).toBe(MAP_POPUP_PRESENTATION_MODES.COMPACT);
+  });
+
+  test("uses full map popups when the desktop search panel is hidden", () => {
+    expect(resolveMapPopupPresentationMode({
+      isMobile: false,
+      isSearchPanelVisible: false,
+    })).toBe(MAP_POPUP_PRESENTATION_MODES.FULL);
+  });
+});
 
 describe("isLocationCandidateWithinBuffer", () => {
   test("returns false for a missing candidate", () => {

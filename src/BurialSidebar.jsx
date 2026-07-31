@@ -426,38 +426,40 @@ const BrowseResultCard = memo(function BrowseResultCard({
           ].filter(Boolean).join(" ")}
         >
           <Box className="left-sidebar__result-card-copy">
-            {presentation.metadataSummary && (
-              <Typography
-                variant="caption"
-                sx={{
-                  display: "block",
-                  position: "relative",
-                  zIndex: 1,
-                  mb: 0.45,
-                  color: "var(--muted-text)",
-                  fontWeight: 700,
-                  letterSpacing: "0.03em",
-                  textTransform: "uppercase",
-                }}
-              >
-                {presentation.metadataSummary}
-              </Typography>
-            )}
-            <Typography variant="subtitle2" sx={{ position: "relative", zIndex: 1, lineHeight: 1.25 }}>
+            <Typography
+              className="left-sidebar__result-name"
+              variant="subtitle2"
+              sx={{ position: "relative", zIndex: 1, lineHeight: 1.25 }}
+            >
               {presentation.displayName}
             </Typography>
             {presentation.locationSummary && (
-              <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.5 }}>
+              <Typography
+                className="left-sidebar__result-location"
+                variant="body2"
+                color="text.secondary"
+                sx={{ position: "relative", zIndex: 1, mt: 0.5 }}
+              >
                 {presentation.locationSummary}
               </Typography>
             )}
             {presentation.secondarySummary && (
-              <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.5 }}>
+              <Typography
+                className="left-sidebar__result-supporting"
+                variant="body2"
+                color="text.secondary"
+                sx={{ position: "relative", zIndex: 1, mt: 0.5 }}
+              >
                 {presentation.secondarySummary}
               </Typography>
             )}
             {presentation.lifeSummary && (
-              <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.35 }}>
+              <Typography
+                className="left-sidebar__result-supporting"
+                variant="body2"
+                color="text.secondary"
+                sx={{ position: "relative", zIndex: 1, mt: 0.35 }}
+              >
                 {presentation.lifeSummary}
               </Typography>
             )}
@@ -683,7 +685,7 @@ function BrowseResultsPanel({
           sx={{
             borderRadius: 3,
             border: "1px dashed rgba(20, 33, 43, 0.12)",
-            background: "linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(245, 248, 250, 0.56))",
+            backgroundColor: "rgba(248, 250, 252, 0.78)",
             boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.72)",
             p: 1.5,
           }}
@@ -1934,9 +1936,9 @@ function FieldPacketPanel({
     >
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1.25, mb: 1 }}>
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="subtitle2">Share Link</Typography>
+          <Typography variant="subtitle2">Share this map</Typography>
           <Typography variant="body2" sx={{ color: "var(--muted-text)", mt: 0.45 }}>
-            Send someone straight to this selection and map view.
+            Copy a link to these records and this map view.
           </Typography>
         </Box>
         <Chip
@@ -1952,7 +1954,7 @@ function FieldPacketPanel({
             p: 1.35,
             borderRadius: "18px",
             border: "1px solid rgba(47, 107, 87, 0.16)",
-            background: "linear-gradient(180deg, rgba(47, 107, 87, 0.12), rgba(47, 107, 87, 0.05))",
+            backgroundColor: "rgba(47, 107, 87, 0.08)",
           }}
         >
           <Typography
@@ -1990,7 +1992,7 @@ function FieldPacketPanel({
           )}
           {showIosInstallHint && !canInstallApp && (
             <Typography variant="caption" sx={{ display: "block", mt: 0.85, color: "var(--muted-text)" }}>
-              Or save it to your Home Screen from Safari for one-tap return visits.
+              In Safari, use Add to Home Screen to save this map.
             </Typography>
           )}
         </Box>
@@ -2095,6 +2097,7 @@ function BurialSidebar({
   fieldPacketNotice,
   filterType,
   getTourName,
+  hasAppMenuActions = false,
   hoveredBurialId,
   initialQuery,
   installPromptEvent,
@@ -2760,18 +2763,19 @@ function BurialSidebar({
     sectionFilter,
     selectedTour,
   ]);
-  const desktopMoreButton = !isMobile ? (
+  const desktopMoreButton = !isMobile && hasAppMenuActions ? (
     <Button
       variant="text"
       size="small"
       color="inherit"
       onClick={onOpenAppMenu}
       startIcon={<MoreHorizIcon />}
+      className="left-sidebar__more-button"
     >
       More
     </Button>
   ) : null;
-  const mobileMoreButton = isMobile ? (
+  const mobileMoreButton = isMobile && hasAppMenuActions ? (
     <IconButton
       size="small"
       color="inherit"
@@ -3065,15 +3069,18 @@ function BurialSidebar({
   // so nothing in it can ever be clipped.
   const mobileSheetHeader = hasMobileLocationSelection ? (
     <Box className="mobile-location-header">
-      <ButtonBase
-        component="button"
-        type="button"
-        className="mobile-location-header__back"
-        onClick={onClearSelectedBurials}
-      >
-        <ArrowBackIosNewIcon fontSize="small" />
-        <span>Back to results</span>
-      </ButtonBase>
+      <Box className="mobile-location-header__top">
+        <ButtonBase
+          component="button"
+          type="button"
+          className="mobile-location-header__back"
+          onClick={onClearSelectedBurials}
+        >
+          <ArrowBackIosNewIcon fontSize="small" />
+          <span>Back to results</span>
+        </ButtonBase>
+        {mobileMoreButton}
+      </Box>
       <Box className="mobile-location-header__copy">
         <Typography component="h2" className="mobile-location-header__title">
           {mobileLocationLabel || (mobileLocationRecordCount === 1

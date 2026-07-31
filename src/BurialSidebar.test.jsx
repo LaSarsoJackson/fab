@@ -112,6 +112,7 @@ const createBaseProps = () => ({
   fieldPacketNotice: null,
   filterType: "lot",
   getTourName,
+  hasAppMenuActions: false,
   hoveredBurialId: null,
   initialQuery: "",
   installPromptEvent: null,
@@ -338,7 +339,7 @@ describe("BurialSidebar", () => {
     expect(screen.queryByRole("combobox", { name: "Section" })).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Search graves & landmarks/i)).toBeInTheDocument();
     expect(screen.queryByText("Start with a section")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "More options" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "More options" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Clear all browse filters")).not.toBeInTheDocument();
 
     const input = screen.getByPlaceholderText(/Search graves & landmarks/i);
@@ -360,6 +361,51 @@ describe("BurialSidebar", () => {
     expect(input).toHaveValue("");
     expect(getCurrentMobileSheetSnap()).toBeCloseTo(920);
     expect(mockBottomSheetState.snapTo).toHaveBeenCalledTimes(1);
+  });
+
+  domTest("omits desktop and mobile More controls when no app-menu action is available", () => {
+    const { rerender } = renderSidebar();
+
+    expect(screen.queryByRole("button", { name: "More", exact: true })).not.toBeInTheDocument();
+
+    rerender(
+      <BurialSidebar
+        {...createBaseProps()}
+        isMobile
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "More options" })).not.toBeInTheDocument();
+  });
+
+  domTest("opens the app menu from the actionable desktop More control", () => {
+    const onOpenAppMenu = jest.fn();
+
+    renderSidebar({
+      hasAppMenuActions: true,
+      onOpenAppMenu,
+    });
+
+    const moreButton = screen.getByRole("button", { name: "More", exact: true });
+    expect(moreButton).toHaveClass("left-sidebar__more-button");
+
+    fireEvent.click(moreButton);
+
+    expect(onOpenAppMenu).toHaveBeenCalledTimes(1);
+  });
+
+  domTest("opens the app menu from the actionable mobile More options control", () => {
+    const onOpenAppMenu = jest.fn();
+
+    renderSidebar({
+      hasAppMenuActions: true,
+      isMobile: true,
+      onOpenAppMenu,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "More options" }));
+
+    expect(onOpenAppMenu).toHaveBeenCalledTimes(1);
   });
 
   domTest("lets mobile users collapse and reopen the search panel", () => {
@@ -786,7 +832,7 @@ describe("BurialSidebar", () => {
     expect(screen.queryByText("Browse: Section")).not.toBeInTheDocument();
     const annaResultCard = screen.getByText("Anna Tracy").closest(".left-sidebar__result-card");
     expect(within(annaResultCard).queryByText("Section 99")).not.toBeInTheDocument();
-    expect(within(annaResultCard).getByText(/Lot 18 • Tier 0/i)).toBeInTheDocument();
+    expect(within(annaResultCard).getByText(/Lot 18 · Tier 0 · Grave 0/i)).toBeInTheDocument();
 
     const sectionPanel = screen.getByRole("combobox", { name: "Section" }).closest(".left-sidebar__browse-detail");
     fireEvent.click(within(sectionPanel).getByRole("button", { name: "Clear" }));
@@ -918,7 +964,7 @@ describe("BurialSidebar", () => {
   domTest("keeps the share link panel hidden until there is a selection or saved link state", () => {
     renderSidebar();
 
-    expect(screen.queryByText("Share Link")).not.toBeInTheDocument();
+    expect(screen.queryByText("Share this map")).not.toBeInTheDocument();
   });
 
   domTest("keeps global search results visible after a selection so browse context stays available", () => {
@@ -1046,7 +1092,8 @@ describe("BurialSidebar", () => {
       onCopyFieldPacketLink,
     });
 
-    expect(screen.getByText("Share Link")).toBeInTheDocument();
+    expect(screen.getByText("Share this map")).toBeInTheDocument();
+    expect(screen.getByText("Copy a link to these records and this map view.")).toBeInTheDocument();
     expect(screen.getByText("1 selected record ready to share.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Copy share link" }));
@@ -1135,6 +1182,27 @@ describe("BurialSidebar", () => {
       "href",
       "https://apps.apple.com/us/app/albany-grave-finder/id6746413050"
     );
+  });
+
+  domTest("explains how to save a shared map from Safari", () => {
+    renderSidebar({
+      selectedBurials: [burialRecords[0]],
+      fieldPacket: {
+        version: 1,
+        activeBurialId: burialRecords[0].id,
+        selectedBurialIds: [burialRecords[0].id],
+        selectedRecords: [burialRecords[0]],
+      },
+      sharedLinkLandingState: {
+        restoredAt: Date.now(),
+      },
+      showIosInstallHint: true,
+    });
+
+    const sharePanel = screen.getByText("Share this map").closest(".left-sidebar__panel--field-packet");
+    expect(within(sharePanel).getByText(
+      "In Safari, use Add to Home Screen to save this map."
+    )).toBeInTheDocument();
   });
 
   domTest("turns mobile browse results into a focused location card", () => {
@@ -1411,10 +1479,14 @@ describe("BurialSidebar", () => {
   });
 
   domTest("keeps selected mobile actions in the location card above the map", () => {
+    const onOpenAppMenu = jest.fn();
+
     renderSidebar({
       isMobile: true,
       activeBurialId: burialRecords[0].id,
+      hasAppMenuActions: true,
       initialQuery: "anna",
+      onOpenAppMenu,
       selectedBurials: [burialRecords[0]],
     });
 
@@ -1425,7 +1497,28 @@ describe("BurialSidebar", () => {
     expect(getBrowseWorkspace()).toBeNull();
     expect(screen.queryByLabelText("Search burials")).not.toBeInTheDocument();
     expect(within(selectionPanel).getByRole("button", { name: "Navigate" })).toBeInTheDocument();
+    const backButton = screen.getByRole("button", { name: "Back to results" });
+    const moreButton = screen.getByRole("button", { name: "More options" });
+
+    expect(backButton.parentElement).toBe(moreButton.parentElement);
+    expect(moreButton.parentElement).toHaveClass("mobile-location-header__top");
+
+    fireEvent.click(moreButton);
+
+    expect(onOpenAppMenu).toHaveBeenCalledTimes(1);
+  });
+
+  domTest("omits More options from the selected mobile place when no app-menu action is available", () => {
+    renderSidebar({
+      isMobile: true,
+      activeBurialId: burialRecords[0].id,
+      selectedBurials: [burialRecords[0]],
+    });
+
+    flushBrowseTimers();
+
     expect(screen.getByRole("button", { name: "Back to results" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "More options" })).not.toBeInTheDocument();
   });
 
   domTest("keeps selection-only state inside the browse workspace without idle results", () => {
@@ -1638,7 +1731,7 @@ describe("BurialSidebar", () => {
 
     expect(screen.getByText("Using your current location for directions.")).toBeInTheDocument();
     expect(screen.getByText(
-      "Offline. Cached searches and cemetery layers may still work after a prior load; live maps, links, and GPS can be limited."
+      "Offline. Cached searches and cemetery layers may still work; maps, links, and GPS can be limited."
     )).toBeInTheDocument();
   });
 

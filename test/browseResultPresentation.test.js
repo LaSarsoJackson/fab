@@ -17,8 +17,27 @@ describe("browse result presentation helpers", () => {
     })).toEqual({
       displayName: "Ada Lovelace",
       lifeSummary: "Born 1815 \u2022 Died 1852",
-      locationSummary: "Lot 12, Tier A, Grave 5",
-      metadataSummary: "Lot 12 \u2022 Tier A",
+      locationSummary: "Lot 12 \u00b7 Tier A \u00b7 Grave 5",
+      secondarySummary: "",
+      tourChipLabel: "",
+    });
+  });
+
+  test("builds one complete location line for a global burial result", () => {
+    expect(buildBrowseResultCardPresentation({
+      result: {
+        displayName: "Ada Lovelace",
+        Section: "49",
+        Lot: "12",
+        Tier: "A",
+        Grave: "5",
+        Birth: "1815",
+        Death: "1852",
+      },
+    })).toEqual({
+      displayName: "Ada Lovelace",
+      lifeSummary: "Born 1815 \u2022 Died 1852",
+      locationSummary: "Section 49 \u00b7 Lot 12 \u00b7 Tier A \u00b7 Grave 5",
       secondarySummary: "",
       tourChipLabel: "",
     });
@@ -37,7 +56,6 @@ describe("browse result presentation helpers", () => {
       displayName: "Tour Marker",
       lifeSummary: "",
       locationSummary: "",
-      metadataSummary: "",
       secondarySummary: "Memorial path entrance",
       tourChipLabel: "",
     });

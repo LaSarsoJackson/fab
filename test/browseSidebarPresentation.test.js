@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  buildAppMenuPresentation,
   buildAutocompletePresentation,
   buildBrowseEmptyActionSpecs,
   buildBrowseResultsPanelPresentation,
@@ -18,7 +19,58 @@ import {
   getSearchShellNoticeStyles,
 } from "../src/features/browse/sidebarPresentation";
 
+const APP_MENU_ACTION_KEYS = [
+  "canClearSavedShareDetails",
+  "canCopyShareLink",
+  "canInstallApp",
+];
+
 describe("browse sidebar presentation helpers", () => {
+  test("builds utility-menu action availability", () => {
+    const disabledActions = {
+      canClearSavedShareDetails: false,
+      canCopyShareLink: false,
+      canInstallApp: false,
+    };
+
+    expect(buildAppMenuPresentation()).toEqual({
+      ...disabledActions,
+      hasActions: false,
+    });
+
+    for (const actionKey of APP_MENU_ACTION_KEYS) {
+      expect(buildAppMenuPresentation({ [actionKey]: true })).toEqual({
+        ...disabledActions,
+        [actionKey]: true,
+        hasActions: true,
+      });
+    }
+  });
+
+  test("normalizes utility-menu action inputs to booleans", () => {
+    expect(buildAppMenuPresentation({
+      canClearSavedShareDetails: "available",
+      canCopyShareLink: 0,
+      canInstallApp: 1,
+    })).toEqual({
+      canClearSavedShareDetails: true,
+      canCopyShareLink: false,
+      canInstallApp: true,
+      hasActions: true,
+    });
+
+    expect(buildAppMenuPresentation({
+      canClearSavedShareDetails: "",
+      canCopyShareLink: null,
+      canInstallApp: undefined,
+    })).toEqual({
+      canClearSavedShareDetails: false,
+      canCopyShareLink: false,
+      canInstallApp: false,
+      hasActions: false,
+    });
+  });
+
   test("builds autocomplete overlay presentation for desktop and mobile", () => {
     expect(buildAutocompletePresentation({ isMobile: false })).toEqual({
       componentsProps: {
@@ -247,7 +299,7 @@ describe("browse sidebar presentation helpers", () => {
       {
         key: "install",
         tone: "neutral",
-        label: "Safari: Share → Add to Home Screen",
+        label: "In Safari, use Add to Home Screen to save this map.",
       },
     ]);
 
@@ -267,7 +319,29 @@ describe("browse sidebar presentation helpers", () => {
       {
         key: "offline",
         tone: "warning",
-        label: "Offline. Cached searches and cemetery layers may still work after a prior load; live maps, links, and GPS can be limited.",
+        label: "Offline. Cached searches and cemetery layers may still work; maps, links, and GPS can be limited.",
+      },
+    ]);
+  });
+
+  test("uses direct copy while the search index is preparing", () => {
+    expect(buildSearchShellNotices({
+      burialRecordCount: 100,
+      defaultLocationStatus: "Location inactive",
+      activeLocationStatus: "Location active",
+      locatingLocationStatus: "Locating...",
+      isBurialDataLoading: false,
+      isInstalled: true,
+      isOnline: true,
+      isSearchIndexReady: false,
+      loadingTourName: "",
+      showIosInstallHint: false,
+      status: "Location inactive",
+    })).toEqual([
+      {
+        key: "search-readying",
+        tone: "neutral",
+        label: "Preparing search…",
       },
     ]);
   });

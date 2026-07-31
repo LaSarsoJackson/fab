@@ -471,7 +471,7 @@ function TourBrowseControls({
             Choose {tourLabel.toLowerCase()}
           </Typography>
           <Typography variant="body2" sx={{ mt: 0.35, color: "var(--muted-text)" }}>
-            Switch to one curated route when you want guided stops.
+            Choose a tour to follow its stops.
           </Typography>
         </Box>
         {hasTourSelection && (
