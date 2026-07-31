@@ -6,6 +6,7 @@
 
 - [ ] `bun run test`
 - [ ] `bun run lint`
+- [ ] `bun run docs:check` for documentation changes
 - [ ] `bun run check` for cross-cutting, release, runtime, or generated-data work
 
 ## Release impact

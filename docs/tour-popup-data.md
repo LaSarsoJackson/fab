@@ -5,15 +5,15 @@ structured this way, and where to make changes safely.
 
 ## Goal
 
-All tour marker popups should render through the same popup UI model.
+All tour marker popups must render through the same popup UI model.
 
-The frontend should not have per-tour popup branches such as:
+The frontend must not have per-tour popup branches such as:
 
 - "Mayors get popup mode A"
 - "GAR gets popup mode B"
 - "everyone else gets popup mode C"
 
-Instead, the data pipeline should normalize each tour record into the same
+Instead, the data pipeline must normalize each tour record into the same
 canonical fields so the popup layer can stay simple.
 
 ## Runtime flow
@@ -49,7 +49,7 @@ Lookup order is intentionally conservative:
 3. exact normalized name
 4. portrait stem
 
-If no trustworthy match exists, the popup should remain image-only rather than
+If no trustworthy match exists, the popup must remain image-only rather than
 inventing a biography link.
 
 ## Build and test safety
@@ -95,7 +95,7 @@ If you are changing popup presentation:
 
 ## Anti-patterns
 
-Avoid these:
+Do not use these patterns:
 
 - hardcoding special links for one mayor or one GAR record
 - adding new popup modes per tour

@@ -7,6 +7,7 @@ Use this file to decide which note to read before making a change.
 1. [README.md](../README.md) for product/runtime overview and commands
 2. [CONTRIBUTING.md](../CONTRIBUTING.md) for workflow and validation expectations
 3. [AGENTS.md](../AGENTS.md) for quick repo rules
+4. [ste-style-guide.md](./ste-style-guide.md) for documentation rules
 
 ## By task
 
@@ -17,7 +18,7 @@ Use this file to decide which note to read before making a change.
   or external directions links:
   [routing-architecture.md](./routing-architecture.md)
 
-- Changing where helpers or feature code should live:
+- Changing where helpers or feature code must live:
   [codebase-structure.md](./codebase-structure.md)
 
 - Doing repo-wide maintainability work, adding comments, or consolidating
@@ -43,6 +44,9 @@ Use this file to decide which note to read before making a change.
 
 - Working on tour popup normalization or tour-derived presentation:
   [tour-popup-data.md](./tour-popup-data.md)
+
+- Writing or changing documentation:
+  [ste-style-guide.md](./ste-style-guide.md)
 
 ## Current high-risk cross-cutting areas
 

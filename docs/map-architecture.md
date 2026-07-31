@@ -4,16 +4,16 @@ This note exists to keep `src/Map.jsx` maintainable.
 
 ## Boundary
 
-Treat [`src/Map.jsx`](../src/Map.jsx) as the orchestration layer. It should own:
+Treat [`src/Map.jsx`](../src/Map.jsx) as the orchestration layer. It must own:
 
 - React state and memoized selectors
 - Leaflet layer lifecycle and imperative refs
 - cross-component event wiring
 - viewport, routing, and selection side effects
 
-It should not be the long-term home for pure formatting or dataset-reconciliation logic.
-Development-only map experiments live on short-lived work branches; `main`
-should keep a single production map path unless an experiment is being promoted.
+Do not put pure formatting or data-reconciliation logic in this file.
+Development-only map experiments live on short-lived work branches. Keep one
+production map path on `main` unless you promote an experiment.
 
 ## Supporting modules
 
@@ -21,7 +21,9 @@ should keep a single production map path unless an experiment is being promoted.
 - [`docs/routing-architecture.md`](./routing-architecture.md): client route, shared-link, in-app road routing, and directions-link ownership
 - [`src/features/map/mapChrome.jsx`](../src/features/map/mapChrome.jsx): production Leaflet map controls, overlays, section-marker adapters, and route-status chrome
 - [`src/features/map/mapMarkerIcons.js`](../src/features/map/mapMarkerIcons.js): cached Leaflet div icons for selected records, burial clusters, section clusters, and section affordance markers
-- [`src/features/map/mapDomain.js`](../src/features/map/mapDomain.js): the single home for pure map business rules such as selection-state actions/reduction, section grouping, location filtering, hover guards, viewport-intent control, and popup viewport geometry
+- [`src/features/map/mapDomain.js`](../src/features/map/mapDomain.js): owner of
+  pure map business rules. These rules include selection, section grouping,
+  location filters, hover guards, viewport intent, and popup geometry.
 - [`src/features/map/mapNavigationDestination.js`](../src/features/map/mapNavigationDestination.js): saved navigation-destination record shaping and localStorage persistence
 - [`src/features/map/mapRouting.js`](../src/features/map/mapRouting.js): the single home for walking-route calculation and local road-graph routing
 - [`src/features/tours/tourDerivedData.js`](../src/features/tours/tourDerivedData.js): canonical biography/portrait inference for uneven tour datasets and the helpers used to generate alias metadata
@@ -40,14 +42,14 @@ When adding new behavior:
 
 Examples:
 
-- Good fit for `Map.jsx`: "open the popup after `moveend` because Leaflet may discard it during animation"
-- Good fit for `src/features/tours/tourDerivedData.js`: "recover a biography slug for a fixed-format mayor record using deterministic aliases"
-- Good fit for `src/features/map/mapRecordPresentation.js`: "normalize biography links because the source data mixes bare slugs and full URLs"
+- Good fit for `Map.jsx`: `Open the popup after moveend because Leaflet can discard it during animation.`
+- Good fit for `src/features/tours/tourDerivedData.js`: `Use deterministic aliases to recover the biography slug.`
+- Good fit for `src/features/map/mapRecordPresentation.js`: `Normalize biography links because the source data has slugs and full URLs.`
 - Bad fit for `Map.jsx`: another 100-line record formatting helper that never touches React or Leaflet
 
 ## High-risk areas
 
-Changes in these areas should be tested together because the code paths converge on the same record model:
+Test changes in these areas together. The code paths use the same record model:
 
 - search result selection
 - section polygon selection
@@ -56,7 +58,8 @@ Changes in these areas should be tested together because the code paths converge
 - deep-link selection
 - popup rendering
 
-If one of those flows changes, verify the others still land on the same selected record and popup behavior.
+If one flow changes, verify that the other flows select the same record and
+popup behavior.
 Search results, section burial markers, tour stops, direct marker clicks, popup
-close, hover, and deep-link restoration should all update selected records
+close, hover, and deep-link restoration must update selected records
 through the reducer/actions in `mapDomain.js`.

@@ -5,10 +5,10 @@ it focused on the shipped Leaflet map, search, browse, tours, routing, deep
 links, and deployable static assets. The old `master` branch has been retired
 in favor of `main`.
 
-`staging` is the pre-production branch. It should mirror what is ready for final
-validation before production deploy. GitHub Actions opens or updates the
-`dev` -> `staging` promotion PR after `dev` CI passes and enables auto-merge on
-that promotion PR once its required checks pass.
+`staging` is the pre-production branch. It must contain work that is ready for
+final validation. GitHub Actions opens or updates the
+`dev` to `staging` promotion pull request after `dev` CI passes. GitHub Actions
+enables auto-merge after the required promotion checks pass.
 
 `dev` is the integration branch for validated work that is not yet promoted to
 staging.
@@ -32,9 +32,9 @@ Open pull requests in this order:
 2. `dev` -> `staging` through the generated merge-commit auto-merge promotion PR
 3. `staging` -> `main` manually with a merge commit after final validation
 
-Only short-lived work should be squashed or rebased. Promotions between the
-three long-lived branches preserve ancestry with merge commits so the next
-promotion is based on history Git can recognize instead of a copied tree.
+Squash or rebase only short-lived work. Use merge commits for promotions
+between long-lived branches. These merge commits preserve ancestry for the
+next promotion.
 
 GitHub Pages deploys from the `main` branch build through GitHub Actions. The
 legacy `gh-pages` branch is not part of the normal deployment path.

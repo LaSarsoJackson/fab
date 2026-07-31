@@ -18,6 +18,11 @@ describe("package test scripts", () => {
     expect(scripts.check).toContain("bun run release:check");
   });
 
+  test("keeps the documentation check in the default gate", () => {
+    expect(scripts["docs:check"]).toBe("bun run scripts/check-docs-ste.js");
+    expect(scripts.check).toContain("bun run docs:check");
+  });
+
   test("keeps the default Bun runner on pure JavaScript test files without ripgrep", () => {
     expectBunScriptUsesPureTestFiles(scripts["test:bun"]);
   });
