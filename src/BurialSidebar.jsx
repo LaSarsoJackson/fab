@@ -2749,7 +2749,7 @@ function BurialSidebar({
       {dataErrorContent}
       {browseWorkspaceContent}
 
-      {activeView === "" && shouldShowFieldPacketPanel && (
+      {(activeView === "" || activeView === "search") && shouldShowFieldPacketPanel && (
         <FieldPacketPanel
           fieldPacket={fieldPacket}
           fieldPacketNotice={fieldPacketNotice}

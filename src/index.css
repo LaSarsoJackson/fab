@@ -8,7 +8,7 @@
   --app-height: 100dvh;
   --app-width: 100vw;
   --app-offset-top: 0px;
-  --app-navigation-height: 78px;
+  --app-navigation-height: calc(78px + var(--safe-area-bottom));
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);

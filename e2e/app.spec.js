@@ -124,6 +124,7 @@ test.describe("simplified navigation", () => {
     await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.getByRole("textbox", { name: "Search burials" })).toHaveValue("lamont");
     await expect(result).toBeVisible();
+    await expect(page.getByText("Share Link", { exact: true })).toBeVisible();
     await expect(page.locator(".tour-marker, .tour-context-overlay")).toHaveCount(0);
   });
 
@@ -162,6 +163,15 @@ test.describe("simplified navigation", () => {
     await page.getByRole("option", { name: "Section 215" }).click();
     await expect(sectionInput).toHaveValue("Section 215");
     await expect(page.locator(".left-sidebar__result-card").first()).toBeVisible({ timeout: 60_000 });
+
+    await page.getByRole("button", { name: "Map", exact: true }).click();
+    await expect(page.locator(".leaflet-container")).toBeVisible();
+    await expect.poll(async () => page.locator("img.leaflet-tile").evaluateAll((tiles) => (
+      Math.max(0, ...tiles.map((tile) => {
+        const match = tile.src.match(/\/tile\/(\d+)\/|\/(\d+)\/\d+\/\d+\.png/);
+        return Number(match?.[1] || match?.[2] || 0);
+      }))
+    )), { timeout: 60_000 }).toBeGreaterThanOrEqual(16);
   });
 
   test("a burial deep link restores the Map destination and popup", async ({ page }) => {

@@ -4245,12 +4245,19 @@ export default function BurialMap() {
 
     if (selectedTour) {
       focusTourOnMap(selectedTour);
+      return;
+    }
+
+    if (sectionFilter) {
+      focusSectionOnMap(sectionFilter, undefined, { isExplicitFocus: false });
     }
   }, [
     activeBurialId,
     focusBurial,
+    focusSectionOnMap,
     focusTourOnMap,
     getMapInstance,
+    sectionFilter,
     selectedBurials,
     selectedTour,
   ]);
