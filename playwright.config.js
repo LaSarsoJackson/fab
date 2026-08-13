@@ -3,6 +3,7 @@ const { defineConfig } = require("@playwright/test");
 const TEST_APP_PORT = process.env.PLAYWRIGHT_APP_PORT || "4173";
 const TEST_IMAGE_PORT = process.env.PLAYWRIGHT_IMAGE_PORT || "8173";
 const TEST_BASE_URL = `http://127.0.0.1:${TEST_APP_PORT}`;
+const BROWSER_EXECUTABLE_PATH = process.env.PLAYWRIGHT_BROWSER_EXECUTABLE_PATH;
 
 module.exports = defineConfig({
   testDir: "./e2e",
@@ -16,6 +17,9 @@ module.exports = defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: TEST_BASE_URL,
+    launchOptions: BROWSER_EXECUTABLE_PATH
+      ? { executablePath: BROWSER_EXECUTABLE_PATH }
+      : undefined,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

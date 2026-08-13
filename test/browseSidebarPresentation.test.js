@@ -202,6 +202,24 @@ describe("browse sidebar presentation helpers", () => {
     })).toBe("Keep typing.");
   });
 
+  test("keeps pending search honest while the index is preparing", () => {
+    expect(getBrowseEmptyState({
+      browseSource: "all",
+      isBrowsePending: true,
+      query: "Lamont",
+    })).toBe("Preparing fast search…");
+
+    expect(buildBrowseResultsPanelPresentation({
+      browseResults: [],
+      browseSource: "all",
+      isBrowsePending: true,
+      query: "Lamont",
+    })).toMatchObject({
+      emptyMessage: "Preparing fast search…",
+      shouldRenderEmptyState: true,
+    });
+  });
+
   test("keeps location notices and tone mapping together", () => {
     expect(formatLocationNoticeLabel({
       status: "Location active",

@@ -54,8 +54,8 @@ risky. Examples worth keeping:
   `buildPublicAssetUrl`.
 - Tour and burial datasets are not one-to-one, so matching must stay heuristic
   and centralized.
-- Full-cemetery search should defer large scans so mobile drawer animation and
-  typing stay responsive.
+- Full-cemetery search should load only after explicit Search interaction so
+  Tours launch stays light and typing stays responsive.
 
 Comments to avoid:
 

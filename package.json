@@ -1,7 +1,7 @@
 {
   "name": "fab",
   "homepage": "https://LaSarsoJackson.github.io/fab",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.8.2",
@@ -20,8 +20,7 @@
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-leaflet": "^3.2.5",
-    "react-scripts": "5.0.0",
-    "react-spring-bottom-sheet": "^3.4.1"
+    "react-scripts": "5.0.0"
   },
   "scripts": {
     "start": "bash ./scripts/dev-start.sh",

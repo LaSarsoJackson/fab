@@ -5,6 +5,7 @@
 .app-shell-main {
   width: 100%;
   height: 100%;
+  min-height: 100dvh;
 }
 
 .app-skip-link {
@@ -34,7 +35,8 @@
 }
 
 .app-shell-loading {
-  min-height: var(--app-height, 100vh);
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -42,10 +44,7 @@
   gap: 0.5rem;
   text-align: center;
   padding: 1.5rem;
-  background:
-    radial-gradient(960px 520px at 12% -8%, rgba(255, 245, 229, 0.72), transparent 56%),
-    radial-gradient(920px 540px at 92% -12%, rgba(220, 231, 238, 0.72), transparent 58%),
-    linear-gradient(165deg, #f5f5f7, #e7ebef);
+  background: #f6f7f8;
   color: #18212b;
 }
 
@@ -64,7 +63,8 @@
 }
 
 .app-shell-error {
-  min-height: var(--app-height, 100vh);
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -72,10 +72,7 @@
   gap: 0.75rem;
   text-align: center;
   padding: 1.5rem;
-  background:
-    radial-gradient(960px 520px at 12% -8%, rgba(255, 245, 229, 0.72), transparent 56%),
-    radial-gradient(920px 540px at 92% -12%, rgba(220, 231, 238, 0.72), transparent 58%),
-    linear-gradient(165deg, #f5f5f7, #e7ebef);
+  background: #f6f7f8;
   color: #18212b;
 }
 

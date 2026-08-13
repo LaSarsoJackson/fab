@@ -1,22 +1,21 @@
 /*
  * Global style contract for the shipped FAB app.
  *
- * Keep viewport tokens, Leaflet overrides, sidebar layout, popup styling, and
- * mobile sheet rules here so component files only carry dynamic state styles.
- * App.js owns the live viewport variables that compensate for mobile browser
- * chrome and safe areas.
+ * Keep viewport tokens, Leaflet overrides, fixed navigation, page layout, and
+ * popup styling here so component files only carry dynamic state styles.
  */
 :root {
-  --app-height: 100vh;
+  --app-height: 100dvh;
   --app-width: 100vw;
   --app-offset-top: 0px;
+  --app-navigation-height: calc(78px + var(--safe-area-bottom));
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
-  --bg-top: #f5f5f7;
-  --bg-bottom: #e7ebef;
-  --panel-bg: rgba(255, 255, 255, 0.96);
+  --bg-top: #f6f7f8;
+  --bg-bottom: #f6f7f8;
+  --panel-bg: #ffffff;
   --panel-border: rgba(20, 33, 43, 0.08);
   --panel-border-strong: rgba(20, 33, 43, 0.12);
   --text-main: #18212b;
@@ -54,21 +53,16 @@ body,
   margin: 0;
   width: 100%;
   height: 100%;
+  min-height: 100vh;
   min-height: var(--app-height);
-  background:
-    radial-gradient(1200px 620px at 8% -10%, rgba(255, 245, 229, 0.72), transparent 56%),
-    radial-gradient(1000px 580px at 92% -15%, rgba(220, 231, 238, 0.72), transparent 58%),
-    linear-gradient(165deg, var(--bg-top), var(--bg-bottom));
+  background: var(--bg-top);
 }
 
 body {
   overflow: hidden;
   color: var(--text-main);
   font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Avenir Next', 'Segoe UI', sans-serif;
-  background:
-    radial-gradient(1200px 620px at 8% -10%, rgba(255, 245, 229, 0.72), transparent 56%),
-    radial-gradient(1000px 580px at 92% -15%, rgba(220, 231, 238, 0.72), transparent 58%),
-    linear-gradient(165deg, var(--bg-top), var(--bg-bottom));
+  background: var(--bg-top);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;
@@ -109,9 +103,23 @@ select,
 .map-container {
   position: relative;
   width: 100vw;
+  height: 100vh;
   height: var(--app-height);
+  min-height: 100vh;
   min-height: var(--app-height);
   overflow: clip;
+  background: #f6f7f8;
+}
+
+.map-stage {
+  position: absolute;
+  inset: 0 0 var(--app-navigation-height);
+  overflow: hidden;
+}
+
+.map-stage--hidden {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .map,
@@ -122,6 +130,382 @@ select,
     radial-gradient(720px 520px at 18% 10%, rgba(196, 205, 185, 0.2), transparent 56%),
     radial-gradient(760px 560px at 92% 0%, rgba(174, 193, 201, 0.24), transparent 58%),
     linear-gradient(180deg, #cfd8d0, #bac6bd);
+}
+
+.tour-marker {
+  display: grid !important;
+  place-items: center;
+  cursor: pointer;
+  background: transparent;
+}
+
+.tour-marker__dot {
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(20, 33, 43, 0.16), 0 2px 7px rgba(20, 33, 43, 0.28);
+}
+
+.tour-marker:focus-visible .tour-marker__dot {
+  outline: 3px solid rgba(34, 96, 79, 0.42);
+  outline-offset: 3px;
+}
+
+.tour-context-overlay {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: calc(env(safe-area-inset-left, 0px) + 12px);
+  z-index: 650;
+  width: min(280px, calc(100% - 92px));
+  padding: 10px 12px;
+  display: grid;
+  gap: 2px;
+  pointer-events: none;
+  border: 1px solid rgba(20, 33, 43, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 8px 24px rgba(20, 33, 43, 0.12);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+
+.tour-context-overlay__eyebrow.MuiTypography-root,
+.tour-context-overlay__detail.MuiTypography-root {
+  color: var(--muted-text);
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.tour-context-overlay__eyebrow.MuiTypography-root {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.tour-context-overlay__title.MuiTypography-root {
+  overflow: hidden;
+  color: var(--text-main);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Stable app destinations replace the former movable mobile drawer. */
+.fab-navigation {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1600;
+  min-height: var(--app-navigation-height);
+  padding: 0 12px var(--safe-area-bottom);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  background: #ffffff;
+  box-shadow: 0 -1px 0 rgba(20, 33, 43, 0.1);
+}
+
+.fab-navigation__brand {
+  display: none;
+  color: var(--text-main);
+  text-decoration: none;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.fab-navigation__items {
+  width: min(100%, 420px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fab-navigation__item.MuiButtonBase-root {
+  position: relative;
+  min-width: 0;
+  min-height: 62px;
+  padding: 8px 6px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: #5f6872;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.15;
+  transition-property: color, background-color, scale;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.fab-navigation__item.MuiButtonBase-root:hover {
+  background: #f6f7f8;
+}
+
+.fab-navigation__item.MuiButtonBase-root:active {
+  scale: 0.96;
+}
+
+.fab-navigation__item--active.MuiButtonBase-root {
+  color: var(--accent-strong);
+}
+
+.fab-navigation__icon.MuiSvgIcon-root {
+  width: 25px;
+  height: 25px;
+}
+
+.fab-page {
+  position: absolute !important;
+  inset: 0 0 var(--app-navigation-height) !important;
+  width: auto !important;
+  max-width: none !important;
+  height: auto !important;
+  max-height: none !important;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.fab-page--hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.fab-page__header {
+  min-height: calc(56px + var(--safe-area-top));
+  padding: calc(14px + var(--safe-area-top)) 20px 12px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 1px 0 rgba(20, 33, 43, 0.1);
+}
+
+.fab-page__brand {
+  color: var(--text-main);
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.fab-page__body {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.fab-page__content {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: 28px 20px 36px;
+}
+
+.fab-page .left-sidebar__panel--surface {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.fab-workspace {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.fab-workspace__intro {
+  margin-bottom: 24px;
+}
+
+.fab-workspace__title.MuiTypography-root {
+  margin: 0;
+  color: var(--text-main);
+  font-size: clamp(1.75rem, 5vw, 2.25rem);
+  font-weight: 750;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.fab-workspace__description.MuiTypography-root {
+  margin: 8px 0 0;
+  color: var(--muted-text);
+  font-size: 1rem;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.fab-tour-catalog {
+  border-top: 1px solid rgba(20, 33, 43, 0.1);
+}
+
+.fab-tour-catalog__row.MuiButtonBase-root {
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 4px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 32px;
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px solid rgba(20, 33, 43, 0.1);
+  border-radius: 0;
+  color: var(--text-main);
+  text-align: left;
+  transition-property: background-color, scale;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.fab-tour-catalog__row.MuiButtonBase-root:hover {
+  background: #f6f8f7;
+}
+
+.fab-tour-catalog__row.MuiButtonBase-root:active {
+  scale: 0.96;
+}
+
+.fab-tour-catalog__icon {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.fab-tour-catalog__icon .MuiSvgIcon-root {
+  width: 26px;
+  height: 26px;
+}
+
+.fab-tour-catalog__copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.fab-tour-catalog__name {
+  font-size: 0.97rem;
+  font-weight: 650;
+  line-height: 1.3;
+  text-wrap: pretty;
+}
+
+.fab-tour-catalog__meta {
+  color: var(--muted-text);
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.fab-tour-catalog__chevron.MuiSvgIcon-root {
+  justify-self: center;
+  color: #68727c;
+}
+
+.fab-workspace__section-action.MuiButton-root {
+  min-height: 44px;
+  margin: 14px 0 6px;
+  align-self: flex-start;
+  padding-inline: 0;
+  color: var(--accent-strong);
+  font-size: 0.92rem;
+}
+
+.fab-workspace__results {
+  margin-top: 20px;
+  border-top: 1px solid rgba(20, 33, 43, 0.1);
+  padding-top: 12px;
+}
+
+@media (min-width: 841px) {
+  :root {
+    --app-navigation-height: 64px;
+  }
+
+  .map-stage,
+  .fab-page {
+    inset: var(--app-navigation-height) 0 0 !important;
+  }
+
+  .fab-navigation {
+    inset: 0 0 auto;
+    min-height: var(--app-navigation-height);
+    padding: 0 28px;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 1px 0 rgba(20, 33, 43, 0.1);
+  }
+
+  .fab-navigation__brand {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .fab-navigation__items {
+    width: 360px;
+    align-self: stretch;
+  }
+
+  .fab-navigation__item.MuiButtonBase-root {
+    min-height: 64px;
+    padding: 0 16px;
+    flex-direction: row;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.9rem;
+  }
+
+  .fab-navigation__item--active.MuiButtonBase-root::after {
+    content: "";
+    position: absolute;
+    right: 18px;
+    bottom: 0;
+    left: 18px;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: var(--accent);
+  }
+
+  .fab-navigation__icon.MuiSvgIcon-root {
+    width: 21px;
+    height: 21px;
+  }
+
+  .fab-page__header {
+    display: none;
+  }
+
+  .fab-page__content {
+    width: min(100%, 1180px);
+    padding: 52px 56px 64px;
+  }
+
+  .fab-workspace {
+    max-width: 780px;
+    margin: 0 auto;
+  }
+
+  .fab-workspace__intro {
+    margin-bottom: 30px;
+  }
+
+  .fab-tour-catalog__row.MuiButtonBase-root {
+    min-height: 76px;
+    grid-template-columns: 48px minmax(0, 1fr) 36px;
+    padding-inline: 8px;
+  }
 }
 
 .leaflet-tile-pane,
@@ -2000,7 +2384,7 @@ select,
   padding: 8px;
 }
 
-/* Mobile bottom-sheet layout. Keep map controls reachable while preserving safe areas. */
+/* Legacy sidebar widths remain for compatibility-only component stories. */
 @media (max-width: 1024px) {
   .left-sidebar--desktop {
     width: min(360px, calc(100vw - 24px));

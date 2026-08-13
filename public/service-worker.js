@@ -1,10 +1,10 @@
 /**
  * Runtime PWA cache policy for the static FAB build. The service worker keeps
- * the shell installable, caches the compact public search payload generously,
- * and avoids pinning full source datasets into constrained browser storage.
+ * the shell installable and avoids duplicating large datasets in constrained
+ * browser storage while they are also being parsed by the page.
  */
-const STATIC_CACHE = 'fab-static-v4';
-const RUNTIME_CACHE = 'fab-runtime-v4';
+const STATIC_CACHE = 'fab-static-v5';
+const RUNTIME_CACHE = 'fab-runtime-v5';
 // Keep the app shell installable, but leave large and frequently regenerated
 // datasets to route-specific caching rules below.
 const PRECACHE_URLS = [
@@ -21,10 +21,8 @@ const BASEMAP_ASSET_PATTERN = /\/basemaps\/.*\.(?:png|jpg|jpeg|webp|avif)$/i;
 const JSON_ASSET_PATTERN = /\.json$/i;
 const FIELD_SEARCH_PAYLOAD_PATTERN = /\/data\/Search_Burials\.json$/i;
 const LARGE_DATASET_PATTERN = /(Geo_Burials|Burials|ARC_Burials).*\.json$/i;
-// Most runtime assets are tiny enough for a conservative cache cap. Search data
-// is the exception because it is the offline-critical browse payload.
+// Most runtime assets are tiny enough for a conservative cache cap.
 const MAX_RUNTIME_CACHE_BYTES = 1_500_000;
-const MAX_FIELD_DATA_CACHE_BYTES = 50_000_000;
 // High-resolution basemap tiles are several MB each, well above the generic
 // image cap. They load on demand (only when zoomed in), so cache them once
 // fetched to keep panning and repeat visits fast and offline-capable.
@@ -153,12 +151,11 @@ self.addEventListener('fetch', (event) => {
 
   if (JSON_ASSET_PATTERN.test(requestUrl.pathname)) {
     if (FIELD_SEARCH_PAYLOAD_PATTERN.test(requestUrl.pathname)) {
-      event.respondWith(
-        staleWhileRevalidate(request, {
-          cacheName: RUNTIME_CACHE,
-          maxBytes: MAX_FIELD_DATA_CACHE_BYTES,
-        })
-      );
+      // Search_Burials is roughly 13 MB. Caching it here requires cloning the
+      // response while the page is also decoding and inflating it, which can
+      // exceed iOS PWA memory limits. Let the browser HTTP cache own this one
+      // payload and fetch it only after an explicit search interaction.
+      event.respondWith(fetch(request));
       return;
     }
 

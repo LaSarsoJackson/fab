@@ -287,6 +287,7 @@ export const getSearchPlaceholder = ({
 export const getBrowseEmptyState = ({
   browseSource,
   isBurialDataLoading,
+  isBrowsePending = false,
   isCurrentTourLoading,
   minBrowseQueryLength = 2,
   query,
@@ -294,6 +295,10 @@ export const getBrowseEmptyState = ({
   selectedTour,
   tourLabel = "Tour",
 }) => {
+  if (isBrowsePending) {
+    return "Preparing fast search…";
+  }
+
   if (isBurialDataLoading && browseSource !== "tour") {
     return "Loading burials…";
   }
@@ -330,6 +335,7 @@ export const buildBrowseResultsPanelPresentation = ({
   browseResults = [],
   browseSource = "all",
   isBurialDataLoading = false,
+  isBrowsePending = false,
   isCurrentTourLoading = false,
   minBrowseQueryLength = 2,
   query = "",
@@ -374,6 +380,7 @@ export const buildBrowseResultsPanelPresentation = ({
       ? getBrowseEmptyState({
         browseSource,
         isBurialDataLoading,
+        isBrowsePending,
         isCurrentTourLoading,
         minBrowseQueryLength,
         query: trimmedQuery,
