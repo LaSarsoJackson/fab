@@ -175,7 +175,7 @@ If you change map or selection behavior:
 2. Test section polygon and section marker selection.
 3. Test tour stop selection.
 4. Test deep-link restoration.
-5. Check desktop and mobile drawer behavior.
+5. Check desktop top navigation and mobile bottom tabs, including Tours as the default.
 6. Keep selected-record, active-record, and hover updates on the reducer/actions
    in [`src/features/map/mapDomain.js`](./src/features/map/mapDomain.js).
 

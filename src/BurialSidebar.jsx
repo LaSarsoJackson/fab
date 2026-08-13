@@ -7,7 +7,6 @@ import {
   Chip,
   CircularProgress,
   Divider,
-  IconButton,
   InputAdornment,
   List,
   ListItem,
@@ -16,25 +15,20 @@ import {
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import DirectionsIcon from "@mui/icons-material/Directions";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
-import { BottomSheet } from "react-spring-bottom-sheet";
-import "react-spring-bottom-sheet/dist/style.css";
 import { APP_PROFILE } from "./features/fab/profile";
-import BrowseWorkspacePanel, { BrowseSearchField } from "./features/browse/BrowseWorkspacePanel";
+import BrowseWorkspacePanel from "./features/browse/BrowseWorkspacePanel";
 import {
   buildAutocompletePresentation,
   buildBrowseResultsPanelPresentation,
   buildLifeDatesSummary,
   buildBrowseEmptyActionSpecs,
   buildBrowseScopeChips,
-  buildMobileSearchPanelTogglePresentation,
   buildSearchShellNotices,
   buildSidebarContentVisibility,
   getSearchPlaceholder,
@@ -53,7 +47,6 @@ import {
   buildSelectedBurialLookup,
   buildSelectedPlaceDetailPresentation,
   buildSelectedSummaryPresentation,
-  buildSelectedLocationLabel,
   buildSelectedPlaceInitials,
   getSelectedPlaceTypeLabel,
   hasFieldPacketContent,
@@ -61,7 +54,6 @@ import {
 import { buildFieldPacketPanelPresentation } from "./features/fieldPackets";
 import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordPresentation";
 import { resolvePortraitImageName } from "./features/tours/tourDerivedData";
-import { MOBILE_SHEET_STATES } from "./features/browse/mobileSheetGeometry";
 import {
   buildBrowseQueryChangeIntent,
   buildSidebarBrowseFlags,
@@ -72,15 +64,11 @@ import {
   buildClearTourSelectionIntent,
   buildFilterTypeSelectionIntent,
   buildLotTierChangeIntent,
-  buildMobileSearchPanelCollapseResetIntent,
-  buildMobileSearchPanelToggleIntent,
-  buildMobileSheetRevealIntent,
   buildSectionSelectionIntent,
   buildToggleSectionMarkersIntent,
   buildTourSelectionIntent,
   buildUnavailableTourBrowseResetIntent,
   useBurialSidebarBrowseState,
-  useBurialSidebarMobileSheetState,
 } from "./features/browse/sidebarState";
 import {
   getRuntimeEnv,
@@ -88,9 +76,8 @@ import {
 } from "./shared/runtimeEnv";
 
 /**
- * Sidebar shell for search, browse, selected records, directions actions, and
- * mobile drawer behavior. Pure result shaping and mobile-sheet state live in
- * feature/hooks modules so this file can stay focused on composing the UI.
+ * Sidebar shell for search, tours, and selected-record workflows. Mobile and
+ * desktop use fixed pages; the shared primary navigation owns view changes.
  */
 const MOBILE_LOCATION_INITIAL_PERSON_LIMIT = 8;
 const MOBILE_LOCATION_PERSON_SEARCH_THRESHOLD = 8;
@@ -179,18 +166,15 @@ const panelSurfaceStyles = {
   overflow: "hidden",
   isolation: "isolate",
   border: "1px solid rgba(20, 33, 43, 0.06)",
-  background: "rgba(255, 255, 255, 0.9)",
-  boxShadow: "0 14px 30px rgba(20, 33, 43, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.76)",
-  backdropFilter: "blur(16px)",
-  WebkitBackdropFilter: "blur(16px)",
-  borderRadius: "20px",
+  background: "#ffffff",
+  boxShadow: "none",
+  borderRadius: "16px",
 };
 
 const TOUR_LABEL = APP_PROFILE.features?.tours?.label || "Tour";
 const APP_SHELL = APP_PROFILE.shell || {};
-const APP_HEADER_EYEBROW = APP_SHELL.headerEyebrow || APP_PROFILE.brand?.appName || "App";
-const APP_HEADER_TITLE = APP_SHELL.headerTitle || "Burial Finder";
 const APP_HOME_URL = APP_SHELL.homeUrl || "#";
+const APP_NAVIGATION_TITLE = APP_SHELL.navigationTitle || APP_SHELL.headerTitle || "Albany Grave Finder";
 
 const DEFAULT_LOCATION_STATUS = APP_PROFILE.map.locationMessages?.inactive || "Location inactive";
 const LOCATION_ACTIVE_STATUS = APP_PROFILE.map.locationMessages?.active || "Location active";
@@ -548,6 +532,7 @@ function BrowseResultsPanel({
       browseResults,
       browseSource,
       isBurialDataLoading,
+      isBrowsePending,
       isCurrentTourLoading,
       minBrowseQueryLength: MIN_BROWSE_QUERY_LENGTH,
       query,
@@ -562,6 +547,7 @@ function BrowseResultsPanel({
       browseResults,
       browseSource,
       isBurialDataLoading,
+      isBrowsePending,
       isCurrentTourLoading,
       query,
       scopeChips,
@@ -691,7 +677,7 @@ function BrowseResultsPanel({
           <Typography variant="body2" sx={{ color: "var(--muted-text)" }}>
             {emptyMessage}
           </Typography>
-          {emptyStateActions.length > 0 && (
+          {!isBrowsePending && emptyStateActions.length > 0 && (
             <Box className="left-sidebar__results-empty-actions">
               {emptyStateActions.map((action) => (
                 <Button
@@ -1690,7 +1676,7 @@ function SelectedPlaceCard({
 }
 
 /**
- * Shared selection summary for desktop sidebar and mobile sheet variants.
+ * Shared selection summary for compatibility surfaces and component tests.
  */
 function SelectedSummaryPanel({
   activeBurialId,
@@ -2082,10 +2068,11 @@ function FieldPacketPanel({
 }
 
 /**
- * Main sidebar composition. It receives map state as props, delegates browse and
- * mobile-sheet mechanics to hooks, and emits user intent back to the map shell.
+ * Main browse-page composition. It receives map state as props and emits user
+ * intent back to the map shell.
  */
 function BurialSidebar({
+  activeView = "",
   activeBurialId,
   activeRouteBurialId,
   burialDataError,
@@ -2098,6 +2085,7 @@ function BurialSidebar({
   hoveredBurialId,
   initialQuery,
   installPromptEvent,
+  isHidden = false,
   isFieldPacketsEnabled,
   isBurialDataLoading,
   isInstalled,
@@ -2119,12 +2107,10 @@ function BurialSidebar({
   onClearFieldPacket,
   onCopyFieldPacketLink,
   onInstallApp,
-  onOpenAppMenu,
   onNavigateToBurial,
-  onMobileSheetViewportChange,
   onRemoveSelectedBurial,
   onRequestBurialDataLoad,
-  onRequestHideChrome,
+  onRequestViewChange,
   onRetryBurialDataLoad,
   onSectionChange,
   onShareFieldPacket,
@@ -2172,7 +2158,6 @@ function BurialSidebar({
     browseQuery,
     browseResults,
     browseSource,
-    hasActiveBrowseContext,
     isBrowsePending,
     resultLimit,
     setBrowseQuery,
@@ -2240,23 +2225,6 @@ function BurialSidebar({
     });
   }, [browseResultScopeKey, resultLimit]);
   const {
-    collapseMobileSheet,
-    expandMobileSheet,
-    handleSheetSpringEnd,
-    maximizeMobileSheet,
-    mobileDefaultSnap,
-    mobileSnapPoints,
-    resolvedMobileSheetState,
-    sheetRef,
-  } = useBurialSidebarMobileSheetState({
-    hasActiveBrowseContext,
-    initialBrowseSource,
-    initialQuery,
-    isMobile,
-    selectedBurialsLength: selectedBurials.length,
-  });
-  const [isMobileSearchPanelCollapsedByControl, setIsMobileSearchPanelCollapsedByControl] = useState(false);
-  const {
     hasGlobalResetState,
     hasMinimumBrowseQuery,
     hasSectionFilters,
@@ -2275,127 +2243,48 @@ function BurialSidebar({
     selectedTour,
     tourResultCount: tourResults.length,
   });
-  const sidebarScrollRef = useRef(null);
-  const previousActiveBurialIdRef = useRef(null);
-  const previousSectionFilterRef = useRef("");
-  const previousSelectedTourRef = useRef("");
-  const previousSelectionSignatureRef = useRef("");
-
+  const sidebarNodeRef = useRef(null);
+  const previousActiveViewRef = useRef(activeView);
   const setSidebarRootNode = useCallback((node) => {
-    // `react-spring-bottom-sheet` owns part of the mobile DOM tree, so the map
-    // shell needs a direct root ref for visible-viewport padding calculations.
+    sidebarNodeRef.current = node;
+
     if (!rootRef) {
       return;
     }
 
-    const rootNode = isMobile
-      ? node?.closest?.("[data-rsbs-overlay]") || node
-      : node;
-
     if (typeof rootRef === "function") {
-      rootRef(rootNode);
+      rootRef(node);
       return;
     }
 
-    rootRef.current = rootNode;
-  }, [isMobile, rootRef]);
-
-  const setSidebarScrollNode = useCallback((node) => {
-    sidebarScrollRef.current = node;
-  }, []);
-
-  const scrollMobileSheetToTop = useCallback((behavior = "smooth") => {
-    if (!isMobile) {
-      return;
-    }
-
-    const scrollContainer = sidebarScrollRef.current?.closest?.("[data-rsbs-scroll]");
-    if (!scrollContainer) {
-      return;
-    }
-
-    if (typeof scrollContainer.scrollTo === "function") {
-      scrollContainer.scrollTo({ top: 0, behavior });
-      return;
-    }
-
-    scrollContainer.scrollTop = 0;
-  }, [isMobile]);
-
-  const handleMobileSheetSpringEnd = useCallback((event) => {
-    handleSheetSpringEnd(event);
-    onMobileSheetViewportChange?.();
-  }, [handleSheetSpringEnd, onMobileSheetViewportChange]);
+    rootRef.current = node;
+  }, [rootRef]);
 
   useEffect(() => {
-    const intent = buildMobileSearchPanelCollapseResetIntent({
-      isMobile,
-      resolvedMobileSheetState,
-    });
+    const previousActiveView = previousActiveViewRef.current;
+    previousActiveViewRef.current = activeView;
+    if (previousActiveView === activeView) return;
 
-    if (intent.shouldSetMobileSearchPanelCollapsedByControl) {
-      setIsMobileSearchPanelCollapsedByControl(
-        intent.isMobileSearchPanelCollapsedByControlToSet
-      );
+    // Tours and Search share the same stable page shell. Reset only when the
+    // user changes destinations so scroll from a long result list cannot hide
+    // the next page's heading. Hiding the page for Map keeps the last browse
+    // view unchanged, so returning from Map still restores the prior position.
+    const pageBody = sidebarNodeRef.current?.querySelector?.(".fab-page__body");
+    if (pageBody) {
+      pageBody.scrollTop = 0;
     }
-  }, [isMobile, resolvedMobileSheetState]);
+  }, [activeView]);
 
   useEffect(() => {
-    const previousActiveBurialId = previousActiveBurialIdRef.current;
-    const previousSectionFilter = previousSectionFilterRef.current;
-    const previousSelectedTour = previousSelectedTourRef.current;
-    const previousSelectionSignature = previousSelectionSignatureRef.current;
-    const revealIntent = buildMobileSheetRevealIntent({
-      activeBurialId,
-      isMobile,
-      previousActiveBurialId,
-      previousSectionFilter,
-      previousSelectedTour,
-      previousSelectionSignature,
-      resolvedMobileSheetState,
-      sectionFilter,
-      selectedBurials,
-      selectedTour,
-    });
-
-    previousActiveBurialIdRef.current = activeBurialId;
-    previousSectionFilterRef.current = sectionFilter;
-    previousSelectedTourRef.current = selectedTour;
-    previousSelectionSignatureRef.current = revealIntent.currentSelectionSignature;
-
-    if (!isMobile) {
+    if (activeView === "tours" && browseSource !== "tour") {
+      setBrowseSource("tour");
       return;
     }
 
-    if (!revealIntent.shouldRevealSelectedRecord && !revealIntent.shouldRevealBrowseContext) {
-      return;
+    if (activeView === "search" && browseSource === "tour") {
+      setBrowseSource("all");
     }
-
-    // Browse contexts keep the map visible at the peek height. A selected
-    // location requests the full-content snap so the primary Navigate action
-    // is immediately reachable; geometry keeps short cards content-sized.
-    if (revealIntent.shouldExpandMobileSheet) {
-      if (revealIntent.shouldRevealSelectedRecord) {
-        maximizeMobileSheet();
-      } else {
-        expandMobileSheet();
-      }
-    }
-
-    if (revealIntent.shouldScrollMobileSheetToTop) {
-      scrollMobileSheetToTop("auto");
-    }
-  }, [
-    activeBurialId,
-    expandMobileSheet,
-    isMobile,
-    maximizeMobileSheet,
-    resolvedMobileSheetState,
-    scrollMobileSheetToTop,
-    sectionFilter,
-    selectedBurials,
-    selectedTour,
-  ]);
+  }, [activeView, browseSource, setBrowseSource]);
 
   const handleBrowseQueryChange = useCallback((event) => {
     const intent = buildBrowseQueryChangeIntent({
@@ -2421,7 +2310,8 @@ function BurialSidebar({
 
   const handleBrowseResultSelect = useCallback((result) => {
     onBrowseResultSelect(result);
-  }, [onBrowseResultSelect]);
+    onRequestViewChange?.("map");
+  }, [onBrowseResultSelect, onRequestViewChange]);
 
   const handleSectionSelection = useCallback((nextSection) => {
     const intent = buildSectionSelectionIntent({ nextSection });
@@ -2438,10 +2328,7 @@ function BurialSidebar({
       onSectionChange(intent.sectionFilterToSet);
     }
 
-    if (intent.shouldMaximizeMobileSheet) {
-      maximizeMobileSheet();
-    }
-  }, [maximizeMobileSheet, onRequestBurialDataLoad, onSectionChange, setBrowseSource]);
+  }, [onRequestBurialDataLoad, onSectionChange, setBrowseSource]);
 
   const handleToggleSectionMarkers = useCallback(() => {
     const intent = buildToggleSectionMarkersIntent();
@@ -2454,10 +2341,7 @@ function BurialSidebar({
       onToggleSectionMarkers();
     }
 
-    if (intent.shouldMaximizeMobileSheet) {
-      maximizeMobileSheet();
-    }
-  }, [maximizeMobileSheet, onRequestBurialDataLoad, onToggleSectionMarkers]);
+  }, [onRequestBurialDataLoad, onToggleSectionMarkers]);
 
   const handleFilterTypeSelection = useCallback((nextFilterType) => {
     const intent = buildFilterTypeSelectionIntent({ nextFilterType });
@@ -2466,10 +2350,7 @@ function BurialSidebar({
       onFilterTypeChange(intent.filterTypeToSet);
     }
 
-    if (intent.shouldMaximizeMobileSheet) {
-      maximizeMobileSheet();
-    }
-  }, [maximizeMobileSheet, onFilterTypeChange]);
+  }, [onFilterTypeChange]);
 
   const handleLotTierChange = useCallback((nextValue) => {
     const intent = buildLotTierChangeIntent({ nextValue });
@@ -2478,10 +2359,7 @@ function BurialSidebar({
       onLotTierFilterChange(intent.lotTierFilterToSet);
     }
 
-    if (intent.shouldMaximizeMobileSheet) {
-      maximizeMobileSheet();
-    }
-  }, [maximizeMobileSheet, onLotTierFilterChange]);
+  }, [onLotTierFilterChange]);
 
   const handleClearSectionFilters = useCallback(() => {
     const intent = buildClearSectionFiltersIntent();
@@ -2494,10 +2372,7 @@ function BurialSidebar({
       onClearSectionFilters();
     }
 
-    if (intent.shouldMaximizeMobileSheet) {
-      maximizeMobileSheet();
-    }
-  }, [maximizeMobileSheet, onClearSectionFilters, setBrowseSource]);
+  }, [onClearSectionFilters, setBrowseSource]);
 
   const handleTourSelection = useCallback((tourName) => {
     const intent = buildTourSelectionIntent({
@@ -2511,12 +2386,9 @@ function BurialSidebar({
 
     if (intent.shouldSetTourSelection) {
       onTourChange(intent.selectedTourToSet);
+      onRequestViewChange?.("map");
     }
-
-    if (intent.shouldMaximizeMobileSheet) {
-      maximizeMobileSheet();
-    }
-  }, [hasTourBrowse, maximizeMobileSheet, onTourChange, setBrowseSource]);
+  }, [hasTourBrowse, onRequestViewChange, onTourChange, setBrowseSource]);
 
   const handleClearTourSelection = useCallback(() => {
     const intent = buildClearTourSelectionIntent();
@@ -2529,10 +2401,7 @@ function BurialSidebar({
       onTourChange(intent.selectedTourToSet);
     }
 
-    if (intent.shouldMaximizeMobileSheet) {
-      maximizeMobileSheet();
-    }
-  }, [maximizeMobileSheet, onTourChange, setBrowseSource]);
+  }, [onTourChange, setBrowseSource]);
 
   const handleBrowseSourceChange = useCallback((nextSource) => {
     const intent = buildBrowseSourceChangeIntent({
@@ -2559,23 +2428,14 @@ function BurialSidebar({
       onTourChange(null);
     }
 
-    if (intent.shouldExpandMobileSheet) {
-      expandMobileSheet();
-    }
-
-    if (intent.shouldMaximizeMobileSheet) {
-      maximizeMobileSheet();
-    }
   }, [
     browseSource,
-    expandMobileSheet,
     hasSectionFilters,
     hasTourSelection,
     hasTourBrowse,
     onClearSectionFilters,
     onRequestBurialDataLoad,
     onTourChange,
-    maximizeMobileSheet,
     setBrowseSource,
   ]);
 
@@ -2589,40 +2449,6 @@ function BurialSidebar({
       setBrowseSource(intent.browseSourceToSet);
     }
   }, [browseSource, hasTourBrowse, setBrowseSource]);
-
-  const handleToggleMobileSearchPanel = useCallback(() => {
-    const intent = buildMobileSearchPanelToggleIntent({
-      canRequestHideChrome: Boolean(onRequestHideChrome),
-      isMobile,
-      isMobileSearchPanelCollapsedByControl,
-      resolvedMobileSheetState,
-    });
-
-    if (intent.shouldSetMobileSearchPanelCollapsedByControl) {
-      setIsMobileSearchPanelCollapsedByControl(
-        intent.isMobileSearchPanelCollapsedByControlToSet
-      );
-    }
-
-    if (intent.shouldExpandMobileSheet) {
-      expandMobileSheet();
-    }
-
-    if (intent.shouldRequestHideChrome) {
-      onRequestHideChrome();
-    }
-
-    if (intent.shouldCollapseMobileSheet) {
-      collapseMobileSheet();
-    }
-  }, [
-    collapseMobileSheet,
-    expandMobileSheet,
-    isMobile,
-    isMobileSearchPanelCollapsedByControl,
-    onRequestHideChrome,
-    resolvedMobileSheetState,
-  ]);
 
   const handleClearAllBrowseState = useCallback(() => {
     const intent = buildClearAllBrowseStateIntent({
@@ -2648,11 +2474,7 @@ function BurialSidebar({
       onClearSelectedBurials();
     }
 
-    if (intent.shouldExpandMobileSheet) {
-      expandMobileSheet();
-    }
   }, [
-    expandMobileSheet,
     lotTierFilter,
     onClearSectionFilters,
     onClearSelectedBurials,
@@ -2760,52 +2582,6 @@ function BurialSidebar({
     sectionFilter,
     selectedTour,
   ]);
-  const desktopMoreButton = !isMobile ? (
-    <Button
-      variant="text"
-      size="small"
-      color="inherit"
-      onClick={onOpenAppMenu}
-      startIcon={<MoreHorizIcon />}
-    >
-      More
-    </Button>
-  ) : null;
-  const mobileMoreButton = isMobile ? (
-    <IconButton
-      size="small"
-      color="inherit"
-      onClick={onOpenAppMenu}
-      aria-label="More options"
-      className="mobile-sheet-header__icon-button"
-    >
-      <MoreHorizIcon fontSize="small" />
-    </IconButton>
-  ) : null;
-  const mobileSearchPanelTogglePresentation = useMemo(
-    () => buildMobileSearchPanelTogglePresentation({
-      collapsedSheetState: MOBILE_SHEET_STATES.COLLAPSED,
-      isMobileSearchPanelCollapsedByControl,
-      resolvedMobileSheetState,
-    }),
-    [isMobileSearchPanelCollapsedByControl, resolvedMobileSheetState]
-  );
-  const mobileSearchPanelToggleButton = isMobile ? (
-    <IconButton
-      size="small"
-      color="inherit"
-      onClick={handleToggleMobileSearchPanel}
-      aria-label={mobileSearchPanelTogglePresentation.label}
-      title={mobileSearchPanelTogglePresentation.label}
-      aria-pressed={mobileSearchPanelTogglePresentation.isCollapsed}
-      className="mobile-sheet-header__icon-button"
-    >
-      <ArrowDropDownIcon
-        fontSize="small"
-        sx={mobileSearchPanelTogglePresentation.iconSx}
-      />
-    </IconButton>
-  ) : null;
   const {
     shouldShowBrowseResults,
     shouldShowFieldPacketPanel,
@@ -2864,26 +2640,14 @@ function BurialSidebar({
       tourStyles={tourStyles}
     />
   ) : null;
-  const mobileActiveBurial = selectedBurials.find((burial) => burial.id === activeBurialId)
-    || selectedBurials[0]
-    || null;
-  const mobileActiveLocationGroup = mobileActiveBurial
-    ? selectedBurialCoordinateGroups.find((group) => group.recordIds.includes(mobileActiveBurial.id))
-    : null;
-  const mobileLocationRecordCount = mobileActiveLocationGroup?.records.length
-    || (mobileActiveBurial ? 1 : 0);
-  const mobileLocationLabel = mobileActiveBurial
-    ? buildSelectedLocationLabel(mobileActiveBurial)
-    : "";
-  const hasMobileLocationSelection = isMobile && Boolean(mobileActiveBurial);
-
   const browseWorkspaceContent = (
     <BrowseWorkspacePanel
+      activeView={activeView}
       autocompleteComponentsProps={autocompleteComponentsProps}
       autocompleteListboxProps={autocompleteListboxProps}
       burialDataError={burialDataError}
       browseQuery={browseQuery}
-      desktopMoreButton={desktopMoreButton}
+      desktopMoreButton={null}
       filterType={filterType}
       hasGlobalResetState={hasGlobalResetState}
       hasSectionFilters={hasSectionFilters}
@@ -2915,7 +2679,7 @@ function BurialSidebar({
       selectedSectionOption={selectedSectionOption}
       selectedTour={selectedTour}
       showAllBurials={showAllBurials}
-      showSearchField={!isMobile}
+      showSearchField
       surfaceSx={panelSurfaceStyles}
       tourDefinitions={tourDefinitions}
       tourLabel={TOUR_LABEL}
@@ -2980,48 +2744,12 @@ function BurialSidebar({
     </Box>
   ) : null;
 
-  const headerContent = (
-    <Box className="left-sidebar__header" sx={{ p: 1.75 }}>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 1.5,
-          mb: 1,
-        }}
-      >
-        <Box sx={{ minWidth: 0 }}>
-          <Typography
-            variant="overline"
-            sx={{ display: "block", letterSpacing: 1.2, color: "var(--muted-text)", lineHeight: 1.1 }}
-          >
-            {APP_HEADER_EYEBROW}
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.35 }}>
-            <Box
-              component="a"
-              href={APP_HOME_URL}
-              sx={{ color: "inherit", display: "inline-block", textDecoration: "none" }}
-            >
-              <Typography variant="h6" sx={{ lineHeight: 1.2 }}>
-                {APP_HEADER_TITLE}
-              </Typography>
-            </Box>
-            {devChip}
-          </Box>
-        </Box>
-      </Box>
-
-      {dataErrorContent}
-    </Box>
-  );
-
   const bodyContent = (
-    <Box sx={{ p: 1.25, display: "grid", gap: 1.25 }}>
+    <Box className="fab-page__content">
+      {dataErrorContent}
       {browseWorkspaceContent}
 
-      {shouldShowFieldPacketPanel && (
+      {activeView === "" && shouldShowFieldPacketPanel && (
         <FieldPacketPanel
           fieldPacket={fieldPacket}
           fieldPacketNotice={fieldPacketNotice}
@@ -3041,124 +2769,23 @@ function BurialSidebar({
     </Box>
   );
 
-  // -- Desktop render --
-  if (!isMobile) {
-    return (
-      <Paper ref={setSidebarRootNode} elevation={3} className={sidebarClassName}>
-        {headerContent}
-        <Divider />
-        <Box
-          ref={setSidebarScrollNode}
-          className="left-sidebar__body"
-          sx={{ minHeight: 0, overflow: "auto", flex: 1 }}
-        >
-          {bodyContent}
-        </Box>
-      </Paper>
-    );
-  }
-
-  // -- Mobile render: Apple Maps-style BottomSheet --
-  // The header is pinned by the sheet itself: the grabber, brand line, and
-  // search field stay visible at every snap height while the body scrolls
-  // underneath. The collapsed snap point equals this header's measured height,
-  // so nothing in it can ever be clipped.
-  const mobileSheetHeader = hasMobileLocationSelection ? (
-    <Box className="mobile-location-header">
-      <ButtonBase
-        component="button"
-        type="button"
-        className="mobile-location-header__back"
-        onClick={onClearSelectedBurials}
-      >
-        <ArrowBackIosNewIcon fontSize="small" />
-        <span>Back to results</span>
-      </ButtonBase>
-      <Box className="mobile-location-header__copy">
-        <Typography component="h2" className="mobile-location-header__title">
-          {mobileLocationLabel || (mobileLocationRecordCount === 1
-            ? "1 person at this plot"
-            : `${mobileLocationRecordCount} people at this plot`)}
-        </Typography>
-        {mobileLocationLabel && (
-          <Typography component="p" className="mobile-location-header__subtitle">
-            {mobileLocationRecordCount === 1
-              ? "1 person at this plot"
-              : `${mobileLocationRecordCount} people at this plot`}
-          </Typography>
-        )}
-      </Box>
-    </Box>
-  ) : (
-    <Box className="mobile-sheet-header">
-      <Box className="mobile-sheet-header__top">
-        <Box
-          component="a"
-          href={APP_HOME_URL}
-          className="mobile-sheet-header__brand"
-        >
-          <Typography component="span" className="mobile-sheet-header__title">
-            {APP_HEADER_TITLE}
-          </Typography>
-          <Typography component="span" className="mobile-sheet-header__eyebrow">
-            {APP_HEADER_EYEBROW}
-          </Typography>
+  return (
+    <Paper
+      ref={setSidebarRootNode}
+      elevation={0}
+      className={`${sidebarClassName} fab-page${isHidden ? " fab-page--hidden" : ""}`}
+      aria-hidden={isHidden ? "true" : undefined}
+    >
+      <Box className="fab-page__header">
+        <Box component="a" href={APP_HOME_URL} className="fab-page__brand">
+          {APP_NAVIGATION_TITLE}
         </Box>
         {devChip}
-        <Box className="mobile-sheet-header__actions">
-          {mobileSearchPanelToggleButton}
-          {mobileMoreButton}
-        </Box>
       </Box>
-      <BrowseSearchField
-        browseQuery={browseQuery}
-        burialDataError={burialDataError}
-        isBrowsePending={isBrowsePending}
-        isBurialDataLoading={isBurialDataLoading}
-        onBrowseQueryChange={handleBrowseQueryChange}
-        onClearBrowseQuery={handleClearBrowseQuery}
-        onFocus={maximizeMobileSheet}
-        onRequestBurialDataLoad={onRequestBurialDataLoad}
-        searchPlaceholder={searchPlaceholder}
-      />
-      {dataErrorContent}
-    </Box>
-  );
-
-  const mobileSheetBody = (
-    <Box
-      ref={(node) => {
-        setSidebarRootNode(node);
-        setSidebarScrollNode(node);
-      }}
-      className="left-sidebar__mobile-body"
-      data-mobile-sheet-state={resolvedMobileSheetState}
-    >
-      {hasMobileLocationSelection ? selectedSummaryContent : bodyContent}
-    </Box>
-  );
-
-  // Keep content dragging disabled so vertical lists own finger scrolling;
-  // the sheet header and grabber remain the dedicated resize gesture.
-  return (
-    <BottomSheet
-      ref={sheetRef}
-      open
-      blocking={false}
-      scrollLocking={false}
-      skipInitialTransition
-      className={[
-        "left-sidebar",
-        "left-sidebar--mobile",
-        `left-sidebar--mobile--${resolvedMobileSheetState}`,
-      ].join(" ")}
-      snapPoints={mobileSnapPoints}
-      defaultSnap={mobileDefaultSnap}
-      header={mobileSheetHeader}
-      onSpringEnd={handleMobileSheetSpringEnd}
-    >
-      {mobileSheetBody}
-    </BottomSheet>
+      <Box className="fab-page__body">
+        {bodyContent}
+      </Box>
+    </Paper>
   );
 }
 

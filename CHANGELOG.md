@@ -6,6 +6,19 @@ contract releases.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-13
+
+- Replaced the mobile drawer with three fixed, touch-friendly Tours, Map, and
+  Search destinations, with Tours as the default launch experience.
+- Simplified grave and section search, preserved search state across map visits,
+  and prevented unrelated tour or section context from leaking into a new search.
+- Added clear active-tour context, 44-pixel tour stop targets, marker labels for
+  assistive technology, and safer popup positioning after phone viewport changes.
+- Reduced installed-iPhone PWA crash risk by keeping Leaflet mounted after first
+  use and removing the large search payload from service-worker runtime caching.
+- Added an installed-PWA smoke workflow for real-device launch, navigation,
+  background/resume, orientation, search, and directions acceptance.
+
 ## [0.2.1] - 2026-07-13
 
 - Fixed shared-plot selection on phones by replacing the clipped horizontal
