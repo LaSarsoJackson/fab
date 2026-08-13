@@ -527,7 +527,10 @@ export const APP_PROFILE = {
       outOfBounds: `Search by name or section, then tap Navigate for directions to ${FAB_SITE_NAME}.`,
       routeLocationRequired: `Continue with Maps for now. On-site navigation will start when you arrive.`,
     },
-    defaultBasemapId: "world-hillshade",
+    // Match the long-standing FABFG Burial Locator: visitors should see the
+    // cemetery itself first. The generated overview remains lightweight, and
+    // the higher-resolution tiles are still lazy at close zoom.
+    defaultBasemapId: "imagery",
     basemaps: MAP_BASEMAPS,
     // Auto mode is not a tile source of its own — it picks between a
     // cartographic orientation basemap and satellite imagery by zoom so the

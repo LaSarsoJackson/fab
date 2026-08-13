@@ -1046,6 +1046,40 @@ export const resolveRecordLocationGroup = (
   );
 };
 
+/**
+ * Resolve a tour/search record against the canonical burial index without
+ * turning a person-level choice into the full set of people at that plot.
+ */
+export const resolveFocusedBurialSelection = (
+  burial,
+  locationGroup,
+  {
+    getMatchedRecordId = (record) => record?.matchedBurialId,
+    getRecordId = (record) => record?.id,
+  } = {}
+) => {
+  if (!burial) {
+    return {
+      focusedBurial: null,
+      selectionRecords: [],
+    };
+  }
+
+  const preferredRecordIds = new Set([
+    normalizeSectionValue(getRecordId(burial)),
+    normalizeSectionValue(getMatchedRecordId(burial)),
+  ].filter(Boolean));
+  const matchedLocationRecord = locationGroup?.records?.find((record) => (
+    preferredRecordIds.has(normalizeSectionValue(getRecordId(record)))
+  )) || null;
+  const focusedBurial = matchedLocationRecord || burial;
+
+  return {
+    focusedBurial,
+    selectionRecords: [focusedBurial],
+  };
+};
+
 export const getClusterIconCount = (
   cluster,
   markers = cluster?.getAllChildMarkers?.() || []

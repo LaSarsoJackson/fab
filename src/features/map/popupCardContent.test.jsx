@@ -185,6 +185,8 @@ test("with a single record the list does not render", () => {
 
   expect(screen.queryByText(/people at this plot/)).not.toBeInTheDocument();
   expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  expect(screen.getByRole("group", { name: "1 person at this plot" }))
+    .toBeInTheDocument();
 });
 
 test("PopupCardStackList with fewer than 2 valid records returns null", () => {

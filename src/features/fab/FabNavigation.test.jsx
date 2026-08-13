@@ -36,7 +36,9 @@ describe("FabNavigation", () => {
     expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Tours" })).toHaveAttribute("aria-current", "page");
 
-    fireEvent.click(screen.getByRole("button", { name: "Map" }));
+    expect(screen.getByRole("button", { name: "Burial Locator" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "ARCE" }));
     expect(onChange).toHaveBeenCalledWith(FAB_APP_VIEWS.MAP);
   });
 });

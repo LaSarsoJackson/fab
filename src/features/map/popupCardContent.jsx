@@ -374,6 +374,9 @@ export function PopupCardStackContent({
     stackRecords.findIndex((record) => cleanRecordValue(record?.id) === currentRecordId)
   );
   const activeRecord = stackRecords[activeIndex];
+  const stackDescription = stackRecords.length === 1
+    ? "1 person at this plot"
+    : `${stackRecords.length} people at this plot`;
 
   useLayoutEffect(() => {
     schedulePopupLayout?.(resolvePopup());
@@ -394,14 +397,14 @@ export function PopupCardStackContent({
     <div
       className="popup-card-stack"
       role="group"
-      aria-label={`${stackRecords.length} people at this plot`}
+      aria-label={stackDescription}
     >
       <PopupCardStackList
         key={recordSignature}
         records={stackRecords}
         activeRecordId={currentRecordId}
         onSelectRecord={handleSelectRecord}
-        stackDescription={`${stackRecords.length} people at this plot`}
+        stackDescription={stackDescription}
       />
       <PopupCardContent
         record={activeRecord}

@@ -235,7 +235,7 @@ Common entry points:
 - [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx): Tours and Search page
   composition, browse controls, and result presentation
 - [`src/features/fab/FabNavigation.jsx`](./src/features/fab/FabNavigation.jsx):
-  FABFG-aligned Tours, Map, and Search destinations
+  FABFG-aligned Tours, ARCE, and Burial Locator destinations
 - [`src/features/browse/`](./src/features/browse): search indexing and browse
   result shaping
 - [`src/features/tours/`](./src/features/tours): tour definitions, alias

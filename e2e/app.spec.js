@@ -1,5 +1,5 @@
 /**
- * Browser smoke tests for the shipped Tours, Map, and Search destinations.
+ * Browser smoke tests for the shipped Tours, ARCE, and Burial Locator destinations.
  * These watch local asset failures and uncaught browser errors because many
  * map regressions surface as loading failures before a clear DOM assertion.
  */
@@ -71,7 +71,7 @@ async function openTours(page) {
 
 async function openSearch(page) {
   await openTours(page);
-  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await page.getByRole("button", { name: "Burial Locator", exact: true }).click();
   await expect(page).toHaveURL(/\?view=burials$/);
   const input = page.getByRole("textbox", { name: "Search burials" });
   await expect(input).toBeVisible();
@@ -100,7 +100,7 @@ test.describe("simplified navigation", () => {
     await openTours(page);
     await page.getByRole("button", { name: /Notables Tour 2020/ }).click();
 
-    await expect(page.getByRole("button", { name: "Map", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("button", { name: "ARCE", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(page.locator(".leaflet-container")).toBeVisible();
     const firstTourMarker = page.locator(".leaflet-marker-icon.tour-marker").first();
     await expect(firstTourMarker).toBeVisible({ timeout: 60_000 });
@@ -121,7 +121,7 @@ test.describe("simplified navigation", () => {
     await result.click();
     await expect(page.locator(".leaflet-popup .popup-card")).toBeVisible({ timeout: 60_000 });
 
-    await page.getByRole("button", { name: "Search", exact: true }).click();
+    await page.getByRole("button", { name: "Burial Locator", exact: true }).click();
     await expect(page.getByRole("textbox", { name: "Search burials" })).toHaveValue("lamont");
     await expect(result).toBeVisible();
     await expect(page.getByText("Share Link", { exact: true })).toBeVisible();
@@ -132,7 +132,7 @@ test.describe("simplified navigation", () => {
     const result = await searchForLamont(page);
     await result.click();
 
-    await expect(page.getByRole("button", { name: "Map", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("button", { name: "ARCE", exact: true })).toHaveAttribute("aria-current", "page");
     const popup = page.locator(".leaflet-popup .popup-card");
     await expect(popup).toBeVisible({ timeout: 60_000 });
     await expect(popup).toContainText("Thomas E LaMont");
@@ -164,7 +164,7 @@ test.describe("simplified navigation", () => {
     await expect(sectionInput).toHaveValue("Section 215");
     await expect(page.locator(".left-sidebar__result-card").first()).toBeVisible({ timeout: 60_000 });
 
-    await page.getByRole("button", { name: "Map", exact: true }).click();
+    await page.getByRole("button", { name: "ARCE", exact: true }).click();
     await expect(page.locator(".leaflet-container")).toBeVisible();
     await expect.poll(async () => page.locator("img.leaflet-tile").evaluateAll((tiles) => (
       Math.max(0, ...tiles.map((tile) => {
@@ -177,7 +177,7 @@ test.describe("simplified navigation", () => {
   test("a burial deep link restores the Map destination and popup", async ({ page }) => {
     await page.goto("/?view=burials&q=lamont");
 
-    await expect(page.getByRole("button", { name: "Map", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("button", { name: "ARCE", exact: true })).toHaveAttribute("aria-current", "page");
     const popup = page.locator(".leaflet-popup .popup-card");
     await expect(popup).toBeVisible({ timeout: 60_000 });
     await expect(popup).toContainText("Thomas E LaMont");
@@ -187,9 +187,9 @@ test.describe("simplified navigation", () => {
     await openTours(page);
 
     for (let cycle = 0; cycle < 3; cycle += 1) {
-      await page.getByRole("button", { name: "Map", exact: true }).click();
+      await page.getByRole("button", { name: "ARCE", exact: true }).click();
       await expect(page.locator(".leaflet-container")).toHaveCount(1);
-      await page.getByRole("button", { name: "Search", exact: true }).click();
+      await page.getByRole("button", { name: "Burial Locator", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Find a grave" })).toBeVisible();
       await expect(page.locator(".map-stage--hidden .leaflet-container")).toHaveCount(1);
       await page.getByRole("button", { name: "Tours", exact: true }).click();
@@ -209,8 +209,8 @@ test.describe("mobile shell", () => {
 
     await expect(navigation.getByRole("button")).toHaveCount(3);
     await expect(navigation.getByRole("button", { name: "Tours", exact: true })).toBeInViewport();
-    await expect(navigation.getByRole("button", { name: "Map", exact: true })).toBeInViewport();
-    await expect(navigation.getByRole("button", { name: "Search", exact: true })).toBeInViewport();
+    await expect(navigation.getByRole("button", { name: "ARCE", exact: true })).toBeInViewport();
+    await expect(navigation.getByRole("button", { name: "Burial Locator", exact: true })).toBeInViewport();
     await expect(page.locator("[data-rsbs-root], [data-rsbs-overlay]")).toHaveCount(0);
 
     const bounds = await navigation.boundingBox();
