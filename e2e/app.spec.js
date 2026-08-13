@@ -106,9 +106,8 @@ test.describe("simplified navigation", () => {
     await expect(firstTourMarker).toBeVisible({ timeout: 60_000 });
     await expect(firstTourMarker).toHaveAttribute("aria-label", /Notables Tour 2020/);
     await expect(page.locator(".tour-context-overlay")).toContainText("Notables Tour 2020");
-    const markerBounds = await firstTourMarker.boundingBox();
-    expect(markerBounds.width).toBeGreaterThanOrEqual(44);
-    expect(markerBounds.height).toBeGreaterThanOrEqual(44);
+    await expect(firstTourMarker).toHaveCSS("width", "44px");
+    await expect(firstTourMarker).toHaveCSS("height", "44px");
     await expect(page.locator("[data-rsbs-root], [data-rsbs-overlay]")).toHaveCount(0);
   });
 
