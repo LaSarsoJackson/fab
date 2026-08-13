@@ -3,6 +3,7 @@ import {
   Autocomplete,
   Box,
   Button,
+  ButtonBase,
   ButtonGroup,
   CircularProgress,
   Divider,
@@ -17,6 +18,7 @@ import AltRouteIcon from "@mui/icons-material/AltRoute";
 import MapIcon from "@mui/icons-material/Map";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 
 import { getSearchShellNoticeStyles } from "./sidebarPresentation";
 
@@ -532,6 +534,29 @@ function TourBrowseControls({
   );
 }
 
+function TourCatalog({ onTourSelection, tourDefinitions }) {
+  return (
+    <Box className="fab-tour-catalog">
+      {tourDefinitions.map((tour) => (
+        <ButtonBase
+          key={tour.key}
+          className="fab-tour-catalog__row"
+          onClick={() => onTourSelection(tour.name)}
+        >
+          <span className="fab-tour-catalog__icon" aria-hidden="true">
+            <AltRouteIcon />
+          </span>
+          <span className="fab-tour-catalog__copy">
+            <span className="fab-tour-catalog__name">{tour.name}</span>
+            <span className="fab-tour-catalog__meta">Curated route</span>
+          </span>
+          <ChevronRightRoundedIcon className="fab-tour-catalog__chevron" aria-hidden="true" />
+        </ButtonBase>
+      ))}
+    </Box>
+  );
+}
+
 function BrowseControlPanels({
   autocompleteComponentsProps,
   autocompleteListboxProps,
@@ -610,6 +635,7 @@ function BrowseControlPanels({
 }
 
 export default function BrowseWorkspacePanel({
+  activeView = "",
   autocompleteComponentsProps, autocompleteListboxProps,
   burialDataError, browseQuery,
   desktopMoreButton = null,
@@ -629,13 +655,98 @@ export default function BrowseWorkspacePanel({
   tourDefinitions = [], tourLabel = "Tour", tourStyles = {}, uniqueSections = [],
 }) {
   const selectedTourDefinition = tourDefinitions.find((definition) => definition.name === selectedTour) || null;
+  const isSimplifiedToursView = activeView === "tours";
+  const isSimplifiedSearchView = activeView === "search";
+  const shouldShowSimplifiedSearchResults = Boolean(
+    browseQuery.trim() || isSectionBrowseVisible
+  );
   const shouldPromotePriorityContent = Boolean(priorityContent);
   // Once a grave is selected, keep that record ahead of search and filters so
   // the sidebar follows the user's current map focus.
   const inlinePriorityContent = shouldPromotePriorityContent ? null : priorityContent;
-  // While a query or selected grave owns the mobile sheet, keep shortcuts out
-  // of the way. Desktop keeps them visible so users can switch modes anytime.
+  // In the compatibility workspace, keep shortcuts out of the way while a
+  // mobile query or selected grave owns the current task.
   const shouldShowVisitTasks = !(isMobile && (browseQuery.trim() || shouldPromotePriorityContent));
+
+  if (isSimplifiedToursView) {
+    return (
+      <Box
+        className="left-sidebar__panel left-sidebar__panel--browse left-sidebar__panel--surface fab-workspace"
+        sx={{ ...surfaceSx }}
+      >
+        <Box className="fab-workspace__intro">
+          <Typography component="h1" className="fab-workspace__title">
+            Choose a tour
+          </Typography>
+          <Typography component="p" className="fab-workspace__description">
+            Explore curated stories and stops.
+          </Typography>
+        </Box>
+        <TourCatalog
+          onTourSelection={onTourSelection}
+          tourDefinitions={tourDefinitions}
+        />
+      </Box>
+    );
+  }
+
+  if (isSimplifiedSearchView) {
+    return (
+      <Box
+        className="left-sidebar__panel left-sidebar__panel--browse left-sidebar__panel--surface fab-workspace"
+        sx={{ ...surfaceSx }}
+      >
+        <Box className="fab-workspace__intro">
+          <Typography component="h1" className="fab-workspace__title">
+            Find a grave
+          </Typography>
+        </Box>
+        <BrowseSearchField
+          browseQuery={browseQuery}
+          burialDataError={burialDataError}
+          isBrowsePending={isBrowsePending}
+          isBurialDataLoading={isBurialDataLoading}
+          onBrowseQueryChange={onBrowseQueryChange}
+          onClearBrowseQuery={onClearBrowseQuery}
+          searchPlaceholder="Search by name"
+        />
+        {!isSectionBrowseVisible ? (
+          <Button
+            className="fab-workspace__section-action"
+            color="inherit"
+            variant="text"
+            onClick={() => onBrowseSourceChange("section")}
+          >
+            Browse by section
+          </Button>
+        ) : (
+          <SectionBrowseControls
+            autocompleteComponentsProps={autocompleteComponentsProps}
+            autocompleteListboxProps={autocompleteListboxProps}
+            burialDataError={burialDataError}
+            filterType={filterType}
+            hasSectionFilters={hasSectionFilters}
+            isBurialDataLoading={isBurialDataLoading}
+            isMobile={isMobile}
+            lotTierFilter={lotTierFilter}
+            onClearSectionFilters={onClearSectionFilters}
+            onFilterTypeSelection={onFilterTypeSelection}
+            onLotTierChange={onLotTierChange}
+            onSectionSelection={onSectionSelection}
+            onToggleSectionMarkers={onToggleSectionMarkers}
+            sectionFilter={sectionFilter}
+            selectedSectionOption={selectedSectionOption}
+            showAllBurials={showAllBurials}
+            uniqueSections={uniqueSections}
+          />
+        )}
+        <SearchNoticeStack notices={searchShellNotices} />
+        {shouldShowSimplifiedSearchResults && resultsContent ? (
+          <Box className="fab-workspace__results">{resultsContent}</Box>
+        ) : null}
+      </Box>
+    );
+  }
 
   return (
     <Box

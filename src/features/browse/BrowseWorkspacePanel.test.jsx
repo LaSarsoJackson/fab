@@ -212,4 +212,23 @@ describe("BrowseWorkspacePanel content slots", () => {
     renderPanel({ resultsContent: <div data-testid="results">Results</div> });
     expect(screen.getByTestId("results")).toBeInTheDocument();
   });
+
+  test("keeps the simplified Search landing free of empty result chrome", () => {
+    const { rerender } = renderPanel({
+      activeView: "search",
+      resultsContent: <div data-testid="results">Results</div>,
+    });
+
+    expect(screen.queryByTestId("results")).not.toBeInTheDocument();
+
+    rerender(
+      <BrowseWorkspacePanel
+        {...baseProps}
+        activeView="search"
+        browseQuery="Lamont"
+        resultsContent={<div data-testid="results">Results</div>}
+      />
+    );
+    expect(screen.getByTestId("results")).toBeInTheDocument();
+  });
 });

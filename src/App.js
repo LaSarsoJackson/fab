@@ -12,8 +12,8 @@ import "./App.css";
 const BurialMap = lazy(() => import("./Map"));
 const PRIMARY_ACCENT = "#2f6b57";
 const PRIMARY_ACCENT_DARK = "#255544";
-const PRIMARY_ACCENT_TINT = "#d9e8e0";
-const PANEL_BORDER = "rgba(20, 33, 43, 0.12)";
+const PRIMARY_ACCENT_TINT = "#e6f0eb";
+const PANEL_BORDER = "rgba(24, 33, 43, 0.14)";
 
 // Keep the shared shell theme in one place so map and sidebar components can
 // focus on workflow states instead of repeating brand color decisions.
@@ -26,8 +26,8 @@ const appTheme = createTheme({
       contrastText: "#ffffff",
     },
     background: {
-      default: "#f5f5f7",
-      paper: "rgba(255, 255, 255, 0.92)",
+      default: "#f6f7f8",
+      paper: "#ffffff",
     },
     text: {
       primary: "#18212b",
@@ -35,7 +35,7 @@ const appTheme = createTheme({
     },
   },
   shape: {
-    borderRadius: 16,
+    borderRadius: 12,
   },
   typography: {
     fontFamily: "'Manrope', -apple-system, BlinkMacSystemFont, 'Avenir Next', 'Segoe UI', sans-serif",
@@ -78,23 +78,23 @@ const appTheme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 999,
+          borderRadius: 10,
           paddingInline: 14,
         },
         containedPrimary: {
           background: PRIMARY_ACCENT,
-          boxShadow: "0 10px 22px rgba(47, 107, 87, 0.18)",
+          boxShadow: "0 1px 2px rgba(20, 33, 43, 0.12)",
           "&:hover": {
             background: PRIMARY_ACCENT_DARK,
-            boxShadow: "0 12px 24px rgba(47, 107, 87, 0.22)",
+            boxShadow: "0 2px 4px rgba(20, 33, 43, 0.14)",
           },
         },
         outlined: {
           borderColor: PANEL_BORDER,
-          backgroundColor: "rgba(255, 255, 255, 0.68)",
+          backgroundColor: "#ffffff",
           "&:hover": {
             borderColor: PANEL_BORDER,
-            backgroundColor: "rgba(255, 255, 255, 0.86)",
+            backgroundColor: "#f6f7f8",
           },
         },
         text: {
@@ -120,7 +120,7 @@ const appTheme = createTheme({
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
-          backgroundColor: "rgba(255, 255, 255, 0.84)",
+          backgroundColor: "#ffffff",
           "& .MuiOutlinedInput-notchedOutline": {
             borderColor: PANEL_BORDER,
           },
@@ -156,20 +156,6 @@ const APP_ERROR_MESSAGE = APP_SHELL.errorMessage
   || "The map failed to load. Reload the page to try again.";
 const APP_ERROR_RELOAD_LABEL = APP_SHELL.errorReloadLabel || "Reload";
 
-// Mobile browser chrome changes the visual viewport without always changing
-// `window.innerHeight`; CSS variables keep the map shell sized to the visible
-// area instead of the theoretical page viewport.
-const syncViewportMetrics = () => {
-  if (typeof document === "undefined" || typeof window === "undefined") return;
-
-  const root = document.documentElement;
-  const viewport = window.visualViewport;
-
-  root.style.setProperty("--app-height", `${Math.round(viewport?.height || window.innerHeight)}px`);
-  root.style.setProperty("--app-width", `${Math.round(viewport?.width || window.innerWidth)}px`);
-  root.style.setProperty("--app-offset-top", `${Math.round(viewport?.offsetTop || 0)}px`);
-};
-
 export default function App() {
   useEffect(() => {
     syncDocumentMetadata({
@@ -177,35 +163,6 @@ export default function App() {
       description: APP_DESCRIPTION,
       url: typeof window === "undefined" ? "" : window.location.href,
     });
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-
-    const viewport = window.visualViewport;
-    let viewportSyncFrame = null;
-    const scheduleViewportMetricsSync = () => {
-      if (viewportSyncFrame !== null) return;
-
-      viewportSyncFrame = window.requestAnimationFrame(() => {
-        viewportSyncFrame = null;
-        syncViewportMetrics();
-      });
-    };
-    syncViewportMetrics();
-
-    window.addEventListener("resize", scheduleViewportMetricsSync);
-    viewport?.addEventListener("resize", scheduleViewportMetricsSync);
-    viewport?.addEventListener("scroll", scheduleViewportMetricsSync, { passive: true });
-
-    return () => {
-      window.removeEventListener("resize", scheduleViewportMetricsSync);
-      viewport?.removeEventListener("resize", scheduleViewportMetricsSync);
-      viewport?.removeEventListener("scroll", scheduleViewportMetricsSync);
-      if (viewportSyncFrame !== null) {
-        window.cancelAnimationFrame(viewportSyncFrame);
-      }
-    };
   }, []);
 
   return (

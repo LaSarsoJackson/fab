@@ -31,7 +31,7 @@ directly on the web and inside `FABFG`, the native wrapper app.
 
 ![Desktop map search](./docs/assets/screenshots/fab-search-results.jpg)
 
-![Mobile map and drawer](./docs/assets/screenshots/fab-mobile-map.jpg)
+![Mobile map](./docs/assets/screenshots/fab-mobile-map.jpg)
 
 ## Project layout
 
@@ -232,8 +232,10 @@ Common entry points:
 
 - [`src/Map.jsx`](./src/Map.jsx): map orchestration, selections, overlays, and
   routing
-- [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx): search, browse controls,
-  selected record UI, and mobile drawer behavior
+- [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx): Tours and Search page
+  composition, browse controls, and result presentation
+- [`src/features/fab/FabNavigation.jsx`](./src/features/fab/FabNavigation.jsx):
+  FABFG-aligned Tours, Map, and Search destinations
 - [`src/features/browse/`](./src/features/browse): search indexing and browse
   result shaping
 - [`src/features/tours/`](./src/features/tours): tour definitions, alias
