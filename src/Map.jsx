@@ -19,11 +19,7 @@ import "./index.css";
 import "leaflet.markercluster/dist/leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
-import {
-  Menu,
-  MenuItem,
-  useMediaQuery,
-} from "@mui/material";
+import { useMediaQuery } from "@mui/material";
 import {
   APP_PROFILE,
   getEmptyCoreMapData,
@@ -32,8 +28,14 @@ import {
   TOUR_STYLES,
 } from "./features/fab/profile";
 import BurialSidebar from "./BurialSidebar";
+import FabNavigation, {
+  FAB_APP_VIEWS,
+  resolveFabAppView,
+  syncFabAppViewUrl,
+} from "./features/fab/FabNavigation";
 import {
   buildBurialSectionIndex,
+  buildLocationSummary,
   buildTourBrowseResult,
   findSectionBrowseDetailDefinition,
   formatBrowseResultName,
@@ -113,7 +115,7 @@ import {
   MapLayerControl,
   MobileLocateButton,
   RouteStatusOverlay,
-  SidebarToggleControl,
+  TourContextOverlay,
   MapSectionAffordanceMarkers,
   MapSectionClusterMarkers,
   MapSectionOverviewMarkers,
@@ -324,18 +326,13 @@ const createTourMarker = (tourKey, tourStyles) => {
     if (feature.geometry?.type === "Point") {
       const icon = L.divIcon({
         className: "tour-marker",
-        html: `<div style="
-          width: 12px;
-          height: 12px;
+        html: `<span class="tour-marker__dot" style="
           background-color: ${tourInfo.color};
-          border-radius: 50%;
-          border: 2px solid white;
-          box-shadow: 0 0 4px rgba(0,0,0,0.4);
-        "></div>`,
-        iconSize: [12, 12],
-        iconAnchor: [6, 6],
+        "></span>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
       });
-      return L.marker(latlng, { icon });
+      return L.marker(latlng, { icon, keyboard: true });
     }
 
     return L.circleMarker(latlng, {
@@ -469,14 +466,12 @@ const MapStaticLayers = memo(function MapStaticLayers({
   getSectionStyle,
   isLayerControlOpen,
   isMobile,
-  isSearchPanelVisible,
   locationStatus,
   mapRef,
   onBasemapChange,
   onEachSectionFeature,
   onLayerControlOpenChange,
   onLocateMarker,
-  onToggleSearchPanel,
   onViewportMoveStart,
   onZoomChange,
   onSelectSection,
@@ -512,12 +507,6 @@ const MapStaticLayers = memo(function MapStaticLayers({
           defaultViewBounds={DEFAULT_VIEW_BOUNDS}
           fitMapBounds={fitMapBoundsInViewport}
         />
-        {(!isMobile || !isSearchPanelVisible) && (
-          <SidebarToggleControl
-            isSearchPanelVisible={isSearchPanelVisible}
-            onToggle={onToggleSearchPanel}
-          />
-        )}
         <CustomZoomControl isMobile={isMobile} />
         <MobileLocateButton
           isMobile={isMobile}
@@ -597,6 +586,23 @@ const createOnEachTourFeature = (
   const browseResult = resolveTourBrowseResult
     ? resolveTourBrowseResult(baseBrowseResult)
     : baseBrowseResult;
+  const markerLabel = [
+    formatBrowseResultName(browseResult),
+    buildLocationSummary(browseResult),
+    tourName,
+  ].filter(Boolean).join(", ");
+
+  if (layer instanceof L.Marker) {
+    layer.options.title = markerLabel;
+    const syncMarkerAccessibility = () => {
+      const markerElement = layer.getElement?.();
+      if (!markerElement) return;
+      markerElement.setAttribute("aria-label", markerLabel);
+      markerElement.setAttribute("title", markerLabel);
+    };
+    layer.on("add", syncMarkerAccessibility);
+    syncMarkerAccessibility();
+  }
 
   bindReactPopup({
     layer,
@@ -659,7 +665,24 @@ export default function BurialMap() {
   const [tourResultsByName, setTourResultsByName] = useState({});
   const [currentZoom, setCurrentZoom] = useState(MAP_ZOOM);
   const [isLayerControlOpen, setIsLayerControlOpen] = useState(false);
-  const [isSearchPanelVisible, setIsSearchPanelVisible] = useState(true);
+  const [activeAppView, setActiveAppView] = useState(() => (
+    typeof window === "undefined"
+      ? FAB_APP_VIEWS.TOURS
+      : resolveFabAppView(window.location.search)
+  ));
+  const [hasMountedMap, setHasMountedMap] = useState(() => (
+    typeof window !== "undefined"
+      && resolveFabAppView(window.location.search) === FAB_APP_VIEWS.MAP
+  ));
+  const lastBrowseAppViewRef = useRef(
+    activeAppView === FAB_APP_VIEWS.MAP ? FAB_APP_VIEWS.TOURS : activeAppView
+  );
+  if (activeAppView !== FAB_APP_VIEWS.MAP) {
+    lastBrowseAppViewRef.current = activeAppView;
+  }
+  const sidebarAppView = activeAppView === FAB_APP_VIEWS.MAP
+    ? lastBrowseAppViewRef.current
+    : activeAppView;
   const [selectionState, setSelectionState] = useState(() => createMapSelectionState());
   const [selectedTour, setSelectedTour] = useState(null);
   const [activeBasemapId, setActiveBasemapId] = useState(() => (
@@ -709,7 +732,6 @@ export default function BurialMap() {
   const [navigationNotice, setNavigationNotice] = useState("");
   const [navigationDestination, setNavigationDestination] = useState(readStoredNavigationDestination);
   const [activeRouteBurialId, setActiveRouteBurialId] = useState(null);
-  const [appMenuAnchorEl, setAppMenuAnchorEl] = useState(null);
   const { boundaryData, roadsData, sectionsData } = coreMapData;
 
   // Component references.
@@ -718,8 +740,6 @@ export default function BurialMap() {
   // observe current React state without re-binding thousands of map objects.
   const markerClusterRef = useRef(null);
   const mapRef = useRef(null);
-  const sidebarOverlayRef = useRef(null);
-  const hiddenMobileChromeContextRef = useRef(null);
   const sectionFeatureLayersRef = useRef(new Map());
   const sectionMarkersByIdRef = useRef(new Map());
   const activeSectionMarkerIdRef = useRef(null);
@@ -930,7 +950,6 @@ export default function BurialMap() {
       )
     )
   );
-  const appMenuOpen = Boolean(appMenuAnchorEl);
   const isAppleMobile = useMemo(() => {
     if (typeof navigator === 'undefined') return false;
 
@@ -939,21 +958,6 @@ export default function BurialMap() {
   }, []);
   const showIosInstallHint = isAppleMobile && !isInstalled && !installPromptEvent;
   const initialBrowseQuery = initialDeepLinkRef.current?.query || "";
-  const mobileChromeContextSignature = useMemo(() => (
-    [
-      activeBurialId || "",
-      sectionFilter || "",
-      lotTierFilter || "",
-      selectedTour || "",
-      selectedBurials.map((record) => cleanRecordValue(record.id)).sort().join("|"),
-    ].join("::")
-  ), [
-    activeBurialId,
-    lotTierFilter,
-    sectionFilter,
-    selectedBurials,
-    selectedTour,
-  ]);
   const fieldPacketPresentation = useMemo(
     () => buildSharedSelectionPresentation(fieldPacket || {}),
     [fieldPacket]
@@ -979,10 +983,9 @@ export default function BurialMap() {
 
     return isMobile;
   }, [isMobile]);
-  // Mobile uses one bottom place card as the selected-location surface. A
-  // Leaflet popup would create a second, competing panel and can be physically
-  // covered by the sheet, so anchored popups remain desktop-only.
-  const shouldUseMapPopups = !isMobile;
+  // The map is now a dedicated destination, so anchored place cards work on
+  // both mobile and desktop without competing with an overlaying drawer.
+  const shouldUseMapPopups = true;
   const shouldUseMapPopupsRef = useRef(shouldUseMapPopups);
   const handleBasemapChange = useCallback((nextBasemapId) => {
     setActiveBasemapId(nextBasemapId);
@@ -993,6 +996,35 @@ export default function BurialMap() {
       [overlayId]: !(current[overlayId] !== false),
     }));
   }, []);
+  const handleAppViewChange = useCallback((nextView) => {
+    if (nextView === FAB_APP_VIEWS.MAP) {
+      // Mount Leaflet on first demand, then preserve that instance. Repeatedly
+      // destroying a map during a pan leaves Leaflet transition callbacks
+      // racing React's DOM cleanup on WebKit and Chromium alike.
+      setHasMountedMap(true);
+    }
+
+    if (nextView === FAB_APP_VIEWS.SEARCH && activeAppView !== FAB_APP_VIEWS.SEARCH) {
+      // Search is a global task. Do not carry a tour or section overlay into a
+      // new search journey, where it reads as an unrelated active filter.
+      setSelectedTour(null);
+      setSectionFilter("");
+      setLotTierFilter("");
+      setFilterType("lot");
+      setShowAllBurials(false);
+    }
+
+    setActiveAppView(nextView);
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const nextUrl = syncFabAppViewUrl(nextView, window.location.href);
+    if (nextUrl) {
+      window.history.replaceState(window.history.state, "", nextUrl);
+    }
+  }, [activeAppView]);
   const getMapInstance = useCallback(() => mapRef.current, []);
   const dispatchSelectionAction = useCallback((action) => {
     setSelectionState((currentSelectionState) => {
@@ -1025,9 +1057,7 @@ export default function BurialMap() {
     }
   }, [activeBasemapId, basemapById, defaultBasemap]);
 
-  const getOverlayElement = useCallback(() => (
-    isSearchPanelVisible ? sidebarOverlayRef.current : null
-  ), [isSearchPanelVisible]);
+  const getOverlayElement = useCallback(() => null, []);
   // All programmatic viewport moves go through the intent controller. It keeps
   // automatic focus from fighting a user who has just panned, dragged, or zoomed.
   const markExplicitViewportFocus = useCallback(() => {
@@ -1091,105 +1121,36 @@ export default function BurialMap() {
 
     schedulePopupInView(popup, { getOverlayElement });
   }, [getOverlayElement]);
-  const scheduleActivePopupLayout = useCallback(() => {
-    let openPopup = null;
-    const popupBurialId = popupBurialIdRef.current;
-
-    if (popupBurialId) {
-      openPopup =
-        selectedMarkerLayersRef.current.get(popupBurialId)?.getPopup?.() ||
-        sectionMarkersByIdRef.current.get(popupBurialId)?.getPopup?.() ||
-        tourFeatureLayersRef.current.get(popupBurialId)?.getPopup?.() ||
-        null;
+  useEffect(() => {
+    if (!hasMountedMap || typeof window === "undefined") {
+      return undefined;
     }
 
-    if (!openPopup) {
-      const map = getMapInstance();
-      map?.eachLayer?.((layer) => {
-        if (openPopup) {
-          return;
-        }
-
-        const candidatePopup = layer?.getPopup?.();
-        if (candidatePopup?.isOpen?.()) {
-          openPopup = candidatePopup;
-        }
+    let frameId = 0;
+    const keepActivePopupVisible = () => {
+      window.cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(() => {
+        frameId = 0;
+        schedulePopupLayout(getMapInstance()?._popup);
       });
-    }
+    };
 
-    if (openPopup) {
-      schedulePopupLayout(openPopup);
-    }
-  }, [getMapInstance, schedulePopupLayout]);
-
-  const keepActiveSelectionInVisibleViewport = useCallback(({
-    animate = false,
-  } = {}) => {
-    const map = getMapInstance();
-    const activeBurial = selectedBurials.find((burial) => (
-      cleanRecordValue(burial?.id) === activeBurialIdRef.current
-    ));
-
-    if (!map || !activeBurial || !Array.isArray(activeBurial.coordinates)) {
+    // Leaflet already resizes its canvas on window resize. Re-run only popup
+    // autopan so rotation or keyboard-driven viewport changes do not crop the
+    // selected grave card. This deliberately avoids a visualViewport loop.
+    window.addEventListener("resize", keepActivePopupVisible, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", keepActivePopupVisible);
+    };
+  }, [getMapInstance, hasMountedMap, schedulePopupLayout]);
+  const canIdlePrefetchTours = useMemo(() => {
+    if (isMobile) {
       return false;
     }
 
-    return panMapIntoViewport(map, {
-      lat: activeBurial.coordinates[1],
-      lng: activeBurial.coordinates[0],
-    }, {
-      animate,
-      ignoreViewportIntent: true,
-    });
-  }, [getMapInstance, panMapIntoViewport, selectedBurials]);
-
-  const handleMobileSheetViewportChange = useCallback(() => {
-    scheduleActivePopupLayout();
-    keepActiveSelectionInVisibleViewport();
-  }, [keepActiveSelectionInVisibleViewport, scheduleActivePopupLayout]);
-
-  useEffect(() => {
-    // Only the mobile sheet changes how much of the map is physically usable
-    // when its overlay resizes. Observing desktop sidebar content here lets
-    // unrelated status updates (including GPS route refreshes) auto-pan the
-    // map after a visitor has deliberately dragged it.
-    if (!isMobile || !isSearchPanelVisible || typeof ResizeObserver === "undefined") {
-      return undefined;
-    }
-
-    const overlayElement = sidebarOverlayRef.current;
-    if (!overlayElement) {
-      return undefined;
-    }
-
-    let frame = null;
-    const observer = new ResizeObserver(() => {
-      if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
-        handleMobileSheetViewportChange();
-        return;
-      }
-
-      if (frame) {
-        window.cancelAnimationFrame(frame);
-      }
-      frame = window.requestAnimationFrame(() => {
-        frame = null;
-        handleMobileSheetViewportChange();
-      });
-    });
-
-    observer.observe(overlayElement);
-
-    return () => {
-      observer.disconnect();
-      if (frame && typeof window !== "undefined" && typeof window.cancelAnimationFrame === "function") {
-        window.cancelAnimationFrame(frame);
-      }
-    };
-  }, [handleMobileSheetViewportChange, isMobile, isSearchPanelVisible]);
-  const canIdlePrefetchTours = useMemo(() => {
     if (typeof navigator === 'undefined') {
-      return !isMobile;
+      return true;
     }
 
     const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
@@ -1201,65 +1162,8 @@ export default function BurialMap() {
       return false;
     }
 
-    if (isMobile && navigator.deviceMemory && navigator.deviceMemory <= 4) {
-      return false;
-    }
-
     return true;
   }, [isMobile]);
-  const handleToggleSearchPanel = useCallback(() => {
-    setIsSearchPanelVisible((current) => {
-      const nextIsVisible = !current;
-
-      if (isMobile && current && !nextIsVisible) {
-        hiddenMobileChromeContextRef.current = mobileChromeContextSignature;
-      } else if (nextIsVisible) {
-        hiddenMobileChromeContextRef.current = null;
-      }
-
-      return nextIsVisible;
-    });
-  }, [isMobile, mobileChromeContextSignature]);
-
-  useEffect(() => {
-    if (isMobile) {
-      setIsSearchPanelVisible(true);
-    }
-  }, [isMobile]);
-
-  useEffect(() => {
-    if (!isMobile || isSearchPanelVisible) {
-      if (isSearchPanelVisible) {
-        hiddenMobileChromeContextRef.current = null;
-      }
-      return;
-    }
-
-    if (hiddenMobileChromeContextRef.current === null) {
-      hiddenMobileChromeContextRef.current = mobileChromeContextSignature;
-      return;
-    }
-
-    if (hiddenMobileChromeContextRef.current !== mobileChromeContextSignature) {
-      hiddenMobileChromeContextRef.current = null;
-      setIsSearchPanelVisible(true);
-    }
-  }, [isMobile, isSearchPanelVisible, mobileChromeContextSignature]);
-
-  useEffect(() => {
-    const map = getMapInstance();
-    if (!map || typeof map.invalidateSize !== "function") {
-      return undefined;
-    }
-
-    const timeoutId = setTimeout(() => {
-      map.invalidateSize();
-    }, 0);
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [getMapInstance, isMobile, isSearchPanelVisible]);
 
   useEffect(() => {
     shouldUseMapPopupsRef.current = shouldUseMapPopups;
@@ -2294,14 +2198,6 @@ export default function BurialMap() {
     closeMapPopup();
   }, [closeMapPopup, commitRoutingOrigin, dispatchSelectionAction]);
 
-  const handleOpenAppMenu = useCallback((event) => {
-    setAppMenuAnchorEl(event.currentTarget);
-  }, []);
-
-  const handleCloseAppMenu = useCallback(() => {
-    setAppMenuAnchorEl(null);
-  }, []);
-
   const retryBurialDataLoad = useCallback(() => {
     setBurialDataError('');
     setHasRequestedBurialData(true);
@@ -3207,9 +3103,13 @@ export default function BurialMap() {
   // Effects
   //-----------------------------------------------------------------------------
 
-  // Core geography is small enough to load immediately. Burial records remain
-  // lazy so first paint and map controls do not wait on the large search payload.
+  // Tours is the lightweight launch destination. Defer map geography until the
+  // visitor first opens Map, and keep burial records fully interaction-led.
   useEffect(() => {
+    if (!hasMountedMap) {
+      return undefined;
+    }
+
     let ignore = false;
 
     const loadMapData = async () => {
@@ -3236,45 +3136,7 @@ export default function BurialMap() {
     return () => {
       ignore = true;
     };
-  }, []);
-
-  useEffect(() => {
-    if (initialDeepLinkNeedsBurialData || hasRequestedBurialData || typeof window === "undefined") {
-      return undefined;
-    }
-
-    let idleHandle;
-    let timeoutHandle;
-
-    const scheduleLoad = () => {
-      if ('requestIdleCallback' in window) {
-        idleHandle = window.requestIdleCallback(() => {
-          setHasRequestedBurialData(true);
-        }, { timeout: 4000 });
-        return;
-      }
-
-      timeoutHandle = window.setTimeout(() => {
-        setHasRequestedBurialData(true);
-      }, 1200);
-    };
-
-    if (document.readyState === "complete") {
-      scheduleLoad();
-    } else {
-      window.addEventListener('load', scheduleLoad, { once: true });
-    }
-
-    return () => {
-      window.removeEventListener('load', scheduleLoad);
-      if ('cancelIdleCallback' in window && typeof idleHandle === 'number') {
-        window.cancelIdleCallback(idleHandle);
-      }
-      if (typeof timeoutHandle === 'number') {
-        window.clearTimeout(timeoutHandle);
-      }
-    };
-  }, [hasRequestedBurialData, initialDeepLinkNeedsBurialData]);
+  }, [hasMountedMap]);
 
   /**
    * Load and inflate the minified burial browse payload only after search,
@@ -3686,7 +3548,7 @@ export default function BurialMap() {
       if (nextIndex < sectionBurialLocations.length) {
         // Large sections can still contain many physical places. Batch marker
         // creation through idle callbacks so opening a section does not freeze
-        // pan/zoom or the mobile drawer.
+        // pan/zoom or another explicit navigation action.
         handle = scheduleIdleTask(addNextMarkerBatch, {
           timeout: 250,
           fallbackDelay: 16,
@@ -4367,6 +4229,56 @@ export default function BurialMap() {
     selectedTourLayer,
   ]);
 
+  const restoreActiveMapContext = useCallback(() => {
+    getMapInstance()?.invalidateSize?.({ pan: false });
+    const activeBurial = selectedBurials.find((burial) => burial.id === activeBurialId);
+
+    if (activeBurial) {
+      focusBurial(activeBurial, {
+        addToSelection: false,
+        animate: false,
+        isExplicitFocus: true,
+        selectionSource: SELECTION_SOURCES.SEARCH_RESULT,
+      });
+      return;
+    }
+
+    if (selectedTour) {
+      focusTourOnMap(selectedTour);
+      return;
+    }
+
+    if (sectionFilter) {
+      focusSectionOnMap(sectionFilter, undefined, { isExplicitFocus: false });
+    }
+  }, [
+    activeBurialId,
+    focusBurial,
+    focusSectionOnMap,
+    focusTourOnMap,
+    getMapInstance,
+    sectionFilter,
+    selectedBurials,
+    selectedTour,
+  ]);
+
+  const handleMapCreated = useCallback((map) => {
+    mapRef.current = map;
+
+    // MapContainer creates Leaflet in an effect. Restore a pending search or
+    // tour only after that instance and its child marker layers are committed.
+    window.requestAnimationFrame(restoreActiveMapContext);
+  }, [restoreActiveMapContext]);
+
+  useEffect(() => {
+    if (activeAppView !== FAB_APP_VIEWS.MAP || typeof window === "undefined") {
+      return undefined;
+    }
+
+    const frameId = window.requestAnimationFrame(restoreActiveMapContext);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeAppView, restoreActiveMapContext]);
+
   /**
    * Prefetch tour layers in idle time to reduce switching latency.
    */
@@ -4407,13 +4319,13 @@ export default function BurialMap() {
     };
   }, [canIdlePrefetchTours, ensureTourLayerLoaded, tourNames]);
 
-  // Render order matters: sidebar/menu chrome overlays the map, static layers
-  // mount inside MapContainer, then transient location/route/selection layers sit
-  // above them so active context stays visible.
+  // Tours and Search are stable pages. Leaflet mounts only after the first Map
+  // request and then stays alive offscreen, keeping launch light without the
+  // transition teardown race that crashed rapid destination changes.
   return (
     <div className="map-container">
-      {isSearchPanelVisible && (
-        <BurialSidebar
+      <BurialSidebar
+          activeView={sidebarAppView}
           activeBurialId={activeBurialId}
           activeRouteBurialId={activeRouteBurialId}
           burialDataError={burialDataError}
@@ -4426,6 +4338,7 @@ export default function BurialMap() {
           hoveredBurialId={hoveredBurialId}
           initialQuery={initialBrowseQuery}
           installPromptEvent={installPromptEvent}
+          isHidden={activeAppView === FAB_APP_VIEWS.MAP}
           isFieldPacketsEnabled={isFieldPacketsEnabled}
           isBurialDataLoading={isBurialDataLoading}
           isInstalled={isInstalled}
@@ -4436,8 +4349,6 @@ export default function BurialMap() {
           lotTierFilter={lotTierFilter}
           mapDataError={mapDataError}
           markerColors={MAP_MARKER_COLORS}
-          onMobileSheetViewportChange={handleMobileSheetViewportChange}
-          rootRef={sidebarOverlayRef}
           onBrowseResultSelect={handleBrowseResultSelect}
           onClearSectionFilters={clearSectionFilters}
           onClearSelectedBurials={clearSelectedBurials}
@@ -4449,11 +4360,10 @@ export default function BurialMap() {
           onClearFieldPacket={clearFieldPacket}
           onCopyFieldPacketLink={copyFieldPacketLink}
           onInstallApp={handleInstallApp}
-          onOpenAppMenu={handleOpenAppMenu}
           onNavigateToBurial={handleNavigateToBurial}
           onRemoveSelectedBurial={removeFromResults}
           onRequestBurialDataLoad={requestBurialDataLoad}
-          onRequestHideChrome={handleToggleSearchPanel}
+          onRequestViewChange={handleAppViewChange}
           onRetryBurialDataLoad={retryBurialDataLoad}
           onSectionChange={activateSectionBrowse}
           onShareFieldPacket={shareFieldPacket}
@@ -4483,62 +4393,30 @@ export default function BurialMap() {
           uniqueSections={uniqueSections}
           iosAppStoreUrl={isAppleMobile ? IOS_APP_STORE_URL : ""}
         />
-      )}
 
-      <Menu
-        anchorEl={appMenuAnchorEl}
-        open={appMenuOpen}
-        onClose={handleCloseAppMenu}
-      >
-        {isFieldPacketsEnabled && (
-          <MenuItem
-            disabled={!fieldPacket?.selectedRecords?.length && selectedBurials.length === 0}
-            onClick={() => {
-              handleCloseAppMenu();
-              void copyFieldPacketLink();
-            }}
-          >
-            Copy share link
-          </MenuItem>
-        )}
-        {isFieldPacketsEnabled && fieldPacket?.selectedRecords?.length > 0 && (
-          <MenuItem
-            onClick={() => {
-              handleCloseAppMenu();
-              clearFieldPacket();
-            }}
-          >
-            Clear saved share details
-          </MenuItem>
-        )}
-        {isInstalled && <MenuItem disabled>App installed on this device</MenuItem>}
-        {!isInstalled && installPromptEvent && (
-          <MenuItem
-            onClick={async () => {
-              handleCloseAppMenu();
-              await handleInstallApp();
-            }}
-          >
-            Install on this device
-          </MenuItem>
-        )}
-        {!isInstalled && showIosInstallHint && (
-          <MenuItem disabled>Safari: Share → Add to Home Screen</MenuItem>
-        )}
-        {!isInstalled && !installPromptEvent && !showIosInstallHint && (
-          <MenuItem disabled>App install unavailable in this browser</MenuItem>
-        )}
-      </Menu>
-
-      <RouteStatusOverlay
+      {hasMountedMap && (
+        <div
+          className={[
+            "map-stage",
+            activeAppView === FAB_APP_VIEWS.MAP ? "" : "map-stage--hidden",
+          ].filter(Boolean).join(" ")}
+          aria-hidden={activeAppView === FAB_APP_VIEWS.MAP ? undefined : "true"}
+        >
+          <TourContextOverlay
+            isLoading={loadingTourName === selectedTour}
+            selectedTour={selectedTour || ""}
+            stopCount={selectedTour ? (tourResultsByName[selectedTour]?.length || 0) : 0}
+          />
+          <RouteStatusOverlay
         isCalculating={isRouteLoading}
         isMobile={isMobile}
         routingNotice={navigationNotice}
         routingError={routeError}
         routeSummary={routeSummary}
-      />
+          />
 
-      <MapContainer
+          <MapContainer
+          whenCreated={handleMapCreated}
           center={MAP_CENTER}
           zoom={MAP_ZOOM}
           className="map"
@@ -4563,7 +4441,6 @@ export default function BurialMap() {
             getSectionStyle={getSectionStyle}
             isLayerControlOpen={isLayerControlOpen}
             isMobile={isMobile}
-            isSearchPanelVisible={isSearchPanelVisible}
             locationStatus={status}
             mapRef={mapRef}
             onBasemapChange={handleBasemapChange}
@@ -4571,7 +4448,6 @@ export default function BurialMap() {
             onLayerControlOpenChange={setIsLayerControlOpen}
             onLocateMarker={onLocateMarker}
             onSelectSection={activateMapSectionBrowse}
-            onToggleSearchPanel={handleToggleSearchPanel}
             onViewportMoveStart={handleViewportMoveStart}
             onToggleOverlay={handleToggleOverlay}
             overlayVisibility={overlayVisibility}
@@ -4696,7 +4572,11 @@ export default function BurialMap() {
               </Marker>
             );
           })}
-        </MapContainer>
+          </MapContainer>
+        </div>
+      )}
+
+      <FabNavigation activeView={activeAppView} onChange={handleAppViewChange} />
     </div>
   );
 }

@@ -157,11 +157,12 @@ esac
 
 echo
 echo "Smoke checklist:"
-echo "  1. Search for Lamont and open the result."
-echo "  2. Select a section and confirm the mobile sheet stays usable."
-echo "  3. Start a tour and open a tour stop popup."
-echo "  4. Use Share > Add to Home Screen, then launch the installed icon."
-echo "  5. Reopen once offline and confirm the shell plus search payload still load."
+echo "  1. Confirm Tours opens by default and no map or drawer appears behind it."
+echo "  2. Start a tour and confirm the Map tab opens with tour markers."
+echo "  3. Open Search, search for Lamont, and confirm the result opens a map popup."
+echo "  4. Select a section and confirm Map, Tours, and Search remain reachable."
+echo "  5. Use Share > Add to Home Screen, then launch the installed icon twice."
+echo "  6. Reopen once offline and confirm the lightweight shell still loads."
 echo
 echo "Press Ctrl-C to stop the smoke server."
 

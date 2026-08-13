@@ -23,7 +23,8 @@ These rules keep `fab` aligned with the current product direction: clearer, fast
 - Use the shared tokens in [`src/App.js`](../src/App.js) and [`src/index.css`](../src/index.css) before adding one-off colors or shadows.
 - Keep hierarchy strong: section labels, titles, supporting text, then metadata.
 - Prefer calm surfaces and strong contrast over decorative gradients that reduce legibility.
-- Treat the map as the primary surface. Sidebars and sheets should support it, not overpower it.
+- Keep Tours, Map, and Search as distinct destinations. Do not layer competing
+  browse surfaces over the map.
 
 ## Accessibility rules
 
@@ -36,7 +37,8 @@ These rules keep `fab` aligned with the current product direction: clearer, fast
 
 ## Performance rules
 
-- Keep high-frequency interactions cheap: typing, filtering, drawer changes, and map panning.
+- Keep high-frequency interactions cheap: typing, filtering, tab changes, and map panning.
+- Do not load the full search payload or mount Leaflet until the active destination needs it.
 - Prefer CSS/layout solutions over measurement-heavy JavaScript.
 - Large lists should use `content-visibility`, virtualization, or another bounded rendering strategy.
 - Defer toolchain-level performance work until shared boundaries are stable enough to migrate safely.
@@ -51,7 +53,7 @@ These rules keep `fab` aligned with the current product direction: clearer, fast
 
 - Is the interaction simpler than before?
 - Does it work with keyboard and touch?
-- Are safe areas and mobile drawers still correct?
+- Are safe areas and the fixed mobile tabs still correct?
 - Is focus visible?
 - Does reduced motion still behave well?
 - Did the change make the code easier for the next contributor to find?

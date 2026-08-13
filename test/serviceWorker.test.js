@@ -70,28 +70,31 @@ describe("service worker runtime caching", () => {
     });
 
     await activationPromise;
-    expect(deletedCaches).toEqual(["fab-static-v3", "fab-runtime-v3"]);
+    expect(deletedCaches).toEqual([
+      "fab-static-v3",
+      "fab-runtime-v3",
+      "fab-static-v4",
+      "fab-runtime-v4",
+    ]);
   });
 
-  test("caches the public search payload when storage allows it", async () => {
-    const cachedRequests = [];
+  test("fetches the public search payload without cloning it into service-worker storage", async () => {
+    let openedRuntimeCache = false;
+    let cloneCount = 0;
     const response = {
       ok: true,
-      headers: {
-        get: (name) => (name.toLowerCase() === "content-length" ? "36000000" : null),
-      },
-      clone: () => response,
-    };
-    const cache = {
-      match: async () => undefined,
-      put: async (request) => {
-        cachedRequests.push(request.url);
+      clone: () => {
+        cloneCount += 1;
+        return response;
       },
     };
     const fetchListener = loadServiceWorkerFetchListener({
       fetchImpl: async () => response,
       cacheImpl: {
-        open: async () => cache,
+        open: async () => {
+          openedRuntimeCache = true;
+          return {};
+        },
         match: async () => undefined,
         keys: async () => [],
         delete: async () => true,
@@ -111,24 +114,20 @@ describe("service worker runtime caching", () => {
     });
 
     await expect(responsePromise).resolves.toBe(response);
-    expect(cachedRequests).toEqual(["https://example.test/data/Search_Burials.json"]);
+    expect(openedRuntimeCache).toBe(false);
+    expect(cloneCount).toBe(0);
   });
 
-  test("falls back to the cached public search payload when the network fails", async () => {
-    const cachedResponse = { ok: true, source: "runtime-cache" };
-    const cache = {
-      match: async () => cachedResponse,
-      put: async () => {
-        throw new Error("offline response should not be rewritten");
-      },
-    };
+  test("does not revive a stale service-worker copy of the large search payload", async () => {
     const fetchListener = loadServiceWorkerFetchListener({
       fetchImpl: async () => {
         throw new Error("offline");
       },
       cacheImpl: {
-        open: async () => cache,
-        match: async () => undefined,
+        open: async () => {
+          throw new Error("search should not open runtime storage");
+        },
+        match: async () => ({ ok: true, source: "stale-runtime-cache" }),
         keys: async () => [],
         delete: async () => true,
       },
@@ -146,51 +145,7 @@ describe("service worker runtime caching", () => {
       },
     });
 
-    await expect(responsePromise).resolves.toBe(cachedResponse);
-  });
-
-  test("serves cached public search payload immediately while refreshing in the background", async () => {
-    const cachedResponse = { ok: true, source: "runtime-cache" };
-    const networkResponse = {
-      ok: true,
-      source: "network",
-      headers: {
-        get: (name) => (name.toLowerCase() === "content-length" ? "36000000" : null),
-      },
-      clone: () => networkResponse,
-    };
-    const cachedRequests = [];
-    const cache = {
-      match: async () => cachedResponse,
-      put: async (request) => {
-        cachedRequests.push(request.url);
-      },
-    };
-    const fetchListener = loadServiceWorkerFetchListener({
-      fetchImpl: async () => networkResponse,
-      cacheImpl: {
-        open: async () => cache,
-        match: async () => undefined,
-        keys: async () => [],
-        delete: async () => true,
-      },
-    });
-
-    let responsePromise;
-    fetchListener({
-      request: {
-        method: "GET",
-        mode: "same-origin",
-        url: "https://example.test/data/Search_Burials.json",
-      },
-      respondWith: (promise) => {
-        responsePromise = Promise.resolve(promise);
-      },
-    });
-
-    await expect(responsePromise).resolves.toBe(cachedResponse);
-    await Promise.resolve();
-    expect(cachedRequests).toEqual(["https://example.test/data/Search_Burials.json"]);
+    await expect(responsePromise).rejects.toThrow("offline");
   });
 
   test("caches multi-megabyte basemap tiles that exceed the generic image cap", async () => {

@@ -12,6 +12,7 @@ import {
   SidebarToggleControl,
   MapZoomControl,
   RouteStatusOverlay,
+  TourContextOverlay,
   createCemeteryClusterIcon,
   getLeafletGeoJsonDataKey,
   isLeafletImageBasemap,
@@ -189,6 +190,21 @@ describe("mapChrome", () => {
 
     expect(screen.getByText("Route unavailable")).toBeInTheDocument();
     expect(screen.queryByText("350 ft · 2 min walk")).not.toBeInTheDocument();
+  });
+
+  test("keeps the active tour visible without adding another control", () => {
+    const { rerender } = render(
+      <TourContextOverlay
+        selectedTour="Notables Tour 2020"
+        stopCount={12}
+      />
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Notables Tour 2020");
+    expect(screen.getByText("12 stops · Tap a marker")).toBeInTheDocument();
+
+    rerender(<TourContextOverlay selectedTour="" stopCount={0} />);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   test("toggles the search panel with explicit accessible labels", () => {

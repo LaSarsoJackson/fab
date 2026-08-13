@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useState } from "react";
+import React, { memo, useEffect, useLayoutEffect, useState } from "react";
 import { CircleMarker, GeoJSON, ImageOverlay, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 import {
   Box,
@@ -871,7 +871,7 @@ export const MapSectionAffordanceMarkers = memo(function MapSectionAffordanceMar
 export function MapController({ mapRef, onViewportMoveStart, onZoomChange }) {
   const leafletMap = useMap();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     mapRef.current = leafletMap;
 
     return () => {
@@ -1077,3 +1077,32 @@ export function RouteStatusOverlay({
     </Paper>
   );
 }
+
+export const TourContextOverlay = memo(function TourContextOverlay({
+  isLoading = false,
+  selectedTour = "",
+  stopCount = 0,
+}) {
+  if (!selectedTour) return null;
+
+  const normalizedStopCount = Number.isFinite(Number(stopCount))
+    ? Number(stopCount)
+    : 0;
+  const detail = isLoading
+    ? "Loading stops…"
+    : `${normalizedStopCount.toLocaleString()} stop${normalizedStopCount === 1 ? "" : "s"} · Tap a marker`;
+
+  return (
+    <Box className="tour-context-overlay" role="status" aria-live="polite">
+      <Typography component="span" className="tour-context-overlay__eyebrow">
+        Tour
+      </Typography>
+      <Typography component="strong" className="tour-context-overlay__title">
+        {selectedTour}
+      </Typography>
+      <Typography component="span" className="tour-context-overlay__detail">
+        {detail}
+      </Typography>
+    </Box>
+  );
+});
