@@ -454,7 +454,7 @@ select,
   }
 
   .fab-navigation__items {
-    width: 360px;
+    width: 440px;
     align-self: stretch;
   }
 
@@ -465,6 +465,10 @@ select,
     justify-content: center;
     gap: 8px;
     font-size: 0.9rem;
+  }
+
+  .fab-navigation__item > span:last-child {
+    white-space: nowrap;
   }
 
   .fab-navigation__item--active.MuiButtonBase-root::after {

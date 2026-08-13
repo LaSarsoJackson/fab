@@ -23,8 +23,13 @@ These rules keep `fab` aligned with the current product direction: clearer, fast
 - Use the shared tokens in [`src/App.js`](../src/App.js) and [`src/index.css`](../src/index.css) before adding one-off colors or shadows.
 - Keep hierarchy strong: section labels, titles, supporting text, then metadata.
 - Prefer calm surfaces and strong contrast over decorative gradients that reduce legibility.
-- Keep Tours, Map, and Search as distinct destinations. Do not layer competing
-  browse surfaces over the map.
+- Keep Tours, ARCE, and Burial Locator as distinct destinations. Do not layer
+  competing browse surfaces over the map.
+- Keep the general ARCE map quiet: imagery and boundary first. Reveal section
+  geometry or burial locations only after an explicit browse choice.
+- Treat a chosen burial record as one person. When source coordinates represent
+  a shared plot, expose that stack deliberately instead of silently merging it
+  into the original selection.
 
 ## Accessibility rules
 

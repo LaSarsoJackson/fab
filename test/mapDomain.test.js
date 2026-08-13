@@ -40,6 +40,7 @@ import {
   resolveClusterExpansionZoom,
   resolveMapPresentationPolicy,
   resolveRecordLocationGroup,
+  resolveFocusedBurialSelection,
   resolveSectionAffordanceMarkerVisibility,
   resolveSectionBurialDisableClusteringZoom,
   resolveSectionOverlayVisibility,
@@ -761,6 +762,22 @@ describe("mapDomain", () => {
         id: "unindexed-tour-record",
         coordinates: [-73.731239, 42.709374],
       }, index)?.records).toEqual([separate]);
+    });
+
+    test("keeps an explicit person selection distinct from other records at the plot", () => {
+      const first = { id: "one", coordinates: [-73.731094, 42.709337] };
+      const second = { id: "two", coordinates: [-73.731094, 42.709337] };
+      const tourRecord = {
+        id: "tour-two",
+        matchedBurialId: "two",
+        coordinates: [-73.731094, 42.709337],
+      };
+      const locationGroup = buildRecordCoordinateGroups([first, second])[0];
+
+      expect(resolveFocusedBurialSelection(tourRecord, locationGroup)).toEqual({
+        focusedBurial: second,
+        selectionRecords: [second],
+      });
     });
 
     test("hides section burial singletons until the close-in preview zoom", () => {

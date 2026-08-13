@@ -170,9 +170,8 @@ describe("app profile", () => {
     ));
 
     expect(defaultBasemap).toMatchObject({
-      id: "world-hillshade",
-      type: "raster-xyz",
-      maxNativeZoom: 16,
+      id: "imagery",
+      type: "image-overlay",
       maxZoom: 20,
     });
 

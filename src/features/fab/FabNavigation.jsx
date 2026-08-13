@@ -20,12 +20,12 @@ const NAV_ITEMS = [
   },
   {
     icon: MapOutlinedIcon,
-    label: "Map",
+    label: "ARCE",
     view: FAB_APP_VIEWS.MAP,
   },
   {
     icon: SearchRoundedIcon,
-    label: "Search",
+    label: "Burial Locator",
     view: FAB_APP_VIEWS.SEARCH,
   },
 ];

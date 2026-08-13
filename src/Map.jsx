@@ -87,6 +87,7 @@ import {
   resolveClusterExpansionZoom,
   resolvePointSelectionFocusZoom,
   getClusterIconCount,
+  resolveFocusedBurialSelection,
   resolveRecordLocationGroup,
   resolveMapPresentationPolicy,
   selectBestRecentLocationCandidate,
@@ -176,6 +177,7 @@ import {
   scheduleIdleTask,
   syncDocumentMetadata,
 } from "./shared/runtimeEnv";
+import { recoverFromStaleChunkLoad } from "./shared/chunkRecovery";
 
 const FOCUS_ZOOM_LEVEL = MAP_PRESENTATION_POLICY.burialFocusMinZoom;
 
@@ -306,7 +308,10 @@ const DEFAULT_MAX_MAP_ZOOM = MAP_BASEMAPS.reduce((highestZoom, basemap) => (
 const MAP_OVERLAY_OPTIONS = [
   { id: "roads", label: "Roads", defaultVisible: false },
   { id: "boundary", label: "Boundary", defaultVisible: true },
-  { id: "sections", label: "Sections", defaultVisible: true },
+  // The general ARCE map mirrors the older locator: imagery and the cemetery
+  // boundary first. Section geometry appears after a visitor explicitly asks
+  // to browse a section, rather than filling launch with map concepts.
+  { id: "sections", label: "Sections", defaultVisible: false },
 ];
 const DEFAULT_MAP_OVERLAY_VISIBILITY = MAP_OVERLAY_OPTIONS.reduce((visibility, option) => ({
   ...visibility,
@@ -1999,24 +2004,19 @@ export default function BurialMap() {
     if (!burial) return;
 
     const locationGroup = resolveRecordLocationGroup(burial, burialLocationIndex);
-    const preferredRecordIds = new Set([
-      cleanRecordValue(burial.id),
-      cleanRecordValue(burial.matchedBurialId),
-    ].filter(Boolean));
-    const matchedLocationRecord = locationGroup?.records.find((record) => (
-      preferredRecordIds.has(cleanRecordValue(record?.id))
-    )) || null;
-    const focusedBurial = matchedLocationRecord || burial;
-    const locationRecords = matchedLocationRecord
-      ? locationGroup.records
-      : [burial];
+    const { focusedBurial, selectionRecords } = resolveFocusedBurialSelection(
+      burial,
+      locationGroup
+    );
 
     if (addToSelection !== false) {
-      // A selection represents one mapped cemetery place. Switching people at
-      // that place changes the active record; choosing another place replaces
-      // the selection instead of accumulating numbered pins across the map.
+      // Search, tour, and deep-link choices are person-granular. Older FABFG
+      // locator behavior kept the chosen record distinct; silently expanding
+      // it to every person sharing the source coordinate made one tap look like
+      // many merged points. Location stacks are exposed only after a visitor
+      // deliberately taps a shared physical plot on the section map.
       dispatchSelectionAction(replaceMapSelectionRecords({
-        records: locationRecords,
+        records: selectionRecords,
         activeRecordId: focusedBurial.id,
         hoveredRecordId: null,
       }));
@@ -3122,6 +3122,10 @@ export default function BurialMap() {
           setCoreMapData(nextCoreMapData);
         }
       } catch (error) {
+        if (recoverFromStaleChunkLoad(error)) {
+          return;
+        }
+
         console.error("Failed to load core map data:", error);
 
         if (!ignore) {
@@ -3202,6 +3206,10 @@ export default function BurialMap() {
           setTourMatches(module.default || module);
         }
       } catch (error) {
+        if (recoverFromStaleChunkLoad(error)) {
+          return;
+        }
+
         console.error("Failed to load tour metadata:", error);
       }
     };
@@ -3463,18 +3471,24 @@ export default function BurialMap() {
     marker.burialRecord = representativeRecord;
     marker.burialRecords = records;
     marker.locationCoordinateKey = locationGroup.coordinateKey;
+    marker.bindTooltip(
+      records.length > 1
+        ? `${records.length.toLocaleString()} people at this mapped plot`
+        : formatBrowseResultName(representativeRecord),
+      {
+        direction: "top",
+        opacity: 0.92,
+      }
+    );
 
     marker.on('click', () => {
       const nextActiveRecord = records.find((record) => (
         cleanRecordValue(record?.id) === activeBurialIdRef.current
       )) || representativeRecord;
 
-      selectMapBurial(nextActiveRecord, {
-        animate: false,
-        openTourPopup: true,
-        preserveViewport: true,
-        selectionSource: SELECTION_SOURCES.MAP_TAP,
-      });
+      // A section point is plot-granular. Make the complete set explicit on
+      // tap so no person disappears behind an arbitrary representative record.
+      selectBurialStack(records, { activeRecord: nextActiveRecord });
     });
     marker.on('mouseover', () => {
       handleHoverBurialChange(representativeRecord.id);
@@ -3488,7 +3502,7 @@ export default function BurialMap() {
     clearHoveredBurialIfCurrent,
     getSectionBurialPresentationZoom,
     handleHoverBurialChange,
-    selectMapBurial,
+    selectBurialStack,
   ]);
 
   /**
@@ -3818,6 +3832,11 @@ export default function BurialMap() {
     if (nextSection) {
       setSelectedTour(null);
       setShowAllBurials(true);
+      setOverlayVisibility((current) => (
+        current.sections
+          ? current
+          : { ...current, sections: true }
+      ));
       if (focusMap) {
         focusSectionOnMap(nextSection, bounds, {
           isExplicitFocus,
@@ -4180,6 +4199,10 @@ export default function BurialMap() {
         [tourName]: layer
       }));
     } catch (error) {
+      if (recoverFromStaleChunkLoad(error)) {
+        return;
+      }
+
       console.error('Error loading tour layer:', error);
       setTourLayerError(`Unable to load "${tourName}". Please try again.`);
     } finally {
@@ -4248,36 +4271,57 @@ export default function BurialMap() {
       return;
     }
 
-    if (sectionFilter) {
-      focusSectionOnMap(sectionFilter, undefined, { isExplicitFocus: false });
-    }
   }, [
     activeBurialId,
     focusBurial,
-    focusSectionOnMap,
     focusTourOnMap,
     getMapInstance,
-    sectionFilter,
     selectedBurials,
     selectedTour,
   ]);
+  const restoreActiveMapContextRef = useRef(restoreActiveMapContext);
+  restoreActiveMapContextRef.current = restoreActiveMapContext;
 
   const handleMapCreated = useCallback((map) => {
     mapRef.current = map;
 
     // MapContainer creates Leaflet in an effect. Restore a pending search or
     // tour only after that instance and its child marker layers are committed.
-    window.requestAnimationFrame(restoreActiveMapContext);
-  }, [restoreActiveMapContext]);
+    window.requestAnimationFrame(() => restoreActiveMapContextRef.current?.());
+  }, []);
 
   useEffect(() => {
     if (activeAppView !== FAB_APP_VIEWS.MAP || typeof window === "undefined") {
       return undefined;
     }
 
-    const frameId = window.requestAnimationFrame(restoreActiveMapContext);
+    // Restore once when entering the map. Selection changes made on the map
+    // must not refocus the camera; that made a close-up plot tap jump back to
+    // the section overview and felt like the point had merged again.
+    const frameId = window.requestAnimationFrame(() => restoreActiveMapContextRef.current?.());
     return () => window.cancelAnimationFrame(frameId);
-  }, [activeAppView, restoreActiveMapContext]);
+  }, [activeAppView]);
+
+  useEffect(() => {
+    if (activeAppView !== FAB_APP_VIEWS.MAP || !sectionFilter) {
+      return;
+    }
+
+    const sectionBounds = sectionBoundsById.get(String(sectionFilter));
+    if (!isRenderableBounds(sectionBounds)) {
+      return;
+    }
+
+    // A visitor can choose a section before the deferred map geography has
+    // loaded. Focus again when its bounds become available so ARCE opens at
+    // plot detail instead of silently remaining at the cemetery overview.
+    focusSectionOnMap(sectionFilter, sectionBounds, { isExplicitFocus: true });
+  }, [
+    activeAppView,
+    focusSectionOnMap,
+    sectionBoundsById,
+    sectionFilter,
+  ]);
 
   /**
    * Prefetch tour layers in idle time to reduce switching latency.
