@@ -594,6 +594,26 @@ select,
   padding-top: 12px;
 }
 
+.field-packet-disclosure {
+  margin-top: 14px;
+}
+
+.field-packet-disclosure__summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--accent-strong);
+  font-size: 0.92rem;
+  font-weight: 650;
+  list-style-position: inside;
+  touch-action: manipulation;
+}
+
+.field-packet-disclosure[open] .field-packet-disclosure__summary {
+  margin-bottom: 8px;
+}
+
 @media (min-width: 841px) {
   :root {
     --app-navigation-height: 64px;

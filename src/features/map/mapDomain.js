@@ -33,7 +33,7 @@ export const MAP_PRESENTATION_POLICY = Object.freeze({
   sectionOverviewLabelMinZoom: 15,
   sectionDetailMinZoom: 16,
   sectionBrowseFocusMaxZoom: 17,
-  burialFocusMinZoom: 17,
+  burialFocusMinZoom: 18,
   sectionBurialIndividualMinZoom: 20,
   sectionBurialClusterRadius: 64,
 });
@@ -395,39 +395,39 @@ export const getPopupViewportPadding = ({
 
   if (overlapWidth >= containerWidth * dominantCoverage) {
     if (touchesBottom && !touchesTop) {
-      padding.bottomRight[1] = Math.ceil(overlapHeight) + basePadding;
+      padding.bottomRight[1] = Math.ceil(containerRect.bottom - overlapTop) + basePadding;
       return padding;
     }
 
     if (touchesTop && !touchesBottom) {
-      padding.topLeft[1] = Math.ceil(overlapHeight) + basePadding;
+      padding.topLeft[1] = Math.ceil(overlapBottom - containerRect.top) + basePadding;
       return padding;
     }
   }
 
   if (overlapHeight >= containerHeight * dominantCoverage) {
     if (touchesLeft && !touchesRight) {
-      padding.topLeft[0] = Math.ceil(overlapWidth) + basePadding;
+      padding.topLeft[0] = Math.ceil(overlapRight - containerRect.left) + basePadding;
       return padding;
     }
 
     if (touchesRight && !touchesLeft) {
-      padding.bottomRight[0] = Math.ceil(overlapWidth) + basePadding;
+      padding.bottomRight[0] = Math.ceil(containerRect.right - overlapLeft) + basePadding;
       return padding;
     }
   }
 
   if (touchesLeft) {
-    padding.topLeft[0] = Math.ceil(overlapWidth) + basePadding;
+    padding.topLeft[0] = Math.ceil(overlapRight - containerRect.left) + basePadding;
   }
   if (touchesRight) {
-    padding.bottomRight[0] = Math.ceil(overlapWidth) + basePadding;
+    padding.bottomRight[0] = Math.ceil(containerRect.right - overlapLeft) + basePadding;
   }
   if (touchesTop) {
-    padding.topLeft[1] = Math.ceil(overlapHeight) + basePadding;
+    padding.topLeft[1] = Math.ceil(overlapBottom - containerRect.top) + basePadding;
   }
   if (touchesBottom) {
-    padding.bottomRight[1] = Math.ceil(overlapHeight) + basePadding;
+    padding.bottomRight[1] = Math.ceil(containerRect.bottom - overlapTop) + basePadding;
   }
 
   return padding;

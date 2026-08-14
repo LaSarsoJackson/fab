@@ -359,6 +359,7 @@ const createTourMarker = (tourKey, tourStyles) => {
 const bindReactPopup = ({
   layer,
   record,
+  onClose,
   onNavigate,
   onPopupClose,
   onPopupOpen,
@@ -380,9 +381,10 @@ const bindReactPopup = ({
       (
         <PopupCardContent
           record={record}
+          onClose={onClose}
           onNavigate={onNavigate}
           onRemove={onRemove}
-          showActions={Boolean(onNavigate || onRemove)}
+          showActions={Boolean(onClose || onNavigate || onRemove)}
           getPopup={() => layer.getPopup?.()}
           schedulePopupLayout={schedulePopupLayout}
         />
@@ -503,6 +505,7 @@ const MapStaticLayers = memo(function MapStaticLayers({
           basemapOptions={MAP_CONTROLLED_BASEMAPS}
           activeBasemapId={selectedBasemapId || activeBasemap?.id || ""}
           isOpen={isLayerControlOpen}
+          isMobile={isMobile}
           onBasemapChange={onBasemapChange}
           onOpenChange={onLayerControlOpenChange}
           overlayOptions={MAP_OVERLAY_OPTIONS}
@@ -582,7 +585,6 @@ const createOnEachTourFeature = (
   onNavigate,
   onPopupClose,
   onPopupOpen,
-  onRemoveResult,
   onRegisterLayer,
   resolveTourBrowseResult,
   schedulePopupLayout,
@@ -618,10 +620,7 @@ const createOnEachTourFeature = (
     },
     onPopupClose,
     onPopupOpen,
-    onRemove: () => {
-      onRemoveResult(browseResult.id);
-      layer.closePopup();
-    },
+    onClose: () => layer.closePopup(),
     schedulePopupLayout,
     shouldRenderPopup,
   });
@@ -1084,7 +1083,21 @@ export default function BurialMap() {
     }
   }, [activeBasemapId, basemapById, defaultBasemap]);
 
-  const getOverlayElement = useCallback(() => null, []);
+  const getOverlayElement = useCallback(() => {
+    if (typeof document === "undefined") {
+      return null;
+    }
+
+    const overlays = Array.from(document.querySelectorAll(
+      ".route-status-overlay--mobile, .tour-context-overlay"
+    ));
+    return overlays.reduce((lowestOverlay, overlay) => {
+      if (!lowestOverlay) return overlay;
+      return overlay.getBoundingClientRect().bottom > lowestOverlay.getBoundingClientRect().bottom
+        ? overlay
+        : lowestOverlay;
+    }, null);
+  }, []);
   // All programmatic viewport moves go through the intent controller. It keeps
   // automatic focus from fighting a user who has just panned, dragged, or zoomed.
   const markExplicitViewportFocus = useCallback(() => {
@@ -2445,7 +2458,7 @@ export default function BurialMap() {
     selectBurial(burial, {
       isExplicitFocus: true,
       openTourPopup: activeAppView !== FAB_APP_VIEWS.SEARCH,
-      preserveViewport: activeAppView === FAB_APP_VIEWS.SEARCH,
+      preserveViewport: false,
       selectionSource: SELECTION_SOURCES.SEARCH_RESULT,
     });
   }, [activeAppView, selectBurial]);
@@ -3883,12 +3896,18 @@ export default function BurialMap() {
       markExplicitViewportFocus();
     }
     clearActiveBurialFocus({ clearHover: true });
+    clearHoveredSection();
     setSelectedTour(tourName);
     setSectionFilter("");
     setLotTierFilter("");
     setFilterType("lot");
     setShowAllBurials(false);
-  }, [clearActiveBurialFocus, markExplicitViewportFocus]);
+    if (tourName) {
+      setOverlayVisibility((current) => (
+        current.sections ? { ...current, sections: false } : current
+      ));
+    }
+  }, [clearActiveBurialFocus, clearHoveredSection, markExplicitViewportFocus]);
 
   const focusTourOnMap = useCallback((tourName) => {
     const map = getMapInstance();
@@ -4189,7 +4208,6 @@ export default function BurialMap() {
           handleNavigateToBurial,
           handlePopupBurialClose,
           handlePopupBurialOpen,
-          removeFromResults,
           (browseResult, featureLayer) => {
             tourFeatureLayersRef.current.set(browseResult.id, featureLayer);
           },
@@ -4229,7 +4247,6 @@ export default function BurialMap() {
     handlePopupBurialClose,
     handlePopupBurialOpen,
     handleHoverBurialChange,
-    removeFromResults,
     resolveTourBrowseResult,
     schedulePopupLayout,
     selectBurial,
@@ -4551,7 +4568,7 @@ export default function BurialMap() {
             />
           )}
 
-          {selectedBurials.map((record) => {
+          {!selectedTour && selectedBurials.map((record) => {
             const coordinates = record?.coordinates;
             if (!Array.isArray(coordinates)) {
               return null;
@@ -4606,8 +4623,8 @@ export default function BurialMap() {
                   <Popup>
                     <PopupCardContent
                       record={record}
+                      onClose={() => selectedMarkerLayersRef.current.get(record.id)?.closePopup?.()}
                       onNavigate={(event) => handleNavigateToBurial(event, record)}
-                      onRemove={() => removeFromResults(record.id)}
                       showActions
                       schedulePopupLayout={schedulePopupLayout}
                       getPopup={() => selectedMarkerLayersRef.current.get(record.id)?.getPopup?.()}

@@ -17,6 +17,7 @@ const DESKTOP_POPUP_INITIAL_PERSON_LIMIT = 8;
 
 export function PopupCardContent({
   record,
+  onClose,
   onNavigate,
   onRemove,
   getPopup,
@@ -33,7 +34,7 @@ export function PopupCardContent({
       label === "Role" && popupView.paragraphs.includes(cleanRecordValue(value))
     )
   ));
-  const shouldShowActions = showActions && (onNavigate || onRemove);
+  const shouldShowActions = showActions && (onClose || onNavigate || onRemove);
 
   const handlePopupInteraction = useCallback((event) => {
     // Popup controls sit inside the Leaflet map container. Stop propagation so
@@ -202,6 +203,18 @@ export function PopupCardContent({
               onClick={(event) => {
                 stopMapInteractionPropagation(event);
                 onRemove();
+              }}
+            >
+              Unpin
+            </button>
+          )}
+          {onClose && (
+            <button
+              type="button"
+              className="popup-card__action popup-card__action--ghost"
+              onClick={(event) => {
+                stopMapInteractionPropagation(event);
+                onClose();
               }}
             >
               Close

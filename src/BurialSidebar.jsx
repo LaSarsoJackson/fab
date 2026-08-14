@@ -386,7 +386,7 @@ const BrowseResultCard = memo(function BrowseResultCard({
         onMouseEnter={() => onHoverChange?.(result.id)}
         onMouseLeave={() => onHoverChange?.(null)}
         onBlur={() => onHoverChange?.(null)}
-        aria-pressed={isActive}
+        aria-pressed={isLocatorView ? isPinned : isActive}
         sx={{
           ...rowShellStyles,
           ...interactiveCardButtonSx,
@@ -665,7 +665,7 @@ function BrowseResultsPanel({
                 variant="text"
                 onClick={onClearSelectedBurials}
               >
-                {isLocatorView ? "Clear" : "Clear selected"}
+                {isLocatorView ? "Clear pins" : "Clear selected"}
               </Button>
             </>
           )}
@@ -2463,6 +2463,10 @@ function BurialSidebar({
       setBrowseSource(intent.browseSourceToSet);
     }
 
+    if (intent.shouldClearBrowseQuery) {
+      setBrowseQuery("");
+    }
+
     if (intent.shouldClearSectionFilters) {
       onClearSectionFilters();
     }
@@ -2479,6 +2483,7 @@ function BurialSidebar({
     onClearSectionFilters,
     onRequestBurialDataLoad,
     onTourChange,
+    setBrowseQuery,
     setBrowseSource,
   ]);
 
@@ -2795,21 +2800,30 @@ function BurialSidebar({
       {browseWorkspaceContent}
 
       {(activeView === "" || activeView === "search") && shouldShowFieldPacketPanel && (
-        <FieldPacketPanel
-          fieldPacket={fieldPacket}
-          fieldPacketNotice={fieldPacketNotice}
-          installPromptEvent={installPromptEvent}
-          iosAppStoreUrl={iosAppStoreUrl}
-          isInstalled={isInstalled}
-          onClearFieldPacket={onClearFieldPacket}
-          onCopyFieldPacketLink={onCopyFieldPacketLink}
-          onInstallApp={onInstallApp}
-          onShareFieldPacket={onShareFieldPacket}
-          onUpdateFieldPacket={onUpdateFieldPacket}
-          selectedBurials={selectedBurials}
-          sharedLinkLandingState={sharedLinkLandingState}
-          showIosInstallHint={showIosInstallHint}
-        />
+        <Box
+          component="details"
+          className="field-packet-disclosure"
+          open={Boolean(sharedLinkLandingState) || undefined}
+        >
+          <Box component="summary" className="field-packet-disclosure__summary">
+            Share pinned graves
+          </Box>
+          <FieldPacketPanel
+            fieldPacket={fieldPacket}
+            fieldPacketNotice={fieldPacketNotice}
+            installPromptEvent={installPromptEvent}
+            iosAppStoreUrl={iosAppStoreUrl}
+            isInstalled={isInstalled}
+            onClearFieldPacket={onClearFieldPacket}
+            onCopyFieldPacketLink={onCopyFieldPacketLink}
+            onInstallApp={onInstallApp}
+            onShareFieldPacket={onShareFieldPacket}
+            onUpdateFieldPacket={onUpdateFieldPacket}
+            selectedBurials={selectedBurials}
+            sharedLinkLandingState={sharedLinkLandingState}
+            showIosInstallHint={showIosInstallHint}
+          />
+        </Box>
       )}
     </Box>
   );

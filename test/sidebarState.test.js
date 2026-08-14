@@ -115,6 +115,7 @@ describe("sidebar state helpers", () => {
       nextSource: "all",
     })).toEqual({
       browseSourceToSet: "all",
+      shouldClearBrowseQuery: false,
       shouldClearSectionFilters: true,
       shouldClearTourSelection: true,
       shouldExpandMobileSheet: true,
@@ -129,6 +130,7 @@ describe("sidebar state helpers", () => {
       nextSource: "tour",
     })).toEqual({
       browseSourceToSet: "",
+      shouldClearBrowseQuery: false,
       shouldClearSectionFilters: false,
       shouldClearTourSelection: false,
       shouldExpandMobileSheet: true,
@@ -144,6 +146,7 @@ describe("sidebar state helpers", () => {
       nextSource: "section",
     })).toEqual({
       browseSourceToSet: "all",
+      shouldClearBrowseQuery: false,
       shouldClearSectionFilters: false,
       shouldClearTourSelection: false,
       shouldExpandMobileSheet: true,
@@ -169,6 +172,7 @@ describe("sidebar state helpers", () => {
       nextSource: "section",
     })).toEqual({
       browseSourceToSet: "section",
+      shouldClearBrowseQuery: true,
       shouldClearSectionFilters: false,
       shouldClearTourSelection: true,
       shouldExpandMobileSheet: false,
@@ -182,6 +186,7 @@ describe("sidebar state helpers", () => {
       nextSource: "tour",
     })).toEqual({
       browseSourceToSet: "tour",
+      shouldClearBrowseQuery: false,
       shouldClearSectionFilters: true,
       shouldClearTourSelection: false,
       shouldExpandMobileSheet: false,

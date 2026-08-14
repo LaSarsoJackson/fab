@@ -235,6 +235,7 @@ export const buildBrowseSourceChangeIntent = ({
   const normalizedNextSource = nextSource || "all";
   const defaultIntent = {
     browseSourceToSet: "",
+    shouldClearBrowseQuery: false,
     shouldClearSectionFilters: false,
     shouldClearTourSelection: false,
     shouldExpandMobileSheet: false,
@@ -276,6 +277,7 @@ export const buildBrowseSourceChangeIntent = ({
   return {
     ...defaultIntent,
     browseSourceToSet: normalizedNextSource,
+    shouldClearBrowseQuery: normalizedNextSource === "section",
     shouldClearSectionFilters: normalizedNextSource !== "section" && Boolean(hasSectionFilters),
     shouldClearTourSelection: normalizedNextSource === "section" && Boolean(hasTourSelection),
     shouldMaximizeMobileSheet: true,

@@ -103,7 +103,7 @@ test.describe("simplified navigation", () => {
     await expect(page.locator("[data-rsbs-root], [data-rsbs-overlay]")).toHaveCount(0);
   });
 
-  test("Locator starts clean and keeps its query while adding a person pin", async ({ page }) => {
+  test("Locator focuses a grave and closing its popup keeps the pin", async ({ page }) => {
     const input = await openSearch(page);
     await expect(page.getByText("Keep typing.")).toHaveCount(0);
     await input.fill("lamont");
@@ -114,14 +114,25 @@ test.describe("simplified navigation", () => {
     await expect(page.getByRole("button", { name: "Burial Locator", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(page.locator(".leaflet-marker-pane .selected-burial-marker-icon")).toHaveCount(1);
     await expect(page.locator(".leaflet-popup .popup-card")).toHaveCount(0);
+    await expect.poll(async () => page.locator("img.leaflet-tile").evaluateAll((tiles) => (
+      Math.max(0, ...tiles.map((tile) => {
+        const match = tile.src.match(/\/tile\/(\d+)\/|\/(\d+)\/\d+\/\d+\.png/);
+        return Number(match?.[1] || match?.[2] || 0);
+      }))
+    )), { timeout: 60_000 }).toBeGreaterThanOrEqual(18);
 
     await page.locator(".leaflet-marker-pane .selected-burial-marker-icon").click();
     await expect(page.locator(".leaflet-popup .popup-card")).toContainText("Thomas E LaMont");
+    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(page.locator(".leaflet-popup .popup-card")).toHaveCount(0);
+    await expect(page.locator(".leaflet-marker-pane .selected-burial-marker-icon")).toHaveCount(1);
+    await expect(result).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("button", { name: "Burial Locator", exact: true })).toHaveAttribute("aria-current", "page");
 
     await expect(page.getByRole("textbox", { name: "Search burials" })).toHaveValue("lamont");
     await expect(result).toBeVisible();
-    await expect(page.getByText("Share Link", { exact: true })).toBeVisible();
+    await expect(page.getByText("Share pinned graves", { exact: true })).toBeVisible();
+    await expect(page.getByText("Share Link", { exact: true })).toBeHidden();
     await expect(page.locator(".tour-marker, .tour-context-overlay")).toHaveCount(0);
   });
 
@@ -145,8 +156,10 @@ test.describe("simplified navigation", () => {
   });
 
   test("section browsing remains available from Search", async ({ page }) => {
-    await openSearch(page);
+    const input = await openSearch(page);
+    await input.fill("Thomas E Lamont");
     await page.getByRole("button", { name: "Browse by section" }).click();
+    await expect(input).toHaveValue("");
 
     const sectionInput = page.getByRole("combobox", { name: "Section" });
     await sectionInput.fill("215");
@@ -162,6 +175,24 @@ test.describe("simplified navigation", () => {
         return Number(match?.[1] || match?.[2] || 0);
       }))
     )), { timeout: 60_000 }).toBeGreaterThanOrEqual(16);
+  });
+
+  test("entering a tour hides Locator pins and stale section context", async ({ page }) => {
+    const input = await openSearch(page);
+    await input.fill("Thomas E Lamont");
+    await page.getByRole("button", { name: /Thomas E LaMont/ }).click();
+    await page.getByRole("button", { name: "Browse by section" }).click();
+    const sectionInput = page.getByRole("combobox", { name: "Section" });
+    await sectionInput.fill("215");
+    await page.getByRole("option", { name: "Section 215" }).click();
+
+    await page.getByRole("button", { name: "Search Tours", exact: true }).click();
+    await page.getByRole("button", { name: /Notables Tour 2020/ }).click();
+
+    await expect(page.locator(".tour-marker").first()).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator(".selected-burial-marker-icon")).toHaveCount(0);
+    await expect(page.locator(".section-label")).toHaveCount(0);
+    await expect(page.locator(".tour-context-overlay")).toContainText("Notables Tour 2020");
   });
 
   test("a burial deep link restores the combined Locator destination", async ({ page }) => {
@@ -228,5 +259,41 @@ test.describe("mobile shell", () => {
     await expect(page.locator(".map-stage--locator")).toBeVisible();
     await expect(page.getByRole("textbox", { name: "Search burials" })).toBeVisible();
     await expect(page.locator("[data-rsbs-root], [data-rsbs-overlay]")).toHaveCount(0);
+  });
+
+  test("mobile map layers fit inside the map and expose every control", async ({ page }) => {
+    await openTours(page);
+    await page.getByRole("button", { name: "ARCE", exact: true }).click();
+    await page.getByRole("button", { name: "Open map layers" }).click();
+
+    const panel = page.locator(".map-layer-panel");
+    await expect(panel).toBeVisible();
+    for (const label of ["Auto", "Imagery", "Streets", "Hillshade", "Roads", "Boundary", "Sections"]) {
+      await expect(panel.getByRole("button", { name: label, exact: true })).toBeVisible();
+    }
+
+    const [panelBounds, mapBounds] = await Promise.all([
+      panel.boundingBox(),
+      page.locator(".map-stage").boundingBox(),
+    ]);
+    expect(panelBounds.y).toBeGreaterThanOrEqual(mapBounds.y);
+    expect(panelBounds.y + panelBounds.height).toBeLessThanOrEqual(mapBounds.y + mapBounds.height + 1);
+  });
+
+  test("tour popup stays below the tour context card", async ({ page }) => {
+    await openTours(page);
+    await page.getByRole("button", { name: /Notables Tour 2020/ }).click();
+    const marker = page.locator(".tour-marker").first();
+    await expect(marker).toBeVisible({ timeout: 60_000 });
+    await marker.click();
+    await expect(page.locator(".leaflet-popup .popup-card")).toBeVisible();
+
+    await expect.poll(async () => {
+      const [popupBounds, overlayBounds] = await Promise.all([
+        page.locator(".leaflet-popup").boundingBox(),
+        page.locator(".tour-context-overlay").boundingBox(),
+      ]);
+      return Math.round(popupBounds.y - (overlayBounds.y + overlayBounds.height));
+    }).toBeGreaterThanOrEqual(8);
   });
 });

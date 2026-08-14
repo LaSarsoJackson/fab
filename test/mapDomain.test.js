@@ -907,6 +907,16 @@ describe("mapDomain", () => {
       });
     });
 
+    test("keeps popups below an inset mobile tour card", () => {
+      expect(getPopupViewportPadding({
+        containerRect: { left: 0, top: 0, right: 390, bottom: 844 },
+        overlayRect: { left: 12, top: 12, right: 292, bottom: 88 },
+      })).toEqual({
+        topLeft: [16, 104],
+        bottomRight: [16, 16],
+      });
+    });
+
     test("falls back to the base popup padding when there is no overlay overlap", () => {
       expect(getPopupViewportPadding({
         containerRect: { left: 0, top: 0, right: 1280, bottom: 800 },
