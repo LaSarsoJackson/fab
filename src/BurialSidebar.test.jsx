@@ -217,7 +217,7 @@ describe("BurialSidebar", () => {
     expect(onRequestViewChange).toHaveBeenCalledWith("map");
   });
 
-  domTest("renders Search as a fixed destination and opens a chosen grave on Map", () => {
+  domTest("renders Burial Locator as a fixed map-and-list destination", () => {
     const onBrowseResultSelect = jest.fn();
     const onRequestViewChange = jest.fn();
 
@@ -229,7 +229,7 @@ describe("BurialSidebar", () => {
     });
 
     const input = screen.getByRole("textbox", { name: "Search burials" });
-    expect(screen.getByRole("heading", { name: "Find a grave" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Burial Locator" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Browse by section" })).toBeInTheDocument();
     expect(document.querySelector("[data-rsbs-overlay]")).toBeNull();
 
@@ -240,7 +240,7 @@ describe("BurialSidebar", () => {
     expect(onBrowseResultSelect).toHaveBeenCalledWith(
       expect.objectContaining({ displayName: "Anna Tracy" })
     );
-    expect(onRequestViewChange).toHaveBeenCalledWith("map");
+    expect(onRequestViewChange).not.toHaveBeenCalled();
   });
 
   domTest("uses the fixed page itself as the layout root on mobile", () => {

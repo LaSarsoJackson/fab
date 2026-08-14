@@ -16,7 +16,7 @@ describe("FabNavigation", () => {
   });
 
   it("opens deep-linked map context directly on the map", () => {
-    expect(resolveFabAppView("?view=burials&q=lamont")).toBe(FAB_APP_VIEWS.MAP);
+    expect(resolveFabAppView("?view=burials&q=lamont")).toBe(FAB_APP_VIEWS.SEARCH);
     expect(resolveFabAppView("?view=tours&tour=notables")).toBe(FAB_APP_VIEWS.MAP);
     expect(resolveFabAppView("?section=215")).toBe(FAB_APP_VIEWS.MAP);
     expect(resolveFabAppView("?share=abc")).toBe(FAB_APP_VIEWS.MAP);
@@ -34,7 +34,7 @@ describe("FabNavigation", () => {
     render(<FabNavigation activeView={FAB_APP_VIEWS.TOURS} onChange={onChange} />);
 
     expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Tours" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "Search Tours" })).toHaveAttribute("aria-current", "page");
 
     expect(screen.getByRole("button", { name: "Burial Locator" })).toBeInTheDocument();
 

@@ -9,6 +9,7 @@
   --app-width: 100vw;
   --app-offset-top: 0px;
   --app-navigation-height: calc(78px + var(--safe-area-bottom));
+  --locator-map-height: clamp(300px, 43dvh, 430px);
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -318,6 +319,43 @@ select,
   -webkit-backdrop-filter: none !important;
 }
 
+/* The FABFG locator contract is one workspace: map first, records immediately
+   below it, and a person pin added without navigating away from the list. */
+.map-stage--locator {
+  inset: 0 0 auto !important;
+  height: var(--locator-map-height);
+  z-index: 1000;
+}
+
+.fab-page--locator {
+  inset: var(--locator-map-height) 0 var(--app-navigation-height) !important;
+  z-index: 1200;
+  box-shadow:
+    0 -1px 0 rgba(20, 33, 43, 0.1),
+    0 -12px 28px rgba(20, 33, 43, 0.08) !important;
+}
+
+.fab-page--locator .fab-page__header {
+  display: none;
+}
+
+.fab-page--locator .fab-page__content {
+  width: 100%;
+  padding: 16px 16px 28px;
+}
+
+.fab-page--locator .fab-workspace__intro {
+  margin-bottom: 12px;
+}
+
+.fab-page--locator .fab-workspace__title.MuiTypography-root {
+  font-size: 1.35rem;
+}
+
+.fab-page--locator .fab-workspace__results {
+  margin-top: 14px;
+}
+
 .fab-workspace {
   display: flex;
   flex-direction: column;
@@ -503,6 +541,34 @@ select,
 
   .fab-workspace__intro {
     margin-bottom: 30px;
+  }
+
+  .map-stage--locator {
+    inset: var(--app-navigation-height) 0 0 420px !important;
+    height: auto;
+  }
+
+  .fab-page--locator {
+    inset: var(--app-navigation-height) auto 0 0 !important;
+    width: 420px !important;
+    max-width: 420px !important;
+    box-shadow:
+      1px 0 0 rgba(20, 33, 43, 0.1),
+      12px 0 28px rgba(20, 33, 43, 0.08) !important;
+  }
+
+  .fab-page--locator .fab-page__content {
+    width: 100%;
+    padding: 28px 24px 40px;
+  }
+
+  .fab-page--locator .fab-workspace {
+    max-width: none;
+    margin: 0;
+  }
+
+  .fab-page--locator .fab-workspace__intro {
+    margin-bottom: 16px;
   }
 
   .fab-tour-catalog__row.MuiButtonBase-root {
@@ -1652,6 +1718,20 @@ select,
     0 0 0 3px rgba(255, 255, 255, 0.9),
     0 0 0 6px rgba(23, 100, 73, 0.28),
     0 6px 16px rgba(20, 33, 43, 0.3);
+}
+
+.selected-burial-marker-icon {
+  transition-property: filter, scale;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+  transform-origin: 50% 100%;
+}
+
+.selected-burial-marker-icon--highlighted {
+  filter:
+    drop-shadow(0 0 2px rgba(255, 255, 255, 0.95))
+    drop-shadow(0 4px 8px rgba(20, 33, 43, 0.34));
+  scale: 1.06;
 }
 
 @media (prefers-reduced-motion: reduce) {

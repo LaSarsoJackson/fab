@@ -261,6 +261,7 @@ function SectionRefinementControls({
   onLotTierChange,
   onToggleSectionMarkers,
   sectionFilter,
+  showMarkerToggle = true,
   showAllBurials,
   burialDataError,
 }) {
@@ -277,18 +278,20 @@ function SectionRefinementControls({
 
   return (
     <Box sx={{ mt: 1.2 }}>
-      <Button
-        className={getMarkerToggleClassName(showAllBurials)}
-        variant="text"
-        color="inherit"
-        size="small"
-        onClick={onToggleSectionMarkers}
-        startIcon={markerToggleIcon}
-        aria-label={markerToggleLabel}
-        aria-pressed={showAllBurials}
-      >
-        {showAllBurials ? "Hide graves" : "Show graves"}
-      </Button>
+      {showMarkerToggle ? (
+        <Button
+          className={getMarkerToggleClassName(showAllBurials)}
+          variant="text"
+          color="inherit"
+          size="small"
+          onClick={onToggleSectionMarkers}
+          startIcon={markerToggleIcon}
+          aria-label={markerToggleLabel}
+          aria-pressed={showAllBurials}
+        >
+          {showAllBurials ? "Hide graves" : "Show graves"}
+        </Button>
+      ) : null}
 
       <Typography variant="subtitle2" className="left-sidebar__browse-detail-title" gutterBottom>
         Filter records
@@ -355,6 +358,7 @@ function SectionBrowseControls({
   onToggleSectionMarkers,
   sectionFilter,
   selectedSectionOption,
+  showMarkerToggle = true,
   showAllBurials,
   uniqueSections,
 }) {
@@ -434,6 +438,7 @@ function SectionBrowseControls({
         onLotTierChange={onLotTierChange}
         onToggleSectionMarkers={onToggleSectionMarkers}
         sectionFilter={sectionFilter}
+        showMarkerToggle={showMarkerToggle}
         showAllBurials={showAllBurials}
       />
     </Box>
@@ -698,7 +703,7 @@ export default function BrowseWorkspacePanel({
       >
         <Box className="fab-workspace__intro">
           <Typography component="h1" className="fab-workspace__title">
-            Find a grave
+            Burial Locator
           </Typography>
         </Box>
         <BrowseSearchField
@@ -736,6 +741,7 @@ export default function BrowseWorkspacePanel({
             onToggleSectionMarkers={onToggleSectionMarkers}
             sectionFilter={sectionFilter}
             selectedSectionOption={selectedSectionOption}
+            showMarkerToggle={false}
             showAllBurials={showAllBurials}
             uniqueSections={uniqueSections}
           />

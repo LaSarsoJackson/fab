@@ -3,7 +3,9 @@
 import {
   MAP_MARKER_COLORS,
   createCemeteryClusterIcon,
+  createSelectedBurialIcon,
   createSelectedLocationIcon,
+  getSelectedBurialPinOffset,
   getSectionAffordanceIcon,
   getSectionClusterIcon,
   getSectionPoiIcon,
@@ -73,6 +75,29 @@ describe("createSelectedLocationIcon", () => {
     expect(createSelectedLocationIcon({ count: 1, isHighlighted: false }).options.html).not.toContain(
       "selected-location-marker--highlighted"
     );
+  });
+});
+
+describe("selected burial person pins", () => {
+  test("uses a standard Leaflet pin without a count badge", () => {
+    const icon = createSelectedBurialIcon();
+
+    expect(icon.options.className).toContain("selected-burial-marker-icon");
+    expect(icon.options.html).toBeUndefined();
+    expect(icon.options.iconAnchor).toEqual([12, 41]);
+  });
+
+  test("fans people at one coordinate into separate pin positions", () => {
+    expect(getSelectedBurialPinOffset(0, 1)).toEqual({ x: 0, y: 0 });
+    expect(getSelectedBurialPinOffset(0, 2)).toEqual({ x: -14, y: 0 });
+    expect(getSelectedBurialPinOffset(1, 2)).toEqual({ x: 14, y: 0 });
+
+    const shifted = createSelectedBurialIcon({
+      isHighlighted: true,
+      offset: getSelectedBurialPinOffset(1, 2),
+    });
+    expect(shifted.options.className).toContain("selected-burial-marker-icon--highlighted");
+    expect(shifted.options.iconAnchor).toEqual([-2, 41]);
   });
 });
 

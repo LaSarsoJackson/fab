@@ -2310,8 +2310,10 @@ function BurialSidebar({
 
   const handleBrowseResultSelect = useCallback((result) => {
     onBrowseResultSelect(result);
-    onRequestViewChange?.("map");
-  }, [onBrowseResultSelect, onRequestViewChange]);
+    if (activeView !== "search") {
+      onRequestViewChange?.("map");
+    }
+  }, [activeView, onBrowseResultSelect, onRequestViewChange]);
 
   const handleSectionSelection = useCallback((nextSection) => {
     const intent = buildSectionSelectionIntent({ nextSection });
@@ -2773,7 +2775,12 @@ function BurialSidebar({
     <Paper
       ref={setSidebarRootNode}
       elevation={0}
-      className={`${sidebarClassName} fab-page${isHidden ? " fab-page--hidden" : ""}`}
+      className={[
+        sidebarClassName,
+        "fab-page",
+        activeView === "search" ? "fab-page--locator" : "",
+        isHidden ? "fab-page--hidden" : "",
+      ].filter(Boolean).join(" ")}
       aria-hidden={isHidden ? "true" : undefined}
     >
       <Box className="fab-page__header">

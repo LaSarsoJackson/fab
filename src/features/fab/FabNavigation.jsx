@@ -15,7 +15,7 @@ export const FAB_APP_VIEWS = Object.freeze({
 const NAV_ITEMS = [
   {
     icon: AltRouteOutlinedIcon,
-    label: "Tours",
+    label: "Search Tours",
     view: FAB_APP_VIEWS.TOURS,
   },
   {
@@ -40,12 +40,12 @@ export const resolveFabAppView = (search = "") => {
     ROUTING_QUERY_PARAMS.tour,
   ].some((key) => Boolean(params.get(key)));
 
-  if (hasMapContext || requestedView === FAB_APP_VIEWS.MAP) {
-    return FAB_APP_VIEWS.MAP;
-  }
-
   if (requestedView === "burials" || requestedView === FAB_APP_VIEWS.SEARCH) {
     return FAB_APP_VIEWS.SEARCH;
+  }
+
+  if (hasMapContext || requestedView === FAB_APP_VIEWS.MAP) {
+    return FAB_APP_VIEWS.MAP;
   }
 
   return FAB_APP_VIEWS.TOURS;
