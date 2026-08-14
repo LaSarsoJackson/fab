@@ -897,7 +897,7 @@ describe("mapDomain", () => {
       });
     });
 
-    test("keeps popups above a mobile bottom sheet", () => {
+    test("keeps popups above the mobile bottom panel", () => {
       expect(getPopupViewportPadding({
         containerRect: { left: 0, top: 0, right: 390, bottom: 844 },
         overlayRect: { left: 0, top: 544, right: 390, bottom: 844 },

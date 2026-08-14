@@ -24,13 +24,12 @@
   },
   "scripts": {
     "start": "bash ./scripts/dev-start.sh",
-    "start:web": "bun run sync:profile-shell && REACT_APP_ENVIRONMENT=development react-scripts --max_old_space_size=4096 start",
+    "start:web": "bun run sync:profile-shell && react-scripts --max_old_space_size=4096 start",
     "start:images": "python3 -m http.server 8000 --bind 127.0.0.1",
     "start:bun": "bun run start",
     "sync:profile-shell": "bun run scripts/sync-profile-shell.js",
     "build:icons": "bun run scripts/generate-app-icons.js",
     "build:basemaps": "bun run scripts/generate-basemaps.js",
-    "deploy": "bash ./scripts/deploy-production.sh",
     "build:tour-data": "bun run scripts/generate-tour-biography-aliases.js",
     "build:geoparquet": "bash ./scripts/migrations/geoparquet/generate_geoparquet.sh",
     "build:data": "bun run build:tour-data && bun run scripts/precalculate-metadata.js",
@@ -40,7 +39,6 @@
     "lint": "node_modules/.bin/eslint src test e2e --ext .js,.jsx",
     "check": "bash ./scripts/dev-doctor.sh && bun run lint && bun run release:check && bash ./scripts/run-tests.sh",
     "release:check": "bun run scripts/check-release-metadata.js",
-    "pr:check": "bun run scripts/check-pr-branch.js",
     "test": "bash ./scripts/run-tests.sh",
     "test:bun": "find src test -type f -name '*.test.js' -print0 | xargs -0 bun test",
     "test:dom": "node_modules/.bin/jest --config ./jest.dom.config.cjs --runInBand",
@@ -126,7 +124,7 @@
     "node": ">=20.0.0",
     "bun": ">=1.3.0"
   },
-  "packageManager": "bun@1.3.14",
+  "packageManager": "bun@1.3.8",
   "trustedDependencies": [
     "core-js",
     "core-js-pure"

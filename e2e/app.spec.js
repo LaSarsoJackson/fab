@@ -134,6 +134,11 @@ test.describe("simplified navigation", () => {
     await expect(page.getByText("Share pinned graves", { exact: true })).toBeVisible();
     await expect(page.getByText("Share Link", { exact: true })).toBeHidden();
     await expect(page.locator(".tour-marker, .tour-context-overlay")).toHaveCount(0);
+
+    await page.locator(".leaflet-marker-pane .selected-burial-marker-icon").click();
+    await page.getByRole("button", { name: "Unpin", exact: true }).click();
+    await expect(page.locator(".leaflet-marker-pane .selected-burial-marker-icon")).toHaveCount(0);
+    await expect(result).toHaveAttribute("aria-pressed", "false");
   });
 
   test("selected people remain separate instead of merging into a count point", async ({ page }) => {
@@ -201,6 +206,7 @@ test.describe("simplified navigation", () => {
     await expect(page.getByRole("button", { name: "Burial Locator", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("textbox", { name: "Search burials" })).toHaveValue("lamont");
     await expect(page.locator(".map-stage--locator .leaflet-container")).toBeVisible();
+    await expect(page.locator(".leaflet-marker-pane .selected-burial-marker-icon")).toHaveCount(1);
     await expect(page.locator(".leaflet-popup .popup-card")).toHaveCount(0);
   });
 

@@ -370,7 +370,7 @@ export const getPopupViewportPadding = ({
     return padding;
   }
 
-  // The sidebar/mobile sheet can cover one side of the map. Translate that
+  // The sidebar/mobile panel can cover one side of the map. Translate that
   // overlap into Leaflet autopan padding so focused markers remain visible.
   const overlapLeft = Math.max(containerRect.left, overlayRect.left);
   const overlapTop = Math.max(containerRect.top, overlayRect.top);

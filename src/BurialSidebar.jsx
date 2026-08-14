@@ -55,25 +55,9 @@ import { buildFieldPacketPanelPresentation } from "./features/fieldPackets";
 import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordPresentation";
 import { resolvePortraitImageName } from "./features/tours/tourDerivedData";
 import {
-  buildBrowseQueryChangeIntent,
   buildSidebarBrowseFlags,
-  buildBrowseSourceChangeIntent,
-  buildClearAllBrowseStateIntent,
-  buildClearBrowseQueryIntent,
-  buildClearSectionFiltersIntent,
-  buildClearTourSelectionIntent,
-  buildFilterTypeSelectionIntent,
-  buildLotTierChangeIntent,
-  buildSectionSelectionIntent,
-  buildToggleSectionMarkersIntent,
-  buildTourSelectionIntent,
-  buildUnavailableTourBrowseResetIntent,
   useBurialSidebarBrowseState,
 } from "./features/browse/sidebarState";
-import {
-  getRuntimeEnv,
-  isFieldPacketsEnabled as resolveFieldPacketsEnabled,
-} from "./shared/runtimeEnv";
 
 /**
  * Sidebar shell for search, tours, and selected-record workflows. Mobile and
@@ -2122,7 +2106,6 @@ function BurialSidebar({
   initialQuery,
   installPromptEvent,
   isHidden = false,
-  isFieldPacketsEnabled,
   isBurialDataLoading,
   isInstalled,
   isMobile,
@@ -2173,10 +2156,6 @@ function BurialSidebar({
   tourStyles,
   uniqueSections,
 }) {
-  const { isDev } = getRuntimeEnv();
-  const areFieldPacketsEnabled = typeof isFieldPacketsEnabled === "boolean"
-    ? isFieldPacketsEnabled
-    : resolveFieldPacketsEnabled();
   const hasTourBrowse = tourDefinitions.length > 0;
   const initialBrowseSource = useMemo(
     () => {
@@ -2323,25 +2302,12 @@ function BurialSidebar({
   }, [activeView, browseSource, setBrowseSource]);
 
   const handleBrowseQueryChange = useCallback((event) => {
-    const intent = buildBrowseQueryChangeIntent({
-      nextQuery: event.target.value,
-    });
-
-    if (intent.shouldRequestBurialDataLoad) {
-      onRequestBurialDataLoad?.();
-    }
-
-    if (intent.shouldSetBrowseQuery) {
-      setBrowseQuery(intent.browseQueryToSet);
-    }
+    onRequestBurialDataLoad?.();
+    setBrowseQuery(event.target.value);
   }, [onRequestBurialDataLoad, setBrowseQuery]);
 
   const handleClearBrowseQuery = useCallback(() => {
-    const intent = buildClearBrowseQueryIntent();
-
-    if (intent.shouldSetBrowseQuery) {
-      setBrowseQuery(intent.browseQueryToSet);
-    }
+    setBrowseQuery("");
   }, [setBrowseQuery]);
 
   const handleBrowseResultSelect = useCallback((result) => {
@@ -2352,64 +2318,27 @@ function BurialSidebar({
   }, [activeView, onBrowseResultSelect, onRequestViewChange]);
 
   const handleSectionSelection = useCallback((nextSection) => {
-    const intent = buildSectionSelectionIntent({ nextSection });
-
-    if (intent.shouldRequestBurialDataLoad) {
-      onRequestBurialDataLoad?.();
-    }
-
-    if (intent.shouldSetBrowseSource) {
-      setBrowseSource(intent.browseSourceToSet);
-    }
-
-    if (intent.shouldSetSectionFilter) {
-      onSectionChange(intent.sectionFilterToSet);
-    }
-
+    onRequestBurialDataLoad?.();
+    setBrowseSource("section");
+    onSectionChange(nextSection || "");
   }, [onRequestBurialDataLoad, onSectionChange, setBrowseSource]);
 
   const handleToggleSectionMarkers = useCallback(() => {
-    const intent = buildToggleSectionMarkersIntent();
-
-    if (intent.shouldRequestBurialDataLoad) {
-      onRequestBurialDataLoad?.();
-    }
-
-    if (intent.shouldToggleSectionMarkers) {
-      onToggleSectionMarkers();
-    }
-
+    onRequestBurialDataLoad?.();
+    onToggleSectionMarkers();
   }, [onRequestBurialDataLoad, onToggleSectionMarkers]);
 
   const handleFilterTypeSelection = useCallback((nextFilterType) => {
-    const intent = buildFilterTypeSelectionIntent({ nextFilterType });
-
-    if (intent.shouldSetFilterType) {
-      onFilterTypeChange(intent.filterTypeToSet);
-    }
-
+    onFilterTypeChange(nextFilterType);
   }, [onFilterTypeChange]);
 
   const handleLotTierChange = useCallback((nextValue) => {
-    const intent = buildLotTierChangeIntent({ nextValue });
-
-    if (intent.shouldSetLotTierFilter) {
-      onLotTierFilterChange(intent.lotTierFilterToSet);
-    }
-
+    onLotTierFilterChange(nextValue);
   }, [onLotTierFilterChange]);
 
   const handleClearSectionFilters = useCallback(() => {
-    const intent = buildClearSectionFiltersIntent();
-
-    if (intent.shouldSetBrowseSource) {
-      setBrowseSource(intent.browseSourceToSet);
-    }
-
-    if (intent.shouldClearSectionFilters) {
-      onClearSectionFilters();
-    }
-
+    setBrowseSource("section");
+    onClearSectionFilters();
   }, [onClearSectionFilters, setBrowseSource]);
 
   const handleExitSectionBrowse = useCallback(() => {
@@ -2418,63 +2347,47 @@ function BurialSidebar({
   }, [onClearSectionFilters, setBrowseSource]);
 
   const handleTourSelection = useCallback((tourName) => {
-    const intent = buildTourSelectionIntent({
-      hasTourBrowse,
-      tourName,
-    });
+    if (!hasTourBrowse) return;
 
-    if (intent.shouldSetBrowseSource) {
-      setBrowseSource(intent.browseSourceToSet);
-    }
-
-    if (intent.shouldSetTourSelection) {
-      onTourChange(intent.selectedTourToSet);
-      onRequestViewChange?.("map");
-    }
+    setBrowseSource("tour");
+    onTourChange(tourName);
+    onRequestViewChange?.("map");
   }, [hasTourBrowse, onRequestViewChange, onTourChange, setBrowseSource]);
 
   const handleClearTourSelection = useCallback(() => {
-    const intent = buildClearTourSelectionIntent();
-
-    if (intent.shouldSetBrowseSource) {
-      setBrowseSource(intent.browseSourceToSet);
-    }
-
-    if (intent.shouldSetTourSelection) {
-      onTourChange(intent.selectedTourToSet);
-    }
-
+    setBrowseSource("tour");
+    onTourChange(null);
   }, [onTourChange, setBrowseSource]);
 
   const handleBrowseSourceChange = useCallback((nextSource) => {
-    const intent = buildBrowseSourceChangeIntent({
-      browseSource,
-      hasSectionFilters,
-      hasTourBrowse,
-      hasTourSelection,
-      nextSource,
-    });
+    const normalizedSource = nextSource || "all";
+    onRequestBurialDataLoad?.();
 
-    if (intent.shouldRequestBurialDataLoad) {
-      onRequestBurialDataLoad?.();
+    if (normalizedSource === "tour" && !hasTourBrowse) return;
+
+    if (normalizedSource === "all") {
+      setBrowseSource("all");
+      if (hasSectionFilters) onClearSectionFilters();
+      if (hasTourSelection) onTourChange(null);
+      return;
     }
 
-    if (intent.browseSourceToSet) {
-      setBrowseSource(intent.browseSourceToSet);
+    const isEmptyActiveScope = normalizedSource === browseSource && (
+      (normalizedSource === "section" && !hasSectionFilters)
+      || (normalizedSource === "tour" && !hasTourSelection)
+    );
+    if (isEmptyActiveScope) {
+      setBrowseSource("all");
+      return;
     }
 
-    if (intent.shouldClearBrowseQuery) {
+    setBrowseSource(normalizedSource);
+    if (normalizedSource === "section") {
       setBrowseQuery("");
-    }
-
-    if (intent.shouldClearSectionFilters) {
+      if (hasTourSelection) onTourChange(null);
+    } else if (hasSectionFilters) {
       onClearSectionFilters();
     }
-
-    if (intent.shouldClearTourSelection) {
-      onTourChange(null);
-    }
-
   }, [
     browseSource,
     hasSectionFilters,
@@ -2488,40 +2401,26 @@ function BurialSidebar({
   ]);
 
   useEffect(() => {
-    const intent = buildUnavailableTourBrowseResetIntent({
-      browseSource,
-      hasTourBrowse,
-    });
-
-    if (intent.shouldSetBrowseSource) {
-      setBrowseSource(intent.browseSourceToSet);
+    if (!hasTourBrowse && browseSource === "tour") {
+      setBrowseSource("all");
     }
   }, [browseSource, hasTourBrowse, setBrowseSource]);
 
   const handleClearAllBrowseState = useCallback(() => {
-    const intent = buildClearAllBrowseStateIntent({
-      lotTierFilter,
-      sectionFilter,
-      selectedTour,
-    });
+    setBrowseQuery("");
+    setBrowseSource("all");
 
-    setBrowseQuery(intent.browseQueryToSet);
-    setBrowseSource(intent.browseSourceToSet);
-
-    if (intent.shouldClearSectionFilters) {
+    if (sectionFilter) {
       onClearSectionFilters();
-    } else if (intent.shouldClearLotTierFilter) {
-      onLotTierFilterChange(intent.lotTierFilterToSet);
+    } else if (lotTierFilter) {
+      onLotTierFilterChange("");
     }
 
-    if (intent.shouldClearTourSelection) {
-      onTourChange(intent.selectedTourToSet);
+    if (selectedTour) {
+      onTourChange(null);
     }
 
-    if (intent.shouldClearSelectedBurials) {
-      onClearSelectedBurials();
-    }
-
+    onClearSelectedBurials();
   }, [
     lotTierFilter,
     onClearSectionFilters,
@@ -2634,7 +2533,6 @@ function BurialSidebar({
     shouldShowBrowseResults,
     shouldShowFieldPacketPanel,
   } = buildSidebarContentVisibility({
-    areFieldPacketsEnabled,
     browseQuery,
     hasFieldPacketContent: hasFieldPacketContent(fieldPacket),
     isBrowsePending,
@@ -2738,22 +2636,6 @@ function BurialSidebar({
     />
   );
 
-  const devChip = isDev ? (
-    <Chip
-      size="small"
-      label="Dev"
-      sx={{
-        height: 18,
-        fontSize: "0.65rem",
-        fontWeight: 700,
-        letterSpacing: 0.5,
-        backgroundColor: "rgba(154, 108, 25, 0.15)",
-        color: "#9a6c19",
-        border: "1px solid rgba(154, 108, 25, 0.35)",
-      }}
-    />
-  ) : null;
-
   const dataErrorContent = (burialDataError || mapDataError || tourLayerError) ? (
     <Box sx={{ display: "grid", gap: 0.75, mt: 1 }}>
       {burialDataError && (
@@ -2844,7 +2726,6 @@ function BurialSidebar({
         <Box component="a" href={APP_HOME_URL} className="fab-page__brand">
           {APP_NAVIGATION_TITLE}
         </Box>
-        {devChip}
       </Box>
       <Box className="fab-page__body">
         {bodyContent}

@@ -27,10 +27,6 @@ Use this file to decide which note to read before making a change.
 - Adding FAB-only branding, data modules, tours, or presentation rules:
   [app-profile-architecture.md](./app-profile-architecture.md)
 
-- Changing development-only surfaces such as static admin, custom renderer,
-  PMTiles previews, or site-twin tooling:
-  [dev-branch-workflow.md](./dev-branch-workflow.md)
-
 - Changing branch policy, version numbers, changelog rules, CI/CD, deploy, or
   release tags:
   [release-workflow.md](./release-workflow.md)

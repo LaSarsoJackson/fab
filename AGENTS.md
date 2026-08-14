@@ -16,7 +16,7 @@ Then read only the task-specific note you need:
 - [`docs/maintainability-playbook.md`](./docs/maintainability-playbook.md) before repo-wide cleanup,
   comment, or ownership work
 - [`docs/app-profile-architecture.md`](./docs/app-profile-architecture.md) before changing FAB-only app configuration
-- [`docs/dev-branch-workflow.md`](./docs/dev-branch-workflow.md) before changing development-only surfaces
+- [`docs/release-workflow.md`](./docs/release-workflow.md) before changing CI, deploy, or release behavior
 - [`docs/ui-principles.md`](./docs/ui-principles.md) before changing shared UI patterns
 - [`docs/unified-stack-roadmap.md`](./docs/unified-stack-roadmap.md) when planning work that affects FABFG or the shared stack
 
@@ -33,7 +33,7 @@ Then read only the task-specific note you need:
 ## High-value entry points
 
 - [`src/Map.jsx`](./src/Map.jsx): map orchestration, selections, routing, overlays
-- [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx): search, browse, selected-record UI, mobile drawer
+- [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx): search, browse, and selected-record UI
 - [`src/features/browse/`](./src/features/browse): search indexing and browse-result shaping
 - [`src/features/tours/`](./src/features/tours): tour definitions, alias generation, burial-tour reconciliation
 - [`src/features/map/`](./src/features/map): popup presentation, viewport helpers, selection reducer/actions
@@ -75,7 +75,7 @@ If you change map or selection behavior:
 2. Test section polygon and section marker selection.
 3. Test tour stop selection.
 4. Test deep-link restoration.
-5. Check both desktop and mobile drawer behavior.
+5. Check desktop and mobile fixed-navigation behavior.
 
 If you change runtime/profile wiring:
 
@@ -88,14 +88,13 @@ If you change runtime/profile wiring:
 - `bun run start`: dev startup wrapper, alias refresh, image server, React dev server
 - `bun run test`: Bun unit tests plus Jest DOM tests
 - `bun run check`: doctor plus the default automated test suite
-- `bun run deploy`: local production build check; GitHub Actions deploys `main`
+- `bun run build`: local production build; GitHub Actions deploys `main`
 
 ## Contributor priorities
 
 - Keep moves additive when possible. The worktree may contain in-flight architecture cleanup already.
-- Keep active development on short-lived branches, merge through `dev`, let
-  GitHub Actions auto-promote green `dev` builds to `staging`, and manually
-  promote `staging` to `main`.
+- Keep delivery simple: focused pull requests target `main`; a green merge
+  deploys GitHub Pages. Do not create extra integration or promotion branches.
 - Treat FABFG alignment as shared-contract work first and wrapper-specific work second.
 - Favor clearer Apple-HIG-inspired interaction patterns over decorative UI churn: safer spacing, fewer gestures, stronger hierarchy, and obvious states.
 

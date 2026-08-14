@@ -7,7 +7,7 @@ The goals are:
 - keep the shipped web surface and `FABFG` hosted URL contract aligned
 - keep the UI clearer, more performant, and closer to Apple HIG expectations
 - reduce contributor friction for new maintainers
-- keep development-only tools isolated on short-lived work branches
+- keep development-only tools out of the shipped app
 
 ## Current state
 
@@ -16,8 +16,7 @@ The repo has the right major seams:
 - profile-based FAB wiring under [`src/features/fab/`](../src/features/fab)
 - map orchestration in [`src/Map.jsx`](../src/Map.jsx)
 - browse, tour, routing, and deep-link contracts under owning feature folders
-- a documented branch boundary for dev-only surfaces in
-  [`dev-branch-workflow.md`](./dev-branch-workflow.md)
+- one production path on `main`
 
 The biggest remaining pressure points are:
 
@@ -53,16 +52,15 @@ Status: active
 - move shared UI decisions into documented tokens and patterns instead of one-off tweaks
 - favor Apple-HIG-inspired interaction choices:
   clearer hierarchy, bigger touch targets, simpler gestures, visible focus, restrained motion
-- keep safe-area and mobile sheet behavior first-class
+- keep safe-area and fixed mobile navigation behavior first-class
 
 ## Stage 4: Production map simplification
 
 Status: active
 
 - keep `main` on the shipped Leaflet map path
-- move renderer experiments, operator tooling, and artifact previews to
-  short-lived work branches
-- promote only focused, production-ready contracts back to `main`
+- keep renderer experiments, operator tooling, and artifact previews out of
+  the production app until they are ready
 
 ## Stage 5: Toolchain modernization
 

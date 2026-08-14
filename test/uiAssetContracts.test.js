@@ -23,7 +23,6 @@ describe("UI asset contracts", () => {
     const popupAction = readCssBlock(css, ".popup-card__action");
     const popupStackOption = readCssBlock(css, ".popup-card__stack-option");
     const popupCloseHitTarget = readCssBlock(css, ".leaflet-container a.leaflet-popup-close-button::after");
-    const sheetHeaderButtonHitTarget = readCssBlock(css, ".mobile-sheet-header__icon-button.MuiIconButton-root::after");
     const markerToggle = readCssBlock(css, ".left-sidebar__marker-toggle.MuiButton-root");
     const quickTourButton = readCssBlock(css, ".left-sidebar__quick-tour-button.MuiButton-root");
 
@@ -32,7 +31,6 @@ describe("UI asset contracts", () => {
     expect(popupAction).toContain("min-height: 44px");
     expect(popupStackOption).toContain("min-height: 44px");
     expect(popupCloseHitTarget).toContain("inset: -8px");
-    expect(sheetHeaderButtonHitTarget).toContain("inset: -4px");
     expect(markerToggle).toContain("min-height: 44px");
     expect(quickTourButton).toContain("min-height: 44px");
   });

@@ -4,9 +4,9 @@
 
 ## Validation
 
-- [ ] `bun run test`
-- [ ] `bun run lint`
-- [ ] `bun run check` for cross-cutting, release, runtime, or generated-data work
+- [ ] `bun run check`
+- [ ] `bun run build`
+- [ ] Relevant browser flow verified
 
 ## Release impact
 
@@ -15,7 +15,7 @@
 - [ ] Minor release
 - [ ] Major release
 
-## Deployment and contracts
+## User-facing contracts
 
 - [ ] No hosted URL, deep-link, PWA, or FABFG impact
 - [ ] Hosted URL, deep-link, PWA, or FABFG impact is described above

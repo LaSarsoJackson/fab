@@ -173,8 +173,6 @@ import { buildDirectionsLink } from "./shared/routing";
 import {
   cancelIdleTask,
   buildPublicAssetUrl,
-  getRuntimeEnv,
-  isFieldPacketsEnabled as resolveFieldPacketsEnabled,
   scheduleIdleTask,
   syncDocumentMetadata,
 } from "./shared/runtimeEnv";
@@ -649,11 +647,6 @@ const createOnEachTourFeature = (
  * Runtime map shell for search, browse, tours, location, and on-site routing.
  */
 export default function BurialMap() {
-  const runtimeEnv = useMemo(() => getRuntimeEnv(), []);
-  const {
-    featureFlags,
-  } = runtimeEnv;
-  const isFieldPacketsEnabled = resolveFieldPacketsEnabled(featureFlags);
   const tourDefinitions = TOUR_DEFINITIONS;
   const tourStyles = TOUR_STYLES;
   /**
@@ -967,7 +960,6 @@ export default function BurialMap() {
     initialDeepLinkRef.current?.section ||
     initialDeepLinkRef.current?.showBurialsView ||
     (
-      isFieldPacketsEnabled &&
       initialFieldPacket &&
       (
         initialFieldPacket.selectedRecords?.length > 0 ||
@@ -1214,14 +1206,6 @@ export default function BurialMap() {
 
     closeMapPopup();
   }, [closeMapPopup, shouldUseMapPopups]);
-
-  useEffect(() => {
-    if (isFieldPacketsEnabled) return;
-
-    setFieldPacket(null);
-    setFieldPacketNotice(null);
-    setSharedLinkLandingState(null);
-  }, [isFieldPacketsEnabled]);
 
   useEffect(() => {
     if (!fieldPacketNotice || typeof window === "undefined") {
@@ -2280,8 +2264,6 @@ export default function BurialMap() {
   }, [getMapInstance]);
 
   const createFieldPacketFromSelection = useCallback(({ announce = true } = {}) => {
-    if (!isFieldPacketsEnabled) return null;
-
     if (selectedBurials.length === 0) {
       if (announce) {
         showFieldPacketNotice("Select one or more records to create a share link.", "warning");
@@ -2314,7 +2296,6 @@ export default function BurialMap() {
     activeBurialId,
     fieldPacket,
     getCurrentMapBoundsSnapshot,
-    isFieldPacketsEnabled,
     sectionFilter,
     selectedBurials,
     selectedTour,
@@ -2334,10 +2315,6 @@ export default function BurialMap() {
   }, []);
 
   const resolveFieldPacketForSharing = useCallback(() => {
-    if (!isFieldPacketsEnabled) {
-      return null;
-    }
-
     if (selectedBurials.length > 0) {
       return createFieldPacketFromSelection({ announce: false });
     }
@@ -2346,12 +2323,11 @@ export default function BurialMap() {
   }, [
     createFieldPacketFromSelection,
     fieldPacket,
-    isFieldPacketsEnabled,
     selectedBurials.length,
   ]);
 
   const getFieldPacketShareUrl = useCallback((packetState = null) => {
-    if (!isFieldPacketsEnabled || typeof window === "undefined") {
+    if (typeof window === "undefined") {
       return "";
     }
 
@@ -2364,7 +2340,7 @@ export default function BurialMap() {
       packet: nextPacket,
       currentUrl: window.location.href,
     });
-  }, [isFieldPacketsEnabled, resolveFieldPacketForSharing]);
+  }, [resolveFieldPacketForSharing]);
 
   const copyFieldPacketLink = useCallback(async () => {
     const nextPacket = resolveFieldPacketForSharing();
@@ -3931,7 +3907,7 @@ export default function BurialMap() {
 
     const deepLink = initialDeepLinkRef.current || parseDeepLinkState(window.location.search, tourNames);
 
-    if (isFieldPacketsEnabled && deepLink.fieldPacket) {
+    if (deepLink.fieldPacket) {
       // Packed share links carry the most complete restored state. Apply them
       // before loose query params so the client does not merge two competing
       // selection sources.
@@ -4001,6 +3977,7 @@ export default function BurialMap() {
       if (matches.length > 0) {
         selectBurial(matches[0], {
           isExplicitFocus: true,
+          openTourPopup: false,
           selectionSource: SELECTION_SOURCES.DEEP_LINK,
         });
       }
@@ -4018,7 +3995,6 @@ export default function BurialMap() {
     handleTourSelect,
     initialDeepLinkNeedsBurialData,
     isBurialDataLoading,
-    isFieldPacketsEnabled,
     searchIndex,
     selectBurial,
     showFieldPacketNotice,
@@ -4415,7 +4391,6 @@ export default function BurialMap() {
           initialQuery={initialBrowseQuery}
           installPromptEvent={installPromptEvent}
           isHidden={activeAppView === FAB_APP_VIEWS.MAP}
-          isFieldPacketsEnabled={isFieldPacketsEnabled}
           isBurialDataLoading={isBurialDataLoading}
           isInstalled={isInstalled}
           isMobile={isMobile}
@@ -4625,6 +4600,7 @@ export default function BurialMap() {
                       record={record}
                       onClose={() => selectedMarkerLayersRef.current.get(record.id)?.closePopup?.()}
                       onNavigate={(event) => handleNavigateToBurial(event, record)}
+                      onRemove={() => removeFromResults(record.id)}
                       showActions
                       schedulePopupLayout={schedulePopupLayout}
                       getPopup={() => selectedMarkerLayersRef.current.get(record.id)?.getPopup?.()}

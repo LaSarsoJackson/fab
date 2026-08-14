@@ -7,7 +7,6 @@ import {
   buildBrowseScopeChips,
   buildSidebarContentVisibility,
   buildLifeDatesSummary,
-  buildMobileSearchPanelTogglePresentation,
   buildSearchShellNotices,
   formatLocationNoticeLabel,
   getBrowseEmptyState,
@@ -58,43 +57,6 @@ describe("browse sidebar presentation helpers", () => {
     });
   });
 
-  test("builds mobile search-panel toggle presentation from collapse state", () => {
-    expect(buildMobileSearchPanelTogglePresentation({
-      collapsedSheetState: "collapsed",
-      isMobileSearchPanelCollapsedByControl: false,
-      resolvedMobileSheetState: "peek",
-    })).toEqual({
-      iconSx: {
-        transform: "rotate(0deg)",
-        transition: "transform 0.2s ease",
-      },
-      isCollapsed: false,
-      label: "Collapse",
-    });
-
-    expect(buildMobileSearchPanelTogglePresentation({
-      collapsedSheetState: "collapsed",
-      isMobileSearchPanelCollapsedByControl: false,
-      resolvedMobileSheetState: "collapsed",
-    })).toEqual({
-      iconSx: {
-        transform: "rotate(180deg)",
-        transition: "transform 0.2s ease",
-      },
-      isCollapsed: true,
-      label: "Search",
-    });
-
-    expect(buildMobileSearchPanelTogglePresentation({
-      collapsedSheetState: "collapsed",
-      isMobileSearchPanelCollapsedByControl: true,
-      resolvedMobileSheetState: "peek",
-    })).toMatchObject({
-      isCollapsed: true,
-      label: "Search",
-    });
-  });
-
   test("resolves selected section options by normalized value", () => {
     expect(getSelectedSectionOption({
       sectionFilter: "12",
@@ -119,7 +81,6 @@ describe("browse sidebar presentation helpers", () => {
 
   test("builds sidebar content visibility from browse and field-packet context", () => {
     expect(buildSidebarContentVisibility({
-      areFieldPacketsEnabled: false,
       browseQuery: "ada",
       hasFieldPacketContent: false,
       isBrowsePending: false,
@@ -134,7 +95,6 @@ describe("browse sidebar presentation helpers", () => {
     });
 
     expect(buildSidebarContentVisibility({
-      areFieldPacketsEnabled: true,
       browseQuery: "",
       hasFieldPacketContent: true,
       isBrowsePending: false,
@@ -149,7 +109,6 @@ describe("browse sidebar presentation helpers", () => {
     });
 
     expect(buildSidebarContentVisibility({
-      areFieldPacketsEnabled: true,
       browseQuery: "",
       hasFieldPacketContent: false,
       isBrowsePending: false,

@@ -14,8 +14,8 @@ const expectBunScriptUsesPureTestFiles = (script) => {
 describe("package test scripts", () => {
   test("keeps release metadata in the default cross-cutting check gate", () => {
     expect(scripts["release:check"]).toBe("bun run scripts/check-release-metadata.js");
-    expect(scripts["pr:check"]).toBe("bun run scripts/check-pr-branch.js");
     expect(scripts.check).toContain("bun run release:check");
+    expect(scripts["pr:check"]).toBeUndefined();
   });
 
   test("keeps the default Bun runner on pure JavaScript test files without ripgrep", () => {

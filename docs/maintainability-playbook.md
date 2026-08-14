@@ -35,10 +35,10 @@ the current source-of-truth boundaries explicit.
 | Browse result normalization and section indexes | [`src/features/browse/browseResults.js`](../src/features/browse/browseResults.js) | React state and Leaflet concerns |
 | Search scoring and search indexes | [`src/features/browse/burialSearch.js`](../src/features/browse/burialSearch.js) | UI copy and component state |
 | Sidebar copy, empty states, location notices | [`src/features/browse/sidebarPresentation.js`](../src/features/browse/sidebarPresentation.js) | Map effects, data loading |
-| Sidebar browse/mobile-sheet hooks | [`src/features/browse/sidebarState.js`](../src/features/browse/sidebarState.js) | Render markup |
+| Sidebar browse hooks | [`src/features/browse/sidebarState.js`](../src/features/browse/sidebarState.js) | Render markup |
 | Shared-link payloads and deep-link restoration | [`src/features/fieldPackets.js`](../src/features/fieldPackets.js) | External directions URL builders |
 | Query-key names and external Apple/Google Maps links | [`src/shared/routing.js`](../src/shared/routing.js) | In-app road-graph routing |
-| Runtime flags, public asset URLs, idle scheduling, metadata sync | [`src/shared/runtimeEnv.js`](../src/shared/runtimeEnv.js) | FAB product configuration |
+| Public asset URLs, idle scheduling, metadata sync | [`src/shared/runtimeEnv.js`](../src/shared/runtimeEnv.js) | FAB product configuration |
 | Generic GeoJSON bounds helpers | [`src/shared/geoJsonBounds.js`](../src/shared/geoJsonBounds.js) | Cemetery-specific policy |
 | Global layout and Leaflet/sidebar/popup styling | [`src/index.css`](../src/index.css) | Dynamic component state |
 | Root shell fallback styling | [`src/App.css`](../src/App.css) | Map/sidebar workflow styling |
@@ -118,8 +118,7 @@ bun run build:data
 - `Map.jsx` and `BurialSidebar.jsx` should stay orchestration/composition files,
   not new homes for pure rules.
 - `src/lib` is retired. Do not add new helpers there.
-- Development-only surfaces belong on short-lived branches unless they are
-  being promoted through `dev`, `staging`, and `main`.
+- Development-only surfaces do not belong in the shipped app.
 - `Navigate` is the user-facing action; Map.jsx decides between local-road
   routing and the external Maps handoff.
 - Shared URLs affect both the web app and `FABFG`.

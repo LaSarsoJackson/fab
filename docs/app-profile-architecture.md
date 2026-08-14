@@ -16,19 +16,13 @@ the one app that actually ships.
 
 ## Runtime features
 
-Only shipped product toggles belong in `RUNTIME_FEATURE_FLAGS` inside
-[`src/shared/runtimeEnv.js`](../src/shared/runtimeEnv.js):
+Shipped product behavior is direct and consistent across deployments. Do not
+wrap stable features in runtime flags. Tours and record presentation stay in
+[`APP_PROFILE.features`](../src/features/fab/profile.js); shared-link behavior
+ships as part of the app.
 
-- `fieldPackets`
-
-Stable FAB product features such as tours and record presentation should stay in
-[`APP_PROFILE.features`](../src/features/fab/profile.js) instead of pretending to
-be rollout flags.
-
-Development-only surfaces are kept off `main`. Static admin, custom renderer,
-PMTiles previews, site-twin tooling, and similar DevEx/DevOps surfaces should
-stay on short-lived branches until they are ready for the shared `dev`
-pipeline; see [`dev-branch-workflow.md`](./dev-branch-workflow.md).
+Development-only surfaces are kept out of the shipped app until they are ready
+to merge into `main`.
 
 ## Editing guidance
 

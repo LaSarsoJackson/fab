@@ -70,5 +70,4 @@ else
   fi
 fi
 
-export REACT_APP_ENVIRONMENT=development
 react-scripts --max_old_space_size=4096 start "$@"

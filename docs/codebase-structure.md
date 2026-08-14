@@ -22,7 +22,7 @@ so there is a clearer answer to "where should this change go?"
 
 - [`src/shared/geoJsonBounds.js`](../src/shared/geoJsonBounds.js): generic GeoJSON bounds and validation helpers
 - [`src/shared/routing.js`](../src/shared/routing.js): routing query keys and external Apple Maps / Google Maps directions links
-- [`src/shared/runtimeEnv.js`](../src/shared/runtimeEnv.js): runtime environment helpers, centralized runtime-flag definitions, asset URL helpers, document metadata sync, idle scheduling, and real environment-dependent toggles
+- [`src/shared/runtimeEnv.js`](../src/shared/runtimeEnv.js): public asset URLs, document metadata sync, and idle scheduling
 
 ## Profile layer
 
