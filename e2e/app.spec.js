@@ -115,6 +115,10 @@ test.describe("simplified navigation", () => {
     await expect(page.locator(".leaflet-marker-pane .selected-burial-marker-icon")).toHaveCount(1);
     await expect(page.locator(".leaflet-popup .popup-card")).toHaveCount(0);
 
+    await page.locator(".leaflet-marker-pane .selected-burial-marker-icon").click();
+    await expect(page.locator(".leaflet-popup .popup-card")).toContainText("Thomas E LaMont");
+    await expect(page.getByRole("button", { name: "Burial Locator", exact: true })).toHaveAttribute("aria-current", "page");
+
     await expect(page.getByRole("textbox", { name: "Search burials" })).toHaveValue("lamont");
     await expect(result).toBeVisible();
     await expect(page.getByText("Share Link", { exact: true })).toBeVisible();

@@ -1009,9 +1009,10 @@ export default function BurialMap() {
 
     return isMobile;
   }, [isMobile]);
-  // The map is now a dedicated destination, so anchored place cards work on
-  // both mobile and desktop without competing with an overlaying drawer.
-  const shouldUseMapPopups = activeAppView === FAB_APP_VIEWS.MAP;
+  // Both map destinations support intentional marker-tap details. Locator row
+  // selection passes openTourPopup=false, so adding a pin stays quiet until the
+  // visitor explicitly taps that pin.
+  const shouldUseMapPopups = true;
   const shouldUseMapPopupsRef = useRef(shouldUseMapPopups);
   const handleBasemapChange = useCallback((nextBasemapId) => {
     setActiveBasemapId(nextBasemapId);
@@ -2148,7 +2149,10 @@ export default function BurialMap() {
     focusBurial(burial, options);
   }, [focusBurial]);
 
-  const selectBurialStack = useCallback((records = [], { activeRecord = null } = {}) => {
+  const selectBurialStack = useCallback((
+    records = [],
+    { activeRecord = null, openPopup = true } = {}
+  ) => {
     const stackRecords = records.filter((record) => cleanRecordValue(record?.id));
     if (stackRecords.length === 0) {
       return;
@@ -2165,7 +2169,14 @@ export default function BurialMap() {
       activeRecordId: nextActiveRecord.id,
       hoveredRecordId: null,
     }));
-  }, [dispatchSelectionAction]);
+
+    if (openPopup) {
+      // The selected-result marker may not exist until React renders the new
+      // stack. Queue its popup so an intentional section-point tap still opens
+      // details without making every state-only selection do the same.
+      focusBurialPopup(nextActiveRecord);
+    }
+  }, [dispatchSelectionAction, focusBurialPopup]);
 
   /**
    * Removes a burial from search results
@@ -3656,30 +3667,6 @@ export default function BurialMap() {
       pendingPopupBurialRef.current = null;
     }
   }, [activeBurialId, openPopupForBurial, selectedBurials, selectedTour, shouldUseMapPopups]);
-
-  useEffect(() => {
-    if (!shouldUseMapPopups || activeBurialId === null || typeof window === "undefined") {
-      return undefined;
-    }
-
-    const activeBurial = selectedBurials.find((burial) => burial.id === activeBurialId);
-    if (!activeBurial) {
-      return undefined;
-    }
-
-    let animationFrame = null;
-    animationFrame = window.requestAnimationFrame(() => {
-      if (!openPopupForBurial(activeBurial)) {
-        pendingPopupBurialRef.current = activeBurial;
-      }
-    });
-
-    return () => {
-      if (animationFrame !== null) {
-        window.cancelAnimationFrame(animationFrame);
-      }
-    };
-  }, [activeBurialId, openPopupForBurial, selectedBurials, shouldUseMapPopups]);
 
   /**
    * Keep markercluster child-marker styling in sync after zoom changes.

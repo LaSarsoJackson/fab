@@ -3427,6 +3427,42 @@ select,
     max-height: min(50svh, 420px);
   }
 
+  /* The locator shares the first mobile screen with its result list. Keep an
+     intentionally opened pin card compact enough to remain inside that map
+     band instead of cropping the person's name above the viewport. */
+  .map-stage--locator .leaflet-popup .popup-card {
+    max-height: min(205px, calc(43dvh - 64px));
+    padding: 0.65rem 0.75rem 0.7rem;
+  }
+
+  .map-stage--locator .leaflet-popup .popup-card__eyebrow {
+    display: none;
+  }
+
+  .map-stage--locator .leaflet-popup .popup-card__subtitle {
+    margin-top: 0.25rem;
+    font-size: 0.82rem;
+    line-height: 1.25;
+  }
+
+  .map-stage--locator .leaflet-popup .popup-card__details {
+    margin-top: 0.45rem;
+    gap: 0.3rem;
+  }
+
+  .map-stage--locator .leaflet-popup .popup-card__row dt {
+    font-size: 0.66rem;
+  }
+
+  .map-stage--locator .leaflet-popup .popup-card__row dd {
+    font-size: 0.82rem;
+    line-height: 1.2;
+  }
+
+  .map-stage--locator .leaflet-popup .popup-card__actions {
+    margin-top: 0.5rem;
+  }
+
   .leaflet-popup .popup-card-stack {
     max-height: min(45svh, 380px);
   }
