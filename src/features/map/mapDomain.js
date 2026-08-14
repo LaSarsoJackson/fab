@@ -43,7 +43,7 @@ export const MAP_PRESENTATION_POLICY = Object.freeze({
 // overlay both, so the visitor keeps a continuous mental map as the basemap
 // switches under them.
 export const AUTO_BASEMAP_ID = "auto";
-export const AUTO_BASEMAP_IMAGERY_MIN_ZOOM = MAP_PRESENTATION_POLICY.sectionDetailMinZoom;
+const AUTO_BASEMAP_IMAGERY_MIN_ZOOM = MAP_PRESENTATION_POLICY.sectionDetailMinZoom;
 
 // Resolves the basemap that should actually render. An explicit user selection
 // always wins; "auto" picks imagery at/above the detail zoom and a cartographic
@@ -72,7 +72,7 @@ export const SELECTION_SOURCES = Object.freeze({
   NAVIGATION_START: "navigation_start",
   DEEP_LINK: "deep_link",
 });
-export const SECTION_AFFORDANCE_MARKER_SIZE_RANGE = Object.freeze({
+const SECTION_AFFORDANCE_MARKER_SIZE_RANGE = Object.freeze({
   min: 25,
   max: 31,
 });
@@ -591,7 +591,7 @@ const refreshSelectionBurials = (selectionState, getNextBurial) => {
   });
 };
 
-export const MAP_SELECTION_ACTION_TYPES = Object.freeze({
+const MAP_SELECTION_ACTION_TYPES = Object.freeze({
   CLEAR_FOCUS: "clearFocus",
   CLEAR_FOCUS_FOR_RECORD: "clearFocusForRecord",
   FOCUS_RECORD: "focusRecord",
@@ -1480,7 +1480,7 @@ export const shouldRejectLocationCandidate = (
   candidate.accuracyMeters > maxAcceptedAccuracyMeters
 );
 
-export const scoreRecentLocationCandidate = (candidate, { latestRecordedAt } = {}) => {
+const scoreRecentLocationCandidate = (candidate, { latestRecordedAt } = {}) => {
   if (!candidate) {
     return Number.POSITIVE_INFINITY;
   }

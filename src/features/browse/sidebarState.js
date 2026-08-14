@@ -11,7 +11,7 @@ import { cancelIdleTask, scheduleIdleTask } from "../../shared/runtimeEnv";
  * incremental result limits, worker-backed full-cemetery search, and the small
  * LRU cache that keeps repeated section/tour searches responsive.
  */
-export const DEFAULT_RESULT_LIMIT = 10;
+const DEFAULT_RESULT_LIMIT = 10;
 const ASYNC_BROWSE_RECORD_THRESHOLD = 5000;
 const BROWSE_RESULTS_CACHE_LIMIT = 24;
 let browseSearchWorkerFactoryPromise = null;

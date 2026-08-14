@@ -519,7 +519,7 @@ const getRecordDistanceMeters = (left, right) => {
  * Keep the tour/burial heuristic in one place so the runtime and the admin
  * artifact builder score records the same way.
  */
-export const scoreTourBurialMatch = (tourRecord, burialRecord) => {
+const scoreTourBurialMatch = (tourRecord, burialRecord) => {
   if (hasDisqualifyingKnownLifeDateConflict(tourRecord, burialRecord)) {
     return Number.NEGATIVE_INFINITY;
   }
@@ -637,23 +637,10 @@ const findBestSectionLotMatch = (
 };
 
 /**
- * Search results start from the burial dataset, so keep a reverse lookup that
- * lets those records inherit richer tour-only metadata after the fact.
- */
-export const buildTourLookup = (records = []) => buildLookupBySectionLot(records);
-
-/**
  * Build a lookup keyed by section/lot because that pairing is the most stable
  * join key shared across the burial and tour datasets.
  */
 export const buildBurialLookup = (records = []) => buildLookupBySectionLot(records);
-
-export const findMatchingTourRecord = (burialRecord, tourLookup) => (
-  findBestSectionLotMatch(burialRecord, tourLookup, {
-    isMatchableRecord: (record) => record?.source === "burial",
-    scoreCandidate: (candidate) => scoreTourBurialMatch(candidate, burialRecord),
-  })
-);
 
 export const findMatchingBurialRecord = (tourRecord, burialLookup) => (
   findBestSectionLotMatch(tourRecord, burialLookup, {

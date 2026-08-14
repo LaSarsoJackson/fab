@@ -159,7 +159,7 @@ echo
 echo "Smoke checklist:"
 echo "  1. Confirm Tours opens by default and no map or drawer appears behind it."
 echo "  2. Start a tour and confirm the Map tab opens with tour markers."
-echo "  3. Open Search, search for Lamont, and confirm the result opens a map popup."
+echo "  3. Open Search, search for Lamont, select a result, then tap its pin and confirm the popup opens."
 echo "  4. Select a section and confirm Map, Tours, and Search remain reachable."
 echo "  5. Use Share > Add to Home Screen, then launch the installed icon twice."
 echo "  6. Reopen once offline and confirm the lightweight shell still loads."

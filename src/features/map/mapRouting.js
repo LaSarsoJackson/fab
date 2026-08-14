@@ -23,8 +23,8 @@ const EARTH_RADIUS_METERS = 6371008.8;
 const WALKING_SPEED_METERS_PER_SECOND = 1.4;
 const DEFAULT_NEARBY_NODE_CONNECTION_TOLERANCE_METERS = 1;
 
-export const DEFAULT_MAX_SNAP_DISTANCE_METERS = 250;
-export const DEFAULT_MAX_ORIGIN_SNAP_DISTANCE_METERS = 1600;
+const DEFAULT_MAX_SNAP_DISTANCE_METERS = 250;
+const DEFAULT_MAX_ORIGIN_SNAP_DISTANCE_METERS = 1600;
 
 const createRoutingError = (message, { code = "", provider = "local", status = 0 } = {}) => {
   const error = new Error(message);

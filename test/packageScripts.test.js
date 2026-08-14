@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const { scripts } = JSON.parse(readFileSync("package.json", "utf8"));
+const ciWorkflow = readFileSync(".github/workflows/ci.yml", "utf8");
 
 const expectBunScriptUsesPureTestFiles = (script) => {
   expect(script).toContain("find src test -type f -name '*.test.js' -print0");
@@ -33,5 +34,14 @@ describe("package test scripts", () => {
     expect(scripts["test:coverage"]).toContain(
       "node_modules/.bin/jest --config ./jest.dom.config.cjs --runInBand --coverage"
     );
+  });
+
+  test("deploys the one validated build only after the quality gate", () => {
+    expect(existsSync(".github/workflows/deploy.yml")).toBe(false);
+    expect(ciWorkflow.match(/- name: Build production site/g)).toHaveLength(1);
+    expect(ciWorkflow).toMatch(/^ {2}deploy:\n[\s\S]*?^ {4}needs: quality$/m);
+    expect(ciWorkflow).toMatch(/^ {4}if: github\.event_name == 'push'$/m);
+    expect(ciWorkflow).toContain("uses: actions/upload-pages-artifact@v5");
+    expect(ciWorkflow).toContain("uses: actions/deploy-pages@v5");
   });
 });

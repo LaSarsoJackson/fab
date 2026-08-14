@@ -9,7 +9,8 @@ FAB has one long-lived branch and one delivery path.
   review and checks.
 - The single `CI / Quality` job runs lint, unit and DOM tests, generated-file
   drift checks, a production build, and browser regression tests.
-- A merge to `main` triggers the GitHub Pages deployment workflow.
+- On `main`, the same workflow uploads the validated build and runs its Pages
+  deployment job only after `Quality` succeeds.
 - Do not add `dev`, `staging`, automated promotion branches, or branch-name
   policy checks. They add handoffs without changing the deployed artifact.
 

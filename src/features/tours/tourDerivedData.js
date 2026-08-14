@@ -5,7 +5,7 @@
  */
 import { normalizeName } from "../browse/burialSearch";
 
-export const IMAGE_EXTENSION_PATTERN = /\.(?:avif|gif|jpe?g|png|svg|webp)$/i;
+const IMAGE_EXTENSION_PATTERN = /\.(?:avif|gif|jpe?g|png|svg|webp)$/i;
 
 const cleanValue = (value) => {
   if (value === null || value === undefined) return "";
@@ -33,7 +33,7 @@ export const resolvePortraitImageName = (record = {}) => {
  * Some source records point directly at `.html` biographies while others only
  * carry an image name. Treat image filenames as portraits, not biographies.
  */
-export const isValidBiographyReference = (value) => {
+const isValidBiographyReference = (value) => {
   const normalized = cleanValue(value);
   return Boolean(
     normalized &&
@@ -47,7 +47,7 @@ export const isValidBiographyReference = (value) => {
  * or `d`. Removing the trailing variant lets us correlate portraits back to the
  * canonical biography slug they belong to.
  */
-export const normalizePortraitStem = (value) => {
+const normalizePortraitStem = (value) => {
   const normalized = cleanValue(value);
   if (!normalized || isMissingValue(normalized)) {
     return "";
@@ -63,7 +63,7 @@ export const normalizePortraitStem = (value) => {
  * legacy tour datasets. We keep it explicit because plain name matching is too
  * weak for records such as the multiple Cornings or Schuylers.
  */
-export const buildBiographyAliasKey = (name, section, lot) => {
+const buildBiographyAliasKey = (name, section, lot) => {
   const normalizedName = normalizeName(name);
   const normalizedSection = cleanValue(section);
   const normalizedLot = cleanValue(lot);

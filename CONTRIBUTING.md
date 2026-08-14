@@ -79,7 +79,7 @@ Key folders:
 - [`src/features/tours/`](./src/features/tours): tour definitions, matching, and derived metadata
 - [`src/features/fieldPackets.js`](./src/features/fieldPackets.js): shared-link encoding, restoration reconciliation, and field packet state
 - [`src/shared/`](./src/shared): domain-neutral helpers such as routing contracts, public asset paths, scheduling, and GeoJSON utilities
-- [`scripts/`](./scripts): build-time generators, migrations, and deployment wrappers
+- [`scripts/`](./scripts): build-time generators, migrations, and local validation helpers
 
 If you are not sure where a change belongs, stop at
 [`docs/codebase-structure.md`](./docs/codebase-structure.md) before adding a new helper.

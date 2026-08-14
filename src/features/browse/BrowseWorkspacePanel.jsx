@@ -92,7 +92,7 @@ const getMarkerToggleClassName = (showAllBurials = false) => [
   showAllBurials ? "left-sidebar__marker-toggle--active" : "",
 ].filter(Boolean).join(" ");
 
-export function BrowseSearchField({
+function BrowseSearchField({
   browseQuery,
   burialDataError,
   isBrowsePending,

@@ -58,7 +58,7 @@ const getOverlayRect = (getOverlayElement) => {
   return getOverlayElement()?.getBoundingClientRect?.();
 };
 
-export const getLeafletViewportPadding = (
+const getLeafletViewportPadding = (
   map,
   {
     basePadding = 16,
@@ -170,7 +170,7 @@ export const panIntoVisibleViewport = (
   });
 };
 
-export const keepPopupInView = (
+const keepPopupInView = (
   popup,
   {
     getOverlayElement,
@@ -192,7 +192,7 @@ export const keepPopupInView = (
   }
 };
 
-export const syncPopupLayout = (popup, options = {}) => {
+const syncPopupLayout = (popup, options = {}) => {
   if (!popup) return;
 
   if (typeof popup.update === "function") {
@@ -960,7 +960,7 @@ export function MapController({ mapRef, onViewportMoveStart, onZoomChange }) {
   return null;
 }
 
-export function MapHomeButton({ onClick }) {
+function MapHomeButton({ onClick }) {
   return (
     <Paper elevation={0} sx={mapControlShellSx}>
       <IconButton

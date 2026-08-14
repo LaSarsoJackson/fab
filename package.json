@@ -8,11 +8,7 @@
     "@emotion/styled": "^11.8.1",
     "@mui/icons-material": "^5.5.1",
     "@mui/material": "^5.5.3",
-    "@testing-library/jest-dom": "^5.16.3",
-    "@testing-library/react": "^12.1.4",
-    "@turf/bbox": "^7.2.0",
     "@turf/boolean-point-in-polygon": "^7.2.0",
-    "@turf/buffer": "^7.2.0",
     "@turf/distance": "^7.2.0",
     "@turf/helpers": "^7.2.0",
     "leaflet": "^1.9.4",
@@ -25,8 +21,6 @@
   "scripts": {
     "start": "bash ./scripts/dev-start.sh",
     "start:web": "bun run sync:profile-shell && react-scripts --max_old_space_size=4096 start",
-    "start:images": "python3 -m http.server 8000 --bind 127.0.0.1",
-    "start:bun": "bun run start",
     "sync:profile-shell": "bun run scripts/sync-profile-shell.js",
     "build:icons": "bun run scripts/generate-app-icons.js",
     "build:basemaps": "bun run scripts/generate-basemaps.js",
@@ -44,13 +38,10 @@
     "test:dom": "node_modules/.bin/jest --config ./jest.dom.config.cjs --runInBand",
     "test:dom:watch": "node_modules/.bin/jest --config ./jest.dom.config.cjs --watch",
     "test:e2e": "playwright test",
-    "test:e2e:headed": "playwright test --headed",
-    "test:e2e:debug": "playwright test --debug",
     "smoke:mobile-pwa": "bash ./scripts/smoke-mobile-pwa.sh",
     "smoke:mobile-pwa:ngrok": "FAB_MOBILE_PWA_TUNNEL=ngrok bash ./scripts/smoke-mobile-pwa.sh",
     "test:watch": "find src test -type f -name '*.test.js' -print0 | xargs -0 bun test --watch",
-    "test:coverage": "find src test -type f -name '*.test.js' -print0 | xargs -0 bun test --coverage && node_modules/.bin/jest --config ./jest.dom.config.cjs --runInBand --coverage",
-    "eject": "react-scripts eject"
+    "test:coverage": "find src test -type f -name '*.test.js' -print0 | xargs -0 bun test --coverage && node_modules/.bin/jest --config ./jest.dom.config.cjs --runInBand --coverage"
   },
   "eslintConfig": {
     "extends": [
@@ -115,6 +106,10 @@
     "@babel/preset-env": "^7.26.9",
     "@babel/preset-react": "^7.26.3",
     "@playwright/test": "^1.59.1",
+    "@testing-library/jest-dom": "^5.16.3",
+    "@testing-library/react": "^12.1.4",
+    "@turf/bbox": "^7.2.0",
+    "@turf/buffer": "^7.2.0",
     "babel-jest": "^29.7.0",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^27.5.1",

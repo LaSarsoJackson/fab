@@ -112,16 +112,13 @@ test.describe("simplified navigation", () => {
     await expect(result).toBeVisible({ timeout: 60_000 });
     await result.click();
     await expect(page.getByRole("button", { name: "Burial Locator", exact: true })).toHaveAttribute("aria-current", "page");
-    await expect(page.locator(".leaflet-marker-pane .selected-burial-marker-icon")).toHaveCount(1);
+    const selectedPin = page.locator(".leaflet-marker-pane .selected-burial-marker-icon");
+    await expect(selectedPin).toHaveCount(1);
+    await expect(selectedPin).toBeInViewport();
+    await expect(selectedPin).toHaveClass(/selected-burial-marker-icon--highlighted/);
     await expect(page.locator(".leaflet-popup .popup-card")).toHaveCount(0);
-    await expect.poll(async () => page.locator("img.leaflet-tile").evaluateAll((tiles) => (
-      Math.max(0, ...tiles.map((tile) => {
-        const match = tile.src.match(/\/tile\/(\d+)\/|\/(\d+)\/\d+\/\d+\.png/);
-        return Number(match?.[1] || match?.[2] || 0);
-      }))
-    )), { timeout: 60_000 }).toBeGreaterThanOrEqual(18);
 
-    await page.locator(".leaflet-marker-pane .selected-burial-marker-icon").click();
+    await selectedPin.click();
     await expect(page.locator(".leaflet-popup .popup-card")).toContainText("Thomas E LaMont");
     await page.getByRole("button", { name: "Close", exact: true }).click();
     await expect(page.locator(".leaflet-popup .popup-card")).toHaveCount(0);
@@ -174,12 +171,7 @@ test.describe("simplified navigation", () => {
 
     await expect(page.locator(".map-stage--locator .leaflet-container")).toBeVisible();
     await expect(page.locator(".leaflet-marker-pane .selected-burial-marker-icon, .marker-cluster")).toHaveCount(0);
-    await expect.poll(async () => page.locator("img.leaflet-tile").evaluateAll((tiles) => (
-      Math.max(0, ...tiles.map((tile) => {
-        const match = tile.src.match(/\/tile\/(\d+)\/|\/(\d+)\/\d+\/\d+\.png/);
-        return Number(match?.[1] || match?.[2] || 0);
-      }))
-    )), { timeout: 60_000 }).toBeGreaterThanOrEqual(16);
+    await expect(page.locator(".leaflet-overlay-pane svg")).toBeVisible();
   });
 
   test("entering a tour hides Locator pins and stale section context", async ({ page }) => {
