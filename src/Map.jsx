@@ -2654,9 +2654,11 @@ export default function BurialMap() {
     if (!map) return;
 
     const zoom = map.getZoom();
-    sectionFeatureLayersRef.current.forEach(({ layer, tooltip, label }) => {
+    sectionFeatureLayersRef.current.forEach(({ layer, tooltip, label, sectionValue }) => {
       const shouldShowTooltip = shouldShowPersistentSectionTooltips({
+        activeSectionId: sectionFilter,
         currentZoom: zoom,
+        sectionId: sectionValue,
         sectionDetailMinZoom,
         showAllBurials,
       });
@@ -2668,7 +2670,7 @@ export default function BurialMap() {
 
       hideSectionTooltip(layer);
     });
-  }, [getMapInstance, hideSectionTooltip, sectionDetailMinZoom, showAllBurials, showSectionTooltip]);
+  }, [getMapInstance, hideSectionTooltip, sectionDetailMinZoom, sectionFilter, showAllBurials, showSectionTooltip]);
 
   const scheduleSectionTooltipSync = useCallback(() => {
     if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
@@ -3883,6 +3885,9 @@ export default function BurialMap() {
     setFilterType("lot");
     setSectionFilter("");
     setShowAllBurials(false);
+    setOverlayVisibility((current) => (
+      current.sections ? { ...current, sections: false } : current
+    ));
     resetMapToDefaultBounds({ isExplicitFocus: true });
   }, [clearActiveBurialFocus, resetMapToDefaultBounds]);
 

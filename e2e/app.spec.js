@@ -78,14 +78,6 @@ async function openSearch(page) {
   return input;
 }
 
-async function searchForLamont(page) {
-  const input = await openSearch(page);
-  await input.fill("lamont");
-  const result = page.locator(".left-sidebar__result-card").filter({ hasText: "Thomas E LaMont" }).first();
-  await expect(result).toBeVisible({ timeout: 60_000 });
-  return result;
-}
-
 test.describe("simplified navigation", () => {
   test("Search Tours is the default and launch does not mount the map or a drawer", async ({ page }) => {
     await openTours(page);

@@ -1092,7 +1092,7 @@ describe("BurialSidebar", () => {
     expect(within(selectedPanel).queryByRole("link", { name: "Anna Tracy portrait" })).not.toBeInTheDocument();
   });
 
-  domTest("renders scoped browse results as a single scrollable list without pagination buttons", () => {
+  domTest("pages long section result lists while keeping the section total visible", () => {
     const sectionRecords = Array.from({ length: 12 }, (_, index) => buildBurialBrowseResult(
       {
         properties: {
@@ -1126,9 +1126,9 @@ describe("BurialSidebar", () => {
       .find((list) => !list.closest(".left-sidebar__selected-scroll"));
 
     expect(within(browseWorkspace).getByText("12 results")).toBeInTheDocument();
-    expect(within(resultsList).getAllByRole("button")).toHaveLength(12);
-    expect(within(resultsList).getByText("Result12 Person")).toBeInTheDocument();
-    expect(within(browseWorkspace).queryByRole("button", { name: "Show more" })).not.toBeInTheDocument();
+    expect(within(resultsList).getAllByRole("button")).toHaveLength(10);
+    expect(within(resultsList).queryByText("Result12 Person")).not.toBeInTheDocument();
+    expect(within(browseWorkspace).getByRole("button", { name: "Show more" })).toBeInTheDocument();
     expect(within(browseWorkspace).queryByRole("button", { name: "Show fewer" })).not.toBeInTheDocument();
   });
 

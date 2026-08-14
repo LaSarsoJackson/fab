@@ -253,6 +253,7 @@ function BrowseToolbar({
 }
 
 function SectionRefinementControls({
+  compact = false,
   filterType,
   isBurialDataLoading,
   isMobile,
@@ -277,7 +278,7 @@ function SectionRefinementControls({
     : <VisibilityIcon fontSize="small" />;
 
   return (
-    <Box sx={{ mt: 1.2 }}>
+    <Box className={compact ? "left-sidebar__section-refinement--compact" : ""} sx={{ mt: compact ? 1 : 1.2 }}>
       {showMarkerToggle ? (
         <Button
           className={getMarkerToggleClassName(showAllBurials)}
@@ -293,20 +294,20 @@ function SectionRefinementControls({
         </Button>
       ) : null}
 
-      <Typography variant="subtitle2" className="left-sidebar__browse-detail-title" gutterBottom>
-        Filter records
+      <Typography variant={compact ? "caption" : "subtitle2"} className="left-sidebar__browse-detail-title" gutterBottom>
+        {compact ? "Narrow results" : "Filter records"}
       </Typography>
       <Box
         className="left-sidebar__control-grid"
         sx={{
           display: "grid",
-          gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+          gridTemplateColumns: compact ? "112px minmax(0, 1fr)" : isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
           gap: 1,
           alignItems: "start",
         }}
       >
         <Box>
-          <ButtonGroup fullWidth size="small" sx={{ mt: 0.25 }}>
+          <ButtonGroup fullWidth size="small" aria-label="Plot number type" sx={{ mt: 0.25 }}>
             <Button
               variant={filterType === "lot" ? "contained" : "outlined"}
               onClick={() => onFilterTypeSelection("lot")}
@@ -324,7 +325,8 @@ function SectionRefinementControls({
         <TextField
           fullWidth
           size="small"
-          label={filterType === "lot" ? "Lot Number" : "Tier Number"}
+          label={compact ? undefined : filterType === "lot" ? "Lot Number" : "Tier Number"}
+          placeholder={compact ? `${filterType === "lot" ? "Lot" : "Tier"} number` : undefined}
           value={lotTierFilter}
           onChange={(event) => onLotTierChange(event.target.value)}
           disabled={isBurialDataLoading || !!burialDataError}
@@ -332,6 +334,7 @@ function SectionRefinementControls({
           inputProps={{
             autoCapitalize: "off",
             autoCorrect: "off",
+            "aria-label": filterType === "lot" ? "Lot Number" : "Tier Number",
             inputMode: "search",
             name: filterType === "lot" ? "lot_filter" : "tier_filter",
             spellCheck: false,
@@ -361,11 +364,17 @@ function SectionBrowseControls({
   showMarkerToggle = true,
   showAllBurials,
   uniqueSections,
+  compact = false,
+  onExitSectionBrowse,
 }) {
   return (
     <Box
-      className="left-sidebar__browse-detail left-sidebar__browse-detail--section"
-      sx={{ p: isMobile ? 1.2 : 1.3 }}
+      className={[
+        "left-sidebar__browse-detail",
+        "left-sidebar__browse-detail--section",
+        compact ? "left-sidebar__browse-detail--compact" : "",
+      ].filter(Boolean).join(" ")}
+      sx={{ p: compact ? 0 : isMobile ? 1.2 : 1.3 }}
     >
       <Box
         sx={{
@@ -373,26 +382,28 @@ function SectionBrowseControls({
           alignItems: "flex-start",
           justifyContent: "space-between",
           gap: 1,
-          mb: 1,
+          mb: compact ? 0.75 : 1,
         }}
       >
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="subtitle2" className="left-sidebar__browse-detail-title">
-            Section
+            {compact ? "Browse section" : "Section"}
           </Typography>
-          <Typography variant="body2" sx={{ mt: 0.35, color: "var(--muted-text)" }}>
-            {sectionFilter ? "Focused on this section." : "Choose a section to zoom in."}
-          </Typography>
+          {!compact ? (
+            <Typography variant="body2" sx={{ mt: 0.35, color: "var(--muted-text)" }}>
+              {sectionFilter ? "Focused on this section." : "Choose a section to zoom in."}
+            </Typography>
+          ) : null}
         </Box>
-        {hasSectionFilters && (
+        {(compact || hasSectionFilters) && (
           <Button
             size="small"
             color="inherit"
             variant="text"
             className="left-sidebar__browse-detail-clear"
-            onClick={onClearSectionFilters}
+            onClick={compact ? onExitSectionBrowse : onClearSectionFilters}
           >
-            Clear
+            {compact ? "Done" : "Clear"}
           </Button>
         )}
       </Box>
@@ -406,7 +417,8 @@ function SectionBrowseControls({
         renderInput={(params) => (
           <TextField
             {...params}
-            label="Section"
+            label={compact ? undefined : "Section"}
+            placeholder={compact ? "Choose a section" : undefined}
             size="small"
             fullWidth
             autoComplete="off"
@@ -430,6 +442,7 @@ function SectionBrowseControls({
 
       <SectionRefinementControls
         burialDataError={burialDataError}
+        compact={compact}
         filterType={filterType}
         isBurialDataLoading={isBurialDataLoading}
         isMobile={isMobile}
@@ -648,7 +661,7 @@ export default function BrowseWorkspacePanel({
   isBrowsePending, isBurialDataLoading, isMobile, isSectionBrowseVisible, isTourBrowseVisible,
   lotTierFilter,
   onBrowseQueryChange, onBrowseSourceChange, onClearAllBrowseState, onClearBrowseQuery,
-  onClearSectionFilters, onClearTourSelection, onFilterTypeSelection,
+  onClearSectionFilters, onExitSectionBrowse = onClearSectionFilters, onClearTourSelection, onFilterTypeSelection,
   onLotTierChange, onRequestBurialDataLoad, onSectionSelection,
   onToggleSectionMarkers, onTourSelection,
   priorityContent = null,
@@ -729,12 +742,14 @@ export default function BrowseWorkspacePanel({
             autocompleteComponentsProps={autocompleteComponentsProps}
             autocompleteListboxProps={autocompleteListboxProps}
             burialDataError={burialDataError}
+            compact
             filterType={filterType}
             hasSectionFilters={hasSectionFilters}
             isBurialDataLoading={isBurialDataLoading}
             isMobile={isMobile}
             lotTierFilter={lotTierFilter}
             onClearSectionFilters={onClearSectionFilters}
+            onExitSectionBrowse={onExitSectionBrowse}
             onFilterTypeSelection={onFilterTypeSelection}
             onLotTierChange={onLotTierChange}
             onSectionSelection={onSectionSelection}

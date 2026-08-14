@@ -355,6 +355,7 @@ const BrowseResultCard = memo(function BrowseResultCard({
   scopedSectionLabel,
   scopedTourLabel,
   showInlineThumbnail,
+  isLocatorView,
   onSelect,
   onHoverChange,
 }) {
@@ -366,13 +367,18 @@ const BrowseResultCard = memo(function BrowseResultCard({
   });
 
   return (
-    <ListItem disablePadding sx={{ display: "block", pb: 1 }}>
+    <ListItem
+      disablePadding
+      className={isLocatorView ? "left-sidebar__result-row--locator" : ""}
+      sx={{ display: "block", pb: isLocatorView ? 0 : 1 }}
+    >
       <ButtonBase
         component="button"
         type="button"
         focusRipple
         className={[
           "left-sidebar__result-card",
+          isLocatorView ? "left-sidebar__result-card--locator" : "",
           isActive ? "left-sidebar__result-card--active" : "",
         ].filter(Boolean).join(" ")}
         onClick={() => onSelect(result)}
@@ -384,18 +390,31 @@ const BrowseResultCard = memo(function BrowseResultCard({
         sx={{
           ...rowShellStyles,
           ...interactiveCardButtonSx,
-          border: isActive
-            ? "1px solid rgba(47, 107, 87, 0.22)"
-            : "1px solid rgba(20, 33, 43, 0.08)",
-          background: isActive
-            ? "var(--surface-card-active)"
-            : isHovered
-              ? "var(--surface-card-hover)"
-              : "var(--surface-card)",
-          boxShadow: isActive ? "var(--shadow-row-active)" : "var(--shadow-row)",
+          border: isLocatorView
+            ? 0
+            : isActive
+              ? "1px solid rgba(47, 107, 87, 0.22)"
+              : "1px solid rgba(20, 33, 43, 0.08)",
+          borderBottom: isLocatorView ? "1px solid rgba(20, 33, 43, 0.1)" : undefined,
+          borderRadius: isLocatorView ? 0 : 3,
+          background: isLocatorView
+            ? isActive
+              ? "rgba(47, 107, 87, 0.07)"
+              : "transparent"
+            : isActive
+              ? "var(--surface-card-active)"
+              : isHovered
+                ? "var(--surface-card-hover)"
+                : "var(--surface-card)",
+          boxShadow: isLocatorView ? "none" : isActive ? "var(--shadow-row-active)" : "var(--shadow-row)",
+          padding: isLocatorView ? "12px 2px" : undefined,
           "&:hover": {
-            background: isActive ? "var(--surface-card-active-hover)" : "var(--surface-card-hover)",
-            boxShadow: isActive ? "var(--shadow-row-active-hover)" : "var(--shadow-row-hover)",
+            background: isLocatorView
+              ? "rgba(47, 107, 87, 0.05)"
+              : isActive
+                ? "var(--surface-card-active-hover)"
+                : "var(--surface-card-hover)",
+            boxShadow: isLocatorView ? "none" : isActive ? "var(--shadow-row-active-hover)" : "var(--shadow-row-hover)",
           },
           "&:focus-visible": {
             outline: "2px solid rgba(47, 107, 87, 0.24)",
@@ -410,7 +429,7 @@ const BrowseResultCard = memo(function BrowseResultCard({
           ].filter(Boolean).join(" ")}
         >
           <Box className="left-sidebar__result-card-copy">
-            {presentation.metadataSummary && (
+            {!isLocatorView && presentation.metadataSummary && (
               <Typography
                 variant="caption"
                 sx={{
@@ -435,40 +454,48 @@ const BrowseResultCard = memo(function BrowseResultCard({
                 {presentation.locationSummary}
               </Typography>
             )}
-            {presentation.secondarySummary && (
+            {!isLocatorView && presentation.secondarySummary && (
               <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.5 }}>
                 {presentation.secondarySummary}
               </Typography>
             )}
-            {presentation.lifeSummary && (
+            {!isLocatorView && presentation.lifeSummary && (
               <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.35 }}>
                 {presentation.lifeSummary}
               </Typography>
             )}
-            <Box sx={{ position: "relative", zIndex: 1, display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1 }}>
-              {isActive && <Chip size="small" color="primary" label="Active" />}
-              {isPinned && !isActive && (
-                <Chip
-                  size="small"
-                  label="Pinned"
-                  sx={{
-                    backgroundColor: "var(--accent-soft)",
-                    color: "var(--accent-strong)",
-                  }}
-                />
-              )}
-              {presentation.tourChipLabel && (
-                <Chip
-                  size="small"
-                  label={presentation.tourChipLabel}
-                  sx={{
-                    color: "white",
-                    backgroundColor: tourColor || "var(--accent)",
-                  }}
-                />
-              )}
-            </Box>
+            {!isLocatorView && (
+              <Box sx={{ position: "relative", zIndex: 1, display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1 }}>
+                {isActive && <Chip size="small" color="primary" label="Active" />}
+                {isPinned && !isActive && (
+                  <Chip
+                    size="small"
+                    label="Pinned"
+                    sx={{
+                      backgroundColor: "var(--accent-soft)",
+                      color: "var(--accent-strong)",
+                    }}
+                  />
+                )}
+                {presentation.tourChipLabel && (
+                  <Chip
+                    size="small"
+                    label={presentation.tourChipLabel}
+                    sx={{
+                      color: "white",
+                      backgroundColor: tourColor || "var(--accent)",
+                    }}
+                  />
+                )}
+              </Box>
+            )}
           </Box>
+          {isLocatorView && (isActive || isPinned) ? (
+            <CheckRoundedIcon
+              className="left-sidebar__result-selected-icon"
+              aria-label={isActive ? "Active burial" : "Pinned burial"}
+            />
+          ) : null}
           {showInlineThumbnail && (
             <BrowseResultPortraitThumbnail result={result} />
           )}
@@ -493,6 +520,7 @@ function BrowseResultsPanel({
   isBurialDataLoading,
   isBrowsePending,
   isCurrentTourLoading,
+  isLocatorView,
   onBrowseResultSelect,
   onClearSelectedBurials,
   onHoverBurialChange,
@@ -590,7 +618,7 @@ function BrowseResultsPanel({
         }}
       >
         <Box sx={{ minWidth: 0 }}>
-          {resultsEyebrow && (
+          {!isLocatorView && resultsEyebrow && (
             <Typography
               variant="caption"
               sx={{
@@ -604,8 +632,8 @@ function BrowseResultsPanel({
               {resultsEyebrow}
             </Typography>
           )}
-          <Typography variant="subtitle2" sx={{ mt: resultsEyebrow ? 0.35 : 0, lineHeight: 1.2 }}>
-            {resultsTitle}
+          <Typography variant="subtitle2" sx={{ mt: !isLocatorView && resultsEyebrow ? 0.35 : 0, lineHeight: 1.2 }}>
+            {isLocatorView ? "Results" : resultsTitle}
           </Typography>
         </Box>
         <Box
@@ -615,22 +643,29 @@ function BrowseResultsPanel({
           {isBrowsePending && <CircularProgress size={14} />}
           {selectedBurialCount > 0 && (
             <>
-              <Chip
-                size="small"
-                label={`${selectedBurialCount.toLocaleString()} selected`}
-                sx={{
-                  backgroundColor: "var(--accent-soft)",
-                  color: "var(--accent-strong)",
-                  fontWeight: 700,
-                }}
-              />
+              {isLocatorView ? (
+                <Typography className="left-sidebar__locator-pinned-count" variant="body2">
+                  {selectedBurialCount.toLocaleString()} pinned
+                </Typography>
+              ) : (
+                <Chip
+                  size="small"
+                  label={`${selectedBurialCount.toLocaleString()} selected`}
+                  sx={{
+                    backgroundColor: "var(--accent-soft)",
+                    color: "var(--accent-strong)",
+                    fontWeight: 700,
+                  }}
+                />
+              )}
               <Button
+                className={isLocatorView ? "left-sidebar__locator-clear" : ""}
                 size="small"
                 color="inherit"
                 variant="text"
                 onClick={onClearSelectedBurials}
               >
-                Clear selected
+                {isLocatorView ? "Clear" : "Clear selected"}
               </Button>
             </>
           )}
@@ -706,6 +741,7 @@ function BrowseResultsPanel({
                   isPinned={selectedBurialIds.has(result.id)}
                   isActive={activeBurialId === result.id}
                   isHovered={hoveredBurialId === result.id}
+                  isLocatorView={isLocatorView}
                   tourColor={tourStyles[result.tourKey]?.color || ""}
                   tourStyleName={tourStyles[result.tourKey]?.name || ""}
                   scopedSectionLabel={scopedSectionLabel}
@@ -2376,6 +2412,11 @@ function BurialSidebar({
 
   }, [onClearSectionFilters, setBrowseSource]);
 
+  const handleExitSectionBrowse = useCallback(() => {
+    setBrowseSource("all");
+    onClearSectionFilters();
+  }, [onClearSectionFilters, setBrowseSource]);
+
   const handleTourSelection = useCallback((tourName) => {
     const intent = buildTourSelectionIntent({
       hasTourBrowse,
@@ -2609,6 +2650,7 @@ function BurialSidebar({
       isBurialDataLoading={isBurialDataLoading}
       isBrowsePending={isBrowsePending}
       isCurrentTourLoading={isCurrentTourLoading}
+      isLocatorView={activeView === "search"}
       onBrowseResultSelect={handleBrowseResultSelect}
       onClearSelectedBurials={onClearSelectedBurials}
       onHoverBurialChange={onHoverBurialChange}
@@ -2666,6 +2708,7 @@ function BurialSidebar({
       onClearAllBrowseState={handleClearAllBrowseState}
       onClearBrowseQuery={handleClearBrowseQuery}
       onClearSectionFilters={handleClearSectionFilters}
+      onExitSectionBrowse={handleExitSectionBrowse}
       onClearTourSelection={handleClearTourSelection}
       onFilterTypeSelection={handleFilterTypeSelection}
       onLotTierChange={handleLotTierChange}

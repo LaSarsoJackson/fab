@@ -461,6 +461,23 @@ describe("browse sidebar presentation helpers", () => {
     });
   });
 
+  test("pages large section scopes for a compact locator list", () => {
+    const browseResults = Array.from({ length: 12 }, (_, index) => ({ id: `grave-${index + 1}` }));
+
+    expect(buildBrowseResultsPanelPresentation({
+      batchSize: 10,
+      browseResults,
+      browseSource: "section",
+      sectionFilter: "215",
+      visibleCount: 10,
+    })).toMatchObject({
+      displayedResultCount: 12,
+      hasMoreResults: true,
+      shouldPageResults: true,
+      visibleResults: browseResults.slice(0, 10),
+    });
+  });
+
   test("builds browse result panel empty-state metadata", () => {
     expect(buildBrowseResultsPanelPresentation({
       batchSize: 10,

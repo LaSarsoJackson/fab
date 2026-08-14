@@ -353,7 +353,10 @@ export const buildBrowseResultsPanelPresentation = ({
   const normalizedVisibleCount = Number.isFinite(Number(visibleCount)) && Number(visibleCount) > 0
     ? Number(visibleCount)
     : normalizedBatchSize;
-  const shouldPageResults = browseSource === "all";
+  // Curated tours are intentionally short and preserve their authored order.
+  // Cemetery sections can contain hundreds of records, so page those lists
+  // just like global search to keep the locator quick and scannable on iPhone.
+  const shouldPageResults = browseSource !== "tour";
   const visibleResults = shouldPageResults
     ? displayedResults.slice(0, normalizedVisibleCount)
     : displayedResults;

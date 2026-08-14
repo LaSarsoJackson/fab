@@ -1145,13 +1145,19 @@ export const resolveMapPresentationPolicy = ({
 };
 
 export const shouldShowPersistentSectionTooltips = ({
+  activeSectionId = "",
   currentZoom = 0,
+  sectionId = "",
   sectionDetailMinZoom = MAP_PRESENTATION_POLICY.sectionDetailMinZoom,
   showAllBurials = false,
-} = {}) => (
-  !showAllBurials &&
-  currentZoom >= sectionDetailMinZoom
-);
+} = {}) => {
+  if (showAllBurials || currentZoom < sectionDetailMinZoom) {
+    return false;
+  }
+
+  const normalizedActiveSectionId = normalizeSectionValue(activeSectionId);
+  return !normalizedActiveSectionId || normalizeSectionValue(sectionId) === normalizedActiveSectionId;
+};
 
 export const createLeafletTextContent = (
   value = "",

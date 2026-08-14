@@ -356,6 +356,134 @@ select,
   margin-top: 14px;
 }
 
+.fab-page--locator .left-sidebar__browse-detail--compact {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.fab-page--locator .left-sidebar__browse-detail--compact .left-sidebar__browse-detail-title {
+  color: var(--text-main);
+  font-weight: 650;
+}
+
+.fab-page--locator .left-sidebar__browse-detail--compact .left-sidebar__browse-detail-clear.MuiButton-root,
+.fab-page--locator .left-sidebar__locator-clear.MuiButton-root {
+  min-width: 0;
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  box-shadow: none;
+  font-weight: 650;
+}
+
+.fab-page--locator .left-sidebar__browse-detail--compact .MuiOutlinedInput-root {
+  min-height: 44px;
+  border-radius: 14px;
+  background: #f6f7f8;
+}
+
+.fab-page--locator .left-sidebar__browse-detail--compact .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(20, 33, 43, 0.1);
+}
+
+.fab-page--locator .left-sidebar__section-refinement--compact {
+  padding-top: 10px;
+  border-top: 1px solid rgba(20, 33, 43, 0.1);
+}
+
+.fab-page--locator .left-sidebar__section-refinement--compact .left-sidebar__browse-detail-title {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted-text);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.fab-page--locator .left-sidebar__section-refinement--compact .MuiButtonGroup-root {
+  padding: 3px;
+  border-radius: 12px;
+  background: #eef1ef;
+  box-shadow: none;
+}
+
+.fab-page--locator .left-sidebar__section-refinement--compact .MuiButton-root {
+  min-width: 0;
+  min-height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted-text);
+  box-shadow: none;
+}
+
+.fab-page--locator .left-sidebar__section-refinement--compact .MuiButton-contained {
+  background: #ffffff;
+  color: var(--text-main);
+  box-shadow: 0 1px 3px rgba(20, 33, 43, 0.12);
+}
+
+.fab-page--locator .left-sidebar__results-section {
+  gap: 8px;
+}
+
+.fab-page--locator .left-sidebar__results-header {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.fab-page--locator .left-sidebar__results-toolbar {
+  flex-wrap: nowrap;
+}
+
+.fab-page--locator .left-sidebar__locator-pinned-count.MuiTypography-root {
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.fab-page--locator .left-sidebar__results-scroll {
+  border-top: 1px solid rgba(20, 33, 43, 0.1);
+}
+
+.fab-page--locator .left-sidebar__result-card-layout {
+  grid-template-columns: minmax(0, 1fr) 24px;
+  gap: 12px;
+}
+
+.fab-page--locator .left-sidebar__result-card-copy .MuiTypography-subtitle2 {
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.fab-page--locator .left-sidebar__result-card-copy .MuiTypography-body2 {
+  margin-top: 3px;
+  overflow: hidden;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fab-page--locator .left-sidebar__result-selected-icon.MuiSvgIcon-root {
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+}
+
+.fab-page--locator .left-sidebar__results-pagination-button.MuiButton-contained {
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  box-shadow: none;
+}
+
 .fab-workspace {
   display: flex;
   flex-direction: column;
@@ -3283,6 +3411,16 @@ select,
   .map-container {
     height: var(--app-height);
     min-height: var(--app-height);
+  }
+
+  .fab-page--locator .left-sidebar__results-header {
+    align-items: center;
+  }
+
+  .fab-page--locator .left-sidebar__results-toolbar {
+    width: auto;
+    margin-left: auto;
+    justify-content: flex-end;
   }
 
   .leaflet-popup .popup-card {

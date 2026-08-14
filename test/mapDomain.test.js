@@ -586,6 +586,18 @@ describe("mapDomain", () => {
         currentZoom: 16,
         showAllBurials: true,
       })).toBe(false);
+      expect(shouldShowPersistentSectionTooltips({
+        activeSectionId: "215",
+        currentZoom: 16,
+        sectionId: "214",
+        showAllBurials: false,
+      })).toBe(false);
+      expect(shouldShowPersistentSectionTooltips({
+        activeSectionId: "215",
+        currentZoom: 16,
+        sectionId: "215",
+        showAllBurials: false,
+      })).toBe(true);
     });
 
     test("creates text-only section tooltip content for Leaflet", () => {
