@@ -1,107 +1,45 @@
 # Release workflow
 
-FAB uses a small SemVer release model with pull requests as the production
-gate. The current production branch is `main`; the old `master` branch has been
-retired.
+FAB has one long-lived branch and one delivery path.
 
-## Branch model
+## Branch and deployment model
 
-- Start ordinary work from `dev`.
-- Use `dev` as the integration branch for validated work.
-- Use `staging` as the pre-production branch for final validation.
-- Use `main` as the production branch and remote default branch.
-- Use short-lived branches named `codex/*`, `feature/*`, `fix/*`, `docs/*`,
-  `chore/*`, or `hotfix/*`.
-- Promote in order: short-lived branch -> `dev` -> `staging` -> `main`.
-- Squash or rebase short-lived pull requests into `dev`. Use merge commits for
-  `dev` -> `staging` and `staging` -> `main` so the long-lived branches retain
-  shared ancestry and future promotion pull requests stay conflict-free.
-- `dev` -> `staging` promotion is automated after green `dev` CI by
-  `.github/workflows/promote-dev-to-staging.yml`; close the generated PR if
-  staging should intentionally hold.
-- Allow `release/*` branches into `staging` for release preparation.
-- Allow `hotfix/*` branches into `staging` or `main` for emergency production
-  fixes.
-- Do not push directly to `dev`, `staging`, or `main` except for emergency
-  rollback. Protect these branches in GitHub and require the CI checks in this
-  repo before merge.
+- `main` is production.
+- Focused pull requests target `main` directly when branch protection requires
+  review and checks.
+- The single `CI / Quality` job runs lint, unit and DOM tests, generated-file
+  drift checks, a production build, and browser regression tests.
+- On `main`, the same workflow uploads the validated build and runs its Pages
+  deployment job only after `Quality` succeeds.
+- Do not add `dev`, `staging`, automated promotion branches, or branch-name
+  policy checks. They add handoffs without changing the deployed artifact.
 
-## Version policy
+GitHub should protect `main` with the `CI / Quality` check, conversation
+resolution, and no force pushes or deletion. Keep the repository default branch
+and Pages source on `main`.
 
-The app version lives in [`package.json`](../package.json). Use SemVer:
+## Versions and tags
 
-- Patch: bug fixes, documentation corrections, generated artifact refreshes,
-  and behavior-preserving cleanup.
-- Minor: new user-facing map, browse, routing, tour, PWA, or hosted URL
-  behavior that remains backward compatible.
-- Major: breaking URL, data, or native-wrapper contracts.
+The app version lives in [`package.json`](../package.json) and uses SemVer.
+Production releases also have a matching [`CHANGELOG.md`](../CHANGELOG.md)
+section and an optional `vX.Y.Z` tag.
 
-Every production release must update [`CHANGELOG.md`](../CHANGELOG.md) with a
-section matching the package version, for example `## [1.4.2] - 2026-06-12`.
-Keep future work under `## [Unreleased]` until a release branch or release PR
-promotes it.
+- Patch: bug fixes and behavior-preserving cleanup.
+- Minor: backward-compatible product behavior.
+- Major: breaking hosted URL, data, or native-wrapper contracts.
 
-## Pipeline
+Pushing a matching SemVer tag runs the release workflow, validates metadata,
+builds the app, and creates the GitHub Release. Tags do not control deployment;
+`main` does.
 
-1. Create a short-lived branch from `dev`.
-2. Make the smallest coherent production change, including tests and docs.
-3. Run `bun run check` locally for cross-cutting work.
-4. Open a pull request into `dev`.
-5. After `dev` CI passes, GitHub Actions opens or updates a `dev` -> `staging`
-   PR and enables merge-commit auto-merge once that promotion PR's required
-   checks pass.
-6. Promote `staging` to `main` manually with a merge commit after final
-   validation.
-7. CI runs lint, unit/DOM tests, Playwright browser regressions,
-   generated-shell drift, release metadata, and branch policy checks.
-8. Merge after the required checks pass.
-9. For a numbered release, tag the merge commit as `vX.Y.Z` where `X.Y.Z`
-   exactly matches `package.json`.
+## Release checklist
 
-GitHub Actions then:
+1. Run `bun run check` and `bun run build`.
+2. Verify the browser flows affected by the change.
+3. Merge the focused pull request to `main`.
+4. Verify the public GitHub Pages route, not only the Actions result.
+5. For a numbered release, update the version and changelog before tagging the
+   merged commit.
 
-- deploys `main` to GitHub Pages from a reproducible build using the official
-  Pages artifact workflow;
-- validates release tags with `bun run release:check`;
-- creates a GitHub Release for SemVer tags.
-
-## GitHub branch protection
-
-Configure `main`, `staging`, and `dev` in GitHub with branch protection.
-
-For `main`, require:
-
-- pull requests from `staging` or `hotfix/*`
-- status checks:
-  `CI / Lint and test`, `CI / Release metadata`,
-  `CI / Browser regression`, `CI / Pull request branch policy`, and
-  `CI / Generated shell drift`
-- branches to be up to date before merging when practical
-- merge commits enabled for `staging` promotions; conversation resolution, no
-  force pushes, and no deletions
-
-For `staging`, require:
-
-- pull requests from `dev`, `release/*`, or `hotfix/*`
-- the same status checks as `main`
-- merge commits enabled for `dev` promotions; conversation resolution, no
-  force pushes, and no deletions
-- auto-merge may be enabled for the generated `dev` -> `staging` promotion PR
-
-For `dev`, require:
-
-- pull requests from short-lived work branches
-- status checks to pass before merging:
-  `CI / Lint and test`, `CI / Release metadata`,
-  `CI / Browser regression`, `CI / Pull request branch policy`, and
-  `CI / Generated shell drift`
-- linear history, conversation resolution, no force pushes, and no deletions
-
-Linear history remains appropriate for `dev`, where short-lived work is
-squashed or rebased. It must be disabled on `staging` and `main`: squashing or
-rebasing between long-lived branches rewrites the promoted commits, destroys
-their common ancestry, and eventually turns otherwise routine promotions into
-conflict resolutions.
-
-These settings live in GitHub, not in the repository, so this document and the
-workflow checks are the repo-side contract.
+Because `FABFG` loads hosted FAB URLs, routing, selection, and deep-link changes
+need web and native-wrapper acceptance before the release is considered done.

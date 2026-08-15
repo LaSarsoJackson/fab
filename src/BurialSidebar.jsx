@@ -55,25 +55,9 @@ import { buildFieldPacketPanelPresentation } from "./features/fieldPackets";
 import { buildPopupViewModel, cleanRecordValue } from "./features/map/mapRecordPresentation";
 import { resolvePortraitImageName } from "./features/tours/tourDerivedData";
 import {
-  buildBrowseQueryChangeIntent,
   buildSidebarBrowseFlags,
-  buildBrowseSourceChangeIntent,
-  buildClearAllBrowseStateIntent,
-  buildClearBrowseQueryIntent,
-  buildClearSectionFiltersIntent,
-  buildClearTourSelectionIntent,
-  buildFilterTypeSelectionIntent,
-  buildLotTierChangeIntent,
-  buildSectionSelectionIntent,
-  buildToggleSectionMarkersIntent,
-  buildTourSelectionIntent,
-  buildUnavailableTourBrowseResetIntent,
   useBurialSidebarBrowseState,
 } from "./features/browse/sidebarState";
-import {
-  getRuntimeEnv,
-  isFieldPacketsEnabled as resolveFieldPacketsEnabled,
-} from "./shared/runtimeEnv";
 
 /**
  * Sidebar shell for search, tours, and selected-record workflows. Mobile and
@@ -355,6 +339,7 @@ const BrowseResultCard = memo(function BrowseResultCard({
   scopedSectionLabel,
   scopedTourLabel,
   showInlineThumbnail,
+  isLocatorView,
   onSelect,
   onHoverChange,
 }) {
@@ -366,13 +351,18 @@ const BrowseResultCard = memo(function BrowseResultCard({
   });
 
   return (
-    <ListItem disablePadding sx={{ display: "block", pb: 1 }}>
+    <ListItem
+      disablePadding
+      className={isLocatorView ? "left-sidebar__result-row--locator" : ""}
+      sx={{ display: "block", pb: isLocatorView ? 0 : 1 }}
+    >
       <ButtonBase
         component="button"
         type="button"
         focusRipple
         className={[
           "left-sidebar__result-card",
+          isLocatorView ? "left-sidebar__result-card--locator" : "",
           isActive ? "left-sidebar__result-card--active" : "",
         ].filter(Boolean).join(" ")}
         onClick={() => onSelect(result)}
@@ -380,22 +370,35 @@ const BrowseResultCard = memo(function BrowseResultCard({
         onMouseEnter={() => onHoverChange?.(result.id)}
         onMouseLeave={() => onHoverChange?.(null)}
         onBlur={() => onHoverChange?.(null)}
-        aria-pressed={isActive}
+        aria-pressed={isLocatorView ? isPinned : isActive}
         sx={{
           ...rowShellStyles,
           ...interactiveCardButtonSx,
-          border: isActive
-            ? "1px solid rgba(47, 107, 87, 0.22)"
-            : "1px solid rgba(20, 33, 43, 0.08)",
-          background: isActive
-            ? "var(--surface-card-active)"
-            : isHovered
-              ? "var(--surface-card-hover)"
-              : "var(--surface-card)",
-          boxShadow: isActive ? "var(--shadow-row-active)" : "var(--shadow-row)",
+          border: isLocatorView
+            ? 0
+            : isActive
+              ? "1px solid rgba(47, 107, 87, 0.22)"
+              : "1px solid rgba(20, 33, 43, 0.08)",
+          borderBottom: isLocatorView ? "1px solid rgba(20, 33, 43, 0.1)" : undefined,
+          borderRadius: isLocatorView ? 0 : 3,
+          background: isLocatorView
+            ? isActive
+              ? "rgba(47, 107, 87, 0.07)"
+              : "transparent"
+            : isActive
+              ? "var(--surface-card-active)"
+              : isHovered
+                ? "var(--surface-card-hover)"
+                : "var(--surface-card)",
+          boxShadow: isLocatorView ? "none" : isActive ? "var(--shadow-row-active)" : "var(--shadow-row)",
+          padding: isLocatorView ? "12px 2px" : undefined,
           "&:hover": {
-            background: isActive ? "var(--surface-card-active-hover)" : "var(--surface-card-hover)",
-            boxShadow: isActive ? "var(--shadow-row-active-hover)" : "var(--shadow-row-hover)",
+            background: isLocatorView
+              ? "rgba(47, 107, 87, 0.05)"
+              : isActive
+                ? "var(--surface-card-active-hover)"
+                : "var(--surface-card-hover)",
+            boxShadow: isLocatorView ? "none" : isActive ? "var(--shadow-row-active-hover)" : "var(--shadow-row-hover)",
           },
           "&:focus-visible": {
             outline: "2px solid rgba(47, 107, 87, 0.24)",
@@ -410,7 +413,7 @@ const BrowseResultCard = memo(function BrowseResultCard({
           ].filter(Boolean).join(" ")}
         >
           <Box className="left-sidebar__result-card-copy">
-            {presentation.metadataSummary && (
+            {!isLocatorView && presentation.metadataSummary && (
               <Typography
                 variant="caption"
                 sx={{
@@ -435,40 +438,48 @@ const BrowseResultCard = memo(function BrowseResultCard({
                 {presentation.locationSummary}
               </Typography>
             )}
-            {presentation.secondarySummary && (
+            {!isLocatorView && presentation.secondarySummary && (
               <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.5 }}>
                 {presentation.secondarySummary}
               </Typography>
             )}
-            {presentation.lifeSummary && (
+            {!isLocatorView && presentation.lifeSummary && (
               <Typography variant="body2" color="text.secondary" sx={{ position: "relative", zIndex: 1, mt: 0.35 }}>
                 {presentation.lifeSummary}
               </Typography>
             )}
-            <Box sx={{ position: "relative", zIndex: 1, display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1 }}>
-              {isActive && <Chip size="small" color="primary" label="Active" />}
-              {isPinned && !isActive && (
-                <Chip
-                  size="small"
-                  label="Pinned"
-                  sx={{
-                    backgroundColor: "var(--accent-soft)",
-                    color: "var(--accent-strong)",
-                  }}
-                />
-              )}
-              {presentation.tourChipLabel && (
-                <Chip
-                  size="small"
-                  label={presentation.tourChipLabel}
-                  sx={{
-                    color: "white",
-                    backgroundColor: tourColor || "var(--accent)",
-                  }}
-                />
-              )}
-            </Box>
+            {!isLocatorView && (
+              <Box sx={{ position: "relative", zIndex: 1, display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1 }}>
+                {isActive && <Chip size="small" color="primary" label="Active" />}
+                {isPinned && !isActive && (
+                  <Chip
+                    size="small"
+                    label="Pinned"
+                    sx={{
+                      backgroundColor: "var(--accent-soft)",
+                      color: "var(--accent-strong)",
+                    }}
+                  />
+                )}
+                {presentation.tourChipLabel && (
+                  <Chip
+                    size="small"
+                    label={presentation.tourChipLabel}
+                    sx={{
+                      color: "white",
+                      backgroundColor: tourColor || "var(--accent)",
+                    }}
+                  />
+                )}
+              </Box>
+            )}
           </Box>
+          {isLocatorView && (isActive || isPinned) ? (
+            <CheckRoundedIcon
+              className="left-sidebar__result-selected-icon"
+              aria-label={isActive ? "Active burial" : "Pinned burial"}
+            />
+          ) : null}
           {showInlineThumbnail && (
             <BrowseResultPortraitThumbnail result={result} />
           )}
@@ -493,6 +504,7 @@ function BrowseResultsPanel({
   isBurialDataLoading,
   isBrowsePending,
   isCurrentTourLoading,
+  isLocatorView,
   onBrowseResultSelect,
   onClearSelectedBurials,
   onHoverBurialChange,
@@ -590,7 +602,7 @@ function BrowseResultsPanel({
         }}
       >
         <Box sx={{ minWidth: 0 }}>
-          {resultsEyebrow && (
+          {!isLocatorView && resultsEyebrow && (
             <Typography
               variant="caption"
               sx={{
@@ -604,8 +616,8 @@ function BrowseResultsPanel({
               {resultsEyebrow}
             </Typography>
           )}
-          <Typography variant="subtitle2" sx={{ mt: resultsEyebrow ? 0.35 : 0, lineHeight: 1.2 }}>
-            {resultsTitle}
+          <Typography variant="subtitle2" sx={{ mt: !isLocatorView && resultsEyebrow ? 0.35 : 0, lineHeight: 1.2 }}>
+            {isLocatorView ? "Results" : resultsTitle}
           </Typography>
         </Box>
         <Box
@@ -615,22 +627,29 @@ function BrowseResultsPanel({
           {isBrowsePending && <CircularProgress size={14} />}
           {selectedBurialCount > 0 && (
             <>
-              <Chip
-                size="small"
-                label={`${selectedBurialCount.toLocaleString()} selected`}
-                sx={{
-                  backgroundColor: "var(--accent-soft)",
-                  color: "var(--accent-strong)",
-                  fontWeight: 700,
-                }}
-              />
+              {isLocatorView ? (
+                <Typography className="left-sidebar__locator-pinned-count" variant="body2">
+                  {selectedBurialCount.toLocaleString()} pinned
+                </Typography>
+              ) : (
+                <Chip
+                  size="small"
+                  label={`${selectedBurialCount.toLocaleString()} selected`}
+                  sx={{
+                    backgroundColor: "var(--accent-soft)",
+                    color: "var(--accent-strong)",
+                    fontWeight: 700,
+                  }}
+                />
+              )}
               <Button
+                className={isLocatorView ? "left-sidebar__locator-clear" : ""}
                 size="small"
                 color="inherit"
                 variant="text"
                 onClick={onClearSelectedBurials}
               >
-                Clear selected
+                {isLocatorView ? "Clear pins" : "Clear selected"}
               </Button>
             </>
           )}
@@ -706,6 +725,7 @@ function BrowseResultsPanel({
                   isPinned={selectedBurialIds.has(result.id)}
                   isActive={activeBurialId === result.id}
                   isHovered={hoveredBurialId === result.id}
+                  isLocatorView={isLocatorView}
                   tourColor={tourStyles[result.tourKey]?.color || ""}
                   tourStyleName={tourStyles[result.tourKey]?.name || ""}
                   scopedSectionLabel={scopedSectionLabel}
@@ -2086,7 +2106,6 @@ function BurialSidebar({
   initialQuery,
   installPromptEvent,
   isHidden = false,
-  isFieldPacketsEnabled,
   isBurialDataLoading,
   isInstalled,
   isMobile,
@@ -2137,10 +2156,6 @@ function BurialSidebar({
   tourStyles,
   uniqueSections,
 }) {
-  const { isDev } = getRuntimeEnv();
-  const areFieldPacketsEnabled = typeof isFieldPacketsEnabled === "boolean"
-    ? isFieldPacketsEnabled
-    : resolveFieldPacketsEnabled();
   const hasTourBrowse = tourDefinitions.length > 0;
   const initialBrowseSource = useMemo(
     () => {
@@ -2287,147 +2302,92 @@ function BurialSidebar({
   }, [activeView, browseSource, setBrowseSource]);
 
   const handleBrowseQueryChange = useCallback((event) => {
-    const intent = buildBrowseQueryChangeIntent({
-      nextQuery: event.target.value,
-    });
-
-    if (intent.shouldRequestBurialDataLoad) {
-      onRequestBurialDataLoad?.();
-    }
-
-    if (intent.shouldSetBrowseQuery) {
-      setBrowseQuery(intent.browseQueryToSet);
-    }
+    onRequestBurialDataLoad?.();
+    setBrowseQuery(event.target.value);
   }, [onRequestBurialDataLoad, setBrowseQuery]);
 
   const handleClearBrowseQuery = useCallback(() => {
-    const intent = buildClearBrowseQueryIntent();
-
-    if (intent.shouldSetBrowseQuery) {
-      setBrowseQuery(intent.browseQueryToSet);
-    }
+    setBrowseQuery("");
   }, [setBrowseQuery]);
 
   const handleBrowseResultSelect = useCallback((result) => {
     onBrowseResultSelect(result);
-    onRequestViewChange?.("map");
-  }, [onBrowseResultSelect, onRequestViewChange]);
+    if (activeView !== "search") {
+      onRequestViewChange?.("map");
+    }
+  }, [activeView, onBrowseResultSelect, onRequestViewChange]);
 
   const handleSectionSelection = useCallback((nextSection) => {
-    const intent = buildSectionSelectionIntent({ nextSection });
-
-    if (intent.shouldRequestBurialDataLoad) {
-      onRequestBurialDataLoad?.();
-    }
-
-    if (intent.shouldSetBrowseSource) {
-      setBrowseSource(intent.browseSourceToSet);
-    }
-
-    if (intent.shouldSetSectionFilter) {
-      onSectionChange(intent.sectionFilterToSet);
-    }
-
+    onRequestBurialDataLoad?.();
+    setBrowseSource("section");
+    onSectionChange(nextSection || "");
   }, [onRequestBurialDataLoad, onSectionChange, setBrowseSource]);
 
   const handleToggleSectionMarkers = useCallback(() => {
-    const intent = buildToggleSectionMarkersIntent();
-
-    if (intent.shouldRequestBurialDataLoad) {
-      onRequestBurialDataLoad?.();
-    }
-
-    if (intent.shouldToggleSectionMarkers) {
-      onToggleSectionMarkers();
-    }
-
+    onRequestBurialDataLoad?.();
+    onToggleSectionMarkers();
   }, [onRequestBurialDataLoad, onToggleSectionMarkers]);
 
   const handleFilterTypeSelection = useCallback((nextFilterType) => {
-    const intent = buildFilterTypeSelectionIntent({ nextFilterType });
-
-    if (intent.shouldSetFilterType) {
-      onFilterTypeChange(intent.filterTypeToSet);
-    }
-
+    onFilterTypeChange(nextFilterType);
   }, [onFilterTypeChange]);
 
   const handleLotTierChange = useCallback((nextValue) => {
-    const intent = buildLotTierChangeIntent({ nextValue });
-
-    if (intent.shouldSetLotTierFilter) {
-      onLotTierFilterChange(intent.lotTierFilterToSet);
-    }
-
+    onLotTierFilterChange(nextValue);
   }, [onLotTierFilterChange]);
 
   const handleClearSectionFilters = useCallback(() => {
-    const intent = buildClearSectionFiltersIntent();
+    setBrowseSource("section");
+    onClearSectionFilters();
+  }, [onClearSectionFilters, setBrowseSource]);
 
-    if (intent.shouldSetBrowseSource) {
-      setBrowseSource(intent.browseSourceToSet);
-    }
-
-    if (intent.shouldClearSectionFilters) {
-      onClearSectionFilters();
-    }
-
+  const handleExitSectionBrowse = useCallback(() => {
+    setBrowseSource("all");
+    onClearSectionFilters();
   }, [onClearSectionFilters, setBrowseSource]);
 
   const handleTourSelection = useCallback((tourName) => {
-    const intent = buildTourSelectionIntent({
-      hasTourBrowse,
-      tourName,
-    });
+    if (!hasTourBrowse) return;
 
-    if (intent.shouldSetBrowseSource) {
-      setBrowseSource(intent.browseSourceToSet);
-    }
-
-    if (intent.shouldSetTourSelection) {
-      onTourChange(intent.selectedTourToSet);
-      onRequestViewChange?.("map");
-    }
+    setBrowseSource("tour");
+    onTourChange(tourName);
+    onRequestViewChange?.("map");
   }, [hasTourBrowse, onRequestViewChange, onTourChange, setBrowseSource]);
 
   const handleClearTourSelection = useCallback(() => {
-    const intent = buildClearTourSelectionIntent();
-
-    if (intent.shouldSetBrowseSource) {
-      setBrowseSource(intent.browseSourceToSet);
-    }
-
-    if (intent.shouldSetTourSelection) {
-      onTourChange(intent.selectedTourToSet);
-    }
-
+    setBrowseSource("tour");
+    onTourChange(null);
   }, [onTourChange, setBrowseSource]);
 
   const handleBrowseSourceChange = useCallback((nextSource) => {
-    const intent = buildBrowseSourceChangeIntent({
-      browseSource,
-      hasSectionFilters,
-      hasTourBrowse,
-      hasTourSelection,
-      nextSource,
-    });
+    const normalizedSource = nextSource || "all";
+    onRequestBurialDataLoad?.();
 
-    if (intent.shouldRequestBurialDataLoad) {
-      onRequestBurialDataLoad?.();
+    if (normalizedSource === "tour" && !hasTourBrowse) return;
+
+    if (normalizedSource === "all") {
+      setBrowseSource("all");
+      if (hasSectionFilters) onClearSectionFilters();
+      if (hasTourSelection) onTourChange(null);
+      return;
     }
 
-    if (intent.browseSourceToSet) {
-      setBrowseSource(intent.browseSourceToSet);
+    const isEmptyActiveScope = normalizedSource === browseSource && (
+      (normalizedSource === "section" && !hasSectionFilters)
+      || (normalizedSource === "tour" && !hasTourSelection)
+    );
+    if (isEmptyActiveScope) {
+      setBrowseSource("all");
+      return;
     }
 
-    if (intent.shouldClearSectionFilters) {
+    setBrowseSource(normalizedSource);
+    if (normalizedSource === "section") {
+      setBrowseQuery("");
+      if (hasTourSelection) onTourChange(null);
+    } else if (hasSectionFilters) {
       onClearSectionFilters();
     }
-
-    if (intent.shouldClearTourSelection) {
-      onTourChange(null);
-    }
-
   }, [
     browseSource,
     hasSectionFilters,
@@ -2436,44 +2396,31 @@ function BurialSidebar({
     onClearSectionFilters,
     onRequestBurialDataLoad,
     onTourChange,
+    setBrowseQuery,
     setBrowseSource,
   ]);
 
   useEffect(() => {
-    const intent = buildUnavailableTourBrowseResetIntent({
-      browseSource,
-      hasTourBrowse,
-    });
-
-    if (intent.shouldSetBrowseSource) {
-      setBrowseSource(intent.browseSourceToSet);
+    if (!hasTourBrowse && browseSource === "tour") {
+      setBrowseSource("all");
     }
   }, [browseSource, hasTourBrowse, setBrowseSource]);
 
   const handleClearAllBrowseState = useCallback(() => {
-    const intent = buildClearAllBrowseStateIntent({
-      lotTierFilter,
-      sectionFilter,
-      selectedTour,
-    });
+    setBrowseQuery("");
+    setBrowseSource("all");
 
-    setBrowseQuery(intent.browseQueryToSet);
-    setBrowseSource(intent.browseSourceToSet);
-
-    if (intent.shouldClearSectionFilters) {
+    if (sectionFilter) {
       onClearSectionFilters();
-    } else if (intent.shouldClearLotTierFilter) {
-      onLotTierFilterChange(intent.lotTierFilterToSet);
+    } else if (lotTierFilter) {
+      onLotTierFilterChange("");
     }
 
-    if (intent.shouldClearTourSelection) {
-      onTourChange(intent.selectedTourToSet);
+    if (selectedTour) {
+      onTourChange(null);
     }
 
-    if (intent.shouldClearSelectedBurials) {
-      onClearSelectedBurials();
-    }
-
+    onClearSelectedBurials();
   }, [
     lotTierFilter,
     onClearSectionFilters,
@@ -2586,7 +2533,6 @@ function BurialSidebar({
     shouldShowBrowseResults,
     shouldShowFieldPacketPanel,
   } = buildSidebarContentVisibility({
-    areFieldPacketsEnabled,
     browseQuery,
     hasFieldPacketContent: hasFieldPacketContent(fieldPacket),
     isBrowsePending,
@@ -2607,6 +2553,7 @@ function BurialSidebar({
       isBurialDataLoading={isBurialDataLoading}
       isBrowsePending={isBrowsePending}
       isCurrentTourLoading={isCurrentTourLoading}
+      isLocatorView={activeView === "search"}
       onBrowseResultSelect={handleBrowseResultSelect}
       onClearSelectedBurials={onClearSelectedBurials}
       onHoverBurialChange={onHoverBurialChange}
@@ -2664,6 +2611,7 @@ function BurialSidebar({
       onClearAllBrowseState={handleClearAllBrowseState}
       onClearBrowseQuery={handleClearBrowseQuery}
       onClearSectionFilters={handleClearSectionFilters}
+      onExitSectionBrowse={handleExitSectionBrowse}
       onClearTourSelection={handleClearTourSelection}
       onFilterTypeSelection={handleFilterTypeSelection}
       onLotTierChange={handleLotTierChange}
@@ -2687,22 +2635,6 @@ function BurialSidebar({
       uniqueSections={uniqueSections}
     />
   );
-
-  const devChip = isDev ? (
-    <Chip
-      size="small"
-      label="Dev"
-      sx={{
-        height: 18,
-        fontSize: "0.65rem",
-        fontWeight: 700,
-        letterSpacing: 0.5,
-        backgroundColor: "rgba(154, 108, 25, 0.15)",
-        color: "#9a6c19",
-        border: "1px solid rgba(154, 108, 25, 0.35)",
-      }}
-    />
-  ) : null;
 
   const dataErrorContent = (burialDataError || mapDataError || tourLayerError) ? (
     <Box sx={{ display: "grid", gap: 0.75, mt: 1 }}>
@@ -2750,21 +2682,30 @@ function BurialSidebar({
       {browseWorkspaceContent}
 
       {(activeView === "" || activeView === "search") && shouldShowFieldPacketPanel && (
-        <FieldPacketPanel
-          fieldPacket={fieldPacket}
-          fieldPacketNotice={fieldPacketNotice}
-          installPromptEvent={installPromptEvent}
-          iosAppStoreUrl={iosAppStoreUrl}
-          isInstalled={isInstalled}
-          onClearFieldPacket={onClearFieldPacket}
-          onCopyFieldPacketLink={onCopyFieldPacketLink}
-          onInstallApp={onInstallApp}
-          onShareFieldPacket={onShareFieldPacket}
-          onUpdateFieldPacket={onUpdateFieldPacket}
-          selectedBurials={selectedBurials}
-          sharedLinkLandingState={sharedLinkLandingState}
-          showIosInstallHint={showIosInstallHint}
-        />
+        <Box
+          component="details"
+          className="field-packet-disclosure"
+          open={Boolean(sharedLinkLandingState) || undefined}
+        >
+          <Box component="summary" className="field-packet-disclosure__summary">
+            Share pinned graves
+          </Box>
+          <FieldPacketPanel
+            fieldPacket={fieldPacket}
+            fieldPacketNotice={fieldPacketNotice}
+            installPromptEvent={installPromptEvent}
+            iosAppStoreUrl={iosAppStoreUrl}
+            isInstalled={isInstalled}
+            onClearFieldPacket={onClearFieldPacket}
+            onCopyFieldPacketLink={onCopyFieldPacketLink}
+            onInstallApp={onInstallApp}
+            onShareFieldPacket={onShareFieldPacket}
+            onUpdateFieldPacket={onUpdateFieldPacket}
+            selectedBurials={selectedBurials}
+            sharedLinkLandingState={sharedLinkLandingState}
+            showIosInstallHint={showIosInstallHint}
+          />
+        </Box>
       )}
     </Box>
   );
@@ -2773,14 +2714,18 @@ function BurialSidebar({
     <Paper
       ref={setSidebarRootNode}
       elevation={0}
-      className={`${sidebarClassName} fab-page${isHidden ? " fab-page--hidden" : ""}`}
+      className={[
+        sidebarClassName,
+        "fab-page",
+        activeView === "search" ? "fab-page--locator" : "",
+        isHidden ? "fab-page--hidden" : "",
+      ].filter(Boolean).join(" ")}
       aria-hidden={isHidden ? "true" : undefined}
     >
       <Box className="fab-page__header">
         <Box component="a" href={APP_HOME_URL} className="fab-page__brand">
           {APP_NAVIGATION_TITLE}
         </Box>
-        {devChip}
       </Box>
       <Box className="fab-page__body">
         {bodyContent}

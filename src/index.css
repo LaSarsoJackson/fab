@@ -9,6 +9,7 @@
   --app-width: 100vw;
   --app-offset-top: 0px;
   --app-navigation-height: calc(78px + var(--safe-area-bottom));
+  --locator-map-height: clamp(300px, 43dvh, 430px);
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -318,6 +319,171 @@ select,
   -webkit-backdrop-filter: none !important;
 }
 
+/* The FABFG locator contract is one workspace: map first, records immediately
+   below it, and a person pin added without navigating away from the list. */
+.map-stage--locator {
+  inset: 0 0 auto !important;
+  height: var(--locator-map-height);
+  z-index: 1000;
+}
+
+.fab-page--locator {
+  inset: var(--locator-map-height) 0 var(--app-navigation-height) !important;
+  z-index: 1200;
+  box-shadow:
+    0 -1px 0 rgba(20, 33, 43, 0.1),
+    0 -12px 28px rgba(20, 33, 43, 0.08) !important;
+}
+
+.fab-page--locator .fab-page__header {
+  display: none;
+}
+
+.fab-page--locator .fab-page__content {
+  width: 100%;
+  padding: 16px 16px 28px;
+}
+
+.fab-page--locator .fab-workspace__intro {
+  margin-bottom: 12px;
+}
+
+.fab-page--locator .fab-workspace__title.MuiTypography-root {
+  font-size: 1.35rem;
+}
+
+.fab-page--locator .fab-workspace__results {
+  margin-top: 14px;
+}
+
+.fab-page--locator .left-sidebar__browse-detail--compact {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.fab-page--locator .left-sidebar__browse-detail--compact .left-sidebar__browse-detail-title {
+  color: var(--text-main);
+  font-weight: 650;
+}
+
+.fab-page--locator .left-sidebar__browse-detail--compact .left-sidebar__browse-detail-clear.MuiButton-root,
+.fab-page--locator .left-sidebar__locator-clear.MuiButton-root {
+  min-width: 0;
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  box-shadow: none;
+  font-weight: 650;
+}
+
+.fab-page--locator .left-sidebar__browse-detail--compact .MuiOutlinedInput-root {
+  min-height: 44px;
+  border-radius: 14px;
+  background: #f6f7f8;
+}
+
+.fab-page--locator .left-sidebar__browse-detail--compact .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(20, 33, 43, 0.1);
+}
+
+.fab-page--locator .left-sidebar__section-refinement--compact {
+  padding-top: 10px;
+  border-top: 1px solid rgba(20, 33, 43, 0.1);
+}
+
+.fab-page--locator .left-sidebar__section-refinement--compact .left-sidebar__browse-detail-title {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted-text);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.fab-page--locator .left-sidebar__section-refinement--compact .MuiButtonGroup-root {
+  padding: 3px;
+  border-radius: 12px;
+  background: #eef1ef;
+  box-shadow: none;
+}
+
+.fab-page--locator .left-sidebar__section-refinement--compact .MuiButton-root {
+  min-width: 0;
+  min-height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted-text);
+  box-shadow: none;
+}
+
+.fab-page--locator .left-sidebar__section-refinement--compact .MuiButton-contained {
+  background: #ffffff;
+  color: var(--text-main);
+  box-shadow: 0 1px 3px rgba(20, 33, 43, 0.12);
+}
+
+.fab-page--locator .left-sidebar__results-section {
+  gap: 8px;
+}
+
+.fab-page--locator .left-sidebar__results-header {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.fab-page--locator .left-sidebar__results-toolbar {
+  flex-wrap: nowrap;
+}
+
+.fab-page--locator .left-sidebar__locator-pinned-count.MuiTypography-root {
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.fab-page--locator .left-sidebar__results-scroll {
+  border-top: 1px solid rgba(20, 33, 43, 0.1);
+}
+
+.fab-page--locator .left-sidebar__result-card-layout {
+  grid-template-columns: minmax(0, 1fr) 24px;
+  gap: 12px;
+}
+
+.fab-page--locator .left-sidebar__result-card-copy .MuiTypography-subtitle2 {
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.fab-page--locator .left-sidebar__result-card-copy .MuiTypography-body2 {
+  margin-top: 3px;
+  overflow: hidden;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fab-page--locator .left-sidebar__result-selected-icon.MuiSvgIcon-root {
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+}
+
+.fab-page--locator .left-sidebar__results-pagination-button.MuiButton-contained {
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  box-shadow: none;
+}
+
 .fab-workspace {
   display: flex;
   flex-direction: column;
@@ -428,6 +594,26 @@ select,
   padding-top: 12px;
 }
 
+.field-packet-disclosure {
+  margin-top: 14px;
+}
+
+.field-packet-disclosure__summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--accent-strong);
+  font-size: 0.92rem;
+  font-weight: 650;
+  list-style-position: inside;
+  touch-action: manipulation;
+}
+
+.field-packet-disclosure[open] .field-packet-disclosure__summary {
+  margin-bottom: 8px;
+}
+
 @media (min-width: 841px) {
   :root {
     --app-navigation-height: 64px;
@@ -454,7 +640,7 @@ select,
   }
 
   .fab-navigation__items {
-    width: 360px;
+    width: 440px;
     align-self: stretch;
   }
 
@@ -465,6 +651,10 @@ select,
     justify-content: center;
     gap: 8px;
     font-size: 0.9rem;
+  }
+
+  .fab-navigation__item > span:last-child {
+    white-space: nowrap;
   }
 
   .fab-navigation__item--active.MuiButtonBase-root::after {
@@ -499,6 +689,34 @@ select,
 
   .fab-workspace__intro {
     margin-bottom: 30px;
+  }
+
+  .map-stage--locator {
+    inset: var(--app-navigation-height) 0 0 420px !important;
+    height: auto;
+  }
+
+  .fab-page--locator {
+    inset: var(--app-navigation-height) auto 0 0 !important;
+    width: 420px !important;
+    max-width: 420px !important;
+    box-shadow:
+      1px 0 0 rgba(20, 33, 43, 0.1),
+      12px 0 28px rgba(20, 33, 43, 0.08) !important;
+  }
+
+  .fab-page--locator .fab-page__content {
+    width: 100%;
+    padding: 28px 24px 40px;
+  }
+
+  .fab-page--locator .fab-workspace {
+    max-width: none;
+    margin: 0;
+  }
+
+  .fab-page--locator .fab-workspace__intro {
+    margin-bottom: 16px;
   }
 
   .fab-tour-catalog__row.MuiButtonBase-root {
@@ -1650,6 +1868,20 @@ select,
     0 6px 16px rgba(20, 33, 43, 0.3);
 }
 
+.selected-burial-marker-icon {
+  transition-property: filter, scale;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+  transform-origin: 50% 100%;
+}
+
+.selected-burial-marker-icon--highlighted {
+  filter:
+    drop-shadow(0 0 2px rgba(255, 255, 255, 0.95))
+    drop-shadow(0 4px 8px rgba(20, 33, 43, 0.34));
+  scale: 1.06;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cemetery-cluster {
     animation: none;
@@ -1681,21 +1913,23 @@ select,
 }
 
 .tour-marker {
-  transition: transform 0.3s ease;
-  will-change: transform;
+  transition: transform 160ms ease;
 }
 
 .tour-marker:hover {
-  transform: scale(1.2);
+  transform: scale(1.06);
 }
 
 .tour-marker div {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: box-shadow 160ms ease;
 }
 
 .tour-marker:hover div {
-  transform: scale(1.2);
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.35);
+}
+
+.tour-marker:active {
+  transform: scale(0.96);
 }
 
 .leaflet-popup-content-wrapper {
@@ -1767,6 +2001,7 @@ select,
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text-main);
+  text-wrap: balance;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -1945,7 +2180,8 @@ select,
   max-height: 220px;
   object-fit: cover;
   border-radius: 14px;
-  border: 1px solid var(--panel-border);
+  outline: 1px solid rgba(0, 0, 0, 0.1);
+  outline-offset: -1px;
   box-shadow: 0 10px 24px rgba(20, 33, 43, 0.12);
 }
 
@@ -1977,7 +2213,11 @@ select,
   overflow-wrap: anywhere;
   cursor: pointer;
   touch-action: manipulation;
-  transition: box-shadow 120ms ease, background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  transition: box-shadow 120ms ease, background-color 120ms ease, border-color 120ms ease, color 120ms ease, scale 120ms ease;
+}
+
+.popup-card__action:active {
+  scale: 0.96;
 }
 
 .popup-card__action--primary {
@@ -2069,8 +2309,11 @@ select,
 
 .leaflet-popup .popup-card__action {
   width: 100%;
-  padding-right: 0.4rem;
-  padding-left: 0.4rem;
+  padding-right: 0.25rem;
+  padding-left: 0.25rem;
+  font-size: 0.76rem;
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 .leaflet-popup .popup-card__media {
@@ -2389,271 +2632,6 @@ select,
   .left-sidebar--desktop {
     width: min(360px, calc(100vw - 24px));
   }
-}
-
-/* ── react-spring-bottom-sheet overrides (mobile drawer) ──
- * Styled after the iOS sheet material: translucent blur, hairline top edge,
- * system grabber, and a pinned header that owns the brand line and search
- * field at every snap height. */
-
-[data-rsbs-overlay] {
-  --rsbs-overlay-rounded: 20px;
-  z-index: 1200 !important;
-  border-top-left-radius: 20px;
-  border-top-right-radius: 20px;
-  background: rgba(247, 248, 250, 0.86) !important;
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
-  backdrop-filter: blur(30px) saturate(180%);
-  box-shadow:
-    0 0 0 0.5px rgba(20, 33, 43, 0.14),
-    0 -8px 28px rgba(20, 33, 43, 0.18) !important;
-  border: none;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Manrope', 'Segoe UI', sans-serif;
-  color: var(--text-main);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  [data-rsbs-overlay] {
-    background: rgba(248, 249, 251, 0.98) !important;
-  }
-}
-
-[data-rsbs-header] {
-  position: relative;
-  padding: 16px 14px 10px;
-  box-shadow: 0 0.5px 0 rgba(20, 33, 43, 0.12);
-  cursor: grab;
-}
-
-/* iOS-style grabber. */
-[data-rsbs-header]::before {
-  display: block;
-  position: absolute;
-  content: '';
-  top: 6px;
-  left: 50%;
-  width: 36px;
-  height: 5px;
-  border-radius: 999px;
-  background: rgba(60, 60, 67, 0.3);
-  transform: translateX(-50%);
-}
-
-[data-rsbs-backdrop] {
-  /* No dimming tint; the map stays visible. */
-  background: transparent !important;
-  pointer-events: none !important;
-}
-
-[data-rsbs-root] {
-  --rsbs-bg: transparent;
-}
-
-[data-rsbs-scroll] {
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-[data-rsbs-scroll]::-webkit-scrollbar {
-  display: none;
-}
-
-[data-rsbs-root][data-rsbs-has-footer='false'] [data-rsbs-content] {
-  padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 24px));
-}
-
-.left-sidebar__mobile-body {
-  display: grid;
-  gap: 0;
-  overflow-anchor: none;
-}
-
-/* ── Pinned mobile sheet header (brand + search) ── */
-
-.mobile-sheet-header {
-  display: grid;
-  gap: 10px;
-}
-
-.mobile-sheet-header__top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 30px;
-}
-
-.mobile-sheet-header__brand {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex: 1 1 auto;
-  min-width: 0;
-  color: inherit;
-  text-decoration: none;
-}
-
-/* MUI injects Typography styles at runtime with equal specificity, so qualify
- * with the MUI class to keep these sizes in charge. */
-.mobile-sheet-header__title.MuiTypography-root {
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-  line-height: 1.25;
-  font-family: inherit;
-  color: var(--text-main);
-  white-space: nowrap;
-}
-
-.mobile-sheet-header__eyebrow.MuiTypography-root {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.6px;
-  line-height: 1.3;
-  font-family: inherit;
-  text-transform: uppercase;
-  color: var(--muted-text);
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mobile-sheet-header__actions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-/* iOS circular quaternary-fill buttons (like Maps' sheet controls). */
-.mobile-sheet-header__icon-button.MuiIconButton-root {
-  position: relative;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: none;
-  background-color: rgba(120, 120, 128, 0.16);
-  color: rgba(60, 60, 67, 0.6);
-}
-
-.mobile-sheet-header__icon-button.MuiIconButton-root:hover,
-.mobile-sheet-header__icon-button.MuiIconButton-root:active {
-  background-color: rgba(120, 120, 128, 0.24);
-}
-
-/* 36px visual button, 44px hit target. */
-.mobile-sheet-header__icon-button.MuiIconButton-root::after {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  border-radius: 999px;
-}
-
-/* iOS search-bar treatment for the MUI text field inside the pinned header.
- * Font stays ≥16px so iOS Safari never zooms the viewport on focus. */
-.mobile-sheet-header .MuiTextField-root .MuiOutlinedInput-root {
-  min-height: 44px;
-  border-radius: 12px;
-  background-color: rgba(120, 120, 128, 0.12);
-  font-size: 17px;
-  font-family: inherit;
-}
-
-.mobile-sheet-header .MuiTextField-root .MuiOutlinedInput-notchedOutline {
-  border: none;
-}
-
-.mobile-sheet-header .MuiTextField-root .MuiOutlinedInput-root.Mui-focused {
-  background-color: rgba(120, 120, 128, 0.16);
-}
-
-/* The iOS search bar signals focus with its fill, not the app's focus ring. */
-.mobile-sheet-header .MuiTextField-root input:focus-visible {
-  outline: none;
-  box-shadow: none;
-}
-
-.mobile-sheet-header .MuiTextField-root .MuiInputAdornment-root .MuiSvgIcon-root {
-  color: rgba(60, 60, 67, 0.6);
-}
-
-.mobile-sheet-header .MuiTextField-root input::placeholder {
-  color: rgba(60, 60, 67, 0.6);
-  opacity: 1;
-}
-
-/* Selected mobile place: the bottom sheet becomes the popup instead of
- * competing with a second Leaflet card above the map. */
-[data-rsbs-header]:has(.mobile-location-header) {
-  padding-bottom: 8px;
-  box-shadow: none;
-}
-
-.mobile-location-header {
-  display: grid;
-  gap: 6px;
-  padding-top: 2px;
-}
-
-.mobile-location-header__back.MuiButtonBase-root {
-  justify-self: start;
-  min-width: 0;
-  min-height: 44px;
-  margin-left: -8px;
-  padding: 0 10px 0 6px;
-  border-radius: 12px;
-  color: #176449;
-  font: inherit;
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.15px;
-  transition-property: background-color, scale;
-  transition-duration: 150ms;
-  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
-}
-
-.mobile-location-header__back.MuiButtonBase-root:hover {
-  background-color: rgba(23, 100, 73, 0.08);
-}
-
-.mobile-location-header__back.MuiButtonBase-root:active {
-  scale: 0.96;
-}
-
-.mobile-location-header__back .MuiSvgIcon-root {
-  width: 18px;
-  height: 18px;
-  margin-right: 3px;
-}
-
-.mobile-location-header__copy {
-  min-width: 0;
-  padding: 0 2px 3px;
-  text-align: left;
-}
-
-.mobile-location-header__title.MuiTypography-root {
-  margin: 0;
-  color: #164f3d;
-  font-family: inherit;
-  font-size: clamp(23px, 6.5vw, 28px);
-  font-weight: 750;
-  letter-spacing: -0.75px;
-  line-height: 1.1;
-  text-wrap: balance;
-}
-
-.mobile-location-header__subtitle.MuiTypography-root {
-  margin: 5px 0 0;
-  color: rgba(60, 60, 67, 0.68);
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.3;
-  text-wrap: pretty;
 }
 
 .mobile-location-card {
@@ -3201,8 +3179,54 @@ select,
     min-height: var(--app-height);
   }
 
+  .fab-page--locator .left-sidebar__results-header {
+    align-items: center;
+  }
+
+  .fab-page--locator .left-sidebar__results-toolbar {
+    width: auto;
+    margin-left: auto;
+    justify-content: flex-end;
+  }
+
   .leaflet-popup .popup-card {
     max-height: min(50svh, 420px);
+  }
+
+  /* The locator shares the first mobile screen with its result list. Keep an
+     intentionally opened pin card compact enough to remain inside that map
+     band instead of cropping the person's name above the viewport. */
+  .map-stage--locator .leaflet-popup .popup-card {
+    max-height: min(205px, calc(43dvh - 64px));
+    padding: 0.65rem 0.75rem 0.7rem;
+  }
+
+  .map-stage--locator .leaflet-popup .popup-card__eyebrow {
+    display: none;
+  }
+
+  .map-stage--locator .leaflet-popup .popup-card__subtitle {
+    margin-top: 0.25rem;
+    font-size: 0.82rem;
+    line-height: 1.25;
+  }
+
+  .map-stage--locator .leaflet-popup .popup-card__details {
+    margin-top: 0.45rem;
+    gap: 0.3rem;
+  }
+
+  .map-stage--locator .leaflet-popup .popup-card__row dt {
+    font-size: 0.66rem;
+  }
+
+  .map-stage--locator .leaflet-popup .popup-card__row dd {
+    font-size: 0.82rem;
+    line-height: 1.2;
+  }
+
+  .map-stage--locator .leaflet-popup .popup-card__actions {
+    margin-top: 0.5rem;
   }
 
   .leaflet-popup .popup-card-stack {

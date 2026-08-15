@@ -1,4 +1,7 @@
 import L from "leaflet";
+import markerIconUrl from "leaflet/dist/images/marker-icon.png";
+import markerIconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
+import markerShadowUrl from "leaflet/dist/images/marker-shadow.png";
 
 export const MAP_MARKER_COLORS = [
   "#2f6b57",
@@ -204,6 +207,58 @@ export const createSelectedLocationIcon = ({ count = 0, isHighlighted = false } 
     className: "custom-cluster-icon selected-location-marker-icon",
   })
 );
+
+const selectedBurialIcons = new Map();
+
+export const getSelectedBurialPinOffset = (index = 0, count = 1) => {
+  const normalizedCount = Math.max(1, Math.floor(Number(count) || 1));
+  const normalizedIndex = Math.max(0, Math.floor(Number(index) || 0));
+
+  if (normalizedCount === 1) {
+    return { x: 0, y: 0 };
+  }
+
+  if (normalizedCount === 2) {
+    return { x: normalizedIndex % 2 === 0 ? -14 : 14, y: 0 };
+  }
+
+  const angle = ((Math.PI * 2) / normalizedCount) * normalizedIndex - (Math.PI / 2);
+  const radius = 18;
+
+  return {
+    x: Math.round(Math.cos(angle) * radius),
+    y: Math.round(Math.sin(angle) * radius),
+  };
+};
+
+/**
+ * FABFG's locator represents a selected burial as a normal map pin, not a
+ * cluster/count badge. Keep active styling in the class name so Leaflet can
+ * reuse one icon per state while each person remains a separate Marker.
+ */
+export const createSelectedBurialIcon = ({ isHighlighted = false, offset = null } = {}) => {
+  const offsetX = Math.round(Number(offset?.x) || 0);
+  const offsetY = Math.round(Number(offset?.y) || 0);
+  const state = isHighlighted ? "highlighted" : "default";
+  const cacheKey = `${state}:${offsetX}:${offsetY}`;
+
+  if (!selectedBurialIcons.has(cacheKey)) {
+    selectedBurialIcons.set(cacheKey, new L.Icon.Default({
+      className: [
+        "selected-burial-marker-icon",
+        isHighlighted ? "selected-burial-marker-icon--highlighted" : "",
+      ].filter(Boolean).join(" "),
+      iconRetinaUrl: markerIconRetinaUrl,
+      iconUrl: markerIconUrl,
+      shadowUrl: markerShadowUrl,
+      iconAnchor: [12 - offsetX, 41 - offsetY],
+      popupAnchor: [offsetX + 1, offsetY - 34],
+      tooltipAnchor: [offsetX + 16, offsetY - 28],
+    }));
+  }
+
+  return selectedBurialIcons.get(cacheKey);
+};
 
 export const getSectionClusterIcon = (count = 0) => {
   return getSectionPoiIcon({

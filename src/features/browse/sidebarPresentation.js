@@ -30,24 +30,6 @@ export const buildAutocompletePresentation = ({
     },
 });
 
-export const buildMobileSearchPanelTogglePresentation = ({
-  collapsedSheetState = "collapsed",
-  isMobileSearchPanelCollapsedByControl = false,
-  resolvedMobileSheetState = "",
-} = {}) => {
-  const isCollapsed = Boolean(isMobileSearchPanelCollapsedByControl)
-    || resolvedMobileSheetState === collapsedSheetState;
-
-  return {
-    iconSx: {
-      transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)",
-      transition: "transform 0.2s ease",
-    },
-    isCollapsed,
-    label: isCollapsed ? "Search" : "Collapse",
-  };
-};
-
 export const getSelectedSectionOption = ({
   sectionFilter = "",
   uniqueSections = [],
@@ -62,7 +44,6 @@ export const getSidebarClassName = ({
 );
 
 export const buildSidebarContentVisibility = ({
-  areFieldPacketsEnabled = false,
   browseQuery = "",
   hasFieldPacketContent = false,
   isBrowsePending = false,
@@ -80,8 +61,7 @@ export const buildSidebarContentVisibility = ({
   return {
     hasExplicitBrowseResultsContext,
     shouldShowBrowseResults: hasExplicitBrowseResultsContext,
-    shouldShowFieldPacketPanel: Boolean(areFieldPacketsEnabled)
-      && (selectedBurialsLength > 0 || Boolean(hasFieldPacketContent)),
+    shouldShowFieldPacketPanel: selectedBurialsLength > 0 || Boolean(hasFieldPacketContent),
   };
 };
 
@@ -353,7 +333,10 @@ export const buildBrowseResultsPanelPresentation = ({
   const normalizedVisibleCount = Number.isFinite(Number(visibleCount)) && Number(visibleCount) > 0
     ? Number(visibleCount)
     : normalizedBatchSize;
-  const shouldPageResults = browseSource === "all";
+  // Curated tours are intentionally short and preserve their authored order.
+  // Cemetery sections can contain hundreds of records, so page those lists
+  // just like global search to keep the locator quick and scannable on iPhone.
+  const shouldPageResults = browseSource !== "tour";
   const visibleResults = shouldPageResults
     ? displayedResults.slice(0, normalizedVisibleCount)
     : displayedResults;

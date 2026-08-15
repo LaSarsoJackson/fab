@@ -22,7 +22,6 @@ module.exports = defineConfig({
       : undefined,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    video: "retain-on-failure",
     viewport: { width: 1440, height: 960 },
   },
   webServer: {

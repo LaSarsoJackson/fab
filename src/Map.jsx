@@ -13,7 +13,7 @@
 
 import React, { memo, useState, useEffect, useMemo, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
-import { MapContainer, Popup, Marker, GeoJSON, useMap } from "react-leaflet";
+import { MapContainer, Popup, Marker, GeoJSON, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
 import "./index.css";
 import "leaflet.markercluster/dist/leaflet.markercluster";
@@ -65,6 +65,7 @@ import {
   AUTO_BASEMAP_ID,
   clearLeafletSectionHover,
   formatRouteSummary,
+  focusMapSelectionRecord,
   MAP_PRESENTATION_POLICY,
   resolveEffectiveBasemapId,
   getSectionBurialMarkerStyle,
@@ -87,6 +88,7 @@ import {
   resolveClusterExpansionZoom,
   resolvePointSelectionFocusZoom,
   getClusterIconCount,
+  resolveFocusedBurialSelection,
   resolveRecordLocationGroup,
   resolveMapPresentationPolicy,
   selectBestRecentLocationCandidate,
@@ -125,7 +127,8 @@ import {
 import {
   createCemeteryClusterIcon,
   createLocationMarkerIcon,
-  createSelectedLocationIcon,
+  createSelectedBurialIcon,
+  getSelectedBurialPinOffset,
   MAP_MARKER_COLORS,
 } from "./features/map/mapMarkerIcons";
 import { quantizeZoom, selectDecollidedMarkers } from "./features/map/mapMarkerDeclutter";
@@ -145,7 +148,6 @@ import {
 } from "./features/map/mapViewHelpers";
 import {
   PopupCardContent,
-  PopupCardStackContent,
   createMapRecordKey,
 } from "./features/map/popupCardContent";
 import {
@@ -171,11 +173,10 @@ import { buildDirectionsLink } from "./shared/routing";
 import {
   cancelIdleTask,
   buildPublicAssetUrl,
-  getRuntimeEnv,
-  isFieldPacketsEnabled as resolveFieldPacketsEnabled,
   scheduleIdleTask,
   syncDocumentMetadata,
 } from "./shared/runtimeEnv";
+import { recoverFromStaleChunkLoad } from "./shared/chunkRecovery";
 
 const FOCUS_ZOOM_LEVEL = MAP_PRESENTATION_POLICY.burialFocusMinZoom;
 
@@ -306,7 +307,10 @@ const DEFAULT_MAX_MAP_ZOOM = MAP_BASEMAPS.reduce((highestZoom, basemap) => (
 const MAP_OVERLAY_OPTIONS = [
   { id: "roads", label: "Roads", defaultVisible: false },
   { id: "boundary", label: "Boundary", defaultVisible: true },
-  { id: "sections", label: "Sections", defaultVisible: true },
+  // The general ARCE map mirrors the older locator: imagery and the cemetery
+  // boundary first. Section geometry appears after a visitor explicitly asks
+  // to browse a section, rather than filling launch with map concepts.
+  { id: "sections", label: "Sections", defaultVisible: false },
 ];
 const DEFAULT_MAP_OVERLAY_VISIBILITY = MAP_OVERLAY_OPTIONS.reduce((visibility, option) => ({
   ...visibility,
@@ -353,6 +357,7 @@ const createTourMarker = (tourKey, tourStyles) => {
 const bindReactPopup = ({
   layer,
   record,
+  onClose,
   onNavigate,
   onPopupClose,
   onPopupOpen,
@@ -374,9 +379,10 @@ const bindReactPopup = ({
       (
         <PopupCardContent
           record={record}
+          onClose={onClose}
           onNavigate={onNavigate}
           onRemove={onRemove}
-          showActions={Boolean(onNavigate || onRemove)}
+          showActions={Boolean(onClose || onNavigate || onRemove)}
           getPopup={() => layer.getPopup?.()}
           schedulePopupLayout={schedulePopupLayout}
         />
@@ -497,6 +503,7 @@ const MapStaticLayers = memo(function MapStaticLayers({
           basemapOptions={MAP_CONTROLLED_BASEMAPS}
           activeBasemapId={selectedBasemapId || activeBasemap?.id || ""}
           isOpen={isLayerControlOpen}
+          isMobile={isMobile}
           onBasemapChange={onBasemapChange}
           onOpenChange={onLayerControlOpenChange}
           overlayOptions={MAP_OVERLAY_OPTIONS}
@@ -576,7 +583,6 @@ const createOnEachTourFeature = (
   onNavigate,
   onPopupClose,
   onPopupOpen,
-  onRemoveResult,
   onRegisterLayer,
   resolveTourBrowseResult,
   schedulePopupLayout,
@@ -612,10 +618,7 @@ const createOnEachTourFeature = (
     },
     onPopupClose,
     onPopupOpen,
-    onRemove: () => {
-      onRemoveResult(browseResult.id);
-      layer.closePopup();
-    },
+    onClose: () => layer.closePopup(),
     schedulePopupLayout,
     shouldRenderPopup,
   });
@@ -644,11 +647,6 @@ const createOnEachTourFeature = (
  * Runtime map shell for search, browse, tours, location, and on-site routing.
  */
 export default function BurialMap() {
-  const runtimeEnv = useMemo(() => getRuntimeEnv(), []);
-  const {
-    featureFlags,
-  } = runtimeEnv;
-  const isFieldPacketsEnabled = resolveFieldPacketsEnabled(featureFlags);
   const tourDefinitions = TOUR_DEFINITIONS;
   const tourStyles = TOUR_STYLES;
   /**
@@ -671,8 +669,10 @@ export default function BurialMap() {
       : resolveFabAppView(window.location.search)
   ));
   const [hasMountedMap, setHasMountedMap] = useState(() => (
-    typeof window !== "undefined"
-      && resolveFabAppView(window.location.search) === FAB_APP_VIEWS.MAP
+    typeof window !== "undefined" && [
+      FAB_APP_VIEWS.MAP,
+      FAB_APP_VIEWS.SEARCH,
+    ].includes(resolveFabAppView(window.location.search))
   ));
   const lastBrowseAppViewRef = useRef(
     activeAppView === FAB_APP_VIEWS.MAP ? FAB_APP_VIEWS.TOURS : activeAppView
@@ -683,6 +683,10 @@ export default function BurialMap() {
   const sidebarAppView = activeAppView === FAB_APP_VIEWS.MAP
     ? lastBrowseAppViewRef.current
     : activeAppView;
+  const isMapWorkspaceVisible = [
+    FAB_APP_VIEWS.MAP,
+    FAB_APP_VIEWS.SEARCH,
+  ].includes(activeAppView);
   const [selectionState, setSelectionState] = useState(() => createMapSelectionState());
   const [selectedTour, setSelectedTour] = useState(null);
   const [activeBasemapId, setActiveBasemapId] = useState(() => (
@@ -812,6 +816,20 @@ export default function BurialMap() {
     () => buildRecordCoordinateGroups(selectedBurials),
     [selectedBurials]
   );
+  const selectedBurialPinOffsets = useMemo(() => {
+    const offsetsByRecordId = new Map();
+
+    selectedBurialCoordinateGroups.forEach(({ records = [] }) => {
+      records.forEach((record, index) => {
+        offsetsByRecordId.set(
+          record.id,
+          getSelectedBurialPinOffset(index, records.length)
+        );
+      });
+    });
+
+    return offsetsByRecordId;
+  }, [selectedBurialCoordinateGroups]);
   const locationAccuracyGeoJson = useMemo(() => buildLocationAccuracyGeoJson(
     Number.isFinite(lat) && Number.isFinite(lng) && Number.isFinite(locationAccuracyMeters)
       ? {
@@ -942,7 +960,6 @@ export default function BurialMap() {
     initialDeepLinkRef.current?.section ||
     initialDeepLinkRef.current?.showBurialsView ||
     (
-      isFieldPacketsEnabled &&
       initialFieldPacket &&
       (
         initialFieldPacket.selectedRecords?.length > 0 ||
@@ -983,8 +1000,9 @@ export default function BurialMap() {
 
     return isMobile;
   }, [isMobile]);
-  // The map is now a dedicated destination, so anchored place cards work on
-  // both mobile and desktop without competing with an overlaying drawer.
+  // Both map destinations support intentional marker-tap details. Locator row
+  // selection passes openTourPopup=false, so adding a pin stays quiet until the
+  // visitor explicitly taps that pin.
   const shouldUseMapPopups = true;
   const shouldUseMapPopupsRef = useRef(shouldUseMapPopups);
   const handleBasemapChange = useCallback((nextBasemapId) => {
@@ -997,7 +1015,7 @@ export default function BurialMap() {
     }));
   }, []);
   const handleAppViewChange = useCallback((nextView) => {
-    if (nextView === FAB_APP_VIEWS.MAP) {
+    if ([FAB_APP_VIEWS.MAP, FAB_APP_VIEWS.SEARCH].includes(nextView)) {
       // Mount Leaflet on first demand, then preserve that instance. Repeatedly
       // destroying a map during a pan leaves Leaflet transition callbacks
       // racing React's DOM cleanup on WebKit and Chromium alike.
@@ -1057,7 +1075,21 @@ export default function BurialMap() {
     }
   }, [activeBasemapId, basemapById, defaultBasemap]);
 
-  const getOverlayElement = useCallback(() => null, []);
+  const getOverlayElement = useCallback(() => {
+    if (typeof document === "undefined") {
+      return null;
+    }
+
+    const overlays = Array.from(document.querySelectorAll(
+      ".route-status-overlay--mobile, .tour-context-overlay"
+    ));
+    return overlays.reduce((lowestOverlay, overlay) => {
+      if (!lowestOverlay) return overlay;
+      return overlay.getBoundingClientRect().bottom > lowestOverlay.getBoundingClientRect().bottom
+        ? overlay
+        : lowestOverlay;
+    }, null);
+  }, []);
   // All programmatic viewport moves go through the intent controller. It keeps
   // automatic focus from fighting a user who has just panned, dragged, or zoomed.
   const markExplicitViewportFocus = useCallback(() => {
@@ -1174,14 +1206,6 @@ export default function BurialMap() {
 
     closeMapPopup();
   }, [closeMapPopup, shouldUseMapPopups]);
-
-  useEffect(() => {
-    if (isFieldPacketsEnabled) return;
-
-    setFieldPacket(null);
-    setFieldPacketNotice(null);
-    setSharedLinkLandingState(null);
-  }, [isFieldPacketsEnabled]);
 
   useEffect(() => {
     if (!fieldPacketNotice || typeof window === "undefined") {
@@ -1999,27 +2023,18 @@ export default function BurialMap() {
     if (!burial) return;
 
     const locationGroup = resolveRecordLocationGroup(burial, burialLocationIndex);
-    const preferredRecordIds = new Set([
-      cleanRecordValue(burial.id),
-      cleanRecordValue(burial.matchedBurialId),
-    ].filter(Boolean));
-    const matchedLocationRecord = locationGroup?.records.find((record) => (
-      preferredRecordIds.has(cleanRecordValue(record?.id))
-    )) || null;
-    const focusedBurial = matchedLocationRecord || burial;
-    const locationRecords = matchedLocationRecord
-      ? locationGroup.records
-      : [burial];
+    const { focusedBurial, selectionRecords } = resolveFocusedBurialSelection(
+      burial,
+      locationGroup
+    );
 
     if (addToSelection !== false) {
-      // A selection represents one mapped cemetery place. Switching people at
-      // that place changes the active record; choosing another place replaces
-      // the selection instead of accumulating numbered pins across the map.
-      dispatchSelectionAction(replaceMapSelectionRecords({
-        records: locationRecords,
-        activeRecordId: focusedBurial.id,
-        hoveredRecordId: null,
-      }));
+      // Search, tour, and deep-link choices are person-granular. Older FABFG
+      // locator behavior kept the chosen record distinct; silently expanding
+      // it to every person sharing the source coordinate made one tap look like
+      // many merged points. Location stacks are exposed only after a visitor
+      // deliberately taps a shared physical plot on the section map.
+      dispatchSelectionAction(focusMapSelectionRecord(selectionRecords[0]));
     }
 
     const map = getMapInstance();
@@ -2131,7 +2146,10 @@ export default function BurialMap() {
     focusBurial(burial, options);
   }, [focusBurial]);
 
-  const selectBurialStack = useCallback((records = [], { activeRecord = null } = {}) => {
+  const selectBurialStack = useCallback((
+    records = [],
+    { activeRecord = null, openPopup = true } = {}
+  ) => {
     const stackRecords = records.filter((record) => cleanRecordValue(record?.id));
     if (stackRecords.length === 0) {
       return;
@@ -2148,7 +2166,14 @@ export default function BurialMap() {
       activeRecordId: nextActiveRecord.id,
       hoveredRecordId: null,
     }));
-  }, [dispatchSelectionAction]);
+
+    if (openPopup) {
+      // The selected-result marker may not exist until React renders the new
+      // stack. Queue its popup so an intentional section-point tap still opens
+      // details without making every state-only selection do the same.
+      focusBurialPopup(nextActiveRecord);
+    }
+  }, [dispatchSelectionAction, focusBurialPopup]);
 
   /**
    * Removes a burial from search results
@@ -2239,8 +2264,6 @@ export default function BurialMap() {
   }, [getMapInstance]);
 
   const createFieldPacketFromSelection = useCallback(({ announce = true } = {}) => {
-    if (!isFieldPacketsEnabled) return null;
-
     if (selectedBurials.length === 0) {
       if (announce) {
         showFieldPacketNotice("Select one or more records to create a share link.", "warning");
@@ -2273,7 +2296,6 @@ export default function BurialMap() {
     activeBurialId,
     fieldPacket,
     getCurrentMapBoundsSnapshot,
-    isFieldPacketsEnabled,
     sectionFilter,
     selectedBurials,
     selectedTour,
@@ -2293,10 +2315,6 @@ export default function BurialMap() {
   }, []);
 
   const resolveFieldPacketForSharing = useCallback(() => {
-    if (!isFieldPacketsEnabled) {
-      return null;
-    }
-
     if (selectedBurials.length > 0) {
       return createFieldPacketFromSelection({ announce: false });
     }
@@ -2305,12 +2323,11 @@ export default function BurialMap() {
   }, [
     createFieldPacketFromSelection,
     fieldPacket,
-    isFieldPacketsEnabled,
     selectedBurials.length,
   ]);
 
   const getFieldPacketShareUrl = useCallback((packetState = null) => {
-    if (!isFieldPacketsEnabled || typeof window === "undefined") {
+    if (typeof window === "undefined") {
       return "";
     }
 
@@ -2323,7 +2340,7 @@ export default function BurialMap() {
       packet: nextPacket,
       currentUrl: window.location.href,
     });
-  }, [isFieldPacketsEnabled, resolveFieldPacketForSharing]);
+  }, [resolveFieldPacketForSharing]);
 
   const copyFieldPacketLink = useCallback(async () => {
     const nextPacket = resolveFieldPacketForSharing();
@@ -2416,9 +2433,11 @@ export default function BurialMap() {
   const handleBrowseResultSelect = useCallback((burial) => {
     selectBurial(burial, {
       isExplicitFocus: true,
+      openTourPopup: activeAppView !== FAB_APP_VIEWS.SEARCH,
+      preserveViewport: false,
       selectionSource: SELECTION_SOURCES.SEARCH_RESULT,
     });
-  }, [selectBurial]);
+  }, [activeAppView, selectBurial]);
 
   /**
    * Creates the section-location cluster group. Each child marker already
@@ -2635,9 +2654,11 @@ export default function BurialMap() {
     if (!map) return;
 
     const zoom = map.getZoom();
-    sectionFeatureLayersRef.current.forEach(({ layer, tooltip, label }) => {
+    sectionFeatureLayersRef.current.forEach(({ layer, tooltip, label, sectionValue }) => {
       const shouldShowTooltip = shouldShowPersistentSectionTooltips({
+        activeSectionId: sectionFilter,
         currentZoom: zoom,
+        sectionId: sectionValue,
         sectionDetailMinZoom,
         showAllBurials,
       });
@@ -2649,7 +2670,7 @@ export default function BurialMap() {
 
       hideSectionTooltip(layer);
     });
-  }, [getMapInstance, hideSectionTooltip, sectionDetailMinZoom, showAllBurials, showSectionTooltip]);
+  }, [getMapInstance, hideSectionTooltip, sectionDetailMinZoom, sectionFilter, showAllBurials, showSectionTooltip]);
 
   const scheduleSectionTooltipSync = useCallback(() => {
     if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
@@ -3122,6 +3143,10 @@ export default function BurialMap() {
           setCoreMapData(nextCoreMapData);
         }
       } catch (error) {
+        if (recoverFromStaleChunkLoad(error)) {
+          return;
+        }
+
         console.error("Failed to load core map data:", error);
 
         if (!ignore) {
@@ -3202,6 +3227,10 @@ export default function BurialMap() {
           setTourMatches(module.default || module);
         }
       } catch (error) {
+        if (recoverFromStaleChunkLoad(error)) {
+          return;
+        }
+
         console.error("Failed to load tour metadata:", error);
       }
     };
@@ -3463,18 +3492,24 @@ export default function BurialMap() {
     marker.burialRecord = representativeRecord;
     marker.burialRecords = records;
     marker.locationCoordinateKey = locationGroup.coordinateKey;
+    marker.bindTooltip(
+      records.length > 1
+        ? `${records.length.toLocaleString()} people at this mapped plot`
+        : formatBrowseResultName(representativeRecord),
+      {
+        direction: "top",
+        opacity: 0.92,
+      }
+    );
 
     marker.on('click', () => {
       const nextActiveRecord = records.find((record) => (
         cleanRecordValue(record?.id) === activeBurialIdRef.current
       )) || representativeRecord;
 
-      selectMapBurial(nextActiveRecord, {
-        animate: false,
-        openTourPopup: true,
-        preserveViewport: true,
-        selectionSource: SELECTION_SOURCES.MAP_TAP,
-      });
+      // A section point is plot-granular. Make the complete set explicit on
+      // tap so no person disappears behind an arbitrary representative record.
+      selectBurialStack(records, { activeRecord: nextActiveRecord });
     });
     marker.on('mouseover', () => {
       handleHoverBurialChange(representativeRecord.id);
@@ -3488,7 +3523,7 @@ export default function BurialMap() {
     clearHoveredBurialIfCurrent,
     getSectionBurialPresentationZoom,
     handleHoverBurialChange,
-    selectMapBurial,
+    selectBurialStack,
   ]);
 
   /**
@@ -3621,30 +3656,6 @@ export default function BurialMap() {
       pendingPopupBurialRef.current = null;
     }
   }, [activeBurialId, openPopupForBurial, selectedBurials, selectedTour, shouldUseMapPopups]);
-
-  useEffect(() => {
-    if (!shouldUseMapPopups || activeBurialId === null || typeof window === "undefined") {
-      return undefined;
-    }
-
-    const activeBurial = selectedBurials.find((burial) => burial.id === activeBurialId);
-    if (!activeBurial) {
-      return undefined;
-    }
-
-    let animationFrame = null;
-    animationFrame = window.requestAnimationFrame(() => {
-      if (!openPopupForBurial(activeBurial)) {
-        pendingPopupBurialRef.current = activeBurial;
-      }
-    });
-
-    return () => {
-      if (animationFrame !== null) {
-        window.cancelAnimationFrame(animationFrame);
-      }
-    };
-  }, [activeBurialId, openPopupForBurial, selectedBurials, shouldUseMapPopups]);
 
   /**
    * Keep markercluster child-marker styling in sync after zoom changes.
@@ -3817,7 +3828,15 @@ export default function BurialMap() {
 
     if (nextSection) {
       setSelectedTour(null);
-      setShowAllBurials(true);
+      // FABFG narrows the burial table by section; it does not replace the map
+      // with thousands of clustered grave counts. Visitors add person pins by
+      // choosing records from the filtered list.
+      setShowAllBurials(false);
+      setOverlayVisibility((current) => (
+        current.sections
+          ? current
+          : { ...current, sections: true }
+      ));
       if (focusMap) {
         focusSectionOnMap(nextSection, bounds, {
           isExplicitFocus,
@@ -3842,6 +3861,9 @@ export default function BurialMap() {
     setFilterType("lot");
     setSectionFilter("");
     setShowAllBurials(false);
+    setOverlayVisibility((current) => (
+      current.sections ? { ...current, sections: false } : current
+    ));
     resetMapToDefaultBounds({ isExplicitFocus: true });
   }, [clearActiveBurialFocus, resetMapToDefaultBounds]);
 
@@ -3850,12 +3872,18 @@ export default function BurialMap() {
       markExplicitViewportFocus();
     }
     clearActiveBurialFocus({ clearHover: true });
+    clearHoveredSection();
     setSelectedTour(tourName);
     setSectionFilter("");
     setLotTierFilter("");
     setFilterType("lot");
     setShowAllBurials(false);
-  }, [clearActiveBurialFocus, markExplicitViewportFocus]);
+    if (tourName) {
+      setOverlayVisibility((current) => (
+        current.sections ? { ...current, sections: false } : current
+      ));
+    }
+  }, [clearActiveBurialFocus, clearHoveredSection, markExplicitViewportFocus]);
 
   const focusTourOnMap = useCallback((tourName) => {
     const map = getMapInstance();
@@ -3879,7 +3907,7 @@ export default function BurialMap() {
 
     const deepLink = initialDeepLinkRef.current || parseDeepLinkState(window.location.search, tourNames);
 
-    if (isFieldPacketsEnabled && deepLink.fieldPacket) {
+    if (deepLink.fieldPacket) {
       // Packed share links carry the most complete restored state. Apply them
       // before loose query params so the client does not merge two competing
       // selection sources.
@@ -3949,6 +3977,7 @@ export default function BurialMap() {
       if (matches.length > 0) {
         selectBurial(matches[0], {
           isExplicitFocus: true,
+          openTourPopup: false,
           selectionSource: SELECTION_SOURCES.DEEP_LINK,
         });
       }
@@ -3966,7 +3995,6 @@ export default function BurialMap() {
     handleTourSelect,
     initialDeepLinkNeedsBurialData,
     isBurialDataLoading,
-    isFieldPacketsEnabled,
     searchIndex,
     selectBurial,
     showFieldPacketNotice,
@@ -4156,7 +4184,6 @@ export default function BurialMap() {
           handleNavigateToBurial,
           handlePopupBurialClose,
           handlePopupBurialOpen,
-          removeFromResults,
           (browseResult, featureLayer) => {
             tourFeatureLayersRef.current.set(browseResult.id, featureLayer);
           },
@@ -4180,6 +4207,10 @@ export default function BurialMap() {
         [tourName]: layer
       }));
     } catch (error) {
+      if (recoverFromStaleChunkLoad(error)) {
+        return;
+      }
+
       console.error('Error loading tour layer:', error);
       setTourLayerError(`Unable to load "${tourName}". Please try again.`);
     } finally {
@@ -4192,7 +4223,6 @@ export default function BurialMap() {
     handlePopupBurialClose,
     handlePopupBurialOpen,
     handleHoverBurialChange,
-    removeFromResults,
     resolveTourBrowseResult,
     schedulePopupLayout,
     selectBurial,
@@ -4248,36 +4278,58 @@ export default function BurialMap() {
       return;
     }
 
-    if (sectionFilter) {
-      focusSectionOnMap(sectionFilter, undefined, { isExplicitFocus: false });
-    }
   }, [
     activeBurialId,
     focusBurial,
-    focusSectionOnMap,
     focusTourOnMap,
     getMapInstance,
-    sectionFilter,
     selectedBurials,
     selectedTour,
   ]);
+  const restoreActiveMapContextRef = useRef(restoreActiveMapContext);
+  restoreActiveMapContextRef.current = restoreActiveMapContext;
 
   const handleMapCreated = useCallback((map) => {
     mapRef.current = map;
 
     // MapContainer creates Leaflet in an effect. Restore a pending search or
     // tour only after that instance and its child marker layers are committed.
-    window.requestAnimationFrame(restoreActiveMapContext);
-  }, [restoreActiveMapContext]);
+    window.requestAnimationFrame(() => restoreActiveMapContextRef.current?.());
+  }, []);
 
   useEffect(() => {
-    if (activeAppView !== FAB_APP_VIEWS.MAP || typeof window === "undefined") {
+    if (!isMapWorkspaceVisible || typeof window === "undefined") {
       return undefined;
     }
 
-    const frameId = window.requestAnimationFrame(restoreActiveMapContext);
+    // Restore once when entering the map. Selection changes made on the map
+    // must not refocus the camera; that made a close-up plot tap jump back to
+    // the section overview and felt like the point had merged again.
+    const frameId = window.requestAnimationFrame(() => restoreActiveMapContextRef.current?.());
     return () => window.cancelAnimationFrame(frameId);
-  }, [activeAppView, restoreActiveMapContext]);
+  }, [activeAppView, isMapWorkspaceVisible]);
+
+  useEffect(() => {
+    if (!isMapWorkspaceVisible || !sectionFilter) {
+      return;
+    }
+
+    const sectionBounds = sectionBoundsById.get(String(sectionFilter));
+    if (!isRenderableBounds(sectionBounds)) {
+      return;
+    }
+
+    // A visitor can choose a section before the deferred map geography has
+    // loaded. Focus again when its bounds become available so ARCE opens at
+    // plot detail instead of silently remaining at the cemetery overview.
+    focusSectionOnMap(sectionFilter, sectionBounds, { isExplicitFocus: true });
+  }, [
+    activeAppView,
+    focusSectionOnMap,
+    isMapWorkspaceVisible,
+    sectionBoundsById,
+    sectionFilter,
+  ]);
 
   /**
    * Prefetch tour layers in idle time to reduce switching latency.
@@ -4319,9 +4371,9 @@ export default function BurialMap() {
     };
   }, [canIdlePrefetchTours, ensureTourLayerLoaded, tourNames]);
 
-  // Tours and Search are stable pages. Leaflet mounts only after the first Map
-  // request and then stays alive offscreen, keeping launch light without the
-  // transition teardown race that crashed rapid destination changes.
+  // Tours stays lightweight. ARCE and Burial Locator share one preserved
+  // Leaflet instance; Locator lays its record workspace beside/below that map
+  // instead of navigating away from the person's pin.
   return (
     <div className="map-container">
       <BurialSidebar
@@ -4339,7 +4391,6 @@ export default function BurialMap() {
           initialQuery={initialBrowseQuery}
           installPromptEvent={installPromptEvent}
           isHidden={activeAppView === FAB_APP_VIEWS.MAP}
-          isFieldPacketsEnabled={isFieldPacketsEnabled}
           isBurialDataLoading={isBurialDataLoading}
           isInstalled={isInstalled}
           isMobile={isMobile}
@@ -4398,9 +4449,10 @@ export default function BurialMap() {
         <div
           className={[
             "map-stage",
-            activeAppView === FAB_APP_VIEWS.MAP ? "" : "map-stage--hidden",
+            activeAppView === FAB_APP_VIEWS.SEARCH ? "map-stage--locator" : "",
+            isMapWorkspaceVisible ? "" : "map-stage--hidden",
           ].filter(Boolean).join(" ")}
-          aria-hidden={activeAppView === FAB_APP_VIEWS.MAP ? undefined : "true"}
+          aria-hidden={isMapWorkspaceVisible ? undefined : "true"}
         >
           <TourContextOverlay
             isLoading={loadingTourName === selectedTour}
@@ -4491,9 +4543,9 @@ export default function BurialMap() {
             />
           )}
 
-          {selectedBurialCoordinateGroups.map((group) => {
-            const { coordinateKey, coordinates, records } = group;
-            if (!Array.isArray(coordinates) || records.length === 0) {
+          {!selectedTour && selectedBurials.map((record) => {
+            const coordinates = record?.coordinates;
+            if (!Array.isArray(coordinates)) {
               return null;
             }
 
@@ -4502,70 +4554,56 @@ export default function BurialMap() {
               return null;
             }
 
-            const activeLocationRecord = records.find((record) => (
-              record.id === activeBurialId
-            )) || records[0];
-            const isHighlighted = records.some((record) => (
-              record.id === activeBurialId || record.id === hoveredBurialId
-            ));
+            const isHighlighted = record.id === activeBurialId || record.id === hoveredBurialId;
 
             return (
               <Marker
-                key={`selected-location-${coordinateKey}`}
+                key={`selected-burial-${record.id}`}
                 ref={(layer) => {
-                  records.forEach((record) => {
-                    if (layer) {
-                      selectedMarkerLayersRef.current.set(record.id, layer);
-                    } else {
-                      selectedMarkerLayersRef.current.delete(record.id);
-                    }
-                  });
+                  if (layer) {
+                    selectedMarkerLayersRef.current.set(record.id, layer);
+                  } else {
+                    selectedMarkerLayersRef.current.delete(record.id);
+                  }
                 }}
                 position={[lat, lng]}
-                icon={createSelectedLocationIcon({
-                  count: records.length,
+                icon={createSelectedBurialIcon({
                   isHighlighted,
+                  offset: selectedBurialPinOffsets.get(record.id),
                 })}
-                keyboard={false}
+                keyboard
                 eventHandlers={{
-                  mouseover: () => handleHoverBurialChange(activeLocationRecord.id),
-                  mouseout: () => clearHoveredBurialIfCurrent(activeLocationRecord.id),
-                  click: () => selectBurialStack(records, { activeRecord: activeLocationRecord }),
+                  mouseover: () => handleHoverBurialChange(record.id),
+                  mouseout: () => clearHoveredBurialIfCurrent(record.id),
+                  click: () => selectMapBurial(record, {
+                    animate: false,
+                    openTourPopup: shouldUseMapPopups,
+                    preserveViewport: true,
+                    selectionSource: SELECTION_SOURCES.MAP_TAP,
+                  }),
                   popupopen: ({ popup }) => {
-                    const popupRecord = records.find((record) => (
-                      record.id === activeBurialIdRef.current
-                    )) || activeLocationRecord;
-                    handlePopupBurialOpen(popupRecord);
+                    handlePopupBurialOpen(record);
                     schedulePopupLayout(popup);
                   },
                   popupclose: () => {
-                    const popupRecord = records.find((record) => (
-                      record.id === activeBurialIdRef.current
-                    )) || activeLocationRecord;
-                    handlePopupBurialClose(popupRecord);
+                    handlePopupBurialClose(record);
                   },
                 }}
                 zIndexOffset={isHighlighted ? 1300 : 1100}
               >
+                <Tooltip direction="top" offset={[0, -22]}>
+                  {formatBrowseResultName(record)}
+                </Tooltip>
                 {shouldUseMapPopups && (
                   <Popup>
-                    <PopupCardStackContent
-                      records={records}
-                      activeRecordId={activeBurialId}
-                      onSelectRecord={(record) => {
-                        selectMapBurial(record, {
-                          animate: false,
-                          openTourPopup: false,
-                          preserveViewport: true,
-                          selectionSource: SELECTION_SOURCES.MAP_TAP,
-                        });
-                      }}
-                      onNavigate={(event, record) => {
-                        handleNavigateToBurial(event, record);
-                      }}
-                      onRemove={clearSelectedBurials}
+                    <PopupCardContent
+                      record={record}
+                      onClose={() => selectedMarkerLayersRef.current.get(record.id)?.closePopup?.()}
+                      onNavigate={(event) => handleNavigateToBurial(event, record)}
+                      onRemove={() => removeFromResults(record.id)}
+                      showActions
                       schedulePopupLayout={schedulePopupLayout}
-                      getPopup={() => selectedMarkerLayersRef.current.get(activeLocationRecord.id)?.getPopup?.()}
+                      getPopup={() => selectedMarkerLayersRef.current.get(record.id)?.getPopup?.()}
                     />
                   </Popup>
                 )}

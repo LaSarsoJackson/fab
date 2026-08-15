@@ -87,7 +87,6 @@ const createBaseProps = () => ({
   hoveredBurialId: null,
   initialQuery: "",
   installPromptEvent: null,
-  isFieldPacketsEnabled: true,
   isBurialDataLoading: false,
   isInstalled: false,
   isMobile: false,
@@ -110,7 +109,6 @@ const createBaseProps = () => ({
   onInstallApp: jest.fn(),
   onOpenAppMenu: jest.fn(),
   onNavigateToBurial: jest.fn(),
-  onMobileSheetViewportChange: jest.fn(),
   onRemoveSelectedBurial: jest.fn(),
   onSectionChange: jest.fn(),
   onShareFieldPacket: jest.fn(),
@@ -217,7 +215,7 @@ describe("BurialSidebar", () => {
     expect(onRequestViewChange).toHaveBeenCalledWith("map");
   });
 
-  domTest("renders Search as a fixed destination and opens a chosen grave on Map", () => {
+  domTest("renders Burial Locator as a fixed map-and-list destination", () => {
     const onBrowseResultSelect = jest.fn();
     const onRequestViewChange = jest.fn();
 
@@ -229,7 +227,7 @@ describe("BurialSidebar", () => {
     });
 
     const input = screen.getByRole("textbox", { name: "Search burials" });
-    expect(screen.getByRole("heading", { name: "Find a grave" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Burial Locator" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Browse by section" })).toBeInTheDocument();
     expect(document.querySelector("[data-rsbs-overlay]")).toBeNull();
 
@@ -240,7 +238,7 @@ describe("BurialSidebar", () => {
     expect(onBrowseResultSelect).toHaveBeenCalledWith(
       expect.objectContaining({ displayName: "Anna Tracy" })
     );
-    expect(onRequestViewChange).toHaveBeenCalledWith("map");
+    expect(onRequestViewChange).not.toHaveBeenCalled();
   });
 
   domTest("uses the fixed page itself as the layout root on mobile", () => {
@@ -1092,7 +1090,7 @@ describe("BurialSidebar", () => {
     expect(within(selectedPanel).queryByRole("link", { name: "Anna Tracy portrait" })).not.toBeInTheDocument();
   });
 
-  domTest("renders scoped browse results as a single scrollable list without pagination buttons", () => {
+  domTest("pages long section result lists while keeping the section total visible", () => {
     const sectionRecords = Array.from({ length: 12 }, (_, index) => buildBurialBrowseResult(
       {
         properties: {
@@ -1126,9 +1124,9 @@ describe("BurialSidebar", () => {
       .find((list) => !list.closest(".left-sidebar__selected-scroll"));
 
     expect(within(browseWorkspace).getByText("12 results")).toBeInTheDocument();
-    expect(within(resultsList).getAllByRole("button")).toHaveLength(12);
-    expect(within(resultsList).getByText("Result12 Person")).toBeInTheDocument();
-    expect(within(browseWorkspace).queryByRole("button", { name: "Show more" })).not.toBeInTheDocument();
+    expect(within(resultsList).getAllByRole("button")).toHaveLength(10);
+    expect(within(resultsList).queryByText("Result12 Person")).not.toBeInTheDocument();
+    expect(within(browseWorkspace).getByRole("button", { name: "Show more" })).toBeInTheDocument();
     expect(within(browseWorkspace).queryByRole("button", { name: "Show fewer" })).not.toBeInTheDocument();
   });
 

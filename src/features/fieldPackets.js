@@ -6,7 +6,7 @@
 import { formatBrowseResultName } from "./browse/browseResults";
 import { ROUTING_QUERY_PARAMS } from "../shared/routing";
 
-export const SHARED_LINK_QUERY_PARAM = ROUTING_QUERY_PARAMS.sharedSelection;
+const SHARED_LINK_QUERY_PARAM = ROUTING_QUERY_PARAMS.sharedSelection;
 
 // Packed shared links become the single source of truth in portable URLs, so
 // strip the ad-hoc view/query params that would otherwise compete with them.
@@ -121,7 +121,7 @@ const dedupeRecordsById = (records = []) => {
  * Shared links travel in the URL, so keep only the fields needed to restore a
  * useful offline selection instead of serializing the full record object.
  */
-export const createFieldPacketRecordSnapshot = (record = {}) => {
+const createFieldPacketRecordSnapshot = (record = {}) => {
   const snapshot = {
     id: cleanValue(record.id),
     source: cleanValue(record.source) || "burial",
@@ -161,7 +161,7 @@ export const createFieldPacketRecordSnapshot = (record = {}) => {
   );
 };
 
-export const buildDefaultFieldPacketName = ({
+const buildDefaultFieldPacketName = ({
   selectedRecords = [],
   sectionFilter = "",
   selectedTour = "",

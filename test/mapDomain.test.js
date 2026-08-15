@@ -40,6 +40,7 @@ import {
   resolveClusterExpansionZoom,
   resolveMapPresentationPolicy,
   resolveRecordLocationGroup,
+  resolveFocusedBurialSelection,
   resolveSectionAffordanceMarkerVisibility,
   resolveSectionBurialDisableClusteringZoom,
   resolveSectionOverlayVisibility,
@@ -585,6 +586,18 @@ describe("mapDomain", () => {
         currentZoom: 16,
         showAllBurials: true,
       })).toBe(false);
+      expect(shouldShowPersistentSectionTooltips({
+        activeSectionId: "215",
+        currentZoom: 16,
+        sectionId: "214",
+        showAllBurials: false,
+      })).toBe(false);
+      expect(shouldShowPersistentSectionTooltips({
+        activeSectionId: "215",
+        currentZoom: 16,
+        sectionId: "215",
+        showAllBurials: false,
+      })).toBe(true);
     });
 
     test("creates text-only section tooltip content for Leaflet", () => {
@@ -763,6 +776,22 @@ describe("mapDomain", () => {
       }, index)?.records).toEqual([separate]);
     });
 
+    test("keeps an explicit person selection distinct from other records at the plot", () => {
+      const first = { id: "one", coordinates: [-73.731094, 42.709337] };
+      const second = { id: "two", coordinates: [-73.731094, 42.709337] };
+      const tourRecord = {
+        id: "tour-two",
+        matchedBurialId: "two",
+        coordinates: [-73.731094, 42.709337],
+      };
+      const locationGroup = buildRecordCoordinateGroups([first, second])[0];
+
+      expect(resolveFocusedBurialSelection(tourRecord, locationGroup)).toEqual({
+        focusedBurial: second,
+        selectionRecords: [second],
+      });
+    });
+
     test("hides section burial singletons until the close-in preview zoom", () => {
       const hiddenStyle = getSectionBurialMarkerStyle(
         { id: "grave-a" },
@@ -868,13 +897,23 @@ describe("mapDomain", () => {
       });
     });
 
-    test("keeps popups above a mobile bottom sheet", () => {
+    test("keeps popups above the mobile bottom panel", () => {
       expect(getPopupViewportPadding({
         containerRect: { left: 0, top: 0, right: 390, bottom: 844 },
         overlayRect: { left: 0, top: 544, right: 390, bottom: 844 },
       })).toEqual({
         topLeft: [16, 16],
         bottomRight: [16, 316],
+      });
+    });
+
+    test("keeps popups below an inset mobile tour card", () => {
+      expect(getPopupViewportPadding({
+        containerRect: { left: 0, top: 0, right: 390, bottom: 844 },
+        overlayRect: { left: 12, top: 12, right: 292, bottom: 88 },
+      })).toEqual({
+        topLeft: [16, 104],
+        bottomRight: [16, 16],
       });
     });
 

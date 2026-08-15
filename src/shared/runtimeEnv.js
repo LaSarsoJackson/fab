@@ -1,62 +1,3 @@
-/**
- * Runtime feature flags are reserved for stable product behavior that may be
- * enabled or disabled per deployment. Development-only tools live on dev
- * branches so master stays aligned with the shipped web and native surfaces.
- */
-const freezeArray = (values = []) => Object.freeze([...values]);
-
-const createBooleanRuntimeToggle = (definition) => Object.freeze({
-  ...definition,
-  enabledQueryValues: freezeArray(definition.enabledQueryValues || []),
-  disabledQueryValues: freezeArray(definition.disabledQueryValues || []),
-});
-
-export const RUNTIME_FEATURE_FLAGS = Object.freeze({
-  fieldPackets: createBooleanRuntimeToggle({
-    id: "fieldPackets",
-    defaultValue: true,
-    envKey: "REACT_APP_ENABLE_FIELD_PACKETS",
-  }),
-});
-
-export const DEFAULT_RUNTIME_FEATURE_FLAGS = Object.freeze({
-  fieldPackets: RUNTIME_FEATURE_FLAGS.fieldPackets.defaultValue,
-});
-
-const resolveBooleanFlag = (value, fallback = false) => {
-  if (value === true || value === "true") return true;
-  if (value === false || value === "false") return false;
-  return fallback;
-};
-
-const FIELD_PACKETS_FLAG = RUNTIME_FEATURE_FLAGS.fieldPackets;
-
-export const getRuntimeEnv = (env = process.env) => {
-  const appEnvironment = (
-    env.NODE_ENV === "production" ||
-    env.REACT_APP_ENVIRONMENT === "production"
-  )
-    ? "production"
-    : "development";
-  const featureFlags = {
-    fieldPackets: resolveBooleanFlag(
-      env[FIELD_PACKETS_FLAG.envKey],
-      DEFAULT_RUNTIME_FEATURE_FLAGS.fieldPackets
-    ),
-  };
-
-  return {
-    appEnvironment,
-    featureFlags,
-  };
-};
-
-export const isFieldPacketsEnabled = (featureFlags = DEFAULT_RUNTIME_FEATURE_FLAGS) => (
-  typeof featureFlags?.fieldPackets === "boolean"
-    ? featureFlags.fieldPackets
-    : RUNTIME_FEATURE_FLAGS.fieldPackets.defaultValue
-);
-
 const hasIdleCallback = () => (
   typeof window !== "undefined" &&
   typeof window.requestIdleCallback === "function"
@@ -174,8 +115,3 @@ export const syncDocumentMetadata = ({
     setDocumentMetaContent('meta[property="og:url"]', url, targetDocument);
   }
 };
-
-export const {
-  appEnvironment: APP_ENVIRONMENT,
-  featureFlags: FEATURE_FLAGS,
-} = getRuntimeEnv();

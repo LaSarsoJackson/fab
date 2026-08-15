@@ -88,10 +88,8 @@ Notes:
   local routing proxy.
 - `bun run start` defaults `REACT_APP_DEV_IMAGE_SERVER_ORIGIN` to the local
   companion image server on `http://127.0.0.1:8000`.
-- Development-only surfaces such as the static admin studio, custom renderer,
-  PMTiles previews, and site-twin tools should stay on short-lived branches
-  until they are ready for the shared `dev` pipeline; see
-  [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md).
+- Development-only experiments stay out of the shipped app until they are
+  ready to merge into `main`.
 
 ### Run the app
 
@@ -130,10 +128,7 @@ Useful overrides:
 - `bun run test`: run the default automated test suite
 - `bun run check`: run `doctor`, `lint`, release metadata validation, and the default test suite
 - `bun run release:check`: verify SemVer, changelog, and release tag metadata
-- `bun run pr:check`: verify pull request branch policy when GitHub provides PR context
 - `bun run build`: create a production build
-- `bun run deploy`: create a local production build; GitHub Actions deploys
-  `main`
 - `bun run build:tour-data`: regenerate tour biography aliases
 - `bun run build:basemaps`: refresh checked-in NYS ortho basemap images
 - `bun run build:data`: regenerate search data, tour matches, and generated map
@@ -161,19 +156,13 @@ Maintainer, data, and release work uses the more specialized commands:
 `bun run build:geoparquet`, `bun run validate:geoparquet`, `bun run build`,
 `bun run release:check`, and the Playwright or mobile smoke commands when
 release coverage is needed. Production deploys happen through GitHub Actions
-after `staging` is promoted to `main`.
+after a green change merges to `main`.
 
 ## Branches and Releases
 
-Production work flows through three long-lived branches: `dev` for integration,
-`staging` for pre-production validation, and `main` for production. Open
-short-lived work branches into `dev`; when `dev` CI passes, GitHub Actions opens
-or updates a `dev` -> `staging` PR and enables merge-commit auto-merge. Promote
-`staging` to `main` manually with a merge commit when ready for the public
-GitHub Pages/native-wrapper surface. Merge commits preserve ancestry between
-the long-lived branches; short-lived work entering `dev` may still be squashed.
-Short-lived branches should use prefixes such as `feature/`, `fix/`, `docs/`,
-`chore/`, `hotfix/`, or `codex/`.
+`main` is the only long-lived branch. Focused pull requests target `main`; the
+single CI quality job validates lint, unit and DOM tests, generated files, the
+production build, and browser flows. A green merge deploys GitHub Pages.
 
 Versioned releases use SemVer in [`package.json`](./package.json), matching
 entries in [`CHANGELOG.md`](./CHANGELOG.md), and tags named `vX.Y.Z`. See
@@ -223,8 +212,6 @@ Start with these documents:
   repo-wide cleanup, comment policy, and source-of-truth boundaries
 - [docs/routing-architecture.md](./docs/routing-architecture.md) for client
   route, deep-link, in-app road routing, and external directions-link ownership
-- [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md) for the
-  dev/staging/main branch workflow
 - [docs/release-workflow.md](./docs/release-workflow.md) for production branch,
   versioning, release tags, and CI/CD rules
 
@@ -235,7 +222,7 @@ Common entry points:
 - [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx): Tours and Search page
   composition, browse controls, and result presentation
 - [`src/features/fab/FabNavigation.jsx`](./src/features/fab/FabNavigation.jsx):
-  FABFG-aligned Tours, Map, and Search destinations
+  FABFG-aligned Search Tours, ARCE, and Burial Locator destinations
 - [`src/features/browse/`](./src/features/browse): search indexing and browse
   result shaping
 - [`src/features/tours/`](./src/features/tours): tour definitions, alias
@@ -250,7 +237,7 @@ Common entry points:
 There are two relevant hosted environments:
 
 - GitHub Pages is the repo-controlled public web deployment. It is built and
-  deployed by GitHub Actions after `staging` is manually promoted to `main`.
+  deployed by GitHub Actions after a green change merges to `main`.
   The `gh-pages` branch is not part of the normal deployment path.
 - `albany.edu/arce` is the institutional production deployment. Promotion to
   that host is still manual.

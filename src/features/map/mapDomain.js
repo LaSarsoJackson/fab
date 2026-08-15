@@ -33,7 +33,7 @@ export const MAP_PRESENTATION_POLICY = Object.freeze({
   sectionOverviewLabelMinZoom: 15,
   sectionDetailMinZoom: 16,
   sectionBrowseFocusMaxZoom: 17,
-  burialFocusMinZoom: 17,
+  burialFocusMinZoom: 18,
   sectionBurialIndividualMinZoom: 20,
   sectionBurialClusterRadius: 64,
 });
@@ -43,7 +43,7 @@ export const MAP_PRESENTATION_POLICY = Object.freeze({
 // overlay both, so the visitor keeps a continuous mental map as the basemap
 // switches under them.
 export const AUTO_BASEMAP_ID = "auto";
-export const AUTO_BASEMAP_IMAGERY_MIN_ZOOM = MAP_PRESENTATION_POLICY.sectionDetailMinZoom;
+const AUTO_BASEMAP_IMAGERY_MIN_ZOOM = MAP_PRESENTATION_POLICY.sectionDetailMinZoom;
 
 // Resolves the basemap that should actually render. An explicit user selection
 // always wins; "auto" picks imagery at/above the detail zoom and a cartographic
@@ -72,7 +72,7 @@ export const SELECTION_SOURCES = Object.freeze({
   NAVIGATION_START: "navigation_start",
   DEEP_LINK: "deep_link",
 });
-export const SECTION_AFFORDANCE_MARKER_SIZE_RANGE = Object.freeze({
+const SECTION_AFFORDANCE_MARKER_SIZE_RANGE = Object.freeze({
   min: 25,
   max: 31,
 });
@@ -370,7 +370,7 @@ export const getPopupViewportPadding = ({
     return padding;
   }
 
-  // The sidebar/mobile sheet can cover one side of the map. Translate that
+  // The sidebar/mobile panel can cover one side of the map. Translate that
   // overlap into Leaflet autopan padding so focused markers remain visible.
   const overlapLeft = Math.max(containerRect.left, overlayRect.left);
   const overlapTop = Math.max(containerRect.top, overlayRect.top);
@@ -395,39 +395,39 @@ export const getPopupViewportPadding = ({
 
   if (overlapWidth >= containerWidth * dominantCoverage) {
     if (touchesBottom && !touchesTop) {
-      padding.bottomRight[1] = Math.ceil(overlapHeight) + basePadding;
+      padding.bottomRight[1] = Math.ceil(containerRect.bottom - overlapTop) + basePadding;
       return padding;
     }
 
     if (touchesTop && !touchesBottom) {
-      padding.topLeft[1] = Math.ceil(overlapHeight) + basePadding;
+      padding.topLeft[1] = Math.ceil(overlapBottom - containerRect.top) + basePadding;
       return padding;
     }
   }
 
   if (overlapHeight >= containerHeight * dominantCoverage) {
     if (touchesLeft && !touchesRight) {
-      padding.topLeft[0] = Math.ceil(overlapWidth) + basePadding;
+      padding.topLeft[0] = Math.ceil(overlapRight - containerRect.left) + basePadding;
       return padding;
     }
 
     if (touchesRight && !touchesLeft) {
-      padding.bottomRight[0] = Math.ceil(overlapWidth) + basePadding;
+      padding.bottomRight[0] = Math.ceil(containerRect.right - overlapLeft) + basePadding;
       return padding;
     }
   }
 
   if (touchesLeft) {
-    padding.topLeft[0] = Math.ceil(overlapWidth) + basePadding;
+    padding.topLeft[0] = Math.ceil(overlapRight - containerRect.left) + basePadding;
   }
   if (touchesRight) {
-    padding.bottomRight[0] = Math.ceil(overlapWidth) + basePadding;
+    padding.bottomRight[0] = Math.ceil(containerRect.right - overlapLeft) + basePadding;
   }
   if (touchesTop) {
-    padding.topLeft[1] = Math.ceil(overlapHeight) + basePadding;
+    padding.topLeft[1] = Math.ceil(overlapBottom - containerRect.top) + basePadding;
   }
   if (touchesBottom) {
-    padding.bottomRight[1] = Math.ceil(overlapHeight) + basePadding;
+    padding.bottomRight[1] = Math.ceil(containerRect.bottom - overlapTop) + basePadding;
   }
 
   return padding;
@@ -591,7 +591,7 @@ const refreshSelectionBurials = (selectionState, getNextBurial) => {
   });
 };
 
-export const MAP_SELECTION_ACTION_TYPES = Object.freeze({
+const MAP_SELECTION_ACTION_TYPES = Object.freeze({
   CLEAR_FOCUS: "clearFocus",
   CLEAR_FOCUS_FOR_RECORD: "clearFocusForRecord",
   FOCUS_RECORD: "focusRecord",
@@ -1046,6 +1046,40 @@ export const resolveRecordLocationGroup = (
   );
 };
 
+/**
+ * Resolve a tour/search record against the canonical burial index without
+ * turning a person-level choice into the full set of people at that plot.
+ */
+export const resolveFocusedBurialSelection = (
+  burial,
+  locationGroup,
+  {
+    getMatchedRecordId = (record) => record?.matchedBurialId,
+    getRecordId = (record) => record?.id,
+  } = {}
+) => {
+  if (!burial) {
+    return {
+      focusedBurial: null,
+      selectionRecords: [],
+    };
+  }
+
+  const preferredRecordIds = new Set([
+    normalizeSectionValue(getRecordId(burial)),
+    normalizeSectionValue(getMatchedRecordId(burial)),
+  ].filter(Boolean));
+  const matchedLocationRecord = locationGroup?.records?.find((record) => (
+    preferredRecordIds.has(normalizeSectionValue(getRecordId(record)))
+  )) || null;
+  const focusedBurial = matchedLocationRecord || burial;
+
+  return {
+    focusedBurial,
+    selectionRecords: [focusedBurial],
+  };
+};
+
 export const getClusterIconCount = (
   cluster,
   markers = cluster?.getAllChildMarkers?.() || []
@@ -1111,13 +1145,19 @@ export const resolveMapPresentationPolicy = ({
 };
 
 export const shouldShowPersistentSectionTooltips = ({
+  activeSectionId = "",
   currentZoom = 0,
+  sectionId = "",
   sectionDetailMinZoom = MAP_PRESENTATION_POLICY.sectionDetailMinZoom,
   showAllBurials = false,
-} = {}) => (
-  !showAllBurials &&
-  currentZoom >= sectionDetailMinZoom
-);
+} = {}) => {
+  if (showAllBurials || currentZoom < sectionDetailMinZoom) {
+    return false;
+  }
+
+  const normalizedActiveSectionId = normalizeSectionValue(activeSectionId);
+  return !normalizedActiveSectionId || normalizeSectionValue(sectionId) === normalizedActiveSectionId;
+};
 
 export const createLeafletTextContent = (
   value = "",
@@ -1440,7 +1480,7 @@ export const shouldRejectLocationCandidate = (
   candidate.accuracyMeters > maxAcceptedAccuracyMeters
 );
 
-export const scoreRecentLocationCandidate = (candidate, { latestRecordedAt } = {}) => {
+const scoreRecentLocationCandidate = (candidate, { latestRecordedAt } = {}) => {
   if (!candidate) {
     return Number.POSITIVE_INFINITY;
   }

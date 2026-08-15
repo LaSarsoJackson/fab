@@ -99,6 +99,7 @@ describe("mapChrome", () => {
         ]}
         activeBasemapId="imagery"
         isOpen
+        isMobile
         onBasemapChange={onBasemapChange}
         onOpenChange={onOpenChange}
         overlayOptions={[
@@ -116,6 +117,8 @@ describe("mapChrome", () => {
     expect(onBasemapChange).toHaveBeenCalledWith("streets");
     expect(onToggleOverlay).toHaveBeenCalledWith("roads");
     expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(screen.getByText("Basemap")).toBeVisible();
+    expect(screen.getByText("Overlays")).toBeVisible();
   });
 
   test("hides desktop zoom buttons on mobile and wires click handlers on desktop", () => {

@@ -185,6 +185,8 @@ test("with a single record the list does not render", () => {
 
   expect(screen.queryByText(/people at this plot/)).not.toBeInTheDocument();
   expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  expect(screen.getByRole("group", { name: "1 person at this plot" }))
+    .toBeInTheDocument();
 });
 
 test("PopupCardStackList with fewer than 2 valid records returns null", () => {
@@ -200,20 +202,37 @@ test("PopupCardStackList with fewer than 2 valid records returns null", () => {
   expect(screen.queryByRole("list")).not.toBeInTheDocument();
 });
 
-test("popup actions render when action handlers are provided", () => {
+test("popup actions name unpinning and closing as separate actions", () => {
+  const onClose = jest.fn();
+  const onRemove = jest.fn();
+
   render(
     <PopupCardStackContent
       records={[stackRecords[0]]}
       activeRecordId="one"
       onNavigate={jest.fn()}
-      onRemove={jest.fn()}
+      onRemove={onRemove}
       schedulePopupLayout={jest.fn()}
       getPopup={() => ({})}
     />
   );
 
   expect(screen.getByRole("button", { name: "Navigate" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Unpin" }));
+  expect(onRemove).toHaveBeenCalledWith(stackRecords[0]);
+
+  render(
+    <PopupCardContent
+      record={stackRecords[0]}
+      onClose={onClose}
+      schedulePopupLayout={jest.fn()}
+      getPopup={() => ({})}
+      showActions
+    />
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  expect(onClose).toHaveBeenCalledTimes(1);
 });
 
 test("the default map popup includes biography facts, portrait, and directions", () => {

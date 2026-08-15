@@ -45,26 +45,18 @@ Common commands:
 - `bun run check`: run `doctor`, `lint`, release metadata validation, and the
   default test suite
 - `bun run release:check`: verify SemVer, changelog, and release tag metadata
-- `bun run pr:check`: verify pull request branch policy when GitHub provides PR context
 - `bun run build:data`: regenerate search data, tour matches, and generated
   bounds
-- `bun run deploy`: create a local production build; GitHub Actions deploys
-  `main`
+- `bun run build`: create the same production build GitHub Pages deploys from
 
-Development work starts on short-lived branches and enters the shared pipeline
-through `dev`; see [docs/dev-branch-workflow.md](./docs/dev-branch-workflow.md).
+Focused pull requests target `main`. GitHub Pages deploys after the single CI
+quality job passes and the pull request merges.
 
 ## Branches and releases
 
-Use short-lived work branches for product changes. Open those branches into
-`dev`; after `dev` CI passes, GitHub Actions opens or updates a `dev` ->
-`staging` PR and enables merge-commit auto-merge. Promote `staging` to `main`
-manually with a merge commit when the public GitHub Pages/native-wrapper
-surface is ready. Promotions between `dev`, `staging`, and `main` preserve
-branch ancestry; squash or rebase only the short-lived branches entering `dev`.
-Short-lived branches should use `codex/`, `feature/`, `fix/`, `docs/`,
-`chore/`, `hotfix/`, `dependabot/`, or `renovate/`. Release branches may target
-`staging`; emergency hotfix branches may target `staging` or `main`.
+`main` is the only long-lived branch. Use a short-lived branch only when branch
+protection requires a pull request, and target `main` directly. Do not add
+integration, staging, promotion, or agent-specific branch layers.
 
 FAB versions are SemVer values in [`package.json`](./package.json). Any
 production release must also update [`CHANGELOG.md`](./CHANGELOG.md) with a
@@ -86,8 +78,8 @@ Key folders:
 - [`src/features/map/`](./src/features/map): map-specific runtime helpers, popup models, shared map chrome, and selection logic
 - [`src/features/tours/`](./src/features/tours): tour definitions, matching, and derived metadata
 - [`src/features/fieldPackets.js`](./src/features/fieldPackets.js): shared-link encoding, restoration reconciliation, and field packet state
-- [`src/shared/`](./src/shared): domain-neutral helpers such as routing contracts, runtime features, and GeoJSON utilities
-- [`scripts/`](./scripts): build-time generators, migrations, and deployment wrappers
+- [`src/shared/`](./src/shared): domain-neutral helpers such as routing contracts, public asset paths, scheduling, and GeoJSON utilities
+- [`scripts/`](./scripts): build-time generators, migrations, and local validation helpers
 
 If you are not sure where a change belongs, stop at
 [`docs/codebase-structure.md`](./docs/codebase-structure.md) before adding a new helper.

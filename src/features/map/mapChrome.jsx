@@ -41,6 +41,7 @@ const MOBILE_MAP_CONTROL_TOP = "calc(env(safe-area-inset-top, 0px) + 10px)";
 const MAP_CONTROL_BUTTON_SIZE = 44;
 const DEFAULT_BASEMAP_KEEP_BUFFER = 4;
 const GEOJSON_DATA_KEYS = new WeakMap();
+const POPUP_LAYOUT_SETTLE_TIMEOUTS = new WeakMap();
 let nextGeoJsonDataKey = 1;
 
 const buildPaddingPoint = (x, y) => [x, y];
@@ -57,7 +58,7 @@ const getOverlayRect = (getOverlayElement) => {
   return getOverlayElement()?.getBoundingClientRect?.();
 };
 
-export const getLeafletViewportPadding = (
+const getLeafletViewportPadding = (
   map,
   {
     basePadding = 16,
@@ -169,7 +170,7 @@ export const panIntoVisibleViewport = (
   });
 };
 
-export const keepPopupInView = (
+const keepPopupInView = (
   popup,
   {
     getOverlayElement,
@@ -191,7 +192,7 @@ export const keepPopupInView = (
   }
 };
 
-export const syncPopupLayout = (popup, options = {}) => {
+const syncPopupLayout = (popup, options = {}) => {
   if (!popup) return;
 
   if (typeof popup.update === "function") {
@@ -212,6 +213,20 @@ export const schedulePopupInView = (popup, options = {}) => {
   window.requestAnimationFrame(() => {
     syncPopupLayout(popup, options);
   });
+
+  const previousTimeout = POPUP_LAYOUT_SETTLE_TIMEOUTS.get(popup);
+  if (previousTimeout) {
+    window.clearTimeout(previousTimeout);
+  }
+
+  // Leaflet can begin its first autopan before React finishes rendering a
+  // biography, image, or action row. Recheck once that initial movement has
+  // settled so the final-sized card respects top tour/route chrome.
+  const settleTimeout = window.setTimeout(() => {
+    POPUP_LAYOUT_SETTLE_TIMEOUTS.delete(popup);
+    syncPopupLayout(popup, options);
+  }, 320);
+  POPUP_LAYOUT_SETTLE_TIMEOUTS.set(popup, settleTimeout);
 };
 
 export const getLeafletGeoJsonDataKey = (featureCollection) => {
@@ -458,6 +473,7 @@ const mapControlOptionButtonSx = {
 
 const MapLayerControlOption = ({
   active,
+  compact = false,
   label,
   onClick,
   icon: Icon,
@@ -466,7 +482,20 @@ const MapLayerControlOption = ({
   const VisibleIcon = active ? Icon : InactiveIcon;
 
   return (
-    <Box component="button" type="button" onClick={onClick} sx={mapControlOptionButtonSx}>
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      sx={{
+        ...mapControlOptionButtonSx,
+        ...(compact ? {
+          minHeight: "44px",
+          padding: "6px 4px",
+          textAlign: "center",
+          justifyItems: "center",
+        } : {}),
+      }}
+    >
       <Box
         sx={{
           display: "flex",
@@ -531,6 +560,7 @@ export function MapLayerControl({
   basemapOptions,
   activeBasemapId,
   isOpen,
+  isMobile = false,
   onBasemapChange,
   onOpenChange,
   overlayOptions,
@@ -549,19 +579,22 @@ export function MapLayerControl({
       >
         {isOpen && (
           <Paper
+            className="map-layer-panel"
             elevation={0}
             sx={{
               ...mapControlShellSx,
               position: "absolute",
               top: 0,
               right: "calc(100% + 10px)",
-              width: "min(260px, calc(100vw - 84px))",
+              width: isMobile
+                ? "min(290px, calc(100vw - 84px))"
+                : "min(260px, calc(100vw - 84px))",
               overflow: "hidden",
             }}
           >
             <Box
               sx={{
-                padding: "12px 14px 10px",
+                padding: isMobile ? "8px 10px 7px" : "12px 14px 10px",
                 borderBottom: "1px solid rgba(18, 47, 40, 0.12)",
               }}
             >
@@ -580,13 +613,18 @@ export function MapLayerControl({
             <Box
               sx={{
                 display: "grid",
-                gap: "12px",
-                padding: "10px 12px 12px",
+                gap: isMobile ? "7px" : "12px",
+                padding: isMobile ? "7px 8px 8px" : "10px 12px 12px",
               }}
             >
-              <Box sx={{ display: "grid", gap: "4px" }}>
+              <Box sx={{
+                display: "grid",
+                gap: "4px",
+                gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "1fr",
+              }}>
                 <Typography
                   sx={{
+                    gridColumn: "1 / -1",
                     fontSize: "0.72rem",
                     fontWeight: 700,
                     letterSpacing: "0.04em",
@@ -600,6 +638,7 @@ export function MapLayerControl({
                   <MapLayerControlOption
                     key={option.id}
                     active={activeBasemapId === option.id}
+                    compact={isMobile}
                     label={option.label}
                     onClick={() => onBasemapChange(option.id)}
                     icon={RadioButtonCheckedIcon}
@@ -610,9 +649,14 @@ export function MapLayerControl({
 
               <Divider sx={{ borderColor: "rgba(18, 47, 40, 0.12)" }} />
 
-              <Box sx={{ display: "grid", gap: "4px" }}>
+              <Box sx={{
+                display: "grid",
+                gap: "4px",
+                gridTemplateColumns: isMobile ? "repeat(3, minmax(0, 1fr))" : "1fr",
+              }}>
                 <Typography
                   sx={{
+                    gridColumn: "1 / -1",
                     fontSize: "0.72rem",
                     fontWeight: 700,
                     letterSpacing: "0.04em",
@@ -626,6 +670,7 @@ export function MapLayerControl({
                   <MapLayerControlOption
                     key={option.id}
                     active={overlayVisibility[option.id] !== false}
+                    compact={isMobile}
                     label={option.label}
                     onClick={() => onToggleOverlay(option.id)}
                     icon={CheckBoxIcon}
@@ -915,7 +960,7 @@ export function MapController({ mapRef, onViewportMoveStart, onZoomChange }) {
   return null;
 }
 
-export function MapHomeButton({ onClick }) {
+function MapHomeButton({ onClick }) {
   return (
     <Paper elevation={0} sx={mapControlShellSx}>
       <IconButton
