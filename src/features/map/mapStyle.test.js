@@ -16,14 +16,24 @@ describe("cartographic style contract", () => {
     expect(style.sources["osm-map"].attribution).toContain("OpenStreetMap");
   });
 
-  test("keeps sections quiet until the visitor asks for them", () => {
-    const layer = style.layers.find(({ id }) => id === MAP_LAYER_IDS.sections);
+  test("keeps sections off by default and legible when enabled", () => {
+    const sectionIndex = style.layers.findIndex(({ id }) => id === MAP_LAYER_IDS.sections);
+    const roadIndex = style.layers.findIndex(({ id }) => id === "cemetery-roads");
+    const layer = style.layers[sectionIndex];
+
     expect(layer.layout.visibility).toBe("none");
+    expect(layer.paint["fill-opacity"]).toBeGreaterThanOrEqual(0.2);
+    expect(sectionIndex).toBeLessThan(roadIndex);
   });
 
-  test("gives tour clusters a distinct warm hierarchy color", () => {
-    const layer = style.layers.find(({ id }) => id === MAP_LAYER_IDS.clusters);
-    expect(style.sources.records.clusterProperties.tour_count).toBeDefined();
-    expect(JSON.stringify(layer.paint["circle-color"])).toContain("#ad5a2a");
+  test("clusters burial density without collapsing curated tour stops", () => {
+    const clusterLayer = style.layers.find(({ id }) => id === MAP_LAYER_IDS.clusters);
+    const tourLayer = style.layers.find(({ id }) => id === MAP_LAYER_IDS.tourRecords);
+
+    expect(style.sources.records.cluster).toBe(true);
+    expect(style.sources["tour-records"].cluster).toBeUndefined();
+    expect(clusterLayer.source).toBe("records");
+    expect(tourLayer.source).toBe("tour-records");
+    expect(tourLayer.paint["circle-color"]).toBe("#ad5a2a");
   });
 });

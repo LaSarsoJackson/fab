@@ -36,7 +36,7 @@ export default function MapView({
   const onRecordSelectRef = useRef(onRecordSelect);
   const onSectionSelectRef = useRef(onSectionSelect);
   const selectedRecordRef = useRef(selectedRecord);
-  const [ready, setReady] = useState(false);
+  const [readyMap, setReadyMap] = useState(null);
   const [basemap, setBasemap] = useState("map");
   const [hillshade, setHillshade] = useState(true);
   const [showSections, setShowSections] = useState(Boolean(selectedSection));
@@ -85,13 +85,17 @@ export default function MapView({
     void addGeolocateControl();
     map.addControl(new AttributionControl({ compact: true }), "bottom-right");
 
-    map.on("load", () => setReady(true));
+    map.on("load", () => {
+      if (mapRef.current === map) setReadyMap(map);
+    });
 
-    map.on("click", MAP_LAYER_IDS.records, (event) => {
+    const selectRecord = (event) => {
       const recordId = String(event.features?.[0]?.properties?.id || "");
       const record = recordsRef.current.find(({ id }) => String(id) === recordId);
       if (record) onRecordSelectRef.current?.(record);
-    });
+    };
+    map.on("click", MAP_LAYER_IDS.records, selectRecord);
+    map.on("click", MAP_LAYER_IDS.tourRecords, selectRecord);
     map.on("click", MAP_LAYER_IDS.selectedRecord, () => {
       const selected = selectedRecordRef.current;
       const record = recordsRef.current.find(({ id }) => String(id) === String(selected?.id));
@@ -109,66 +113,67 @@ export default function MapView({
       if (section) onSectionSelectRef.current?.(section);
     });
 
-    const interactiveLayers = [MAP_LAYER_IDS.records, MAP_LAYER_IDS.clusters, MAP_LAYER_IDS.sections];
+    const interactiveLayers = [
+      MAP_LAYER_IDS.records,
+      MAP_LAYER_IDS.tourRecords,
+      MAP_LAYER_IDS.clusters,
+      MAP_LAYER_IDS.sections,
+    ];
     interactiveLayers.forEach((layerId) => {
       map.on("mouseenter", layerId, () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", layerId, () => { map.getCanvas().style.cursor = ""; });
     });
 
     return () => {
+      if (mapRef.current === map) mapRef.current = null;
       map.remove();
-      mapRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    if (!ready) return;
-    const map = mapRef.current;
-    const source = map.getSource("records");
-    source?.setData(recordsToFeatureCollection(records));
+    const map = readyMap;
+    if (!map || mapRef.current !== map) return;
+    const burialRecords = records.filter(({ source }) => source !== "tour");
+    const tourRecords = records.filter(({ source }) => source === "tour");
+    map.getSource("records")?.setData(recordsToFeatureCollection(burialRecords));
+    map.getSource("tour-records")?.setData(recordsToFeatureCollection(tourRecords));
 
     const updateVisibleMarkerCount = () => {
       const visible = map.queryRenderedFeatures({
-        layers: [MAP_LAYER_IDS.records, MAP_LAYER_IDS.clusters],
+        layers: [MAP_LAYER_IDS.records, MAP_LAYER_IDS.tourRecords, MAP_LAYER_IDS.clusters],
       });
       setVisibleMarkerCount(visible.length);
     };
     map.once("idle", updateVisibleMarkerCount);
     return () => map.off("idle", updateVisibleMarkerCount);
-  }, [ready, records]);
+  }, [readyMap, records]);
 
   useEffect(() => {
-    if (!ready) return;
+    const map = readyMap;
+    if (!map || mapRef.current !== map) return;
     const data = selectedRecord ? recordsToFeatureCollection([selectedRecord]) : EMPTY_COLLECTION;
-    mapRef.current.getSource("selected")?.setData(data);
-  }, [ready, selectedRecord]);
+    map.getSource("selected")?.setData(data);
+  }, [readyMap, selectedRecord]);
 
   useEffect(() => {
-    if (!ready) return;
-    setLayerVisibility(mapRef.current, MAP_LAYER_IDS.map, basemap === "map");
-    setLayerVisibility(mapRef.current, MAP_LAYER_IDS.imagery, basemap === "imagery");
-  }, [basemap, ready]);
-
-  useEffect(() => {
-    if (!ready) return;
-    setLayerVisibility(mapRef.current, MAP_LAYER_IDS.hillshade, hillshade);
-  }, [hillshade, ready]);
-
-  useEffect(() => {
-    if (!ready) return;
+    const map = readyMap;
+    if (!map || mapRef.current !== map) return;
+    setLayerVisibility(map, MAP_LAYER_IDS.map, basemap === "map");
+    setLayerVisibility(map, MAP_LAYER_IDS.imagery, basemap === "imagery");
+    setLayerVisibility(map, MAP_LAYER_IDS.hillshade, hillshade);
     const visible = showSections || Boolean(selectedSection);
-    setLayerVisibility(mapRef.current, MAP_LAYER_IDS.sections, visible);
-    setLayerVisibility(mapRef.current, MAP_LAYER_IDS.selectedSection, visible && Boolean(selectedSection));
-    mapRef.current.setFilter(MAP_LAYER_IDS.selectedSection, [
+    setLayerVisibility(map, MAP_LAYER_IDS.sections, visible);
+    setLayerVisibility(map, MAP_LAYER_IDS.selectedSection, visible && Boolean(selectedSection));
+    map.setFilter(MAP_LAYER_IDS.selectedSection, [
       "==",
       ["to-string", ["get", "Section"]],
       String(selectedSection || ""),
     ]);
-  }, [ready, selectedSection, showSections]);
+  }, [basemap, hillshade, readyMap, selectedSection, showSections]);
 
   useEffect(() => {
-    if (!ready || !focusKey) return;
-    const map = mapRef.current;
+    const map = readyMap;
+    if (!map || mapRef.current !== map || !focusKey) return;
     if (selectedRecord?.coordinates) {
       map.flyTo({ center: selectedRecord.coordinates, zoom: Math.max(map.getZoom(), 18), essential: true });
       return;
@@ -186,7 +191,7 @@ export default function MapView({
         : { top: 72, right: 32, bottom: 176, left: 32 }
       : 72;
     map.fitBounds(bounds, { padding, maxZoom: 17, duration: 700 });
-  }, [focusKey, ready, records, selectedRecord, tourStopsPresent]);
+  }, [focusKey, readyMap, records, selectedRecord, tourStopsPresent]);
 
   return (
     <div className="map-view">

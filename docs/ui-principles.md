@@ -21,8 +21,10 @@ Usability is the design system.
 ## Map and selection
 
 - Keep the general map quiet: boundary and roads before sections and graves.
-- Sections appear only after an explicit choice.
+- Sections appear only after an explicit choice and read clearly when enabled.
 - Keep tour stops in a keyboard-accessible list as well as on the map.
+- Keep every active tour stop individually visible on the map. Reserve
+  clustering for larger burial-result sets.
 - One physical location may represent multiple records; do not invent spatial
   precision by spreading canonical coordinates.
 - Close hides the detail card but leaves the pin.

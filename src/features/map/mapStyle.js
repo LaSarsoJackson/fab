@@ -19,6 +19,7 @@ export const MAP_LAYER_IDS = Object.freeze({
   selectedSection: "selected-section",
   clusters: "record-clusters",
   records: "records",
+  tourRecords: "tour-records",
   selectedRecord: "selected-record",
 });
 
@@ -55,10 +56,8 @@ export const createMapStyle = () => ({
       cluster: true,
       clusterMaxZoom: 17,
       clusterRadius: 42,
-      clusterProperties: {
-        tour_count: ["+", ["case", ["==", ["get", "source"], "tour"], 1, 0]],
-      },
     },
+    "tour-records": { type: "geojson", data: EMPTY_COLLECTION },
     selected: { type: "geojson", data: EMPTY_COLLECTION },
   },
   layers: [
@@ -123,6 +122,17 @@ export const createMapStyle = () => ({
       },
     },
     {
+      id: MAP_LAYER_IDS.sections,
+      type: "fill",
+      source: "sections",
+      layout: { visibility: "none" },
+      paint: {
+        "fill-color": "#d9a441",
+        "fill-opacity": 0.24,
+        "fill-outline-color": "#6f531b",
+      },
+    },
+    {
       id: "cemetery-road-casing",
       type: "line",
       source: "roads",
@@ -138,17 +148,6 @@ export const createMapStyle = () => ({
       paint: {
         "line-color": "#f8f6ef",
         "line-width": ["interpolate", ["linear"], ["zoom"], 13, 1, 18, 4],
-      },
-    },
-    {
-      id: MAP_LAYER_IDS.sections,
-      type: "fill",
-      source: "sections",
-      layout: { visibility: "none" },
-      paint: {
-        "fill-color": "#d9a441",
-        "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.28, 0.1],
-        "fill-outline-color": "#805f1d",
       },
     },
     {
@@ -168,12 +167,7 @@ export const createMapStyle = () => ({
       source: "records",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": [
-          "case",
-          [">", ["get", "tour_count"], 0],
-          "#ad5a2a",
-          "#315f4c",
-        ],
+        "circle-color": "#315f4c",
         "circle-radius": ["step", ["get", "point_count"], 17, 10, 20, 40, 24],
         "circle-stroke-color": "#ffffff",
         "circle-stroke-width": 2,
@@ -185,8 +179,19 @@ export const createMapStyle = () => ({
       source: "records",
       filter: ["!", ["has", "point_count"]],
       paint: {
-        "circle-color": ["case", ["==", ["get", "source"], "tour"], "#ad5a2a", "#315f4c"],
+        "circle-color": "#315f4c",
         "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 5, 18, 8],
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 2,
+      },
+    },
+    {
+      id: MAP_LAYER_IDS.tourRecords,
+      type: "circle",
+      source: "tour-records",
+      paint: {
+        "circle-color": "#ad5a2a",
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 6, 18, 9],
         "circle-stroke-color": "#ffffff",
         "circle-stroke-width": 2,
       },

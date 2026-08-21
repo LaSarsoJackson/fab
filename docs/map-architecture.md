@@ -27,7 +27,7 @@ which renderer consumes it.
 3. cemetery ground and boundary
 4. cemetery roads
 5. optional sections
-6. record clusters and points
+6. burial-result clusters and individual tour stops
 7. selected record
 
 That order is the visual hierarchy. Do not solve prominence by raising every
@@ -37,6 +37,9 @@ line width or adding more controls.
 
 - No pitch or rotation; this is a small-site wayfinding map.
 - Sections stay hidden until requested.
+- Curated tour stops are never proximity-clustered; every stop remains visible.
+- Burial result sets may cluster at lower zooms to communicate density without
+  overwhelming the map.
 - A selected record is rendered once in the dedicated selected source.
 - Tour stops remain directly selectable in an accessible HTML list; the canvas
   is not the only way to choose one.
@@ -48,8 +51,9 @@ line width or adding more controls.
 
 The map is lazy-loaded when the map destination first mounts. The full burial
 source is never added to MapLibre. Only the current tour, search result set, or
-selected record is sent to the renderer. Clustering is native to the GeoJSON
-source.
+selected record is sent to the renderer. Burial results use MapLibre's native
+GeoJSON clustering. Tour stops use a separate unclustered GeoJSON source so the
+map does not hide part of a curated sequence.
 
 Do not introduce a second renderer or adapter layer. A renderer migration would
 be the point to add an interface; anticipation is not evidence.
