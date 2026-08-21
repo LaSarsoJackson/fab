@@ -122,6 +122,17 @@ export const createMapStyle = () => ({
       },
     },
     {
+      id: MAP_LAYER_IDS.sections,
+      type: "fill",
+      source: "sections",
+      layout: { visibility: "none" },
+      paint: {
+        "fill-color": "#d9a441",
+        "fill-opacity": 0.24,
+        "fill-outline-color": "#6f531b",
+      },
+    },
+    {
       id: "cemetery-road-casing",
       type: "line",
       source: "roads",
@@ -137,17 +148,6 @@ export const createMapStyle = () => ({
       paint: {
         "line-color": "#f8f6ef",
         "line-width": ["interpolate", ["linear"], ["zoom"], 13, 1, 18, 4],
-      },
-    },
-    {
-      id: MAP_LAYER_IDS.sections,
-      type: "fill",
-      source: "sections",
-      layout: { visibility: "none" },
-      paint: {
-        "fill-color": "#d9a441",
-        "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.28, 0.1],
-        "fill-outline-color": "#805f1d",
       },
     },
     {
