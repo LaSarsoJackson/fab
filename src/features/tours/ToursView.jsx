@@ -1,0 +1,59 @@
+import { useDeferredValue, useMemo, useState } from "react";
+import { SearchIcon, ToursIcon } from "../../app/icons";
+import { FAB_TOUR_DEFINITIONS } from "../fab/tours";
+
+export default function ToursView({ loadingTour = "", onSelectTour }) {
+  const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query.trim().toLocaleLowerCase());
+  const tours = useMemo(() => FAB_TOUR_DEFINITIONS.filter(({ name }) => (
+    !deferredQuery || name.toLocaleLowerCase().includes(deferredQuery)
+  )), [deferredQuery]);
+
+  return (
+    <section className="tours-view" aria-labelledby="tours-title">
+      <header className="page-heading page-heading--centered">
+        <p className="page-heading__eyebrow">Explore the cemetery</p>
+        <h1 id="tours-title">Search Tours</h1>
+        <p>Choose a curated tour, then use the map to move through its stops.</p>
+      </header>
+
+      <label className="tour-search" htmlFor="tour-query">
+        <SearchIcon />
+        <span className="visually-hidden">Search tours</span>
+        <input
+          id="tour-query"
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Find a tour"
+        />
+      </label>
+
+      {tours.length > 0 ? (
+        <ul className="tour-grid">
+          {tours.map((tour) => {
+            const isLoading = loadingTour === tour.key;
+            return (
+              <li key={tour.key}>
+                <button
+                  type="button"
+                  className="tour-card"
+                  disabled={isLoading}
+                  onClick={() => onSelectTour(tour)}
+                >
+                  <span className="tour-card__icon"><ToursIcon /></span>
+                  <span className="tour-card__content">
+                    <span className="tour-card__name">{tour.name}</span>
+                    <span className="tour-card__action">{isLoading ? "Loading…" : "Open tour"}</span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="status-message">No tours match “{query}.”</p>
+      )}
+    </section>
+  );
+}

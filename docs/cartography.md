@@ -1,0 +1,42 @@
+# Cartography
+
+FAB is a cemetery wayfinding map, not a basemap gallery. Every cartographic
+choice should help a visitor understand the cemetery and act on a selected
+grave or tour stop.
+
+## Evidence
+
+- Esri’s [primary design principles for cartography](https://www.esri.com/arcgis-blog/products/arcgis-pro/mapping/primary-design-principles-for-cartography)
+  put figure-ground and visual hierarchy ahead of decoration.
+- Esri’s [visual hierarchy guidance](https://www.esri.com/arcgis-blog/products/arcgis-online/education/visual-hierarchy-for-maps)
+  treats the basemap as context that should recede behind thematic data.
+- Esri’s [World Hillshade guidance](https://www.esri.com/arcgis-blog/products/arcgis-living-atlas/national-government/symbolizing-the-hillshade-for-the-world-topographic-map)
+  calls for noncompetitive relief, especially in flatter areas.
+- The [MapLibre style specification](https://maplibre.org/maplibre-style-spec/)
+  defines the source/layer model used here.
+- The [OpenStreetMap tile policy](https://operations.osmfoundation.org/policies/tiles/)
+  requires visible attribution and forbids bulk or offline preloading from the
+  standard tile service.
+
+## FAB rules
+
+- Default to a muted reference map for orientation.
+- Offer provider imagery, not checked-in ortho exports.
+- Keep hillshade available and on by default at 24% opacity.
+- Draw the cemetery boundary and roads above terrain context.
+- Keep sections off until the user asks for them.
+- Use one warm section highlight and one strong selected-record color.
+- Keep labels supplied by the reference basemap; do not add an external glyph
+  service solely to label section polygons.
+- Keep provider attribution visible in every map mode.
+
+## What is deliberately absent
+
+- no local ortho tiling or export grid
+- no pitch, terrain exaggeration, or 3D monuments
+- no decorative map textures
+- no separate color per burial category
+- no layer drawer with implementation-oriented names
+
+Hillshade remains because the cemetery’s terrain materially affects on-site
+orientation. It is context, not the subject.

@@ -1,62 +1,34 @@
 # Codebase structure
 
-This repo was getting hard to navigate because most of the non-UI logic lived in
-one flat helper directory. The current structure groups helpers by product area
-so there is a clearer answer to "where should this change go?"
+## Runtime
 
-## Primary entry points
+| Owner | Path | Does not own |
+| --- | --- | --- |
+| Product shell | `src/App.jsx` | MapLibre layer definitions, search scoring |
+| URL contract | `src/app/routes.js` | Component state, native code |
+| Navigation | `src/components/AppNavigation.jsx` | Route parsing |
+| Record detail | `src/components/RecordCard.jsx` | Map popup lifecycle |
+| Map lifecycle | `src/features/map/MapView.jsx` | Record normalization, provider configuration |
+| Map style | `src/features/map/mapStyle.js` | React state and event handlers |
+| Locator worker | `src/features/locator/` | Tour matching, MapLibre calls |
+| Tours | `src/features/tours/` | Product navigation |
+| FAB configuration | `src/features/fab/` | Generic browser helpers |
 
-- [`src/App.js`](../src/App.js): root shell, theme, document metadata, and the lazy map mount
-- [`src/AppErrorBoundary.jsx`](../src/AppErrorBoundary.jsx): fallback UI when the lazy map chunk fails to load or the map throws while rendering
-- [`src/Map.jsx`](../src/Map.jsx): runtime map shell and Leaflet orchestration
-- [`src/BurialSidebar.jsx`](../src/BurialSidebar.jsx): search, browse, and selection UI
+## Build and data
 
-## Feature folders
+- `scripts/precalculate-metadata.js` turns canonical GeoJSON into runtime artifacts.
+- `src/data/` contains source and generated tour data.
+- `public/data/Search_Burials.json` is the only large browser-delivery dataset.
+- `dist/` is generated and never committed.
 
-- [`src/features/browse/`](../src/features/browse): search indexing, browse result shaping, and shared record labels
-- [`src/features/tours/`](../src/features/tours): tour definitions, alias recovery, tour styles, and burial-tour reconciliation
-- [`src/features/map/`](../src/features/map): popup view-models, pure map rules, viewport intent, popup geometry, selection-state reduction, saved navigation-destination records, bundled-road walking-route calculation, map chrome, marker icons, and generated bounds
-- [`src/features/fieldPackets.js`](../src/features/fieldPackets.js): field-packet/shared-link encoding, parsing, restoration reconciliation, and presentation state
+## Placement test
 
-## Shared helpers
+Ask what the code knows:
 
-- [`src/shared/geoJsonBounds.js`](../src/shared/geoJsonBounds.js): generic GeoJSON bounds and validation helpers
-- [`src/shared/routing.js`](../src/shared/routing.js): routing query keys and external Apple Maps / Google Maps directions links
-- [`src/shared/runtimeEnv.js`](../src/shared/runtimeEnv.js): public asset URLs, document metadata sync, and idle scheduling
+- MapLibre API knowledge belongs in `features/map`.
+- Burial row/search knowledge belongs in `features/locator`.
+- Albany URLs and uneven source-record values belong in `features/fab`.
+- Route query keys belong in `app/routes.js` or `shared/routing.js`.
+- A helper with no product or renderer knowledge belongs in `shared`.
 
-## Profile layer
-
-- [`src/features/fab/profile.js`](../src/features/fab/profile.js): single source of truth for FAB app configuration, hosted URLs, shell copy, data modules, record presentation callbacks, map metadata, and feature registrations
-- [`src/features/fab/`](../src/features/fab): FAB-specific branding, tours, and presentation behavior
-
-## Data and build outputs
-
-- [`src/data/`](../src/data/): source GeoJSON, tours, images, and generated lookup JSON checked into the repo
-- [`public/data/`](../public/data/): lightweight runtime payloads served by the app
-- [`scripts/`](../scripts): build-time generators, migration helpers, and deployment wrappers
-
-Generated artifacts should be regenerated instead of hand-edited:
-
-| Generated output | Source inputs | Generator | Marker or convention |
-| --- | --- | --- | --- |
-| [`public/index.html`](../public/index.html) | [`public/index.template.html`](../public/index.template.html), [`src/features/fab/profile.js`](../src/features/fab/profile.js) | [`scripts/sync-profile-shell.js`](../scripts/sync-profile-shell.js) | Shell output generated from the profile/template pair. |
-| [`public/manifest.json`](../public/manifest.json) | [`public/manifest.template.json`](../public/manifest.template.json), [`src/features/fab/profile.js`](../src/features/fab/profile.js) | [`scripts/sync-profile-shell.js`](../scripts/sync-profile-shell.js) | Strict PWA manifest JSON; keep metadata in this table instead of adding extra manifest keys. |
-| [`src/data/TourMatches.json`](../src/data/TourMatches.json) | Tour definitions and datasets in [`src/features/fab/tours.js`](../src/features/fab/tours.js), plus burial source data | [`scripts/precalculate-metadata.js`](../scripts/precalculate-metadata.js) | Strict id-to-tour object; no `__generated__` key because runtime harmonization reads burial ids at the top level. |
-| [`src/data/TourBiographyAliases.json`](../src/data/TourBiographyAliases.json) | Tour definitions and datasets in [`src/features/fab/tours.js`](../src/features/fab/tours.js) | [`scripts/generate-tour-biography-aliases.js`](../scripts/generate-tour-biography-aliases.js) | Strict alias lookup object; no `__generated__` key because tour enrichment reads the top-level alias maps directly. |
-| [`public/data/Search_Burials.json`](../public/data/Search_Burials.json) | [`src/data/Geo_Burials.json`](../src/data/Geo_Burials.json) or optional `src/data/Geo_Burials.parquet`, plus tour matching metadata from [`src/features/fab/tours.js`](../src/features/fab/tours.js) | [`scripts/precalculate-metadata.js`](../scripts/precalculate-metadata.js) | Strict minified array; no `__generated__` key because runtime search inflates it with `.map()`. |
-| [`src/features/map/generatedBounds.js`](../src/features/map/generatedBounds.js) | Source GeoJSON data, especially [`src/data/ARC_Boundary.json`](../src/data/ARC_Boundary.json) | [`scripts/precalculate-metadata.js`](../scripts/precalculate-metadata.js) | Starts with `// @generated by scripts/precalculate-metadata.js`. |
-
-When a generated JSON artifact has a strict runtime shape, use this table as
-the marker convention. If a future consumer gains a metadata-aware loader, a
-top-level `__generated__` field is the preferred inline marker.
-
-## Placement rule of thumb
-
-- Put React state, refs, and map lifecycles in the top-level app components.
-- Put pure record transforms in the feature folder that owns that data shape.
-- Put cross-cutting, domain-neutral helpers in `src/shared/`.
-- Put generated artifacts beside the feature that consumes them.
-- Import directly from the module that owns the behavior; avoid adding
-  `index.js` barrels that only re-export neighboring files.
-- Keep FAB-only behavior in `src/features/fab/` or behind profile callbacks instead of adding new hardcoded app branches.
-- Do not add new helpers back under the old flat `src/lib` layout.
+Prefer a direct import over another registry, adapter, or wrapper.

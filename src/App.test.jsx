@@ -1,86 +1,97 @@
-/** @jest-environment jsdom */
-
-import React from "react";
-import { render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import { APP_PROFILE } from "./features/fab/profile";
 
-jest.mock("./Map", () => ({
-  __esModule: true,
-  default: () => <div>Map stub</div>,
+vi.mock("./features/map/MapView", () => ({
+  default: ({ records = [] }) => (
+    <div aria-label="Albany Rural Cemetery map" data-record-count={records.length} />
+  ),
 }));
 
-const renderApp = () => render(<App />);
-
-describe("App", () => {
-  const originalHash = window.location.hash;
-  const originalTitle = document.title;
-  const originalHead = document.head.innerHTML;
-
+describe("App product shell", () => {
   beforeEach(() => {
-    window.location.hash = "";
-    document.title = "";
-
-    if (!document.head.querySelector('meta[name="description"]')) {
-      const meta = document.createElement("meta");
-      meta.setAttribute("name", "description");
-      document.head.appendChild(meta);
-    }
-    document.head.querySelector('meta[name="description"]').setAttribute("content", "");
+    window.history.replaceState({}, "", "/fab/?view=tours");
+    Object.defineProperty(navigator, "share", { configurable: true, value: undefined });
   });
 
-  afterEach(() => {
-    window.location.hash = originalHash;
-    document.title = originalTitle;
-    document.head.innerHTML = originalHead;
+  it("starts with tours and exposes three unambiguous destinations", () => {
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Search Tours" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search Tours" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "Cemetery Map" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Burial Locator" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "ARCE website" })).toHaveAttribute("target", "_blank");
   });
 
-  test("syncs the document title and description from the app profile", async () => {
-    renderApp();
+  it("uses the route as the single tab state", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Burial Locator" }));
+    expect(screen.getByRole("heading", { name: "Burial Locator" })).toBeInTheDocument();
+    expect(window.location.search).toContain("view=burials");
+  });
 
-    await screen.findByText("Map stub");
+  it("lets FABFG own navigation in embedded mode", () => {
+    window.history.replaceState({}, "", "/fab/?view=tours&embed=fabfg");
+    render(<App />);
+    expect(screen.queryByRole("navigation", { name: "Primary" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Search Tours" })).toBeInTheDocument();
+  });
 
-    expect(document.title).toBe(APP_PROFILE.shell?.documentTitle || APP_PROFILE.brand?.appName);
-    expect(document.head.querySelector('meta[name="description"]')).toHaveAttribute(
-      "content",
-      APP_PROFILE.shell?.description || ""
+  it("selects a tour stop without relying on the canvas and restores its deep link", async () => {
+    const firstRender = render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Notables Tour 2020/ }));
+
+    const panel = await screen.findByRole("complementary", { name: "Notables Tour 2020" });
+    fireEvent.click(within(panel).getByRole("button", { name: /James Hall/ }));
+    expect(screen.getByRole("heading", { name: "James Hall" })).toBeInTheDocument();
+    expect(new URL(window.location.href).searchParams.get("record"))
+      .toBe("tour:Notable:1:18:93");
+
+    firstRender.unmount();
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "James Hall" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close details" }));
+    expect(await screen.findByRole("button", { name: /James Hall/ }))
+      .toHaveAttribute("aria-current", "location");
+  });
+
+  it("opens Cemetery Map as a clean destination instead of retaining a tour", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Notables Tour 2020/ }));
+
+    const map = await screen.findByLabelText("Albany Rural Cemetery map");
+    await waitFor(() => expect(Number(map.dataset.recordCount)).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole("button", { name: "Cemetery Map" }));
+
+    await waitFor(() => expect(map).toHaveAttribute("data-record-count", "0"));
+    const params = new URL(window.location.href).searchParams;
+    expect(params.get("view")).toBe("map");
+    expect(params.has("tour")).toBe(false);
+    expect(params.has("record")).toBe(false);
+  });
+
+  it("shares a portable record link outside the FABFG shell", async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "share", { configurable: true, value: share });
+    window.history.replaceState(
+      {},
+      "",
+      "/fab/?view=map&tour=Notable&record=tour%3ANotable%3A1%3A18%3A93&embed=fabfg&q=old&section=18"
     );
-  });
 
-  test("renders the map shell from the production app entrypoint", async () => {
-    renderApp();
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "James Hall" })).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Share pinned grave"));
+    fireEvent.click(screen.getByRole("button", { name: "Share link" }));
 
-    expect(await screen.findByText("Map stub")).toBeInTheDocument();
-  });
-
-  test("does not create a visual-viewport feedback loop for the fixed app shell", async () => {
-    const visualViewport = {
-      height: 720,
-      width: 390,
-      offsetTop: 18,
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    };
-    const originalVisualViewport = window.visualViewport;
-
-    Object.defineProperty(window, "visualViewport", {
-      configurable: true,
-      value: visualViewport,
-    });
-    const setPropertySpy = jest.spyOn(document.documentElement.style, "setProperty");
-
-    renderApp();
-    await screen.findByText("Map stub");
-
-    expect(setPropertySpy).not.toHaveBeenCalled();
-    expect(visualViewport.addEventListener).not.toHaveBeenCalled();
-    expect(visualViewport.removeEventListener).not.toHaveBeenCalled();
-
-    setPropertySpy.mockRestore();
-    Object.defineProperty(window, "visualViewport", {
-      configurable: true,
-      value: originalVisualViewport,
-    });
+    await waitFor(() => expect(share).toHaveBeenCalledOnce());
+    const sharedUrl = new URL(share.mock.calls[0][0].url);
+    expect(sharedUrl.searchParams.get("view")).toBe("map");
+    expect(sharedUrl.searchParams.get("tour")).toBe("Notable");
+    expect(sharedUrl.searchParams.get("record")).toBe("tour:Notable:1:18:93");
+    expect(sharedUrl.searchParams.has("embed")).toBe(false);
+    expect(sharedUrl.searchParams.has("q")).toBe(false);
+    expect(sharedUrl.searchParams.has("section")).toBe(false);
   });
 });

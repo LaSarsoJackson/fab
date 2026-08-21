@@ -1,256 +1,132 @@
 # FAB
 
+FAB is the shared Albany Grave Finder web app. It has three user destinations:
+
+- Search Tours
+- Cemetery Map
+- Burial Locator
+
+The web app owns the product, map, data delivery, and deep-link contract. `FABFG`
+is a thin native shell around those hosted destinations; it must not recreate
+the web app’s map or search state.
+
+## Stack
+
+- React 19
+- Vite 8
+- MapLibre GL JS 6
+- plain semantic HTML and CSS
+- a Web Worker for the 97,457-record burial index
+- Bun tests, Vitest/jsdom component tests, and Playwright browser tests
+
+There is one map renderer and one burial source path. The checked-in
+`src/data/Geo_Burials.json` is the source of truth; `public/data/Search_Burials.json`
+is its generated runtime delivery artifact. Map overlays use the checked-in
+boundary, roads, and sections GeoJSON directly.
+
 ## Quickstart
 
-| Prerequisite | Source | Notes |
+Requirements:
+
+- Node 22.12 or newer from [`.nvmrc`](./.nvmrc)
+- Bun 1.3.8 from [`package.json`](./package.json)
+
+```bash
+bun install
+bun run doctor
+bun run start
+```
+
+Vite serves the app at [http://localhost:5173/fab/](http://localhost:5173/fab/).
+No Python image server or geospatial Python environment is required.
+
+## Commands
+
+- `bun run start`: run the Vite development server
+- `bun run lint`: run ESLint
+- `bun run test`: run Bun unit/data tests and Vitest component tests
+- `bun run test:e2e`: run the Playwright product flows
+- `bun run build`: generate tour aliases and build `dist/`
+- `bun run build:data`: regenerate tour matches, the compact burial index, and map bounds
+- `bun run check`: run the local release-quality gate
+- `bun run release:check`: verify SemVer and changelog metadata
+
+## Product routes and FABFG
+
+The query string is the route contract:
+
+| Destination | `view` value | Purpose |
 | --- | --- | --- |
-| Bun 1.3.8 | `packageManager` in [package.json](./package.json) | Installs dependencies and runs package scripts. |
-| Node 20 | [.nvmrc](./.nvmrc) | Runtime baseline for React, Jest, and build tooling. |
-| Python 3 | System `python3` | Required for the local development image server. |
-| `uv` and Python data tooling | Optional | Used by data download and GeoParquet workflows; not required for ordinary web development. |
+| Search Tours | `tours` | Find and open a curated tour |
+| Cemetery Map | `map` | View the cemetery, tour stops, sections, and pinned graves |
+| Burial Locator | `burials` | Search the generated burial index |
 
-```bash
-bun install
-bun run doctor
-bun run start
-```
+Additional parameters are `q`, `section`, `tour`, and `record`. Old packed
+`share` links remain readable, but new links use the smaller `record` contract.
 
-FAB is the web application behind the Albany Rural Cemetery burial finder. It
-is a React app and installable PWA for:
+FABFG should load the same hosted app with `embed=fabfg` so the native shell
+owns the tabs and the web app does not draw a duplicate navigation bar:
 
-- searching burial records
-- browsing the cemetery map by section or tour
-- opening directions for on-site navigation
-- sharing direct links that restore selections and map views
-- restoring shared URLs and deep links
+- `?view=tours&embed=fabfg`
+- `?view=map&embed=fabfg`
+- `?view=burials&embed=fabfg`
 
-This repository owns the shared web experience. The same hosted URLs are used
-directly on the web and inside `FABFG`, the native wrapper app.
+Its native tabs should use the same Search Tours, Cemetery Map, and Burial
+Locator labels. The ARCE website is a separate external action; it is not the
+Cemetery Map tab.
 
-## Product Snapshot
+## Cartography
 
-![Desktop map search](./docs/assets/screenshots/fab-search-results.jpg)
+The map uses provider tiles instead of repository-built orthophoto exports:
 
-![Mobile map](./docs/assets/screenshots/fab-mobile-map.jpg)
+- a restrained OpenStreetMap reference map
+- Esri World Imagery as an optional imagery basemap
+- Esri World Hillshade at low opacity
+- local cemetery boundary and roads above the terrain context
+- sections only after an explicit user choice
 
-## Project layout
+Provider attribution stays visible. The design follows figure-ground and visual
+hierarchy guidance: the basemap recedes, cemetery structure reads next, and the
+active burial or tour stop is dominant. See [`docs/cartography.md`](./docs/cartography.md).
 
-The product is split across three systems:
+## Data
 
-- `fab`: this repository, which owns the shared web app, data pipeline, map
-  behavior, and deep-link handling
-- `FABFG`: the native wrapper that loads hosted `fab` URLs in a native shell
-- `albany.edu/arce`: the institutional production host for the promoted static
-  build, along with some legacy content and image assets
-
-Primary links:
-
-- Source repository: [github.com/LaSarsoJackson/fab](https://github.com/LaSarsoJackson/fab)
-- GitHub Pages deployment: [lasarsojackson.github.io/fab](https://lasarsojackson.github.io/fab/)
-- Production site: [albany.edu/arce](https://www.albany.edu/arce/)
-- Native wrapper repository: [github.com/LaSarsoJackson/FABFG](https://github.com/LaSarsoJackson/FABFG)
-- iOS app: [Albany Grave Finder on the App Store](https://apps.apple.com/us/app/albany-grave-finder/id6746413050)
-
-## Get started
-
-### Requirements
-
-- Node 20 from [.nvmrc](./.nvmrc)
-- Bun 1.3.8 from `packageManager` in [package.json](./package.json)
-- Python 3 for the local image server used in development
-
-Optional tools:
-
-- `uv` for Python data download scripts
-- `geopandas`, `pyarrow`, and `shapely` for GeoParquet conversion and parity
-  validation
-
-### Install
-
-```bash
-bun install
-```
-
-### Configure local environment
-
-Create a local `.env` file when you want to override the default image origin:
-
-```bash
-REACT_APP_DEV_IMAGE_SERVER_ORIGIN=http://127.0.0.1:8000
-```
-
-Notes:
-
-- `Navigate` automatically hands far-away users to Apple Maps or Google Maps
-  and starts bundled cemetery-road routing when the user is on site.
-- External directions links are built from `src/shared/routing.js`; in-app
-  cemetery routing still runs in the browser with no hosted routing API or
-  local routing proxy.
-- `bun run start` defaults `REACT_APP_DEV_IMAGE_SERVER_ORIGIN` to the local
-  companion image server on `http://127.0.0.1:8000`.
-- Development-only experiments stay out of the shipped app until they are
-  ready to merge into `main`.
-
-### Run the app
-
-Start with the environment check:
-
-```bash
-bun run doctor
-```
-
-Then launch the development stack:
-
-```bash
-bun run start
-```
-
-This starts the React dev server, refreshes derived tour alias data, and serves
-local images on `http://127.0.0.1:8000`.
-
-Default local URL:
-
-- [http://localhost:3000](http://localhost:3000)
-
-Useful overrides:
-
-- `FAB_SKIP_TOUR_DATA=1`: skip the alias refresh on restart
-- `FAB_SKIP_IMAGE_SERVER=1`: skip the local image server
-- `FAB_IMAGE_SERVER_PORT=9000`: run the image server on a different port
-- `FAB_GEOSPATIAL_PYTHON=/path/to/python`: force a specific Python interpreter
-  for geospatial tooling
-
-## Common commands
-
-- `bun run start`: start the development environment
-- `bun run doctor`: check local prerequisites and optional tooling
-- `bun run lint`: run the repository ESLint baseline across app, unit, and browser tests
-- `bun run test`: run the default automated test suite
-- `bun run check`: run `doctor`, `lint`, release metadata validation, and the default test suite
-- `bun run release:check`: verify SemVer, changelog, and release tag metadata
-- `bun run build`: create a production build
-- `bun run build:tour-data`: regenerate tour biography aliases
-- `bun run build:basemaps`: refresh checked-in NYS ortho basemap images
-- `bun run build:data`: regenerate search data, tour matches, and generated map
-  bounds
-- `bun run build:geoparquet`: convert the burial source JSON into GeoParquet
-- `bun run validate:geoparquet`: verify GeoParquet parity with the JSON source
-
-Test split:
-
-- `bun run test:bun`: module and data tests
-- `bun run test:dom`: React DOM and component tests
-- `bun run test:e2e`: Playwright browser coverage
-- `bun run smoke:mobile-pwa:ngrok`: optional production-build smoke server
-  for checking real Mobile Safari install, standalone, and service-worker
-  behavior through an HTTPS ngrok tunnel
-
-## Which scripts are for me?
-
-Most contributors usually need `bun run start`, `bun run test`, and
-`bun run lint`. Run `bun run doctor` when setting up the repo or when a local
-command fails unexpectedly.
-
-Maintainer, data, and release work uses the more specialized commands:
-`bun run check`, `bun run build:data`, `bun run build:tour-data`,
-`bun run build:geoparquet`, `bun run validate:geoparquet`, `bun run build`,
-`bun run release:check`, and the Playwright or mobile smoke commands when
-release coverage is needed. Production deploys happen through GitHub Actions
-after a green change merges to `main`.
-
-## Branches and Releases
-
-`main` is the only long-lived branch. Focused pull requests target `main`; the
-single CI quality job validates lint, unit and DOM tests, generated files, the
-production build, and browser flows. A green merge deploys GitHub Pages.
-
-Versioned releases use SemVer in [`package.json`](./package.json), matching
-entries in [`CHANGELOG.md`](./CHANGELOG.md), and tags named `vX.Y.Z`. See
-[`docs/release-workflow.md`](./docs/release-workflow.md) for the full branch,
-version, CI/CD, and GitHub branch-protection contract.
-
-## Data pipeline
-
-Source-of-truth data lives in:
+Source-of-truth files:
 
 - [`src/data/Geo_Burials.json`](./src/data/Geo_Burials.json)
 - [`src/data/ARC_Sections.json`](./src/data/ARC_Sections.json)
 - [`src/data/ARC_Roads.json`](./src/data/ARC_Roads.json)
 - [`src/data/ARC_Boundary.json`](./src/data/ARC_Boundary.json)
-- tour definitions and datasets in [`src/features/fab/tours.js`](./src/features/fab/tours.js)
+- tour datasets declared in [`src/features/fab/tours.js`](./src/features/fab/tours.js)
 
-Generated artifacts live in:
+Generated files:
 
-- [`src/data/TourBiographyAliases.json`](./src/data/TourBiographyAliases.json)
-- [`src/data/TourMatches.json`](./src/data/TourMatches.json)
 - [`public/data/Search_Burials.json`](./public/data/Search_Burials.json)
+- [`src/data/TourMatches.json`](./src/data/TourMatches.json)
+- [`src/data/TourBiographyAliases.json`](./src/data/TourBiographyAliases.json)
 - [`src/features/map/generatedBounds.js`](./src/features/map/generatedBounds.js)
 
-If you change source data, regenerate derived outputs instead of editing them by
-hand:
+Run `bun run build:data` after source-data changes. Do not hand-edit generated files.
 
-```bash
-bun run build:tour-data
-bun run build:data
-```
+The old local ortho exports, GeoParquet copy, and PMTiles experiment are retired.
+They have been removed from the repository and are not part of the runtime.
 
-When `src/data/Geo_Burials.parquet` exists, the build pipeline prefers it and
-falls back to `src/data/Geo_Burials.json` if the GeoParquet toolchain is not
-available.
+## Deployment
 
-## Architecture notes
+`main` is the only long-lived branch. CI installs with the frozen Bun lockfile,
+runs lint/tests/build/browser checks, uploads `dist/`, and deploys GitHub Pages.
+The app is served under `/fab`, so use `import.meta.env.BASE_URL` for public assets.
 
-Start with these documents:
+GitHub Pages is repository-controlled. Promotion to `albany.edu/arce` remains a
+separate institutional operation. A green repository build does not prove that
+host or the installed iPhone wrapper has been updated.
 
-- [CONTRIBUTING.md](./CONTRIBUTING.md) for contributor workflow and validation
-- [AGENTS.md](./AGENTS.md) for repo-specific automation and maintainer notes
-- [docs/architecture-index.md](./docs/architecture-index.md) for a guide to the
-  architecture notes
-- [docs/codebase-structure.md](./docs/codebase-structure.md) for directory
-  ownership and placement rules
-- [docs/maintainability-playbook.md](./docs/maintainability-playbook.md) for
-  repo-wide cleanup, comment policy, and source-of-truth boundaries
-- [docs/routing-architecture.md](./docs/routing-architecture.md) for client
-  route, deep-link, in-app road routing, and external directions-link ownership
-- [docs/release-workflow.md](./docs/release-workflow.md) for production branch,
-  versioning, release tags, and CI/CD rules
+## Architecture
 
-Common entry points:
+Start with:
 
-- [`src/Map.jsx`](./src/Map.jsx): map orchestration, selections, overlays, and
-  routing
-- [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx): Tours and Search page
-  composition, browse controls, and result presentation
-- [`src/features/fab/FabNavigation.jsx`](./src/features/fab/FabNavigation.jsx):
-  FABFG-aligned Search Tours, ARCE, and Burial Locator destinations
-- [`src/features/browse/`](./src/features/browse): search indexing and browse
-  result shaping
-- [`src/features/tours/`](./src/features/tours): tour definitions, alias
-  generation, and burial-tour reconciliation
-- [`src/features/map/`](./src/features/map): popup models, selection reducer/actions,
-  viewport helpers, and map-specific logic
-- [`src/shared/routing.js`](./src/shared/routing.js): query keys and external
-  Apple Maps / Google Maps directions links
-
-## Deployment notes
-
-There are two relevant hosted environments:
-
-- GitHub Pages is the repo-controlled public web deployment. It is built and
-  deployed by GitHub Actions after a green change merges to `main`.
-  The `gh-pages` branch is not part of the normal deployment path.
-- `albany.edu/arce` is the institutional production deployment. Promotion to
-  that host is still manual.
-
-The app is served under `/fab` on GitHub Pages, so public asset URLs must honor
-`process.env.PUBLIC_URL`. If a data fetch returns `<!DOCTYPE html>`, check the
-requested path first.
-
-Because `FABFG` consumes hosted `fab` URLs, any change to shared routing,
-selection state, or deep links should be checked in both the web app and the
-native wrapper.
-
-## Contributing
-
-Contributions are welcome. Start with [CONTRIBUTING.md](./CONTRIBUTING.md) for
-setup, validation expectations, and pull request guidance.
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+- [`docs/architecture-index.md`](./docs/architecture-index.md)
+- [`docs/map-architecture.md`](./docs/map-architecture.md)
+- [`docs/routing-architecture.md`](./docs/routing-architecture.md)
+- [`docs/ui-principles.md`](./docs/ui-principles.md)

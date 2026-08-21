@@ -1,12 +1,11 @@
-import distance from "@turf/distance";
-import { point } from "@turf/helpers";
-import { buildBrowseSecondaryText, formatBrowseResultName } from "../browse/browseResults";
-import { normalizeName } from "../browse/burialSearch";
-import { cleanRecordValue, resolveRecordDates } from "../map/mapRecordPresentation";
+import {
+  cleanRecordValue,
+  normalizeRecordName,
+} from "../fab/recordValues";
 
 /**
  * Reconciles burial-source records and tour-source records without changing
- * either source file. The map/sidebar can then work with one browse shape while
+ * either source file. The map and record card can then use one shape while
  * still showing richer tour metadata where a confident match exists.
  */
 const MATCH_ACCEPTANCE_SCORE = 7;
@@ -92,80 +91,12 @@ const buildLookupBySectionLot = (records = []) => {
   return { bySectionLot };
 };
 
-const appendNameVariantInput = (variants, input) => {
-  if (Array.isArray(input)) {
-    input.forEach((item) => appendNameVariantInput(variants, item));
-    return;
-  }
-
-  variants.push(input);
-};
-
-const buildNameVariantsNormalized = (...inputs) => {
-  const variants = [];
-  inputs.forEach((input) => appendNameVariantInput(variants, input));
-
-  return Array.from(
-    new Set(
-      variants
-        .map((value) => normalizeName(value))
-        .filter(Boolean)
-    )
-  );
-};
-
-const buildSearchableLabel = (displayName, secondaryText, tourName) => (
-  [displayName, secondaryText, cleanRecordValue(tourName)].filter(Boolean).join(" • ")
-);
-
-const rebuildHarmonizedBrowseResult = (
-  record,
-  {
-    displayName = "",
-    fullName = "",
-    nameVariantInputs = [],
-  } = {}
-) => {
-  const nextDisplayName = cleanRecordValue(
-    displayName ||
-    record.displayName ||
-    record.fullName ||
-    formatBrowseResultName(record)
-  );
-  const nextFullName = cleanRecordValue(fullName || record.fullName || nextDisplayName);
-  const baseRecord = {
-    ...record,
-    displayName: nextDisplayName,
-    label: nextDisplayName,
-    fullName: nextFullName,
-    fullNameNormalized: normalizeName(nextFullName || nextDisplayName),
-  };
-  const secondaryText = buildBrowseSecondaryText(baseRecord);
-  const searchableLabel = buildSearchableLabel(
-    nextDisplayName,
-    secondaryText,
-    baseRecord.tourName
-  );
-
-  return {
-    ...baseRecord,
-    nameVariantsNormalized: buildNameVariantsNormalized(
-      nameVariantInputs,
-      nextDisplayName,
-      nextFullName
-    ),
-    secondaryText,
-    searchableLabel,
-    searchableLabelLower: searchableLabel.toLowerCase(),
-  };
-};
-
 const getPrimaryNameToken = (value = "") => (
-  normalizeName(value).split(" ").find(Boolean) || ""
+  normalizeRecordName(value).split(" ").find(Boolean) || ""
 );
 
 const buildIdentityNameTokens = (value = "", { includeInitials = false } = {}) => (
-  normalizeName(value)
+  normalizeRecordName(value)
     .split(" ")
     .filter((token) => (
       (includeInitials || token.length > 1) &&
@@ -191,7 +122,7 @@ const buildPersonNameParts = (record = {}) => {
     firstNameIsInitial: (firstNameTokens[0] || fullNameTokens[0] || "").length === 1,
     surname: surnameTokens.join(""),
     surnameTail: surnameTokens[surnameTokens.length - 1] || "",
-    fullNameNormalized: normalizeName(fullName),
+    fullNameNormalized: normalizeRecordName(fullName),
     fullNameTokens,
     isSurnameOnly: (
       firstNameTokens.length === 0 &&
@@ -384,7 +315,7 @@ const countSharedIdentityTokens = (left, right) => {
 };
 
 const hasTourSiteIdentityEvidence = (tourName, tourNameParts, burialNameParts) => {
-  if (!TOUR_SITE_NAME_PATTERN.test(normalizeName(tourName))) return false;
+  if (!TOUR_SITE_NAME_PATTERN.test(normalizeRecordName(tourName))) return false;
 
   const burialTokens = new Set(burialNameParts.fullNameTokens);
   return tourNameParts.fullNameTokens.some((token) => (
@@ -393,10 +324,10 @@ const hasTourSiteIdentityEvidence = (tourName, tourNameParts, burialNameParts) =
 };
 
 const hasExactSourcePersonIdentity = (tourRecord, burialRecord) => {
-  const tourFirstName = normalizeName(tourRecord.First_Name);
-  const burialFirstName = normalizeName(burialRecord.First_Name);
-  const tourLastName = normalizeName(tourRecord.Last_Name);
-  const burialLastName = normalizeName(burialRecord.Last_Name);
+  const tourFirstName = normalizeRecordName(tourRecord.First_Name);
+  const burialFirstName = normalizeRecordName(burialRecord.First_Name);
+  const tourLastName = normalizeRecordName(tourRecord.Last_Name);
+  const burialLastName = normalizeRecordName(burialRecord.Last_Name);
 
   return Boolean(
     tourFirstName &&
@@ -504,15 +435,19 @@ const getRecordDistanceMeters = (left, right) => {
     return Number.POSITIVE_INFINITY;
   }
 
-  try {
-    return distance(
-      point(left.coordinates),
-      point(right.coordinates),
-      { units: "meters" }
-    );
-  } catch (_error) {
-    return Number.POSITIVE_INFINITY;
-  }
+  const [leftLng, leftLat] = left.coordinates.map(Number);
+  const [rightLng, rightLat] = right.coordinates.map(Number);
+  if (![leftLng, leftLat, rightLng, rightLat].every(Number.isFinite)) return Number.POSITIVE_INFINITY;
+  const toRadians = (value) => (value * Math.PI) / 180;
+  const deltaLat = toRadians(rightLat - leftLat);
+  const deltaLng = toRadians(rightLng - leftLng);
+  const startLat = toRadians(leftLat);
+  const endLat = toRadians(rightLat);
+  const haversine = (
+    Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(startLat) * Math.cos(endLat) * Math.sin(deltaLng / 2) ** 2
+  );
+  return 6371008.8 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
 };
 
 /**
@@ -531,8 +466,8 @@ const scoreTourBurialMatch = (tourRecord, burialRecord) => {
   let score = 0;
   const tourName = cleanRecordValue(tourRecord.fullName || tourRecord.displayName);
   const burialName = cleanRecordValue(burialRecord.fullName || burialRecord.displayName);
-  const tourNormalized = normalizeName(tourName);
-  const burialNormalized = normalizeName(burialName);
+  const tourNormalized = normalizeRecordName(tourName);
+  const burialNormalized = normalizeRecordName(burialName);
 
   if (tourNormalized && burialNormalized) {
     if (tourNormalized === burialNormalized) {
@@ -689,121 +624,4 @@ export const buildTourBurialMatches = (
       [burialId, match.tourRecord]
     ))
   );
-};
-
-/**
- * Preserve the burial record as the canonical search result, but pull in the
- * extra biography/image/title fields that only exist on matching tour stops.
- */
-export const harmonizeBurialBrowseResult = (burialRecord, tourMatches = {}) => {
-  const matchedTour = tourMatches[burialRecord.id] || null;
-  if (!matchedTour) return burialRecord;
-
-  const displayName = cleanRecordValue(
-    burialRecord.displayName ||
-    burialRecord.fullName ||
-    formatBrowseResultName(burialRecord)
-  );
-  const fullName = cleanRecordValue(
-    burialRecord.fullName ||
-    matchedTour.fullName ||
-    displayName
-  );
-  const mergedRecord = {
-    ...burialRecord,
-    matchedTourId: matchedTour.id,
-    matchedTourName: matchedTour.tourName || burialRecord.tourName,
-    title: matchedTour.tourKey || burialRecord.title,
-    tourKey: matchedTour.tourKey || burialRecord.tourKey,
-    tourName: matchedTour.tourName || burialRecord.tourName,
-    extraTitle: burialRecord.extraTitle || matchedTour.extraTitle,
-    Titles: burialRecord.Titles || matchedTour.Titles,
-    Highest_Ra: burialRecord.Highest_Ra || matchedTour.Highest_Ra,
-    Initial_Te: burialRecord.Initial_Te || matchedTour.Initial_Te,
-    Subsequent: burialRecord.Subsequent || matchedTour.Subsequent,
-    Unit: burialRecord.Unit || matchedTour.Unit,
-    Service_Re: burialRecord.Service_Re || matchedTour.Service_Re,
-    Headstone_: burialRecord.Headstone_ || matchedTour.Headstone_,
-    Bio_Portra: burialRecord.Bio_Portra || matchedTour.Bio_Portra,
-    Bio_Portri: burialRecord.Bio_Portri || matchedTour.Bio_Portri,
-    Bio_portra: burialRecord.Bio_portra || matchedTour.Bio_portra,
-    portraitImageName: burialRecord.portraitImageName || matchedTour.portraitImageName,
-    Tour_Bio: burialRecord.Tour_Bio || matchedTour.Tour_Bio,
-    biographyLink: burialRecord.biographyLink || matchedTour.biographyLink,
-    displayAlias: burialRecord.displayAlias || (
-      cleanRecordValue(matchedTour.displayName) &&
-      cleanRecordValue(matchedTour.displayName) !== displayName
-        ? cleanRecordValue(matchedTour.displayName)
-        : ""
-    ),
-  };
-
-  return rebuildHarmonizedBrowseResult(mergedRecord, {
-    displayName,
-    fullName,
-    nameVariantInputs: [
-      burialRecord.nameVariantsNormalized,
-      matchedTour.nameVariantsNormalized,
-      matchedTour.displayName,
-      matchedTour.fullName,
-    ],
-  });
-};
-
-/**
- * Normalize tour records into the same shape the rest of the browse UI expects.
- * This keeps selection, popup rendering, and deep-link handling consistent
- * regardless of whether the source record started as a tour stop or burial row.
- */
-export const harmonizeTourBrowseResult = (tourRecord, burialLookup) => {
-  const matchedBurial = findMatchingBurialRecord(tourRecord, burialLookup);
-  const rawDisplayName = cleanRecordValue(
-    tourRecord.displayName ||
-    tourRecord.fullName ||
-    formatBrowseResultName(tourRecord)
-  );
-  const displayName = matchedBurial ? formatBrowseResultName(matchedBurial) : rawDisplayName;
-  const fullName = cleanRecordValue(
-    matchedBurial?.fullName ||
-    matchedBurial?.displayName ||
-    tourRecord.fullName ||
-    displayName
-  );
-  const resolvedDates = resolveRecordDates({
-    Birth: matchedBurial?.Birth || tourRecord.Birth,
-    Death: matchedBurial?.Death || tourRecord.Death,
-  });
-  // Matched burial rows stay canonical for map/search identity, while tour rows
-  // supply the curated image, title, and stop-position metadata.
-  const mergedRecord = {
-    ...tourRecord,
-    ...(matchedBurial
-      ? {
-          matchedBurialId: matchedBurial.id,
-          matchedBurialName: displayName,
-          displayAlias: rawDisplayName !== displayName ? rawDisplayName : "",
-          First_Name: matchedBurial.First_Name || tourRecord.First_Name,
-          Last_Name: matchedBurial.Last_Name || tourRecord.Last_Name,
-          Section: matchedBurial.Section || tourRecord.Section,
-          Lot: matchedBurial.Lot || tourRecord.Lot,
-          Tier: matchedBurial.Tier ?? tourRecord.Tier,
-          Grave: matchedBurial.Grave ?? tourRecord.Grave,
-          row: tourRecord.row || matchedBurial.row,
-          position: tourRecord.position || matchedBurial.position,
-        }
-      : {}),
-    Birth: resolvedDates.birth,
-    Death: resolvedDates.death,
-  };
-
-  return rebuildHarmonizedBrowseResult(mergedRecord, {
-    displayName,
-    fullName,
-    nameVariantInputs: [
-      tourRecord.nameVariantsNormalized,
-      matchedBurial?.nameVariantsNormalized,
-      rawDisplayName,
-      tourRecord.fullName,
-    ],
-  });
 };

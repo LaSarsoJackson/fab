@@ -7,8 +7,8 @@ FAB has one long-lived branch and one delivery path.
 - `main` is production.
 - Focused pull requests target `main` directly when branch protection requires
   review and checks.
-- The single `CI / Quality` job runs lint, unit and DOM tests, generated-file
-  drift checks, a production build, and browser regression tests.
+- The single `CI / Quality` job runs lint, Bun and Vitest tests, a production
+  build, and Playwright browser regression tests.
 - On `main`, the same workflow uploads the validated build and runs its Pages
   deployment job only after `Quality` succeeds.
 - Do not add `dev`, `staging`, automated promotion branches, or branch-name
@@ -34,7 +34,7 @@ builds the app, and creates the GitHub Release. Tags do not control deployment;
 
 ## Release checklist
 
-1. Run `bun run check` and `bun run build`.
+1. Run `bun run check` and `bun run test:e2e`.
 2. Verify the browser flows affected by the change.
 3. Merge the focused pull request to `main`.
 4. Verify the public GitHub Pages route, not only the Actions result.

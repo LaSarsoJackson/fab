@@ -2,20 +2,9 @@ import { describe, expect, test } from "bun:test";
 
 import {
   buildDirectionsLink,
-  ROUTING_QUERY_PARAMS,
 } from "../src/shared/routing";
 
 describe("routing contracts", () => {
-  test("centralizes public route query keys", () => {
-    expect(ROUTING_QUERY_PARAMS).toEqual({
-      search: "q",
-      section: "section",
-      sharedSelection: "share",
-      tour: "tour",
-      view: "view",
-    });
-  });
-
   test("builds an Apple Maps link for Apple platforms", () => {
     const result = buildDirectionsLink({
       latitude: 42.710119,

@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import SearchBurials from "../public/data/Search_Burials.json";
 import GeoBurials from "../src/data/Geo_Burials.json";
 import ProjectedSec49Headstones from "../src/data/Projected_Sec49_Headstones.json";
-import { buildTourBrowseResult } from "../src/features/browse/browseResults";
+import { buildTourRecord } from "../src/features/tours/tourRecords";
 import { hasValidGeoJsonCoordinates } from "../src/shared/geoJsonBounds";
 
 const getFeatureCoordinates = (feature = {}) => feature.geometry?.coordinates ?? null;
@@ -48,7 +48,7 @@ describe("data pipeline coordinate integrity", () => {
 
     expect(highPrecisionFeature).toBeTruthy();
 
-    const browseRecord = buildTourBrowseResult(highPrecisionFeature, {
+    const browseRecord = buildTourRecord(highPrecisionFeature, {
       tourKey: "Sec49",
       tourName: "Section 49",
     });

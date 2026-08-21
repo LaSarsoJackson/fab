@@ -1,36 +1,28 @@
 # Routing architecture
 
-This note is the ownership map for FAB routing and link work. It covers client
-share/deep-link query keys, in-app cemetery road routing, and external
-directions links.
+FAB is a static app, so the query string is the public route contract.
 
-## One contract module
+[`src/app/routes.js`](../src/app/routes.js) owns destination parsing and URL
+updates. `src/App.jsx` decides when a user action changes that route.
 
-Use [`src/shared/routing.js`](../src/shared/routing.js) for route and URL contracts:
+## Parameters
 
-- query-string key names such as `q`, `section`, `tour`, `share`, and `view`
-- external Apple Maps and Google Maps directions links
+- `view=tours|map|burials`
+- `q=<name query>`
+- `section=<section>`
+- `tour=<tour key>`
+- `record=<burial or tour record id>`
+- `embed=fabfg`
+- legacy `share=<packed selection>` for backward-compatible reads only
 
-## Supporting modules
+New share links use `record`; do not create new packed field packets.
 
-- [`src/features/map/mapRouting.js`](../src/features/map/mapRouting.js): route
-  calculation, bundled road-graph snapping, and local shortest-path routing.
-- [`src/features/map/mapNavigationDestination.js`](../src/features/map/mapNavigationDestination.js):
-  saved route-destination record shaping and localStorage persistence.
-- [`src/features/fieldPackets.js`](../src/features/fieldPackets.js): field-packet
-  encoding/decoding, URL state parsing, and restored-record reconciliation
-  using the shared query-key registry.
+FABFG should load the three canonical routes with `embed=fabfg`. The native
+shell owns its tabs; embedded FAB owns content and route behavior.
 
-## Editing guidance
+External directions are built in [`src/shared/routing.js`](../src/shared/routing.js).
+Apple platforms open Apple Maps; Android and other platforms use Google Maps.
+FAB does not maintain a second client-side routing engine over cemetery roads.
 
-- Add new query params and external directions-link builders to
-  `src/shared/routing.js` first.
-- Keep map rendering and route state in `src/Map.jsx`; do not add URL-builder
-  logic there.
-- Keep walking-route calculation in `mapRouting.js`; do not move road-graph
-  routing into shared URL helpers.
-- Keep saved navigation destination shaping in `mapNavigationDestination.js`;
-  `Map.jsx` should only decide when to save, resume, or clear it.
-- Keep packed share payload structure and current-data hydration in
-  `src/features/fieldPackets.js`; the shared routing module only owns the public
-  query-key contract.
+Changing a parameter or its meaning is a shared web/native contract change and
+requires both browser and wrapper acceptance.

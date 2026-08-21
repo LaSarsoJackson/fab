@@ -1,62 +1,55 @@
 # Map architecture
 
-This note exists to keep `src/Map.jsx` maintainable.
+FAB has one renderer: MapLibre GL JS.
 
 ## Boundary
 
-Treat [`src/Map.jsx`](../src/Map.jsx) as the orchestration layer. It should own:
+[`MapView.jsx`](../src/features/map/MapView.jsx) is the only module that creates a
+MapLibre map or calls imperative map APIs. It owns:
 
-- React state and memoized selectors
-- Leaflet layer lifecycle and imperative refs
-- cross-component event wiring
-- viewport, routing, and selection side effects
+- map construction and cleanup
+- controls and pointer events
+- source `setData` updates
+- basemap, hillshade, and section visibility
+- selected-record and tour viewport focus
 
-It should not be the long-term home for pure formatting or dataset-reconciliation logic.
-`main` keeps one production map path. Development-only experiments stay out of
-the shipped app until they are ready.
+[`mapStyle.js`](../src/features/map/mapStyle.js) is declarative. It owns sources,
+layers, paint, provider URLs, and attribution. It does not import React.
 
-## Supporting modules
+Record transforms return ordinary GeoJSON in
+[`burialRecords.js`](../src/features/locator/burialRecords.js). They do not know
+which renderer consumes it.
 
-- [`docs/codebase-structure.md`](./codebase-structure.md): repo ownership map and directory responsibilities
-- [`docs/routing-architecture.md`](./routing-architecture.md): client route, shared-link, in-app road routing, and directions-link ownership
-- [`src/features/map/mapChrome.jsx`](../src/features/map/mapChrome.jsx): production Leaflet map controls, overlays, section-marker adapters, and route-status chrome
-- [`src/features/map/mapMarkerIcons.js`](../src/features/map/mapMarkerIcons.js): cached Leaflet div icons for selected records, burial clusters, section clusters, and section affordance markers
-- [`src/features/map/mapDomain.js`](../src/features/map/mapDomain.js): the single home for pure map business rules such as selection-state actions/reduction, section grouping, location filtering, hover guards, viewport-intent control, and popup viewport geometry
-- [`src/features/map/mapNavigationDestination.js`](../src/features/map/mapNavigationDestination.js): saved navigation-destination record shaping and localStorage persistence
-- [`src/features/map/mapRouting.js`](../src/features/map/mapRouting.js): the single home for walking-route calculation and local road-graph routing
-- [`src/features/tours/tourDerivedData.js`](../src/features/tours/tourDerivedData.js): canonical biography/portrait inference for uneven tour datasets and the helpers used to generate alias metadata
-- [`src/features/map/mapRecordPresentation.js`](../src/features/map/mapRecordPresentation.js): shared record cleanup, popup view-model generation, ARCE biography/image link normalization, and defensive date formatting
-- [`src/features/tours/tourRecordHarmonization.js`](../src/features/tours/tourRecordHarmonization.js): burial/tour matching heuristics, search-result enrichment from tour metadata, and tour-stop normalization into the shared browse-result shape
-- [`src/features/browse/browseResults.js`](../src/features/browse/browseResults.js): record shaping used by both the sidebar and map
-- [`docs/tour-popup-data.md`](./tour-popup-data.md): focused guide to the tour popup data flow, build guards, and change process
+## Layer order
 
-## Editing guidelines
+1. reference map or imagery
+2. low-opacity hillshade
+3. cemetery ground and boundary
+4. cemetery roads
+5. optional sections
+6. record clusters and points
+7. selected record
 
-When adding new behavior:
+That order is the visual hierarchy. Do not solve prominence by raising every
+line width or adding more controls.
 
-1. Put pure record transforms in `src/features/*` or `src/shared/*`.
-2. Keep `Map.jsx` focused on when those transforms run and how the map responds.
-3. Prefer comments that explain a constraint or tradeoff, not comments that restate the next line.
+## Interaction rules
 
-Examples:
+- No pitch or rotation; this is a small-site wayfinding map.
+- Sections stay hidden until requested.
+- A selected record is rendered once in the dedicated selected source.
+- Tour stops remain directly selectable in an accessible HTML list; the canvas
+  is not the only way to choose one.
+- Close dismisses details but keeps the pin. Unpin clears the selection.
+- MapLibre attribution remains visible.
+- Geolocation uses MapLibre’s control; directions hand off to Apple or Google Maps.
 
-- Good fit for `Map.jsx`: "open the popup after `moveend` because Leaflet may discard it during animation"
-- Good fit for `src/features/tours/tourDerivedData.js`: "recover a biography slug for a fixed-format mayor record using deterministic aliases"
-- Good fit for `src/features/map/mapRecordPresentation.js`: "normalize biography links because the source data mixes bare slugs and full URLs"
-- Bad fit for `Map.jsx`: another 100-line record formatting helper that never touches React or Leaflet
+## Performance
 
-## High-risk areas
+The map is lazy-loaded when the map destination first mounts. The full burial
+source is never added to MapLibre. Only the current tour, search result set, or
+selected record is sent to the renderer. Clustering is native to the GeoJSON
+source.
 
-Changes in these areas should be tested together because the code paths converge on the same record model:
-
-- search result selection
-- section polygon selection
-- section marker clustering
-- tour stop selection
-- deep-link selection
-- popup rendering
-
-If one of those flows changes, verify the others still land on the same selected record and popup behavior.
-Search results, section burial markers, tour stops, direct marker clicks, popup
-close, hover, and deep-link restoration should all update selected records
-through the reducer/actions in `mapDomain.js`.
+Do not introduce a second renderer or adapter layer. A renderer migration would
+be the point to add an interface; anticipation is not evidence.
