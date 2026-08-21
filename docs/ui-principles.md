@@ -1,64 +1,45 @@
-# UI Principles
+# UI principles
 
-These rules keep `fab` aligned with the current product direction: clearer, faster, more Apple-HIG-inspired, and easier to maintain.
+Usability is the design system.
 
-## Primary goals
+## Product hierarchy
 
-- clarity over density
-- familiar touch-first patterns over novel interaction
-- visible state changes over subtle affordances
-- restrained motion over decorative animation
-- accessibility as a baseline, not cleanup work
+- Search Tours, Cemetery Map, and Burial Locator are distinct destinations.
+- The ARCE website is a clearly external action.
+- Tours opens by default.
+- FABFG embedded routes do not draw a second navigation bar.
 
-## Interaction rules
+## Interaction
 
-- Keep primary actions obvious and close to the content they affect.
-- Prefer one clear action per row or panel instead of many competing controls.
-- Use simple gestures for common actions. If a gesture exists, provide a visible control too.
-- Keep tap targets comfortable on mobile.
-- Honor safe areas and avoid controls that compete with system edges.
+- Use familiar controls and direct labels.
+- Keep touch targets at least 44 px where space permits.
+- Give pressed controls a small `scale: 0.96` response.
+- Limit transitions to the properties that change; never use `transition: all`.
+- Honor `prefers-reduced-motion` and device safe areas.
+- Preserve keyboard focus and visible focus rings.
 
-## Visual rules
+## Map and selection
 
-- Use the shared tokens in [`src/App.js`](../src/App.js) and [`src/index.css`](../src/index.css) before adding one-off colors or shadows.
-- Keep hierarchy strong: section labels, titles, supporting text, then metadata.
-- Prefer calm surfaces and strong contrast over decorative gradients that reduce legibility.
-- Keep Tours, ARCE, and Burial Locator as distinct destinations. Do not layer
-  competing browse surfaces over the map.
-- Keep the general ARCE map quiet: imagery and boundary first. Reveal section
-  geometry or burial locations only after an explicit browse choice.
-- Treat a chosen burial record as one person. When source coordinates represent
-  a shared plot, expose that stack deliberately instead of silently merging it
-  into the original selection.
+- Keep the general map quiet: boundary and roads before sections and graves.
+- Sections appear only after an explicit choice.
+- Keep tour stops in a keyboard-accessible list as well as on the map.
+- One physical location may represent multiple records; do not invent spatial
+  precision by spreading canonical coordinates.
+- Close hides the detail card but leaves the pin.
+- Unpin is the destructive selection action and must be explicit.
+- Keep sharing secondary under “Share pinned grave.”
 
-## Accessibility rules
+## Visual language
 
-- Every form control needs a label or accessible name.
-- Async notices and status updates should use `aria-live="polite"` when they matter.
-- Icon-only controls need explicit labels.
-- Focus styles must remain visible.
-- Reduced-motion users should not be forced through long animated transitions.
-- State should never rely on color alone.
+- Use system typography, balanced headings, and readable line lengths.
+- Use calm neutral surfaces, one green action color, and a warm selection accent.
+- Use thin borders and subtle shadows to establish hierarchy.
+- Use tabular numerals for dates and result counts.
+- Inset image outlines use restrained black/white opacity, not gray borders.
 
-## Performance rules
+## Performance behavior
 
-- Keep high-frequency interactions cheap: typing, filtering, tab changes, and map panning.
-- Do not load the full search payload or mount Leaflet until the active destination needs it.
-- Prefer CSS/layout solutions over measurement-heavy JavaScript.
-- Large lists should use `content-visibility`, virtualization, or another bounded rendering strategy.
-- Defer toolchain-level performance work until shared boundaries are stable enough to migrate safely.
-
-## File placement
-
-- Put shared UI patterns and tokens in top-level shell CSS or reusable UI helpers.
-- Keep domain logic out of styling helpers.
-- Put FAB-only presentation differences in [`src/features/fab/`](../src/features/fab).
-
-## Review checklist
-
-- Is the interaction simpler than before?
-- Does it work with keyboard and touch?
-- Are safe areas and the fixed mobile tabs still correct?
-- Is focus visible?
-- Does reduced motion still behave well?
-- Did the change make the code easier for the next contributor to find?
+- Do not load MapLibre until the map destination is needed.
+- Do not load the burial index until a real name or section search starts.
+- Search and prepare the large index in a worker.
+- Keep the first Tours screen useful before any map or data request completes.

@@ -1,193 +1,51 @@
-/**
- * Runtime PWA cache policy for the static FAB build. The service worker keeps
- * the shell installable and avoids duplicating large datasets in constrained
- * browser storage while they are also being parsed by the page.
- */
-const STATIC_CACHE = 'fab-static-v5';
-const RUNTIME_CACHE = 'fab-runtime-v5';
-// Keep the app shell installable, but leave large and frequently regenerated
-// datasets to route-specific caching rules below.
-const PRECACHE_URLS = [
-  './',
-  './index.html',
-  './manifest.json',
-  './favicon.ico',
-  './logo192.png',
-  './logo512.png',
-];
-const SHELL_ASSET_PATTERN = /\.(?:js|css|svg|ico|woff2?)$/i;
-const IMAGE_ASSET_PATTERN = /\.(?:png|jpg|jpeg|gif|webp|avif)$/i;
-const BASEMAP_ASSET_PATTERN = /\/basemaps\/.*\.(?:png|jpg|jpeg|webp|avif)$/i;
-const JSON_ASSET_PATTERN = /\.json$/i;
-const FIELD_SEARCH_PAYLOAD_PATTERN = /\/data\/Search_Burials\.json$/i;
-const LARGE_DATASET_PATTERN = /(Geo_Burials|Burials|ARC_Burials).*\.json$/i;
-// Most runtime assets are tiny enough for a conservative cache cap.
-const MAX_RUNTIME_CACHE_BYTES = 1_500_000;
-// High-resolution basemap tiles are several MB each, well above the generic
-// image cap. They load on demand (only when zoomed in), so cache them once
-// fetched to keep panning and repeat visits fast and offline-capable.
-const MAX_BASEMAP_CACHE_BYTES = 8_000_000;
+const CACHE_NAME = "fab-v6";
+const SEARCH_DATA_PATH = "/data/Search_Burials.json";
 
-const isCacheableResponse = (response) => Boolean(response && response.ok);
-
-const putIfSmallEnough = async (
-  cache,
-  request,
-  response,
-  { maxBytes = MAX_RUNTIME_CACHE_BYTES } = {}
-) => {
-  if (!isCacheableResponse(response)) {
-    return response;
-  }
-
-  const contentLength = Number(response.headers.get('content-length') || 0);
-  if (contentLength && contentLength > maxBytes) {
-    return response;
-  }
-
-  try {
-    await cache.put(request, response.clone());
-  } catch (error) {
-    console.warn('Unable to cache runtime response:', error);
-  }
-  return response;
-};
-
-const networkFirst = async (
-  request,
-  {
-    cacheName = RUNTIME_CACHE,
-    fallbackUrl,
-    maxBytes = MAX_RUNTIME_CACHE_BYTES,
-  } = {}
-) => {
-  const cache = await caches.open(cacheName);
-
-  try {
-    // Data and navigations should prefer fresh content, then fall back to the
-    // last cached response when the cemetery visitor is offline.
-    const response = await fetch(request);
-    await putIfSmallEnough(cache, request, response, { maxBytes });
-    return response;
-  } catch (error) {
-    const cachedResponse = await cache.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-
-    if (fallbackUrl) {
-      return caches.match(fallbackUrl);
-    }
-
-    throw error;
-  }
-};
-
-const staleWhileRevalidate = async (
-  request,
-  {
-    cacheName = RUNTIME_CACHE,
-    maxBytes = MAX_RUNTIME_CACHE_BYTES,
-  } = {}
-) => {
-  const cache = await caches.open(cacheName);
-  const cachedResponse = await cache.match(request);
-  // Static shell assets and images can render immediately from cache while the
-  // service worker refreshes them in the background for the next visit.
-  const networkPromise = fetch(request)
-    .then((response) => putIfSmallEnough(cache, request, response, { maxBytes }))
-    .catch(() => cachedResponse);
-
-  return cachedResponse || networkPromise;
-};
-
-self.addEventListener('install', (event) => {
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(STATIC_CACHE)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.add(self.registration.scope))
       .then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) =>
-      Promise.all(
-        cacheNames
-          .filter((name) => ![STATIC_CACHE, RUNTIME_CACHE].includes(name))
-          .map((name) => caches.delete(name))
-      )
-    )
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  const url = new URL(request.url);
+  if (request.method !== "GET" || url.origin !== self.location.origin) return;
 
-  if (request.method !== 'GET') {
-    return;
-  }
+  // Avoid cloning and storing the 13 MB search payload while the worker is
+  // decoding it. The browser's HTTP cache remains the single cache owner.
+  if (url.pathname.endsWith(SEARCH_DATA_PATH)) return;
 
-  const requestUrl = new URL(request.url);
-  if (requestUrl.origin !== self.location.origin) {
-    return;
-  }
-
-  if (request.mode === 'navigate') {
+  if (request.mode === "navigate") {
     event.respondWith(
-      networkFirst(request, { cacheName: STATIC_CACHE, fallbackUrl: './index.html' })
+      fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(self.registration.scope, copy));
+          return response;
+        })
+        .catch(() => caches.match(self.registration.scope))
     );
     return;
   }
 
-  if (SHELL_ASSET_PATTERN.test(requestUrl.pathname)) {
-    event.respondWith(
-      staleWhileRevalidate(request, { cacheName: RUNTIME_CACHE })
-    );
-    return;
-  }
-
-  if (JSON_ASSET_PATTERN.test(requestUrl.pathname)) {
-    if (FIELD_SEARCH_PAYLOAD_PATTERN.test(requestUrl.pathname)) {
-      // Search_Burials is roughly 13 MB. Caching it here requires cloning the
-      // response while the page is also decoding and inflating it, which can
-      // exceed iOS PWA memory limits. Let the browser HTTP cache own this one
-      // payload and fetch it only after an explicit search interaction.
-      event.respondWith(fetch(request));
-      return;
-    }
-
-    if (LARGE_DATASET_PATTERN.test(requestUrl.pathname)) {
-      // Full source datasets can be much larger than the PWA cache budget. Try
-      // the network first and use an existing cache entry only as an offline
-      // safety net.
-      event.respondWith(
-        fetch(request).catch(() => caches.match(request))
-      );
-      return;
-    }
-
-    event.respondWith(
-      networkFirst(request, { cacheName: RUNTIME_CACHE })
-    );
-    return;
-  }
-
-  if (BASEMAP_ASSET_PATTERN.test(requestUrl.pathname)) {
-    event.respondWith(
-      staleWhileRevalidate(request, {
-        cacheName: RUNTIME_CACHE,
-        maxBytes: MAX_BASEMAP_CACHE_BYTES,
-      })
-    );
-    return;
-  }
-
-  if (IMAGE_ASSET_PATTERN.test(requestUrl.pathname)) {
-    event.respondWith(
-      staleWhileRevalidate(request, { cacheName: RUNTIME_CACHE })
-    );
-  }
+  event.respondWith(
+    caches.match(request).then((cached) => cached || fetch(request).then((response) => {
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+      }
+      return response;
+    }))
+  );
 });

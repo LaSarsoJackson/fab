@@ -1,10 +1,4 @@
-/**
- * App-wide error boundary for the lazy map mount. The map is code-split, so a
- * stale cached HTML shell pointing at a hashed chunk that no longer exists
- * (common right after a GitHub Pages deploy) rejects the dynamic import, and an
- * unexpected render error inside the map would otherwise leave a blank shell
- * with no path to recovery. Catch both here and offer an explicit reload.
- */
+/** Keep an unexpected renderer or data error from turning into a blank screen. */
 import React from "react";
 
 export default class AppErrorBoundary extends React.Component {

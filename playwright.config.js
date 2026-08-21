@@ -1,11 +1,10 @@
-const { defineConfig } = require("@playwright/test");
+import { defineConfig } from "@playwright/test";
 
 const TEST_APP_PORT = process.env.PLAYWRIGHT_APP_PORT || "4173";
-const TEST_IMAGE_PORT = process.env.PLAYWRIGHT_IMAGE_PORT || "8173";
-const TEST_BASE_URL = `http://127.0.0.1:${TEST_APP_PORT}`;
+const TEST_BASE_URL = `http://127.0.0.1:${TEST_APP_PORT}/fab/`;
 const BROWSER_EXECUTABLE_PATH = process.env.PLAYWRIGHT_BROWSER_EXECUTABLE_PATH;
 
-module.exports = defineConfig({
+export default defineConfig({
   testDir: "./e2e",
   timeout: 90_000,
   expect: {
@@ -25,7 +24,7 @@ module.exports = defineConfig({
     viewport: { width: 1440, height: 960 },
   },
   webServer: {
-    command: `PORT=${TEST_APP_PORT} IMAGE_SERVER_PORT=${TEST_IMAGE_PORT} bash ./scripts/start-test-server.sh`,
+    command: `PORT=${TEST_APP_PORT} bash ./scripts/start-test-server.sh`,
     url: TEST_BASE_URL,
     reuseExistingServer: process.env.PW_REUSE_EXISTING_SERVER === "1",
     timeout: 120_000,

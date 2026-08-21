@@ -12,8 +12,8 @@ import CivilWarTour20 from "../src/data/CivilWarTour20.json";
 import SocietyPillarsTour20 from "../src/data/SocietyPillarsTour20.json";
 import AlbanyMayors from "../src/data/AlbanyMayors_fixed.json";
 import GAR from "../src/data/GAR_fixed.json";
-import { buildTourBrowseResult, formatBrowseResultName } from "../src/features/browse/browseResults";
-import { TOUR_DEFINITIONS, TOUR_STYLES } from "../src/features/fab/profile";
+import { FAB_TOUR_DEFINITIONS } from "../src/features/fab/tours";
+import { buildTourRecord } from "../src/features/tours/tourRecords";
 import { hasValidGeoJsonCoordinates } from "../src/shared/geoJsonBounds";
 
 const TOUR_DATASETS_BY_KEY = {
@@ -35,24 +35,20 @@ const TOUR_DATASETS_BY_KEY = {
 const getFirstValidFeature = (dataset) => dataset.features.find((feature) => hasValidGeoJsonCoordinates(feature));
 
 describe("tour definitions", () => {
-  test("every bundled tour definition has a matching style entry", () => {
-    TOUR_DEFINITIONS.forEach((definition) => {
-      expect(TOUR_STYLES[definition.key]).toMatchObject({
-        name: definition.name,
-      });
-      expect(TOUR_STYLES[definition.key].color).toMatch(/^#[0-9a-f]{6}$/i);
-    });
+  test("uses one unique route key per bundled tour", () => {
+    const keys = FAB_TOUR_DEFINITIONS.map(({ key }) => key);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 
-  test("every bundled tour dataset normalizes into the shared browse-result shape", () => {
-    TOUR_DEFINITIONS.forEach((definition) => {
+  test("every bundled tour dataset normalizes into the map record shape", () => {
+    FAB_TOUR_DEFINITIONS.forEach((definition) => {
       const dataset = TOUR_DATASETS_BY_KEY[definition.key];
       expect(dataset).toBeTruthy();
 
       const feature = getFirstValidFeature(dataset);
       expect(feature).toBeTruthy();
 
-      const record = buildTourBrowseResult(feature, {
+      const record = buildTourRecord(feature, {
         tourKey: definition.key,
         tourName: definition.name,
       });
@@ -61,7 +57,7 @@ describe("tour definitions", () => {
       expect(record.source).toBe("tour");
       expect(record.tourKey).toBe(definition.key);
       expect(record.tourName).toBe(definition.name);
-      expect(formatBrowseResultName(record).length).toBeGreaterThan(0);
+      expect(record.displayName.length).toBeGreaterThan(0);
       expect(record.searchableLabelLower).toContain(definition.name.toLowerCase());
       expect(Array.isArray(record.coordinates)).toBe(true);
       expect(record.coordinates).toHaveLength(2);
@@ -69,11 +65,11 @@ describe("tour definitions", () => {
   });
 
   test("normalizes fixed-format non-2020 tours without depending on legacy tour fields", () => {
-    const mayorsRecord = buildTourBrowseResult(getFirstValidFeature(AlbanyMayors), {
+    const mayorsRecord = buildTourRecord(getFirstValidFeature(AlbanyMayors), {
       tourKey: "MayorsOfAlbany",
       tourName: "Mayors of Albany",
     });
-    const garRecord = buildTourBrowseResult(getFirstValidFeature(GAR), {
+    const garRecord = buildTourRecord(getFirstValidFeature(GAR), {
       tourKey: "GAR",
       tourName: "Grand Army of the Republic",
     });
@@ -90,7 +86,7 @@ describe("tour definitions", () => {
 
     expect(garRecord.tourKey).toBe("GAR");
     expect(garRecord.tourName).toBe("Grand Army of the Republic");
-    expect(formatBrowseResultName(garRecord).length).toBeGreaterThan(0);
+    expect(garRecord.displayName.length).toBeGreaterThan(0);
     expect(garRecord.secondaryText).toContain("Died");
   });
 
@@ -100,7 +96,7 @@ describe("tour definitions", () => {
     );
     expect(abeelFeature).toBeTruthy();
 
-    const abeelRecord = buildTourBrowseResult(abeelFeature, {
+    const abeelRecord = buildTourRecord(abeelFeature, {
       tourKey: "MayorsOfAlbany",
       tourName: "Mayors of Albany",
     });

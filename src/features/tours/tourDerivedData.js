@@ -3,7 +3,7 @@
  * legacy tour files. These functions run in both the browser and build scripts,
  * so they avoid DOM/runtime dependencies.
  */
-import { normalizeName } from "../browse/burialSearch";
+import { normalizeRecordName } from "../fab/recordValues";
 
 const IMAGE_EXTENSION_PATTERN = /\.(?:avif|gif|jpe?g|png|svg|webp)$/i;
 
@@ -64,7 +64,7 @@ const normalizePortraitStem = (value) => {
  * weak for records such as the multiple Cornings or Schuylers.
  */
 const buildBiographyAliasKey = (name, section, lot) => {
-  const normalizedName = normalizeName(name);
+  const normalizedName = normalizeRecordName(name);
   const normalizedSection = cleanValue(section);
   const normalizedLot = cleanValue(lot);
 
@@ -118,7 +118,7 @@ export const buildTourBiographyAliases = (records = []) => {
     );
     const section = cleanValue(record.Section || record.ARC_Secton);
     const lot = cleanValue(record.Lot || record.ARC_Lot);
-    const nameKey = normalizeName(fullName);
+    const nameKey = normalizeRecordName(fullName);
     const nameSectionLotKey = buildBiographyAliasKey(fullName, section, lot);
     const portraitStem = normalizePortraitStem(resolvePortraitImageName(record));
 
@@ -158,7 +158,7 @@ export const resolveBiographyReferenceFromAliases = (record = {}, aliases = {}) 
   const section = cleanValue(record.Section || record.ARC_Secton);
   const lot = cleanValue(record.Lot || record.ARC_Lot);
   const nameSectionLotKey = buildBiographyAliasKey(fullName, section, lot);
-  const normalizedName = normalizeName(fullName);
+  const normalizedName = normalizeRecordName(fullName);
   const portraitStem = normalizePortraitStem(resolvePortraitImageName(record));
 
   return cleanValue(

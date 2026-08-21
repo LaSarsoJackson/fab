@@ -7,7 +7,6 @@ cd "$ROOT_DIR"
 
 PORT="${FAB_MOBILE_PWA_PORT:-5174}"
 HOST="${FAB_MOBILE_PWA_HOST:-127.0.0.1}"
-PUBLIC_URL="${FAB_MOBILE_PWA_PUBLIC_URL:-.}"
 TUNNEL="${FAB_MOBILE_PWA_TUNNEL:-}"
 SERVER_PID=""
 NGROK_PID=""
@@ -107,21 +106,21 @@ require_command bun "Run 'bun install' after installing Bun >= 1.3."
 require_command python3 "Python 3 is required to serve the production smoke build."
 
 if [ "${FAB_MOBILE_PWA_SKIP_BUILD:-0}" = "1" ]; then
-  if [ ! -f "$ROOT_DIR/build/index.html" ]; then
-    echo "build/index.html is missing. Remove FAB_MOBILE_PWA_SKIP_BUILD or run bun run build first." >&2
+  if [ ! -f "$ROOT_DIR/dist/index.html" ]; then
+    echo "dist/index.html is missing. Remove FAB_MOBILE_PWA_SKIP_BUILD or run bun run build first." >&2
     exit 1
   fi
   echo "Using existing production build (FAB_MOBILE_PWA_SKIP_BUILD=1)"
 else
-  echo "Building production PWA smoke bundle with PUBLIC_URL=${PUBLIC_URL}"
-  PUBLIC_URL="$PUBLIC_URL" bash ./scripts/build-production.sh
+  echo "Building production PWA smoke bundle"
+  bash ./scripts/build-production.sh
 fi
 
 if is_port_in_use; then
   echo "Using existing static server at http://${HOST}:${PORT}"
 else
   echo "Serving build at http://${HOST}:${PORT}"
-  python3 -m http.server "$PORT" --bind "$HOST" --directory "$ROOT_DIR/build" >/tmp/fab-mobile-pwa-server.log 2>&1 &
+  python3 -m http.server "$PORT" --bind "$HOST" --directory "$ROOT_DIR/dist" >/tmp/fab-mobile-pwa-server.log 2>&1 &
   SERVER_PID=$!
   wait_for_http "http://${HOST}:${PORT}/"
 fi
@@ -158,9 +157,9 @@ esac
 echo
 echo "Smoke checklist:"
 echo "  1. Confirm Tours opens by default and no map or drawer appears behind it."
-echo "  2. Start a tour and confirm the Map tab opens with tour markers."
-echo "  3. Open Search, search for Lamont, select a result, then tap its pin and confirm the popup opens."
-echo "  4. Select a section and confirm Map, Tours, and Search remain reachable."
+echo "  2. Start a tour and confirm Cemetery Map opens with tour markers and hillshade."
+echo "  3. Open Burial Locator, search for Lamont, and confirm the selected record opens on the map."
+echo "  4. Close the card and confirm the pin remains; use Unpin and confirm it clears."
 echo "  5. Use Share > Add to Home Screen, then launch the installed icon twice."
 echo "  6. Reopen once offline and confirm the lightweight shell still loads."
 echo

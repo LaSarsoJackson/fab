@@ -1,105 +1,71 @@
 # AGENTS.md
 
-This file is the fast orientation guide for automated maintainers working in
-`fab`.
+Fast orientation for automated maintainers working in `fab`.
 
-## Read this first
+## Read first
 
-1. [`README.md`](./README.md) for the product/runtime overview and core commands
-2. [`CONTRIBUTING.md`](./CONTRIBUTING.md) for setup, validation, and review expectations
-3. [`docs/architecture-index.md`](./docs/architecture-index.md) for the shortest path to the right architecture note
+1. [`README.md`](./README.md)
+2. [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+3. [`docs/architecture-index.md`](./docs/architecture-index.md)
 
-Then read only the task-specific note you need:
+Read the task-specific note before changing map, routing, UI, data, or release behavior.
 
-- [`docs/codebase-structure.md`](./docs/codebase-structure.md) for directory ownership
-- [`docs/map-architecture.md`](./docs/map-architecture.md) before touching `src/Map.jsx`
-- [`docs/maintainability-playbook.md`](./docs/maintainability-playbook.md) before repo-wide cleanup,
-  comment, or ownership work
-- [`docs/app-profile-architecture.md`](./docs/app-profile-architecture.md) before changing FAB-only app configuration
-- [`docs/release-workflow.md`](./docs/release-workflow.md) before changing CI, deploy, or release behavior
-- [`docs/ui-principles.md`](./docs/ui-principles.md) before changing shared UI patterns
-- [`docs/unified-stack-roadmap.md`](./docs/unified-stack-roadmap.md) when planning work that affects FABFG or the shared stack
+## Product contract
 
-## Repo rules of thumb
+FAB has three destinations: Search Tours, Cemetery Map, and Burial Locator. The
+ARCE website is an external action. Tours is the default web route.
 
-- Keep React state, refs, and Leaflet lifecycle work in [`src/Map.jsx`](./src/Map.jsx) and the top-level app shells.
-- Put pure record transforms in the owning feature folder under [`src/features/`](./src/features).
-- Put domain-neutral helpers in [`src/shared/`](./src/shared).
-- Keep FAB-only branding, hosted URLs, presentation callbacks, and profile wiring in [`src/features/fab/profile.js`](./src/features/fab/profile.js) and tour definitions in [`src/features/fab/tours.js`](./src/features/fab/tours.js).
-- Import from the owning module directly; do not add barrel `index.js` files
-  that only re-export nearby helpers.
-- Do not add new helpers back into the retired flat `src/lib` layout.
+`FABFG` is a native shell over hosted FAB routes. Its WebViews should use
+`embed=fabfg`, which hides web navigation so there is one visible tab owner.
 
-## High-value entry points
+## Code ownership
 
-- [`src/Map.jsx`](./src/Map.jsx): map orchestration, selections, routing, overlays
-- [`src/BurialSidebar.jsx`](./src/BurialSidebar.jsx): search, browse, and selected-record UI
-- [`src/features/browse/`](./src/features/browse): search indexing and browse-result shaping
-- [`src/features/tours/`](./src/features/tours): tour definitions, alias generation, burial-tour reconciliation
-- [`src/features/map/`](./src/features/map): popup presentation, viewport helpers, selection reducer/actions
+- `src/App.jsx`: destination and selected-record orchestration
+- `src/app/routes.js`: route and FABFG URL contract
+- `src/features/map/MapView.jsx`: MapLibre lifecycle only
+- `src/features/map/mapStyle.js`: map sources, layers, cartography, and attribution
+- `src/features/locator/`: burial worker/search/result delivery
+- `src/features/tours/`: tour runtime and matching
+- `src/features/fab/`: Albany-specific configuration
+- `src/shared/`: domain-neutral helpers
 
-## Source vs generated files
+Use the owning module directly. Do not add barrel files, renderer adapters, UI
+frameworks, or duplicate state registries without a demonstrated need.
 
-Treat these as source-of-truth inputs:
+## Data
 
-- [`src/data/Geo_Burials.json`](./src/data/Geo_Burials.json)
-- [`src/data/ARC_Sections.json`](./src/data/ARC_Sections.json)
-- [`src/data/ARC_Roads.json`](./src/data/ARC_Roads.json)
-- [`src/data/ARC_Boundary.json`](./src/data/ARC_Boundary.json)
-- tour definitions and datasets in [`src/features/fab/tours.js`](./src/features/fab/tours.js)
+Source of truth:
 
-Treat these as generated artifacts:
+- `src/data/Geo_Burials.json`
+- `src/data/ARC_Sections.json`
+- `src/data/ARC_Roads.json`
+- `src/data/ARC_Boundary.json`
+- tour files declared in `src/features/fab/tours.js`
 
-- [`src/data/TourBiographyAliases.json`](./src/data/TourBiographyAliases.json)
-- [`src/data/TourMatches.json`](./src/data/TourMatches.json)
-- [`public/data/Search_Burials.json`](./public/data/Search_Burials.json)
-- [`src/features/map/generatedBounds.js`](./src/features/map/generatedBounds.js)
+Generated:
 
-When source data changes, regenerate artifacts instead of hand-editing them:
+- `public/data/Search_Burials.json`
+- `src/data/TourMatches.json`
+- `src/data/TourBiographyAliases.json`
+- `src/features/map/generatedBounds.js`
 
-```bash
-bun run build:tour-data
-bun run build:data
-```
+Run `bun run build:data` after source-data changes. Do not add shapefile,
+GeoParquet, PMTiles, or local ortho pipelines without measured evidence.
 
-## Validation expectations
+## Validation
 
-If you change source data:
+- `bun run doctor`
+- `bun run lint`
+- `bun run test`
+- `bun run build`
+- `bun run test:e2e` for rendered product flows
 
-1. Regenerate derived artifacts.
-2. Verify search, section browse, and tour selection still resolve to the same record.
+Map changes must verify Tours, Locator search, tour selection, record deep links,
+section selection, desktop/mobile navigation, and the FABFG embedded boundary.
+Installed-iPhone acceptance remains separate from browser automation.
 
-If you change map or selection behavior:
+## Delivery
 
-1. Test search result click.
-2. Test section polygon and section marker selection.
-3. Test tour stop selection.
-4. Test deep-link restoration.
-5. Check desktop and mobile fixed-navigation behavior.
-
-If you change runtime/profile wiring:
-
-1. Verify runtime toggles and environment-specific behavior still behave in development and production.
-2. Run the automated tests that cover the touched modules.
-
-## Commands
-
-- `bun run doctor`: local prerequisite and env check
-- `bun run start`: dev startup wrapper, alias refresh, image server, React dev server
-- `bun run test`: Bun unit tests plus Jest DOM tests
-- `bun run check`: doctor plus the default automated test suite
-- `bun run build`: local production build; GitHub Actions deploys `main`
-
-## Contributor priorities
-
-- Keep moves additive when possible. The worktree may contain in-flight architecture cleanup already.
-- Keep delivery simple: focused pull requests target `main`; a green merge
-  deploys GitHub Pages. Do not create extra integration or promotion branches.
-- Treat FABFG alignment as shared-contract work first and wrapper-specific work second.
-- Favor clearer Apple-HIG-inspired interaction patterns over decorative UI churn: safer spacing, fewer gestures, stronger hierarchy, and obvious states.
-
-## Known constraints
-
-- GitHub Pages serves the app under `/fab`, so public asset URLs must respect `process.env.PUBLIC_URL`.
-- The native wrapper app (`FABFG`) consumes hosted `fab` URLs, so deep-link changes can affect both web and native flows.
-- The worktree may contain in-flight refactors. Prefer additive changes and avoid broad moves unless the task requires them.
+`main` is the only long-lived branch. Focused PRs target `main`; a green merge
+deploys `dist/` to GitHub Pages. Do not create staging or promotion branches.
+GitHub publishing or human-directed comments require explicit user authorization.

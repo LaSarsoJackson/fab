@@ -1,7 +1,6 @@
 /**
  * Small GeoJSON traversal helpers shared by map code and tests. They accept
- * FeatureCollections, Features, GeometryCollections, and raw geometries while
- * returning Leaflet-compatible bounds for the app shell.
+ * FeatureCollections, Features, GeometryCollections, and raw geometries.
  */
 const updateBounds = (currentBounds, lng, lat) => ({
   south: Math.min(currentBounds.south, lat),
@@ -63,8 +62,7 @@ const walkGeoJson = (value, onCoordinatePair) => {
 };
 
 export const getGeoJsonBounds = (geoJson) => {
-  // Return Leaflet-style [[south, west], [north, east]] bounds so map modules
-  // do not need to translate generic GeoJSON extent objects.
+  // Return [[south, west], [north, east]] for direct use by map bounds APIs.
   let bounds = {
     south: Number.POSITIVE_INFINITY,
     west: Number.POSITIVE_INFINITY,

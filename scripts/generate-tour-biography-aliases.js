@@ -7,7 +7,7 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { TOUR_DEFINITIONS } from "../src/features/fab/profile.js";
+import { FAB_TOUR_DEFINITIONS } from "../src/features/fab/tours.js";
 import { buildTourBiographyAliases } from "../src/features/tours/tourDerivedData.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -18,7 +18,7 @@ const main = async () => {
 
   // Alias generation scans all declared FAB tours so one well-annotated tour
   // can supply biography slugs to fixed-format tours that only carry portraits.
-  for (const definition of TOUR_DEFINITIONS) {
+  for (const definition of FAB_TOUR_DEFINITIONS) {
     const module = await definition.load();
     const features = module.default?.features || module.features || [];
     records.push(...features.map((feature) => feature.properties || {}));

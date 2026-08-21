@@ -11,6 +11,7 @@ import CivilWarTour20 from "../data/CivilWarTour20.json";
 import SocietyPillarsTour20 from "../data/SocietyPillarsTour20.json";
 import AlbanyMayors from "../data/AlbanyMayors_fixed.json";
 import GAR from "../data/GAR_fixed.json";
+import { describe, expect, test } from "bun:test";
 import {
   getGeoJsonBounds,
   hasValidGeoJsonCoordinates,
@@ -45,7 +46,7 @@ describe("geoJsonBounds", () => {
   });
 
   test("returns finite bounds for every bundled tour dataset", () => {
-    TOUR_DATASETS.forEach(([key, name, dataset]) => {
+    TOUR_DATASETS.forEach(([, , dataset]) => {
       const bounds = getGeoJsonBounds(dataset);
 
       expect(isLatLngBoundsExpressionValid(bounds)).toBe(true);

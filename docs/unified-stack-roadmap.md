@@ -1,78 +1,36 @@
-# Unified stack roadmap
+# Unified web/native stack
 
-This is the current staged plan for the next round of `fab` work.
+## Implemented web contract
 
-The goals are:
+FAB now owns one React/Vite/MapLibre product with canonical `tours`, `map`, and
+`burials` routes. `embed=fabfg` removes web navigation when a native shell owns
+the tabs. Search, tour, map, and record selection use the same URL contract.
 
-- keep the shipped web surface and `FABFG` hosted URL contract aligned
-- keep the UI clearer, more performant, and closer to Apple HIG expectations
-- reduce contributor friction for new maintainers
-- keep development-only tools out of the shipped app
+The old CRA/Leaflet/MUI shell, local ortho export pipeline, GeoParquet build
+branch, renderer adapters, field-packet authoring UI, and client-side cemetery
+road router are no longer part of the runtime.
 
-## Current state
+## FABFG follow-up
 
-The repo has the right major seams:
+The native repository must map its three hosted destinations to:
 
-- profile-based FAB wiring under [`src/features/fab/`](../src/features/fab)
-- map orchestration in [`src/Map.jsx`](../src/Map.jsx)
-- browse, tour, routing, and deep-link contracts under owning feature folders
-- one production path on `main`
+- `tours`: `https://lasarsojackson.github.io/fab/?view=tours&embed=fabfg`
+- `home`: `https://lasarsojackson.github.io/fab/?view=map&embed=fabfg`
+- `burials`: `https://lasarsojackson.github.io/fab/?view=burials&embed=fabfg`
 
-The biggest remaining pressure points are:
+That change belongs in FABFG’s URL constants and URL-contract tests. Rename the
+native `ARCE` tab and its hosted title to `Cemetery Map` so both shells use the
+same three destination names. Keep the ARCE website as a separate external
+action. Do not embed a second route model or duplicate the web navigation.
 
-- very large orchestration files like [`src/Map.jsx`](../src/Map.jsx) and
-  [`src/BurialSidebar.jsx`](../src/BurialSidebar.jsx)
-- mixed legacy and current React patterns while the app still runs on React 17
-  and `react-scripts`
-- contributor docs drifting behind architecture changes
+## Acceptance boundary
 
-## Stage 1: Contributor DX
+Repository tests can prove the web route contract and embedded rendering. They
+cannot prove the live GitHub Pages deployment, the institutional Albany host,
+or an installed iPhone WebView until those surfaces are updated and exercised.
 
-Status: active
+## Future work must be evidence-led
 
-- keep [CONTRIBUTING.md](../CONTRIBUTING.md), [AGENTS.md](../AGENTS.md), and this docs set current
-- document which files own which decisions
-- make validation expectations explicit by change type
-
-## Stage 2: Shared contracts for web + native
-
-Status: next
-
-- extract and stabilize shared record, browse, deep-link, and navigation contracts first
-- treat `fab` as the source of shared URL and selection behavior
-- keep wrapper-specific packaging and native-shell concerns in `FABFG`
-
-Decision rule:
-do contract cleanup before any large framework migration
-
-## Stage 3: UI system refresh
-
-Status: active
-
-- move shared UI decisions into documented tokens and patterns instead of one-off tweaks
-- favor Apple-HIG-inspired interaction choices:
-  clearer hierarchy, bigger touch targets, simpler gestures, visible focus, restrained motion
-- keep safe-area and fixed mobile navigation behavior first-class
-
-## Stage 4: Production map simplification
-
-Status: active
-
-- keep `main` on the shipped Leaflet map path
-- keep renderer experiments, operator tooling, and artifact previews out of
-  the production app until they are ready
-
-## Stage 5: Toolchain modernization
-
-Status: later
-
-- modernize the build/runtime stack only after shared boundaries are cleaner
-- upgrade to a supported React/toolchain combination that can use newer concurrency patterns cleanly
-- adopt newer React APIs after the upgrade, not before
-
-## Guardrails
-
-- prefer additive refactors over broad moves
-- do not let branch-only dev tools leak back into shared product code
-- if a change can affect hosted URLs or deep links, check both web and `FABFG`
-- if source data changes, regenerate derived artifacts instead of patching outputs manually
+Potential improvements—self-hosted vector basemaps, a different tile provider,
+or a smaller binary search artifact—need measurements, provider terms, and a
+clear user benefit. They are not prerequisites for the current architecture.

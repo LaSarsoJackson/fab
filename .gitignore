@@ -12,6 +12,7 @@
 
 # production
 /build
+/dist
 /output
 /output-playwright-*.png
 

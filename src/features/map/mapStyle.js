@@ -1,0 +1,206 @@
+import boundary from "../../data/ARC_Boundary.json";
+import roads from "../../data/ARC_Roads.json";
+import sections from "../../data/ARC_Sections.json";
+import { BOUNDARY_BBOX } from "./generatedBounds";
+
+const EMPTY_COLLECTION = { type: "FeatureCollection", features: [] };
+
+export const CEMETERY_VIEW = Object.freeze({
+  bounds: BOUNDARY_BBOX,
+  center: [-73.73198, 42.70418],
+  zoom: 14,
+});
+
+export const MAP_LAYER_IDS = Object.freeze({
+  map: "basemap-map",
+  imagery: "basemap-imagery",
+  hillshade: "terrain-hillshade",
+  sections: "cemetery-sections",
+  selectedSection: "selected-section",
+  clusters: "record-clusters",
+  records: "records",
+  selectedRecord: "selected-record",
+});
+
+export const createMapStyle = () => ({
+  version: 8,
+  sources: {
+    "osm-map": {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "© <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap contributors</a>",
+      maxzoom: 19,
+    },
+    imagery: {
+      type: "raster",
+      tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+      tileSize: 256,
+      attribution: "Tiles © Esri, Vantor, Earthstar Geographics, and the GIS User Community",
+      maxzoom: 19,
+    },
+    hillshade: {
+      type: "raster",
+      tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}"],
+      tileSize: 256,
+      attribution: "Terrain © Esri, USGS, and contributors",
+      maxzoom: 16,
+    },
+    boundary: { type: "geojson", data: boundary },
+    roads: { type: "geojson", data: roads },
+    sections: { type: "geojson", data: sections },
+    records: {
+      type: "geojson",
+      data: EMPTY_COLLECTION,
+      cluster: true,
+      clusterMaxZoom: 17,
+      clusterRadius: 42,
+      clusterProperties: {
+        tour_count: ["+", ["case", ["==", ["get", "source"], "tour"], 1, 0]],
+      },
+    },
+    selected: { type: "geojson", data: EMPTY_COLLECTION },
+  },
+  layers: [
+    {
+      id: MAP_LAYER_IDS.map,
+      type: "raster",
+      source: "osm-map",
+      paint: {
+        "raster-opacity": 0.82,
+        "raster-saturation": -0.72,
+        "raster-contrast": -0.12,
+        "raster-brightness-min": 0.16,
+        "raster-brightness-max": 0.96,
+      },
+    },
+    {
+      id: MAP_LAYER_IDS.imagery,
+      type: "raster",
+      source: "imagery",
+      layout: { visibility: "none" },
+      paint: {
+        "raster-saturation": -0.08,
+        "raster-contrast": -0.05,
+      },
+    },
+    {
+      id: MAP_LAYER_IDS.hillshade,
+      type: "raster",
+      source: "hillshade",
+      paint: {
+        "raster-opacity": 0.24,
+        "raster-saturation": -1,
+        "raster-contrast": -0.18,
+      },
+    },
+    {
+      id: "cemetery-ground",
+      type: "fill",
+      source: "boundary",
+      paint: {
+        "fill-color": "#edf1e6",
+        "fill-opacity": 0.18,
+      },
+    },
+    {
+      id: "cemetery-boundary-halo",
+      type: "line",
+      source: "boundary",
+      paint: {
+        "line-color": "rgba(255,255,255,0.9)",
+        "line-width": 5,
+        "line-blur": 1,
+      },
+    },
+    {
+      id: "cemetery-boundary",
+      type: "line",
+      source: "boundary",
+      paint: {
+        "line-color": "#315f4c",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 13, 1.4, 18, 2.6],
+      },
+    },
+    {
+      id: "cemetery-road-casing",
+      type: "line",
+      source: "roads",
+      paint: {
+        "line-color": "rgba(37,48,43,0.34)",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 13, 1.8, 18, 6],
+      },
+    },
+    {
+      id: "cemetery-roads",
+      type: "line",
+      source: "roads",
+      paint: {
+        "line-color": "#f8f6ef",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 13, 1, 18, 4],
+      },
+    },
+    {
+      id: MAP_LAYER_IDS.sections,
+      type: "fill",
+      source: "sections",
+      layout: { visibility: "none" },
+      paint: {
+        "fill-color": "#d9a441",
+        "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.28, 0.1],
+        "fill-outline-color": "#805f1d",
+      },
+    },
+    {
+      id: MAP_LAYER_IDS.selectedSection,
+      type: "line",
+      source: "sections",
+      layout: { visibility: "none" },
+      filter: ["==", ["to-string", ["get", "Section"]], ""],
+      paint: {
+        "line-color": "#8d5317",
+        "line-width": 3,
+      },
+    },
+    {
+      id: MAP_LAYER_IDS.clusters,
+      type: "circle",
+      source: "records",
+      filter: ["has", "point_count"],
+      paint: {
+        "circle-color": [
+          "case",
+          [">", ["get", "tour_count"], 0],
+          "#ad5a2a",
+          "#315f4c",
+        ],
+        "circle-radius": ["step", ["get", "point_count"], 17, 10, 20, 40, 24],
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 2,
+      },
+    },
+    {
+      id: MAP_LAYER_IDS.records,
+      type: "circle",
+      source: "records",
+      filter: ["!", ["has", "point_count"]],
+      paint: {
+        "circle-color": ["case", ["==", ["get", "source"], "tour"], "#ad5a2a", "#315f4c"],
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 5, 18, 8],
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 2,
+      },
+    },
+    {
+      id: MAP_LAYER_IDS.selectedRecord,
+      type: "circle",
+      source: "selected",
+      paint: {
+        "circle-color": "#d04d35",
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 7, 18, 11],
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 3,
+      },
+    },
+  ],
+});

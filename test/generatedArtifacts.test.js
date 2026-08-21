@@ -64,8 +64,15 @@ describe("generated artifacts", () => {
     );
 
     expect(reynoldsAssignments).toEqual(["burial:28063:17:1:0"]);
-    expect(searchRowsByObjectId.get("28063")?.tk).toBe("Notable");
+    expect(searchRowsByObjectId.get("28063")).toMatchObject({
+      tk: "Notable",
+      tn: "Notables Tour 2020",
+      p: "Reynolds5d.png",
+      u: "Reynolds5",
+      x: "Albany Architect",
+    });
     expect(searchRowsByObjectId.get("732")?.tk).toBe("");
+    expect(searchRowsByObjectId.get("732")).not.toHaveProperty("u");
   });
 
   test("keeps family collisions out while retaining known spelling variants", () => {
@@ -86,5 +93,9 @@ describe("generated artifacts", () => {
     expect(TourMatches["burial:57991:18:31:0"]?.Tour_Bio).toBe("Knapp55");
     expect(TourMatches["burial:96823:14:1:0"]?.Tour_Bio).toBe("Patterson60");
     expect(TourMatches["burial:96601:55:1:0"]?.Tour_Bio).toBe("Gansevoort85");
+  });
+
+  test("does not mistake an image filename for an ARCE biography", () => {
+    expect(TourMatches["burial:28394:27:46:0"]?.biographyLink).toBe("");
   });
 });

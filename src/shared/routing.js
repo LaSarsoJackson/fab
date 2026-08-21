@@ -1,15 +1,4 @@
-/**
- * Public URL contract for FAB links. Keep query-key names and external
- * directions-link builders here so web links, PWA links, and FABFG hosted URLs
- * do not drift apart.
- */
-export const ROUTING_QUERY_PARAMS = Object.freeze({
-  search: "q",
-  section: "section",
-  sharedSelection: "share",
-  tour: "tour",
-  view: "view",
-});
+/** External navigation links for handing a selected grave to a maps app. */
 
 const isValidCoordinate = (value, min, max) => (
   typeof value === "number" &&

@@ -36,11 +36,6 @@ jobs:
       - name: Run tests
         run: bun run test
 
-      - name: Check generated shell files
-        run: |
-          bun run sync:profile-shell
-          git diff --exit-code public/index.html public/manifest.json
-
       - name: Build production site
         run: bun run build
 
@@ -48,7 +43,7 @@ jobs:
         if: github.event_name == 'push'
         uses: actions/upload-pages-artifact@v5
         with:
-          path: build
+          path: dist
 
       - name: Install Chromium
         run: bunx playwright install --with-deps chromium

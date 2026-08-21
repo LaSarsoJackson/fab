@@ -1,50 +1,18 @@
 # Architecture index
 
-Use this file to decide which note to read before making a change.
+Read only the note relevant to the change.
 
-## Start here
+- Map renderer, layers, controls, or selection: [`map-architecture.md`](./map-architecture.md)
+- Cartographic hierarchy, basemaps, hillshade, or attribution: [`cartography.md`](./cartography.md)
+- Routes, deep links, FABFG URLs, or external directions: [`routing-architecture.md`](./routing-architecture.md)
+- File placement and ownership: [`codebase-structure.md`](./codebase-structure.md)
+- Cleanup and KISS decisions: [`maintainability-playbook.md`](./maintainability-playbook.md)
+- Albany-specific values, ARCE links, or tours: [`fab-configuration.md`](./fab-configuration.md)
+- Shared interaction and responsive UI: [`ui-principles.md`](./ui-principles.md)
+- Web/native boundary and follow-on work: [`unified-stack-roadmap.md`](./unified-stack-roadmap.md)
+- Tour record enrichment: [`tour-popup-data.md`](./tour-popup-data.md)
+- CI, deploy, versions, or tags: [`release-workflow.md`](./release-workflow.md)
 
-1. [README.md](../README.md) for product/runtime overview and commands
-2. [CONTRIBUTING.md](../CONTRIBUTING.md) for workflow and validation expectations
-3. [AGENTS.md](../AGENTS.md) for quick repo rules
-
-## By task
-
-- Touching `src/Map.jsx` or map selection flow:
-  [map-architecture.md](./map-architecture.md)
-
-- Changing client route hashes, shared-link query params, in-app road routing,
-  or external directions links:
-  [routing-architecture.md](./routing-architecture.md)
-
-- Changing where helpers or feature code should live:
-  [codebase-structure.md](./codebase-structure.md)
-
-- Doing repo-wide maintainability work, adding comments, or consolidating
-  ownership:
-  [maintainability-playbook.md](./maintainability-playbook.md)
-
-- Adding FAB-only branding, data modules, tours, or presentation rules:
-  [app-profile-architecture.md](./app-profile-architecture.md)
-
-- Changing branch policy, version numbers, changelog rules, CI/CD, deploy, or
-  release tags:
-  [release-workflow.md](./release-workflow.md)
-
-- Changing shared UI patterns, spacing, interaction, or motion:
-  [ui-principles.md](./ui-principles.md)
-
-- Planning web/native alignment or repo modernization:
-  [unified-stack-roadmap.md](./unified-stack-roadmap.md)
-
-- Working on tour popup normalization or tour-derived presentation:
-  [tour-popup-data.md](./tour-popup-data.md)
-
-## Current high-risk cross-cutting areas
-
-- deep links and selected-record restoration
-- section browse and section marker parity
-- tour stop matching and tour popup data
-- contributor-facing docs drifting away from current architecture
-- release metadata drifting away from shipped package versions
-- comments that describe old architecture after source consolidation
+Current cross-cutting risks are route compatibility, worker search restoration,
+tour-to-burial matching, provider attribution, and the native wrapper continuing
+to use legacy Albany URLs instead of the canonical FAB routes.
