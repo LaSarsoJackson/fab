@@ -16,6 +16,7 @@ export const MAP_LAYER_IDS = Object.freeze({
   imagery: "basemap-imagery",
   hillshade: "terrain-hillshade",
   sections: "cemetery-sections",
+  sectionOutlines: "cemetery-section-outlines",
   selectedSection: "selected-section",
   clusters: "record-clusters",
   records: "records",
@@ -128,8 +129,7 @@ export const createMapStyle = () => ({
       layout: { visibility: "none" },
       paint: {
         "fill-color": "#d9a441",
-        "fill-opacity": 0.24,
-        "fill-outline-color": "#6f531b",
+        "fill-opacity": 0.18,
       },
     },
     {
@@ -148,6 +148,17 @@ export const createMapStyle = () => ({
       paint: {
         "line-color": "#f8f6ef",
         "line-width": ["interpolate", ["linear"], ["zoom"], 13, 1, 18, 4],
+      },
+    },
+    {
+      id: MAP_LAYER_IDS.sectionOutlines,
+      type: "line",
+      source: "sections",
+      layout: { visibility: "none" },
+      paint: {
+        "line-color": "#6f531b",
+        "line-opacity": 0.88,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 13, 1, 18, 2.2],
       },
     },
     {

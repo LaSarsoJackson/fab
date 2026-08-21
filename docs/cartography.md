@@ -25,7 +25,8 @@ grave or tour stop.
 - Keep hillshade available and on by default at 24% opacity.
 - Draw the cemetery boundary and roads above terrain context.
 - Keep sections off until the user asks for them.
-- When sections are on, use a legible warm fill beneath the cemetery roads.
+- When sections are on, use a warm fill beneath the cemetery roads and draw
+  section boundaries above them.
 - Show every stop in the active tour; do not collapse curated stops into
   proximity clusters.
 - Cluster burial-result density only where individual points would otherwise

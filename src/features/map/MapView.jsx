@@ -163,6 +163,7 @@ export default function MapView({
     setLayerVisibility(map, MAP_LAYER_IDS.hillshade, hillshade);
     const visible = showSections || Boolean(selectedSection);
     setLayerVisibility(map, MAP_LAYER_IDS.sections, visible);
+    setLayerVisibility(map, MAP_LAYER_IDS.sectionOutlines, visible);
     setLayerVisibility(map, MAP_LAYER_IDS.selectedSection, visible && Boolean(selectedSection));
     map.setFilter(MAP_LAYER_IDS.selectedSection, [
       "==",
