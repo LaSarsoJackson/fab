@@ -47,7 +47,7 @@ test("tour selection opens one MapLibre map", async ({ page }) => {
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
   await expect(page.getByLabel("Map appearance")).toContainText("Hillshade");
   await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
-    .toBeGreaterThan(0);
+    .toBe(38);
 
   const stopPanel = page.getByRole("complementary", { name: "Notables Tour 2020" });
   await expect(stopPanel).toBeVisible();

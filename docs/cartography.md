@@ -25,6 +25,10 @@ grave or tour stop.
 - Keep hillshade available and on by default at 24% opacity.
 - Draw the cemetery boundary and roads above terrain context.
 - Keep sections off until the user asks for them.
+- Show every stop in the active tour; do not collapse curated stops into
+  proximity clusters.
+- Cluster burial-result density only where individual points would otherwise
+  overwhelm the map.
 - Use one warm section highlight and one strong selected-record color.
 - Keep labels supplied by the reference basemap; do not add an external glyph
   service solely to label section polygons.

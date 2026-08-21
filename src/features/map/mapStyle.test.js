@@ -21,9 +21,14 @@ describe("cartographic style contract", () => {
     expect(layer.layout.visibility).toBe("none");
   });
 
-  test("gives tour clusters a distinct warm hierarchy color", () => {
-    const layer = style.layers.find(({ id }) => id === MAP_LAYER_IDS.clusters);
-    expect(style.sources.records.clusterProperties.tour_count).toBeDefined();
-    expect(JSON.stringify(layer.paint["circle-color"])).toContain("#ad5a2a");
+  test("clusters burial density without collapsing curated tour stops", () => {
+    const clusterLayer = style.layers.find(({ id }) => id === MAP_LAYER_IDS.clusters);
+    const tourLayer = style.layers.find(({ id }) => id === MAP_LAYER_IDS.tourRecords);
+
+    expect(style.sources.records.cluster).toBe(true);
+    expect(style.sources["tour-records"].cluster).toBeUndefined();
+    expect(clusterLayer.source).toBe("records");
+    expect(tourLayer.source).toBe("tour-records");
+    expect(tourLayer.paint["circle-color"]).toBe("#ad5a2a");
   });
 });

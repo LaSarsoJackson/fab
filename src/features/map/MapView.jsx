@@ -87,11 +87,13 @@ export default function MapView({
 
     map.on("load", () => setReady(true));
 
-    map.on("click", MAP_LAYER_IDS.records, (event) => {
+    const selectRecord = (event) => {
       const recordId = String(event.features?.[0]?.properties?.id || "");
       const record = recordsRef.current.find(({ id }) => String(id) === recordId);
       if (record) onRecordSelectRef.current?.(record);
-    });
+    };
+    map.on("click", MAP_LAYER_IDS.records, selectRecord);
+    map.on("click", MAP_LAYER_IDS.tourRecords, selectRecord);
     map.on("click", MAP_LAYER_IDS.selectedRecord, () => {
       const selected = selectedRecordRef.current;
       const record = recordsRef.current.find(({ id }) => String(id) === String(selected?.id));
@@ -109,7 +111,12 @@ export default function MapView({
       if (section) onSectionSelectRef.current?.(section);
     });
 
-    const interactiveLayers = [MAP_LAYER_IDS.records, MAP_LAYER_IDS.clusters, MAP_LAYER_IDS.sections];
+    const interactiveLayers = [
+      MAP_LAYER_IDS.records,
+      MAP_LAYER_IDS.tourRecords,
+      MAP_LAYER_IDS.clusters,
+      MAP_LAYER_IDS.sections,
+    ];
     interactiveLayers.forEach((layerId) => {
       map.on("mouseenter", layerId, () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", layerId, () => { map.getCanvas().style.cursor = ""; });
@@ -124,12 +131,14 @@ export default function MapView({
   useEffect(() => {
     if (!ready) return;
     const map = mapRef.current;
-    const source = map.getSource("records");
-    source?.setData(recordsToFeatureCollection(records));
+    const burialRecords = records.filter(({ source }) => source !== "tour");
+    const tourRecords = records.filter(({ source }) => source === "tour");
+    map.getSource("records")?.setData(recordsToFeatureCollection(burialRecords));
+    map.getSource("tour-records")?.setData(recordsToFeatureCollection(tourRecords));
 
     const updateVisibleMarkerCount = () => {
       const visible = map.queryRenderedFeatures({
-        layers: [MAP_LAYER_IDS.records, MAP_LAYER_IDS.clusters],
+        layers: [MAP_LAYER_IDS.records, MAP_LAYER_IDS.tourRecords, MAP_LAYER_IDS.clusters],
       });
       setVisibleMarkerCount(visible.length);
     };
