@@ -3,9 +3,31 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 
 vi.mock("./features/map/MapView", () => ({
-  default: ({ records = [] }) => (
-    <div aria-label="Albany Rural Cemetery map" data-record-count={records.length} />
+  default: ({ active, records = [], selectedSection, onBrowseSection, onSectionSelect }) => (
+    <div
+      aria-label="Albany Rural Cemetery map"
+      data-active={active}
+      data-record-count={records.length}
+    >
+      <button type="button" onClick={() => onSectionSelect("18")}>Select Section 18</button>
+      {selectedSection ? (
+        <button type="button" onClick={() => onBrowseSection(selectedSection)}>
+          View Section {selectedSection} burials
+        </button>
+      ) : null}
+    </div>
   ),
+}));
+
+vi.mock("./features/locator/useBurialSearch", () => ({
+  default: () => ({
+    status: "idle",
+    results: [],
+    total: 0,
+    error: "",
+    clear: vi.fn(),
+    runSearch: vi.fn().mockResolvedValue([]),
+  }),
 }));
 
 describe("App product shell", () => {
@@ -56,19 +78,34 @@ describe("App product shell", () => {
       .toHaveAttribute("aria-current", "location");
   });
 
-  it("opens Cemetery Map as a clean destination instead of retaining a tour", async () => {
+  it("preserves the active map and tour across destination changes", async () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /Notables Tour 2020/ }));
 
     const map = await screen.findByLabelText("Albany Rural Cemetery map");
     await waitFor(() => expect(Number(map.dataset.recordCount)).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole("button", { name: "Search Tours" }));
     fireEvent.click(screen.getByRole("button", { name: "Cemetery Map" }));
 
-    await waitFor(() => expect(map).toHaveAttribute("data-record-count", "0"));
+    expect(screen.getByLabelText("Albany Rural Cemetery map")).toBe(map);
+    expect(map).toHaveAttribute("data-active", "true");
+    expect(Number(map.dataset.recordCount)).toBeGreaterThan(0);
     const params = new URL(window.location.href).searchParams;
     expect(params.get("view")).toBe("map");
-    expect(params.has("tour")).toBe(false);
-    expect(params.has("record")).toBe(false);
+    expect(params.get("tour")).toBe("Notable");
+  });
+
+  it("keeps a section selection on the map until browsing is explicit", async () => {
+    window.history.replaceState({}, "", "/fab/?view=map");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Select Section 18" }));
+    expect(screen.getByRole("region", { name: "Cemetery Map" })).toBeVisible();
+    expect(new URL(window.location.href).searchParams.get("section")).toBe("18");
+
+    fireEvent.click(screen.getByRole("button", { name: "View Section 18 burials" }));
+    expect(screen.getByRole("heading", { name: "Burial Locator" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Section number")).toHaveValue("18");
   });
 
   it("shares a portable record link outside the FABFG shell", async () => {

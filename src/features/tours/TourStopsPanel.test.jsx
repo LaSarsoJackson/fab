@@ -4,7 +4,13 @@ import TourStopsPanel from "./TourStopsPanel";
 
 const tour = { key: "Notable", name: "Notables Tour 2020" };
 const records = [
-  { id: "first", displayName: "James Hall", section: "18", lot: "93" },
+  {
+    id: "first",
+    displayName: "James Hall",
+    section: "18",
+    lot: "93",
+    extraTitle: "Father of modern geology",
+  },
   { id: "second", displayName: "Stanford Mausoleum", section: "18", lot: "105" },
 ];
 
@@ -15,6 +21,7 @@ describe("TourStopsPanel", () => {
 
     const panel = screen.getByRole("complementary", { name: "Notables Tour 2020" });
     expect(within(panel).getAllByRole("button")).toHaveLength(2);
+    expect(within(panel).getByText("Father of modern geology")).toBeInTheDocument();
     expect(within(panel).getByText("Section 18 · Lot 93")).toBeInTheDocument();
 
     fireEvent.click(within(panel).getByRole("button", { name: /James Hall/ }));

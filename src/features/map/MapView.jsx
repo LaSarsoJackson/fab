@@ -12,6 +12,25 @@ import { recordsToFeatureCollection } from "../locator/burialRecords";
 import { CEMETERY_VIEW, createMapStyle, MAP_LAYER_IDS } from "./mapStyle";
 
 const EMPTY_COLLECTION = { type: "FeatureCollection", features: [] };
+const MAP_PREFERENCES_KEY = "fab.map-preferences.v1";
+const DEFAULT_MAP_PREFERENCES = Object.freeze({
+  basemap: "map",
+  hillshade: true,
+  showSections: false,
+});
+
+const readMapPreferences = () => {
+  try {
+    const stored = JSON.parse(globalThis.localStorage?.getItem(MAP_PREFERENCES_KEY) || "null");
+    return {
+      basemap: stored?.basemap === "imagery" ? "imagery" : "map",
+      hillshade: typeof stored?.hillshade === "boolean" ? stored.hillshade : true,
+      showSections: typeof stored?.showSections === "boolean" ? stored.showSections : false,
+    };
+  } catch {
+    return DEFAULT_MAP_PREFERENCES;
+  }
+};
 
 setWorkerUrl(mapLibreWorkerUrl);
 
@@ -22,11 +41,13 @@ const setLayerVisibility = (map, layerId, visible) => {
 };
 
 export default function MapView({
+  active = true,
   records = [],
   selectedRecord = null,
   selectedSection = "",
   focusKey = "",
   tourStopsPresent = false,
+  onBrowseSection,
   onRecordSelect,
   onSectionSelect,
 }) {
@@ -37,10 +58,21 @@ export default function MapView({
   const onSectionSelectRef = useRef(onSectionSelect);
   const selectedRecordRef = useRef(selectedRecord);
   const [readyMap, setReadyMap] = useState(null);
-  const [basemap, setBasemap] = useState("map");
-  const [hillshade, setHillshade] = useState(true);
-  const [showSections, setShowSections] = useState(Boolean(selectedSection));
+  const [preferences, setPreferences] = useState(readMapPreferences);
   const [visibleMarkerCount, setVisibleMarkerCount] = useState(null);
+  const { basemap, hillshade, showSections } = preferences;
+
+  const updatePreference = (key, value) => {
+    setPreferences((current) => {
+      const next = { ...current, [key]: value };
+      try {
+        globalThis.localStorage?.setItem(MAP_PREFERENCES_KEY, JSON.stringify(next));
+      } catch {
+        // Preference persistence is optional in restricted browser contexts.
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     recordsRef.current = records;
@@ -132,6 +164,13 @@ export default function MapView({
 
   useEffect(() => {
     const map = readyMap;
+    if (!active || !map || mapRef.current !== map) return undefined;
+    const frame = requestAnimationFrame(() => map.resize());
+    return () => cancelAnimationFrame(frame);
+  }, [active, readyMap]);
+
+  useEffect(() => {
+    const map = readyMap;
     if (!map || mapRef.current !== map) return;
     const burialRecords = records.filter(({ source }) => source !== "tour");
     const tourRecords = records.filter(({ source }) => source === "tour");
@@ -205,17 +244,34 @@ export default function MapView({
       </p>
       <div className="map-toolbar" aria-label="Map appearance">
         <div className="segmented-control" aria-label="Basemap">
-          <button type="button" aria-pressed={basemap === "map"} onClick={() => setBasemap("map")}>Map</button>
-          <button type="button" aria-pressed={basemap === "imagery"} onClick={() => setBasemap("imagery")}>Imagery</button>
+          <button type="button" aria-pressed={basemap === "map"} onClick={() => updatePreference("basemap", "map")}>Map</button>
+          <button type="button" aria-pressed={basemap === "imagery"} onClick={() => updatePreference("basemap", "imagery")}>Imagery</button>
         </div>
         <label className="toggle-control">
-          <input type="checkbox" checked={hillshade} onChange={(event) => setHillshade(event.target.checked)} />
+          <input
+            type="checkbox"
+            checked={hillshade}
+            onChange={(event) => updatePreference("hillshade", event.target.checked)}
+          />
           Hillshade
         </label>
         <label className="toggle-control">
-          <input type="checkbox" checked={showSections} onChange={(event) => setShowSections(event.target.checked)} />
+          <input
+            type="checkbox"
+            checked={showSections}
+            onChange={(event) => updatePreference("showSections", event.target.checked)}
+          />
           Sections
         </label>
+        {selectedSection ? (
+          <button
+            type="button"
+            className="map-section-action"
+            onClick={() => onBrowseSection?.(selectedSection)}
+          >
+            View Section {selectedSection} burials
+          </button>
+        ) : null}
       </div>
       <div ref={containerRef} className="map-canvas" role="region" aria-label="Albany Rural Cemetery map" />
     </div>

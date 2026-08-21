@@ -17,6 +17,7 @@ export default function TourStopsPanel({ tour, records = [], selectedRecord, onS
       <ol className="tour-stops-panel__list">
         {records.map((record, index) => {
           const selected = String(record.id) === String(selectedRecord?.id);
+          const location = formatRecordLocation(record) || "Mapped tour stop";
           return (
             <li key={record.id}>
               <button
@@ -28,7 +29,8 @@ export default function TourStopsPanel({ tour, records = [], selectedRecord, onS
                 <span className="tour-stop__number" aria-hidden="true">{index + 1}</span>
                 <span className="tour-stop__copy">
                   <strong>{record.displayName}</strong>
-                  <span>{formatRecordLocation(record) || "Mapped tour stop"}</span>
+                  <span className="tour-stop__summary">{record.extraTitle || location}</span>
+                  {record.extraTitle ? <span className="tour-stop__location">{location}</span> : null}
                 </span>
               </button>
             </li>

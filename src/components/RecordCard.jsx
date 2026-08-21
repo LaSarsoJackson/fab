@@ -6,7 +6,14 @@ import { buildDirectionsLink } from "../shared/routing";
 
 const clean = (value) => String(value || "").trim();
 
-export default function RecordCard({ record, open, shareUrl, onClose, onUnpin }) {
+export default function RecordCard({
+  record,
+  open,
+  shareUrl,
+  onClose,
+  onUnpin,
+  tourContext = null,
+}) {
   const [shareStatus, setShareStatus] = useState("");
   if (!record || !open) return null;
 
@@ -54,13 +61,28 @@ export default function RecordCard({ record, open, shareUrl, onClose, onUnpin })
           ) : <img src={imageUrl} alt="" className="record-card__portrait" />
         ) : null}
         <div className="record-card__content">
-          {record.tourName ? <p className="record-card__source">{record.tourName}</p> : null}
+          {record.tourName ? (
+            <p className="record-card__source">
+              {record.tourName}
+              {tourContext ? ` · Stop ${tourContext.position} of ${tourContext.total}` : ""}
+            </p>
+          ) : null}
           <h2 id="record-card-title">{record.displayName}</h2>
           <p className="record-card__location">{formatRecordLocation(record) || "Location not recorded"}</p>
           {(birth || death) ? <p className="record-card__dates">{birth || "?"} – {death || "?"}</p> : null}
-          {record.extraTitle ? <p>{record.extraTitle}</p> : null}
+          {record.extraTitle ? <p className="record-card__summary">{record.extraTitle}</p> : null}
         </div>
       </div>
+      {tourContext ? (
+        <nav className="record-card__tour-navigation" aria-label="Tour stops">
+          <button type="button" className="text-button" disabled={!tourContext.onPrevious} onClick={tourContext.onPrevious || undefined}>
+            Previous stop
+          </button>
+          <button type="button" className="text-button" disabled={!tourContext.onNext} onClick={tourContext.onNext || undefined}>
+            Next stop
+          </button>
+        </nav>
+      ) : null}
       <div className="record-card__actions">
         {directions ? (
           <a
@@ -74,7 +96,7 @@ export default function RecordCard({ record, open, shareUrl, onClose, onUnpin })
         ) : null}
         {biographyUrl ? (
           <a className="secondary-button" href={biographyUrl} target="_blank" rel="noreferrer">
-            Biography <ExternalIcon />
+            Read biography <ExternalIcon />
           </a>
         ) : null}
         <button type="button" className="secondary-button" onClick={onUnpin}>Unpin</button>

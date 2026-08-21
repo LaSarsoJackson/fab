@@ -10,8 +10,10 @@ others carry only a portrait or location. The normalization path is:
 5. [`RecordCard.jsx`](../src/components/RecordCard.jsx) renders the selected record outside the map canvas.
 
 The map does not own popup markup. A selected point remains a map feature; the
-detail card is ordinary React UI with Close, Navigate, Biography, Unpin, and the
-secondary share disclosure.
+detail card is ordinary React UI with the tour name, stop position, adjacent-stop
+controls, Close, Navigate, a canonical ARCE biography link, Unpin, and the
+secondary share disclosure. The stop list uses the existing `extraTitle` as its
+short narrative line when available and keeps the cemetery location beneath it.
 
 Generated biography aliases live in `src/data/TourBiographyAliases.json`. Run
 `bun run build:tour-data` after changing tour source records. Do not add
