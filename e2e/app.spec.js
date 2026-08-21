@@ -55,6 +55,11 @@ test("tour selection opens one MapLibre map", async ({ page }) => {
   await expect(stopPanel).toBeVisible();
   await stopPanel.getByRole("button", { name: /James Hall/ }).click();
   await expect(page.getByRole("heading", { name: "James Hall" })).toBeVisible();
+  await expect(page.getByText(/Notables Tour 2020 · Stop \d+ of 38/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Previous stop" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Next stop" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Read biography/ }))
+    .toHaveAttribute("href", "https://www.albany.edu/arce/Hall1.html");
   await expect.poll(() => new URL(page.url()).searchParams.get("record"))
     .toBe("tour:Notable:1:18:93");
 
@@ -63,6 +68,32 @@ test("tour selection opens one MapLibre map", async ({ page }) => {
   await page.getByRole("button", { name: "Close details" }).click();
   await expect(stopPanel.getByRole("button", { name: /James Hall/ }))
     .toHaveAttribute("aria-current", "location");
+});
+
+test("map context and appearance survive destination changes and reload", async ({ page }) => {
+  await page.goto("./?view=tours");
+  await page.getByRole("button", { name: /Notables Tour 2020/ }).click();
+  await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
+    .toBe(38);
+
+  await page.getByRole("button", { name: "Imagery", exact: true }).click();
+  await page.getByLabel("Hillshade", { exact: true }).uncheck();
+  await page.getByLabel("Sections", { exact: true }).check();
+  await page.getByRole("button", { name: "Search Tours", exact: true }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("tour")).toBe("Notable");
+
+  await page.getByRole("button", { name: "Cemetery Map", exact: true }).click();
+  await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Imagery", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByLabel("Hillshade", { exact: true })).not.toBeChecked();
+  await expect(page.getByLabel("Sections", { exact: true })).toBeChecked();
+
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Imagery", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByLabel("Hillshade", { exact: true })).not.toBeChecked();
+  await expect(page.getByLabel("Sections", { exact: true })).toBeChecked();
+  await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
+    .toBe(38);
 });
 
 test("burial search opens the selected grave on the map", async ({ page }) => {
@@ -87,6 +118,20 @@ test("section deep links browse the requested cemetery section", async ({ page }
   await expect(page.getByLabel("Section number")).toHaveValue("18");
   await expect(page.locator(".result-count")).toContainText("records");
   await expect(page.locator(".record-row").first()).toBeVisible({ timeout: 30_000 });
+});
+
+test("selected sections stay on the map until browsing is requested", async ({ page }) => {
+  await page.goto("./?view=map&section=18");
+
+  const browse = page.getByRole("button", { name: "View Section 18 burials" });
+  await expect(browse).toBeVisible();
+  await expect.poll(() => new URL(page.url()).searchParams.get("view")).toBe("map");
+
+  await browse.click();
+  await expect(page).toHaveURL(/view=burials.*section=18/);
+  await page.goBack();
+  await expect(page).toHaveURL(/view=map.*section=18/);
+  await expect(page.getByRole("button", { name: "View Section 18 burials" })).toBeVisible();
 });
 
 test("mobile keeps the three primary destinations visible", async ({ page }) => {

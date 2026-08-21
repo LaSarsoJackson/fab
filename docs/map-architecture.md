@@ -25,10 +25,11 @@ which renderer consumes it.
 1. reference map or imagery
 2. low-opacity hillshade
 3. cemetery ground and boundary
-4. cemetery roads
-5. optional sections
-6. burial-result clusters and individual tour stops
-7. selected record
+4. optional section fill
+5. cemetery roads
+6. optional section boundaries and selected section
+7. burial-result clusters and individual tour stops
+8. selected record
 
 That order is the visual hierarchy. Do not solve prominence by raising every
 line width or adding more controls.
@@ -36,7 +37,8 @@ line width or adding more controls.
 ## Interaction rules
 
 - No pitch or rotation; this is a small-site wayfinding map.
-- Sections stay hidden until requested.
+- Sections stay hidden until requested or selected. Clicking one highlights it
+  in place; a separate action opens its burial list.
 - Curated tour stops are never proximity-clustered; every stop remains visible.
 - Burial result sets may cluster at lower zooms to communicate density without
   overwhelming the map.
@@ -49,11 +51,13 @@ line width or adding more controls.
 
 ## Performance
 
-The map is lazy-loaded when the map destination first mounts. The full burial
-source is never added to MapLibre. Only the current tour, search result set, or
-selected record is sent to the renderer. Burial results use MapLibre's native
-GeoJSON clustering. Tour stops use a separate unclustered GeoJSON source so the
-map does not hide part of a curated sequence.
+The map is lazy-loaded on the first visit to the map destination. After that,
+`App.jsx` keeps the one MapLibre instance mounted and hidden between destination
+changes so the user's camera and in-session map context do not reset. The full
+burial source is never added to MapLibre. Only the current tour, search result
+set, or selected record is sent to the renderer. Burial results use MapLibre's
+native GeoJSON clustering. Tour stops use a separate unclustered GeoJSON source
+so the map does not hide part of a curated sequence.
 
 Do not introduce a second renderer or adapter layer. A renderer migration would
 be the point to add an interface; anticipation is not evidence.

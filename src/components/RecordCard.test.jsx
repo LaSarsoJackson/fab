@@ -50,9 +50,30 @@ describe("RecordCard", () => {
     );
 
     expect(screen.getByText("Notables Tour 2020")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Biography/ }))
+    expect(screen.getByRole("link", { name: /Read biography/ }))
       .toHaveAttribute("href", "https://www.albany.edu/arce/james-hall.html");
     expect(container.querySelector(".record-card__portrait"))
       .toHaveAttribute("src", "https://www.albany.edu/arce/images/james-hall.jpg");
+  });
+
+  it("keeps tour position and adjacent stops available with the record", () => {
+    const onPrevious = vi.fn();
+    const onNext = vi.fn();
+    render(
+      <RecordCard
+        record={{ ...record, source: "tour", tourName: "Notables Tour 2020" }}
+        open
+        shareUrl="https://example.test/"
+        onClose={() => {}}
+        onUnpin={() => {}}
+        tourContext={{ position: 2, total: 38, onPrevious, onNext }}
+      />
+    );
+
+    expect(screen.getByText("Notables Tour 2020 · Stop 2 of 38")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Previous stop" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next stop" }));
+    expect(onPrevious).toHaveBeenCalledOnce();
+    expect(onNext).toHaveBeenCalledOnce();
   });
 });

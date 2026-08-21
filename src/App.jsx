@@ -14,6 +14,7 @@ const getCurrentRoute = () => readAppRoute(window.location.search);
 
 export default function App() {
   const [route, setRoute] = useState(getCurrentRoute);
+  const [hasVisitedMap, setHasVisitedMap] = useState(() => route.view === APP_VIEWS.MAP);
   const [records, setRecords] = useState(() => route.legacySelection ? [route.legacySelection] : []);
   const [selectedRecord, setSelectedRecord] = useState(route.legacySelection);
   const [detailsOpen, setDetailsOpen] = useState(Boolean(route.legacySelection));
@@ -23,9 +24,13 @@ export default function App() {
   const loadingTour = route.tour && tourLoadState.key !== route.tour ? route.tour : "";
   const loadError = tourLoadState.key === route.tour ? tourLoadState.error : "";
   const activeTour = route.tour ? findTourDefinition(route.tour) : null;
+  const selectedTourIndex = selectedRecord?.source === "tour"
+    ? records.findIndex(({ id }) => String(id) === String(selectedRecord.id))
+    : -1;
 
   const commitRoute = useCallback((nextRoute) => {
     setRoute(nextRoute);
+    if (nextRoute.view === APP_VIEWS.MAP) setHasVisitedMap(true);
     if (nextRoute.tour || nextRoute.record || nextRoute.legacySelection) return;
     setRecords([]);
     setSelectedRecord(null);
@@ -88,15 +93,7 @@ export default function App() {
   }, [route.record, route.tour, runBurialSearch, selectedRecord?.id]);
 
   const navigate = (view) => {
-    if (view === APP_VIEWS.TOURS) {
-      updateRoute({ view, query: "", section: "", tour: "", record: "" });
-      return;
-    }
-    if (view === APP_VIEWS.LOCATOR) {
-      updateRoute({ view, tour: "", record: "" });
-      return;
-    }
-    updateRoute({ view, query: "", section: "", tour: "", record: "" });
+    if (view !== route.view) updateRoute({ view });
   };
 
   const selectTour = (tour) => {
@@ -110,7 +107,11 @@ export default function App() {
     setSelectedRecord(record);
     setDetailsOpen(true);
     if (!records.some(({ id }) => String(id) === String(record.id))) setRecords([record]);
-    updateRoute({ view: APP_VIEWS.MAP, record: record.id });
+    updateRoute({
+      view: APP_VIEWS.MAP,
+      record: record.id,
+      tour: record.source === "tour" ? record.tourKey || route.tour : "",
+    });
   };
 
   const unpin = () => {
@@ -147,10 +148,18 @@ export default function App() {
             onSelect={selectRecord}
           />
         ) : null}
-        {route.view === APP_VIEWS.MAP ? (
-          <section className="map-page" aria-label="Cemetery Map">
+        {hasVisitedMap || route.view === APP_VIEWS.MAP ? (
+          <section
+            className={[
+              "map-page",
+              activeTour && detailsOpen ? "map-page--record-open" : "",
+            ].filter(Boolean).join(" ")}
+            aria-label="Cemetery Map"
+            hidden={route.view !== APP_VIEWS.MAP}
+          >
             <Suspense fallback={<p className="map-loading" role="status">Loading cemetery map…</p>}>
               <MapView
+                active={route.view === APP_VIEWS.MAP}
                 records={records}
                 selectedRecord={selectedRecord}
                 selectedSection={route.section}
@@ -164,12 +173,19 @@ export default function App() {
                   }
                   selectRecord(record);
                 }}
-                onSectionSelect={(section) => updateRoute({ view: APP_VIEWS.LOCATOR, section, query: "", tour: "", record: "" })}
+                onSectionSelect={(section) => updateRoute({ section })}
+                onBrowseSection={(section) => updateRoute({
+                  view: APP_VIEWS.LOCATOR,
+                  section,
+                  query: "",
+                  tour: "",
+                  record: "",
+                })}
               />
             </Suspense>
             {loadingTour ? <p className="map-status" role="status">Loading tour…</p> : null}
             {loadError ? <p className="map-status map-status--error">{loadError}</p> : null}
-            {activeTour && !loadingTour && !detailsOpen ? (
+            {activeTour && !loadingTour ? (
               <TourStopsPanel
                 tour={activeTour}
                 records={records}
@@ -184,6 +200,16 @@ export default function App() {
               shareUrl={shareUrl}
               onClose={() => setDetailsOpen(false)}
               onUnpin={unpin}
+              tourContext={selectedTourIndex >= 0 ? {
+                position: selectedTourIndex + 1,
+                total: records.length,
+                onPrevious: selectedTourIndex > 0
+                  ? () => selectRecord(records[selectedTourIndex - 1])
+                  : null,
+                onNext: selectedTourIndex < records.length - 1
+                  ? () => selectRecord(records[selectedTourIndex + 1])
+                  : null,
+              } : null}
             />
           </section>
         ) : null}
