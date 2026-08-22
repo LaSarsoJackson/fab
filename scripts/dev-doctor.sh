@@ -16,7 +16,7 @@ node -e 'const [major, minor] = process.versions.node.split(".").map(Number); if
   exit 1
 }
 
-for binary in eslint vite vitest; do
+for binary in eslint oxlint vite vitest; do
   if [[ ! -x "node_modules/.bin/$binary" ]]; then
     echo "Missing dependency binary: $binary. Run bun install." >&2
     exit 1

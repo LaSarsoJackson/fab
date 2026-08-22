@@ -17,7 +17,7 @@
     "build": "bash ./scripts/build-production.sh",
     "preview": "vite preview --host 0.0.0.0",
     "doctor": "bash ./scripts/dev-doctor.sh",
-    "lint": "eslint .",
+    "lint": "eslint . && oxlint .",
     "check": "bun run doctor && bun run lint && bun run release:check && bun run test && bun run build",
     "release:check": "bun run scripts/check-release-metadata.js",
     "test": "bun run test:unit && bun run test:dom",
@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@oxlint/plugins": "1.79.0",
     "@playwright/test": "^1.59.1",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
@@ -39,6 +40,7 @@
     "eslint-plugin-react-refresh": "^0.5.4",
     "globals": "^17.11.0",
     "jsdom": "^30.0.1",
+    "oxlint": "1.79.0",
     "vite": "^8.2.1",
     "vitest": "^4.1.10"
   },

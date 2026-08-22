@@ -41,7 +41,7 @@ const walkCoordinates = (coordinates, onCoordinatePair) => {
 };
 
 const walkGeoJson = (value, onCoordinatePair) => {
-  if (!value || typeof value !== "object") return;
+  if (!value?.type) return;
 
   if (value.type === "FeatureCollection") {
     (value.features || []).forEach((feature) => walkGeoJson(feature, onCoordinatePair));

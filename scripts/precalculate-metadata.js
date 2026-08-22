@@ -97,7 +97,7 @@ async function precalculate() {
 
     // Keep keys short because this file ships to visitors. The worker prepares
     // its searchable strings once after download.
-    return {
+    const searchBurial = {
       i: properties.OBJECTID,
       f: cleanValue(properties.First_Name),
       l: cleanValue(properties.Last_Name),
@@ -109,13 +109,16 @@ async function precalculate() {
       d: cleanValue(properties.Death),
       tk: match ? match.tourKey : '',
       c: sourceCoordinates,
-      ...(match ? {
-        tn: cleanValue(match.tourName),
-        p: cleanValue(match.portraitImageName),
-        u: cleanValue(match.biographyLink),
-        x: cleanValue(match.extraTitle),
-      } : {}),
     };
+
+    if (match) {
+      searchBurial.tn = cleanValue(match.tourName);
+      searchBurial.p = cleanValue(match.portraitImageName);
+      searchBurial.u = cleanValue(match.biographyLink);
+      searchBurial.x = cleanValue(match.extraTitle);
+    }
+
+    return searchBurial;
   });
 
   const searchOutputPath = path.join(__dirname, '../public/data/Search_Burials.json');

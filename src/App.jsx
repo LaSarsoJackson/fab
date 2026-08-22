@@ -14,7 +14,7 @@ const SECTION_MAP_LIMIT = 5000;
 
 const getCurrentRoute = () => readAppRoute(window.location.search);
 
-export default function App() {
+export default function App({ MapComponent = MapView, useBurialSearchHook = useBurialSearch } = {}) {
   const [route, setRoute] = useState(getCurrentRoute);
   const [hasVisitedMap, setHasVisitedMap] = useState(() => route.view === APP_VIEWS.MAP);
   const [records, setRecords] = useState(() => route.legacySelection ? [route.legacySelection] : []);
@@ -22,7 +22,7 @@ export default function App() {
   const [detailsOpen, setDetailsOpen] = useState(Boolean(route.legacySelection));
   const [tourLoadState, setTourLoadState] = useState({ key: "", error: "" });
   const [tourProgress, setTourProgress] = useState(readTourProgress);
-  const burialSearch = useBurialSearch();
+  const burialSearch = useBurialSearchHook();
   const runBurialSearch = burialSearch.runSearch;
   const loadingTour = route.tour && tourLoadState.key !== route.tour ? route.tour : "";
   const loadError = tourLoadState.key === route.tour ? tourLoadState.error : "";
@@ -279,7 +279,7 @@ export default function App() {
             hidden={route.view !== APP_VIEWS.MAP}
           >
             <Suspense fallback={<p className="map-loading" role="status">Loading cemetery map…</p>}>
-              <MapView
+              <MapComponent
                 active={route.view === APP_VIEWS.MAP}
                 records={records}
                 selectedRecord={selectedRecord}

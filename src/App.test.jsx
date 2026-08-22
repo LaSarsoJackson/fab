@@ -2,46 +2,44 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 
-const { clearBurialSearch, runBurialSearch } = vi.hoisted(() => ({
-  clearBurialSearch: vi.fn(),
-  runBurialSearch: vi.fn(),
-}));
+const clearBurialSearch = vi.fn();
+const runBurialSearch = vi.fn();
 
-vi.mock("./features/map/MapView", () => ({
-  default: ({
-    active,
-    records = [],
-    sectionRecordCount,
-    selectedSection,
-    onBrowseSection,
-    onSectionSelect,
-  }) => (
-    <div
-      aria-label="Albany Rural Cemetery map"
-      data-active={active}
-      data-record-count={records.length}
-    >
-      <button type="button" onClick={() => onSectionSelect("18")}>Select Section 18</button>
-      {selectedSection ? (
-        <div role="group" aria-label={`Section ${selectedSection}`}>
-          {sectionRecordCount ? <span>{sectionRecordCount} burials</span> : null}
-          <button type="button" onClick={() => onBrowseSection(selectedSection)}>List</button>
-        </div>
-      ) : null}
-    </div>
-  ),
-}));
+const TestMapView = ({
+  active,
+  records = [],
+  sectionRecordCount,
+  selectedSection,
+  onBrowseSection,
+  onSectionSelect,
+}) => (
+  <div
+    aria-label="Albany Rural Cemetery map"
+    data-active={active}
+    data-record-count={records.length}
+  >
+    <button type="button" onClick={() => onSectionSelect("18")}>Select Section 18</button>
+    {selectedSection ? (
+      <div role="group" aria-label={`Section ${selectedSection}`}>
+        {sectionRecordCount ? <span>{sectionRecordCount} burials</span> : null}
+        <button type="button" onClick={() => onBrowseSection(selectedSection)}>List</button>
+      </div>
+    ) : null}
+  </div>
+);
 
-vi.mock("./features/locator/useBurialSearch", () => ({
-  default: () => ({
-    status: "idle",
-    results: [],
-    total: 0,
-    error: "",
-    clear: clearBurialSearch,
-    runSearch: runBurialSearch,
-  }),
-}));
+const useTestBurialSearch = () => ({
+  status: "idle",
+  results: [],
+  total: 0,
+  error: "",
+  clear: clearBurialSearch,
+  runSearch: runBurialSearch,
+});
+
+const renderApp = () => render(
+  <App MapComponent={TestMapView} useBurialSearchHook={useTestBurialSearch} />
+);
 
 describe("App product shell", () => {
   beforeEach(() => {
@@ -62,7 +60,7 @@ describe("App product shell", () => {
   });
 
   it("starts with tours and exposes three unambiguous destinations", () => {
-    render(<App />);
+    renderApp();
     expect(screen.getByRole("heading", { name: "Search Tours" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Search Tours" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("button", { name: "Cemetery Map" })).toBeInTheDocument();
@@ -71,7 +69,7 @@ describe("App product shell", () => {
   });
 
   it("uses the route as the single tab state", () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole("button", { name: "Burial Locator" }));
     expect(screen.getByRole("heading", { name: "Burial Locator" })).toBeInTheDocument();
     expect(window.location.search).toContain("view=burials");
@@ -79,13 +77,13 @@ describe("App product shell", () => {
 
   it("lets FABFG own navigation in embedded mode", () => {
     window.history.replaceState({}, "", "/fab/?view=tours&embed=fabfg");
-    render(<App />);
+    renderApp();
     expect(screen.queryByRole("navigation", { name: "Primary" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Search Tours" })).toBeInTheDocument();
   });
 
   it("selects a tour stop without relying on the canvas and restores its deep link", async () => {
-    const firstRender = render(<App />);
+    const firstRender = renderApp();
     fireEvent.click(screen.getByRole("button", { name: /Notables Tour 2020/ }));
 
     const panel = await screen.findByRole("complementary", { name: "Notables Tour 2020" });
@@ -95,7 +93,7 @@ describe("App product shell", () => {
       .toBe("tour:Notable:1:18:93");
 
     firstRender.unmount();
-    render(<App />);
+    renderApp();
     expect(await screen.findByRole("heading", { name: "James Hall" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Close details" }));
@@ -104,7 +102,7 @@ describe("App product shell", () => {
   });
 
   it("preserves the active map and tour across destination changes", async () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole("button", { name: /Notables Tour 2020/ }));
 
     const map = await screen.findByLabelText("Albany Rural Cemetery map");
@@ -121,7 +119,7 @@ describe("App product shell", () => {
   });
 
   it("returns to all tours without erasing the last place", async () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole("button", { name: /Notables Tour 2020/ }));
     const panel = await screen.findByRole("complementary", { name: "Notables Tour 2020" });
     fireEvent.click(within(panel).getByRole("button", { name: /James Hall/ }));
@@ -137,7 +135,7 @@ describe("App product shell", () => {
 
   it("keeps a section on the map, reveals its burials there, and opens its list explicitly", async () => {
     window.history.replaceState({}, "", "/fab/?view=map");
-    render(<App />);
+    renderApp();
 
     fireEvent.click(await screen.findByRole("button", { name: "Select Section 18" }));
     expect(screen.getByRole("region", { name: "Cemetery Map" })).toBeVisible();
@@ -159,7 +157,7 @@ describe("App product shell", () => {
   });
 
   it("turns a section click into a section map without losing the resumable tour", async () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole("button", { name: /Notables Tour 2020/ }));
     const panel = await screen.findByRole("complementary", { name: "Notables Tour 2020" });
     fireEvent.click(within(panel).getByRole("button", { name: /James Hall/ }));
@@ -179,7 +177,7 @@ describe("App product shell", () => {
   });
 
   it("offers a saved place as a calm way back into a tour", async () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole("button", { name: /Notables Tour 2020/ }));
     const panel = await screen.findByRole("complementary", { name: "Notables Tour 2020" });
     fireEvent.click(within(panel).getByRole("button", { name: /James Hall/ }));
@@ -195,7 +193,7 @@ describe("App product shell", () => {
   });
 
   it("continues the saved tour place after viewing an unrelated burial", async () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole("button", { name: /Notables Tour 2020/ }));
     const panel = await screen.findByRole("complementary", { name: "Notables Tour 2020" });
     fireEvent.click(within(panel).getByRole("button", { name: /James Hall/ }));
@@ -221,7 +219,7 @@ describe("App product shell", () => {
       "",
       "/fab/?view=map&tour=Notable&record=tour%3ANotable%3A1%3A18%3A93"
     );
-    render(<App />);
+    renderApp();
     expect(await screen.findByRole("heading", { name: "James Hall" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Select Section 18" }));
@@ -234,7 +232,7 @@ describe("App product shell", () => {
   });
 
   it("does not turn a mapped collection into an invented itinerary", async () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole("button", { name: /Section 49/ }));
     const panel = await screen.findByRole("complementary", { name: "Section 49" });
     const collectionPlace = panel.querySelector(".tour-stop");
@@ -255,7 +253,7 @@ describe("App product shell", () => {
       "/fab/?view=map&tour=Notable&record=tour%3ANotable%3A1%3A18%3A93&embed=fabfg&q=old&section=18"
     );
 
-    render(<App />);
+    renderApp();
     expect(await screen.findByRole("heading", { name: "James Hall" })).toBeInTheDocument();
     fireEvent.click(screen.getByText("Share pinned grave"));
     fireEvent.click(screen.getByRole("button", { name: "Share link" }));

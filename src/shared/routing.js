@@ -1,7 +1,6 @@
 /** External navigation links for handing a selected grave to a maps app. */
 
 const isValidCoordinate = (value, min, max) => (
-  typeof value === "number" &&
   Number.isFinite(value) &&
   value >= min &&
   value <= max
