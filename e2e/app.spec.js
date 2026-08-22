@@ -79,7 +79,10 @@ test("tour selection opens one MapLibre map", async ({ page }) => {
   await page.getByRole("button", { name: "All places" }).click();
   await expect(placesPanel).toBeVisible();
 
-  await page.getByRole("button", { name: "Search Tours", exact: true }).click();
+  await placesPanel.getByRole("button", { name: "All tours", exact: true }).click();
+  await expect(page).toHaveURL(/view=tours/);
+  await expect.poll(() => new URL(page.url()).searchParams.get("tour")).toBeNull();
+  await expect.poll(() => new URL(page.url()).searchParams.get("record")).toBeNull();
   await expect(page.getByRole("button", { name: "Continue tour: Notables Tour 2020 from James Hall" }))
     .toBeVisible();
 });
@@ -251,6 +254,22 @@ test("narrow WebViews keep appearance and map controls separate", async ({ page 
   const controlsBox = await page.locator(".maplibregl-ctrl-top-right").boundingBox();
   expect(appearanceBox.x + appearanceBox.width).toBeLessThanOrEqual(320);
   expect(controlsBox.y).toBeGreaterThanOrEqual(appearanceBox.y + appearanceBox.height);
+});
+
+test("narrow tour panels keep the return to tours action reachable", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("./?view=map&tour=Notable");
+
+  const placesPanel = page.getByRole("complementary", { name: "Notables Tour 2020" });
+  const allTours = placesPanel.getByRole("button", { name: "All tours", exact: true });
+  await expect(placesPanel).toBeVisible();
+  await expect(allTours).toBeVisible();
+  const actionBox = await allTours.boundingBox();
+  expect(actionBox.x).toBeGreaterThanOrEqual(0);
+  expect(actionBox.x + actionBox.width).toBeLessThanOrEqual(320);
+
+  await allTours.click();
+  await expect(page).toHaveURL(/view=tours/);
 });
 
 test("mobile keeps the three primary destinations visible", async ({ page }) => {

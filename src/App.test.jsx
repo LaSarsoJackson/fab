@@ -120,6 +120,21 @@ describe("App product shell", () => {
     expect(params.get("tour")).toBe("Notable");
   });
 
+  it("returns to all tours without erasing the last place", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Notables Tour 2020/ }));
+    const panel = await screen.findByRole("complementary", { name: "Notables Tour 2020" });
+    fireEvent.click(within(panel).getByRole("button", { name: /James Hall/ }));
+
+    fireEvent.click(within(panel).getByRole("button", { name: "All tours" }));
+
+    expect(screen.getByRole("heading", { name: "Search Tours" })).toBeInTheDocument();
+    expect(new URL(window.location.href).search).toBe("?view=tours");
+    expect(screen.getByRole("button", {
+      name: "Continue tour: Notables Tour 2020 from James Hall",
+    })).toBeInTheDocument();
+  });
+
   it("keeps a section on the map, reveals its burials there, and opens its list explicitly", async () => {
     window.history.replaceState({}, "", "/fab/?view=map");
     render(<App />);
@@ -222,7 +237,9 @@ describe("App product shell", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /Section 49/ }));
     const panel = await screen.findByRole("complementary", { name: "Section 49" });
-    fireEvent.click(within(panel).getAllByRole("button")[0]);
+    const collectionPlace = panel.querySelector(".tour-stop");
+    expect(collectionPlace).not.toBeNull();
+    fireEvent.click(collectionPlace);
 
     expect(screen.queryByRole("navigation", { name: "Tour places" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Place \d+ of/)).not.toBeInTheDocument();

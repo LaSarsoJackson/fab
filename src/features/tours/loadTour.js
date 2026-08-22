@@ -1,5 +1,6 @@
 import { FAB_TOUR_DEFINITIONS } from "../fab/tours";
 import { buildTourRecord } from "./tourRecords";
+import { orderTourRecords } from "./tourOrdering";
 
 const tourCache = new Map();
 
@@ -28,7 +29,10 @@ export const loadTour = async (value) => {
             Array.isArray(record.coordinates) &&
             record.coordinates.every(Number.isFinite)
           ));
-        return { definition, records };
+        return {
+          definition,
+          records: orderTourRecords(records, definition),
+        };
       })
       .catch((error) => {
         tourCache.delete(definition.key);
