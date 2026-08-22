@@ -50,7 +50,13 @@ test("tour selection opens one MapLibre map", async ({ page }) => {
   await expect(page).toHaveURL(/view=map.*tour=Notable/);
   await expect(page.getByRole("region", { name: "Albany Rural Cemetery map" })).toBeVisible();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
-  await expect(page.getByLabel("Map appearance")).toContainText("Hillshade");
+  const hillshade = page.getByLabel("Hillshade", { exact: true });
+  await expect(hillshade).toBeChecked();
+  await expect(page.getByRole("link", { name: "U.S. Geological Survey" })).toBeVisible();
+  await hillshade.uncheck();
+  await expect(page.getByRole("link", { name: "U.S. Geological Survey" })).toHaveCount(0);
+  await hillshade.check();
+  await expect(page.getByRole("link", { name: "U.S. Geological Survey" })).toBeVisible();
   await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
     .toBe(38);
   await page.getByLabel("Sections", { exact: true }).check();
