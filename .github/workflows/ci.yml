@@ -43,6 +43,9 @@ jobs:
         if: github.event_name == 'push'
         uses: actions/upload-pages-artifact@v5
         with:
+          # Reruns share a run id but receive a new attempt number. Keep each
+          # Pages artifact unique so deploy-pages cannot see duplicate names.
+          name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
           path: dist
 
       - name: Install Chromium
@@ -84,3 +87,5 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
