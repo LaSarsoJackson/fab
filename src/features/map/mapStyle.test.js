@@ -11,9 +11,22 @@ describe("cartographic style contract", () => {
 
   test("keeps restrained hillshade and visible source attribution", () => {
     const layer = style.layers.find(({ id }) => id === MAP_LAYER_IDS.hillshade);
-    expect(layer.paint["raster-opacity"]).toBeLessThanOrEqual(0.25);
-    expect(style.sources.hillshade.attribution).toContain("Esri");
+    const groundIndex = style.layers.findIndex(({ id }) => id === "cemetery-ground");
+    const hillshadeIndex = style.layers.findIndex(({ id }) => id === MAP_LAYER_IDS.hillshade);
+    const boundaryIndex = style.layers.findIndex(({ id }) => id === "cemetery-boundary");
+    const roadsIndex = style.layers.findIndex(({ id }) => id === "cemetery-roads");
+    const recordsIndex = style.layers.findIndex(({ id }) => id === MAP_LAYER_IDS.records);
+    expect(style.sources.hillshade.type).toBe("raster-dem");
+    expect(style.sources.hillshade.encoding).toBe("terrarium");
+    expect(layer.type).toBe("hillshade");
+    expect(layer.paint["hillshade-method"]).toBe("igor");
+    expect(layer.paint["hillshade-exaggeration"]).toBeLessThanOrEqual(0.25);
+    expect(style.sources.hillshade.attribution).toContain("U.S. Geological Survey");
     expect(style.sources["osm-map"].attribution).toContain("OpenStreetMap");
+    expect(groundIndex).toBeLessThan(hillshadeIndex);
+    expect(hillshadeIndex).toBeLessThan(boundaryIndex);
+    expect(hillshadeIndex).toBeLessThan(roadsIndex);
+    expect(hillshadeIndex).toBeLessThan(recordsIndex);
   });
 
   test("keeps sections off by default and legible when enabled", () => {

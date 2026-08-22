@@ -1,20 +1,20 @@
 :root {
-  color: #1f2924;
-  background: #f2f0e9;
+  color: #18211d;
+  background: #f6f6f3;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --accent: #315f4c;
-  --accent-strong: #234637;
-  --accent-soft: #e1ebe5;
-  --ink: #1f2924;
-  --muted: #647068;
+  --accent: #2c5a48;
+  --accent-strong: #1f4335;
+  --accent-soft: #edf2ef;
+  --ink: #18211d;
+  --muted: #667069;
   --surface: #ffffff;
-  --canvas: #f2f0e9;
-  --border: rgba(31, 41, 36, 0.14);
-  --shadow: 0 1px 2px rgba(25, 34, 29, 0.07), 0 10px 30px rgba(25, 34, 29, 0.08);
-  --navigation-height: 74px;
+  --canvas: #f6f6f3;
+  --border: rgba(24, 33, 29, 0.13);
+  --shadow: 0 1px 2px rgba(24, 33, 29, 0.06), 0 8px 24px rgba(24, 33, 29, 0.07);
+  --navigation-height: 72px;
 }
 
 * {
@@ -148,10 +148,9 @@ p {
   padding: 0 max(6px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(6px, env(safe-area-inset-left));
   display: flex;
   align-items: stretch;
-  background: rgba(255, 255, 255, 0.96);
+  background: rgba(255, 255, 255, 0.98);
   border-top: 1px solid var(--border);
-  box-shadow: 0 -4px 20px rgba(25, 34, 29, 0.06);
-  backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow: 0 -2px 12px rgba(24, 33, 29, 0.05);
 }
 
 .app-navigation__brand,
@@ -191,11 +190,11 @@ p {
 }
 
 .app-navigation__item[aria-current="page"] .app-navigation__icon {
-  padding: 3px 10px;
-  width: 44px;
+  padding: 4px 8px;
+  width: 40px;
   color: var(--accent-strong);
   background: var(--accent-soft);
-  border-radius: 999px;
+  border-radius: 9px;
 }
 
 .app-navigation__item:active,
@@ -220,7 +219,7 @@ p {
 }
 
 .page-heading {
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .page-heading--centered {
@@ -238,14 +237,14 @@ p {
 }
 
 .page-heading h1 {
-  margin-bottom: 8px;
-  font-size: clamp(2rem, 8vw, 3.4rem);
-  line-height: 1;
+  margin-bottom: 9px;
+  font-size: clamp(2rem, 6vw, 2.75rem);
+  line-height: 1.04;
 }
 
 .page-heading > p:last-child {
   max-width: 620px;
-  margin: 0 auto;
+  margin: 0;
   color: var(--muted);
   font-size: 1rem;
   line-height: 1.5;
@@ -260,37 +259,39 @@ p {
 }
 
 .tours-view {
-  padding: clamp(28px, 7vw, 72px) max(18px, env(safe-area-inset-left)) 48px;
+  padding: clamp(30px, 6vw, 58px) max(18px, env(safe-area-inset-left)) 48px;
+}
+
+.tours-view > * {
+  width: min(100%, 960px);
+  margin-right: auto;
+  margin-left: auto;
 }
 
 .tour-continue {
-  width: min(100%, 480px);
-  min-height: 72px;
-  margin: 0 auto 14px;
-  padding: 13px 15px;
+  min-height: 64px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
   display: grid;
-  gap: 2px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 16px;
   color: var(--ink);
   text-align: left;
-  background: var(--accent-soft);
-  border: 0;
-  border-radius: 15px;
-  box-shadow:
-    0 0 0 1px rgba(49, 95, 76, 0.12),
-    0 3px 12px rgba(25, 34, 29, 0.07);
+  background: #f0f4f1;
+  border: 1px solid rgba(44, 90, 72, 0.16);
+  border-radius: 10px;
   transition-property: background-color, box-shadow, scale;
   transition-duration: 150ms;
   transition-timing-function: ease-out;
 }
 
 .tour-continue:hover {
-  background: #e3eee5;
-  box-shadow:
-    0 0 0 1px rgba(49, 95, 76, 0.2),
-    0 5px 16px rgba(25, 34, 29, 0.09);
+  background: #e9efeb;
+  border-color: rgba(44, 90, 72, 0.28);
 }
 
 .tour-continue__eyebrow {
+  grid-column: 1;
   color: var(--accent-strong);
   font-size: 0.68rem;
   font-weight: 760;
@@ -299,32 +300,36 @@ p {
 }
 
 .tour-continue strong {
+  grid-column: 1;
   text-wrap: balance;
 }
 
 .tour-continue > span:not(.tour-continue__eyebrow, .tour-continue__action) {
+  grid-column: 1;
   color: var(--muted);
   font-size: 0.8rem;
 }
 
 .tour-continue__action {
-  margin-top: 3px;
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: center;
   color: var(--accent-strong);
   font-size: 0.78rem;
   font-weight: 700;
 }
 
 .tour-search {
-  width: min(100%, 480px);
+  width: min(100%, 460px);
   min-height: 48px;
-  margin: 0 auto 22px;
+  margin: 0 auto 24px max(0px, calc((100% - 960px) / 2));
   padding: 0 14px;
   display: flex;
   align-items: center;
   gap: 10px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 10px;
   box-shadow: 0 1px 2px rgba(25, 34, 29, 0.04);
 }
 
@@ -343,18 +348,16 @@ p {
 }
 
 .tour-grid {
-  width: min(100%, 920px);
-  margin: 0 auto;
   padding: 0;
   display: grid;
-  gap: 12px;
+  gap: 8px;
   list-style: none;
 }
 
 .tour-card {
   width: 100%;
-  min-height: 78px;
-  padding: 14px;
+  min-height: 64px;
+  padding: 13px 14px;
   display: flex;
   align-items: center;
   gap: 13px;
@@ -362,41 +365,28 @@ p {
   text-align: left;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(25, 34, 29, 0.04);
+  border-radius: 10px;
   transition-property: border-color, box-shadow, scale, background-color;
   transition-duration: 150ms;
   transition-timing-function: ease-out;
 }
 
 .tour-card:hover {
-  border-color: rgba(49, 95, 76, 0.34);
-  box-shadow: 0 3px 12px rgba(25, 34, 29, 0.08);
+  background: #fbfcfb;
+  border-color: rgba(44, 90, 72, 0.3);
 }
 
 .tour-card:disabled {
   opacity: 0.64;
 }
 
-.tour-card__icon {
-  width: 48px;
-  height: 48px;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-  border-radius: 13px;
-}
-
-.tour-card__icon svg {
-  width: 25px;
-}
-
 .tour-card__content {
+  width: 100%;
   min-width: 0;
-  display: grid;
-  gap: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
 }
 
 .tour-card__name {
@@ -406,6 +396,7 @@ p {
 }
 
 .tour-card__action {
+  flex: 0 0 auto;
   color: var(--muted);
   font-size: 0.82rem;
 }
@@ -421,11 +412,8 @@ p {
 }
 
 .locator-search {
-  padding: 18px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  box-shadow: var(--shadow);
+  max-width: 620px;
+  padding: 0;
 }
 
 .locator-search > label,
@@ -442,9 +430,9 @@ p {
   padding-left: 13px;
   display: flex;
   align-items: center;
-  background: #fbfbf8;
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
 .search-field:focus-within,
@@ -503,13 +491,14 @@ p {
   min-height: 46px;
   padding: 0 13px;
   color: var(--ink);
-  background: #fbfbf8;
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   outline: 0;
 }
 
 .locator-results {
+  max-width: 620px;
   margin-top: 20px;
 }
 
@@ -539,7 +528,11 @@ p {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 8px;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
   list-style: none;
 }
 
@@ -552,8 +545,9 @@ p {
   color: var(--ink);
   text-align: left;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
   transition-property: background-color, border-color, scale;
   transition-duration: 150ms;
   transition-timing-function: ease-out;
@@ -561,7 +555,10 @@ p {
 
 .record-row:hover {
   background: #fbfcfa;
-  border-color: rgba(49, 95, 76, 0.34);
+}
+
+.record-list li:last-child .record-row {
+  border-bottom: 0;
 }
 
 .record-row__name {
@@ -585,7 +582,7 @@ p {
 
 .map-page {
   overflow: hidden;
-  background: #dfe4de;
+  background: #e7eae7;
 }
 
 .map-toolbar {
@@ -598,18 +595,17 @@ p {
   display: flex;
   align-items: center;
   gap: 5px;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(31, 41, 36, 0.16);
-  border-radius: 13px;
-  box-shadow: 0 3px 14px rgba(25, 34, 29, 0.12);
-  backdrop-filter: blur(14px);
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid rgba(24, 33, 29, 0.14);
+  border-radius: 10px;
+  box-shadow: 0 3px 12px rgba(24, 33, 29, 0.1);
 }
 
 .segmented-control {
   display: flex;
   padding: 2px;
-  background: #edf0ec;
-  border-radius: 9px;
+  background: #f0f2f0;
+  border-radius: 7px;
 }
 
 .segmented-control button {
@@ -618,7 +614,7 @@ p {
   color: var(--muted);
   background: transparent;
   border: 0;
-  border-radius: 7px;
+  border-radius: 6px;
   font-size: 0.78rem;
   font-weight: 700;
   transition-property: color, background-color, box-shadow, scale;
@@ -662,11 +658,10 @@ p {
   gap: 3px;
   color: var(--ink);
   background: rgba(255, 255, 255, 0.94);
-  border-radius: 12px;
+  border-radius: 10px;
   box-shadow:
     0 0 0 1px rgba(31, 41, 36, 0.1),
-    0 3px 14px rgba(25, 34, 29, 0.12);
-  backdrop-filter: blur(14px);
+    0 3px 12px rgba(24, 33, 29, 0.1);
 }
 
 .map-section-context strong {
@@ -743,11 +738,10 @@ p {
   max-height: min(56vh, 440px);
   padding: 18px;
   overflow-y: auto;
-  background: rgba(255, 255, 255, 0.97);
-  border: 1px solid rgba(31, 41, 36, 0.16);
-  border-radius: 20px;
-  box-shadow: 0 16px 44px rgba(25, 34, 29, 0.2);
-  backdrop-filter: blur(18px);
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(24, 33, 29, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 12px 34px rgba(24, 33, 29, 0.16);
   animation: record-card-enter 180ms cubic-bezier(0.2, 0, 0, 1);
 }
 
@@ -770,11 +764,10 @@ p {
   left: max(10px, env(safe-area-inset-left));
   z-index: 9;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.97);
-  border: 1px solid rgba(31, 41, 36, 0.16);
-  border-radius: 18px;
-  box-shadow: 0 12px 36px rgba(25, 34, 29, 0.18);
-  backdrop-filter: blur(18px);
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(24, 33, 29, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgba(24, 33, 29, 0.14);
 }
 
 .tour-stops-panel__header {
@@ -811,13 +804,8 @@ p {
 }
 
 .tour-stops-panel__actions > span {
-  min-width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-  border-radius: 999px;
+  min-width: 24px;
+  color: var(--muted);
   font-size: 0.78rem;
   font-weight: 750;
   font-variant-numeric: tabular-nums;
@@ -856,9 +844,9 @@ p {
   gap: 9px;
   color: var(--ink);
   text-align: left;
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  background: #f7f8f6;
+  border: 1px solid transparent;
+  border-radius: 8px;
   transition-property: background-color, border-color, scale;
   transition-duration: 150ms;
   transition-timing-function: ease-out;
@@ -945,7 +933,7 @@ p {
   height: 92px;
   flex: 0 0 auto;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: 8px;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
 
@@ -1013,7 +1001,7 @@ p {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border-radius: 11px;
+  border-radius: 8px;
   font-weight: 720;
   text-decoration: none;
   transition-property: background-color, border-color, color, scale;
@@ -1066,8 +1054,8 @@ button.secondary-button {
 
 .maplibregl-ctrl-group {
   border: 1px solid rgba(31, 41, 36, 0.14);
-  border-radius: 12px;
-  box-shadow: 0 3px 14px rgba(25, 34, 29, 0.12);
+  border-radius: 9px;
+  box-shadow: 0 3px 12px rgba(24, 33, 29, 0.1);
   overflow: hidden;
 }
 
@@ -1099,7 +1087,7 @@ button.secondary-button {
 
 @media (min-width: 720px) and (min-height: 500px) {
   :root {
-    --navigation-height: 72px;
+    --navigation-height: 64px;
   }
 
   .app-content {
@@ -1119,7 +1107,7 @@ button.secondary-button {
     gap: 20px;
     border-top: 0;
     border-bottom: 1px solid var(--border);
-    box-shadow: 0 2px 14px rgba(25, 34, 29, 0.05);
+    box-shadow: none;
   }
 
   .app-navigation__brand {
@@ -1166,7 +1154,8 @@ button.secondary-button {
   }
 
   .app-navigation__item[aria-current="page"] {
-    background: var(--accent-soft);
+    background: transparent;
+    box-shadow: inset 0 -2px var(--accent);
   }
 
   .app-navigation__item[aria-current="page"] .app-navigation__icon {
@@ -1226,9 +1215,9 @@ button.secondary-button {
   }
 
   .tour-stops-panel {
-    top: 72px;
-    right: 18px;
-    bottom: 18px;
+    top: 16px;
+    right: 16px;
+    bottom: 16px;
     left: auto;
     width: 320px;
     display: flex;
@@ -1241,6 +1230,17 @@ button.secondary-button {
     overflow-x: hidden;
     overflow-y: auto;
     scroll-snap-type: y proximity;
+  }
+
+  .tour-stops-panel__list li + li {
+    border-top: 1px solid var(--border);
+  }
+
+  .tour-stop {
+    min-height: 66px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
   }
 
   .tour-stops-panel__list li {
@@ -1269,6 +1269,34 @@ button.secondary-button {
 }
 
 @media (max-width: 430px) {
+  .tours-view,
+  .locator-view {
+    padding-right: max(14px, env(safe-area-inset-right));
+    padding-left: max(14px, env(safe-area-inset-left));
+  }
+
+  .page-heading {
+    margin-bottom: 18px;
+  }
+
+  .page-heading h1 {
+    font-size: clamp(1.9rem, 9vw, 2.35rem);
+  }
+
+  .tour-continue {
+    gap: 2px 10px;
+  }
+
+  .tour-card__content {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .tour-card__action {
+    font-size: 0.76rem;
+  }
+
   .map-toolbar {
     align-items: center;
     flex-wrap: nowrap;
@@ -1285,6 +1313,55 @@ button.secondary-button {
     padding-left: 4px;
     gap: 4px;
     font-size: 0.72rem;
+  }
+
+  .record-card {
+    right: max(8px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: max(8px, env(safe-area-inset-left));
+    max-height: min(52vh, 430px);
+    padding: 15px;
+    border-radius: 10px;
+  }
+
+  .record-card__body {
+    gap: 11px;
+  }
+
+  .record-card__portrait,
+  .record-card__portrait-link {
+    width: 64px;
+    height: 76px;
+  }
+
+  .record-card h2 {
+    padding-right: 20px;
+    font-size: 1.18rem;
+  }
+
+  .record-card__tour-navigation {
+    gap: 3px;
+  }
+
+  .record-card__tour-navigation .text-button {
+    font-size: 0.78rem;
+  }
+
+  .tour-stops-panel {
+    right: max(8px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: max(8px, env(safe-area-inset-left));
+    max-height: min(42vh, 360px);
+    padding: 11px;
+    border-radius: 10px;
+  }
+
+  .tour-stops-panel__header {
+    margin-bottom: 7px;
+  }
+
+  .tour-stops-panel__list {
+    min-height: 0;
   }
 }
 
