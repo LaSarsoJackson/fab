@@ -23,6 +23,14 @@ const DEFAULT_MAP_PREFERENCES = Object.freeze({
 const SECTION_FEATURES = new globalThis.Map(
   sections.features.map((feature) => [String(feature.properties?.Section || "").trim(), feature])
 );
+// One canvas point can intersect several MapLibre layers. The first match owns the click.
+const INTERACTIVE_LAYER_IDS = [
+  MAP_LAYER_IDS.selectedRecord,
+  MAP_LAYER_IDS.tourRecords,
+  MAP_LAYER_IDS.records,
+  MAP_LAYER_IDS.clusters,
+  MAP_LAYER_IDS.sections,
+];
 
 const readMapPreferences = () => {
   try {
@@ -128,37 +136,44 @@ export default function MapView({
       if (mapRef.current === map) setReadyMap(map);
     });
 
-    const selectRecord = (event) => {
-      const recordId = String(event.features?.[0]?.properties?.id || "");
+    const findInteractiveFeature = (point) => {
+      const features = map.queryRenderedFeatures(point, { layers: INTERACTIVE_LAYER_IDS });
+      for (const layerId of INTERACTIVE_LAYER_IDS) {
+        const feature = features.find(({ layer }) => layer?.id === layerId);
+        if (feature) return feature;
+      }
+      return null;
+    };
+    const selectRecord = (feature) => {
+      const recordId = String(feature.properties?.id || "");
       const record = recordsRef.current.find(({ id }) => String(id) === recordId);
       if (record) onRecordSelectRef.current?.(record);
     };
-    map.on("click", MAP_LAYER_IDS.records, selectRecord);
-    map.on("click", MAP_LAYER_IDS.tourRecords, selectRecord);
-    map.on("click", MAP_LAYER_IDS.selectedRecord, () => {
-      const selected = selectedRecordRef.current;
-      const record = recordsRef.current.find(({ id }) => String(id) === String(selected?.id));
-      onRecordSelectRef.current?.(record || selected);
-    });
-    map.on("click", MAP_LAYER_IDS.clusters, async (event) => {
-      const feature = event.features?.[0];
+    map.on("click", async (event) => {
+      const feature = findInteractiveFeature(event.point);
       if (!feature) return;
-      const source = map.getSource("records");
-      const zoom = await source.getClusterExpansionZoom(feature.properties.cluster_id);
-      map.easeTo({ center: feature.geometry.coordinates, zoom });
-    });
-    map.on("click", MAP_LAYER_IDS.sections, (event) => {
-      const section = String(event.features?.[0]?.properties?.Section || "").trim();
-      if (section) onSectionSelectRef.current?.(section);
+
+      if (feature.layer.id === MAP_LAYER_IDS.clusters) {
+        const source = map.getSource("records");
+        const zoom = await source.getClusterExpansionZoom(feature.properties.cluster_id);
+        map.easeTo({ center: feature.geometry.coordinates, zoom });
+        return;
+      }
+      if (feature.layer.id === MAP_LAYER_IDS.sections) {
+        const section = String(feature.properties?.Section || "").trim();
+        if (section) onSectionSelectRef.current?.(section);
+        return;
+      }
+      if (feature.layer.id === MAP_LAYER_IDS.selectedRecord) {
+        const selected = selectedRecordRef.current;
+        const record = recordsRef.current.find(({ id }) => String(id) === String(selected?.id));
+        onRecordSelectRef.current?.(record || selected);
+        return;
+      }
+      selectRecord(feature);
     });
 
-    const interactiveLayers = [
-      MAP_LAYER_IDS.records,
-      MAP_LAYER_IDS.tourRecords,
-      MAP_LAYER_IDS.clusters,
-      MAP_LAYER_IDS.sections,
-    ];
-    interactiveLayers.forEach((layerId) => {
+    INTERACTIVE_LAYER_IDS.forEach((layerId) => {
       map.on("mouseenter", layerId, () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", layerId, () => { map.getCanvas().style.cursor = ""; });
     });

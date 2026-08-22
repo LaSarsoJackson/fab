@@ -134,6 +134,10 @@ describe("App product shell", () => {
       .toHaveAttribute("data-record-count", "1"));
     expect(within(sectionContext).getByText("1 burials")).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole("button", { name: "Select Section 18" }));
+    expect(screen.getByLabelText("Albany Rural Cemetery map"))
+      .toHaveAttribute("data-record-count", "1");
+
     fireEvent.click(within(sectionContext).getByRole("button", { name: "List" }));
     expect(screen.getByRole("heading", { name: "Burial Locator" })).toBeInTheDocument();
     expect(screen.getByLabelText("Section number")).toHaveValue("18");
