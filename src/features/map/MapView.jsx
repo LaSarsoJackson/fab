@@ -255,7 +255,7 @@ export default function MapView({
         const tourRecord = selectedRecord.source === "tour";
         map.flyTo({
           center: selectedRecord.coordinates,
-          zoom: tourRecord ? 17.2 : 18,
+          zoom: Math.max(map.getZoom(), tourRecord ? 17.2 : 18),
           padding: splitDetail && tourRecord
             ? { top: 72, right: 360, bottom: 72, left: 460 }
             : {
