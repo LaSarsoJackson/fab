@@ -162,6 +162,34 @@ test("selected sections map every burial and keep the list one action away", asy
     .toBeGreaterThan(0);
 });
 
+test("clicking a burial cluster reveals its children without clearing the section", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("./?view=map&section=18");
+
+  const section = page.getByRole("group", { name: "Section 18" });
+  const burialCount = section.getByText(/burials$/);
+  const visibleCount = page.locator("[data-visible-marker-count]");
+  await expect.poll(async () => Number((await burialCount.textContent()).replace(/\D/g, "")))
+    .toBeGreaterThan(0);
+  await expect.poll(async () => Number(
+    await visibleCount.getAttribute("data-visible-marker-count")
+  )).toBeGreaterThan(0);
+  const initialVisibleCount = Number(await visibleCount.getAttribute("data-visible-marker-count"));
+
+  const mapCanvas = page.locator(".maplibregl-canvas");
+  // This fixed viewport places a dense Section 18 cluster at this canvas point.
+  // The count change below proves the click expanded it instead of hitting bare map.
+  await mapCanvas.click({ position: { x: 620, y: 186 } });
+
+  await expect.poll(() => new URL(page.url()).searchParams.get("section")).toBe("18");
+  await expect.poll(async () => Number((await burialCount.textContent()).replace(/\D/g, "")))
+    .toBeGreaterThan(0);
+  await expect.poll(async () => Number(await visibleCount.getAttribute("data-visible-marker-count")))
+    .not.toBe(initialVisibleCount);
+  await expect.poll(async () => Number(await visibleCount.getAttribute("data-visible-marker-count")))
+    .toBeGreaterThan(0);
+});
+
 test("short iPhone landscape keeps the mobile destination bar", async ({ page }) => {
   await page.setViewportSize({ width: 750, height: 342 });
   await page.goto("./?view=tours");

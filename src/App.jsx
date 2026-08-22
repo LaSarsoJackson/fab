@@ -199,6 +199,23 @@ export default function App() {
     });
   };
 
+  const selectSection = (section) => {
+    const normalizedSection = String(section || "").trim();
+    if (!normalizedSection) return;
+
+    setSelectedRecord(null);
+    setDetailsOpen(false);
+    if (normalizedSection === route.section && !route.tour) {
+      if (route.record || route.query) {
+        updateRoute({ record: "", query: "" }, { replace: true });
+      }
+      return;
+    }
+
+    setRecords([]);
+    updateRoute({ section: normalizedSection, tour: "", record: "", query: "" });
+  };
+
   const shareUrl = useMemo(() => selectedRecord
     ? buildAppUrl(window.location.href, {
       view: APP_VIEWS.MAP,
@@ -269,12 +286,7 @@ export default function App() {
                   }
                   selectRecord(record);
                 }}
-                onSectionSelect={(section) => {
-                  setRecords([]);
-                  setSelectedRecord(null);
-                  setDetailsOpen(false);
-                  updateRoute({ section, tour: "", record: "", query: "" });
-                }}
+                onSectionSelect={selectSection}
                 onBrowseSection={browseSection}
               />
             </Suspense>
