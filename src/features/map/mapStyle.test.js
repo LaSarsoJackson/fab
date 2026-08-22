@@ -19,8 +19,9 @@ describe("cartographic style contract", () => {
     expect(style.sources.hillshade.type).toBe("raster-dem");
     expect(style.sources.hillshade.encoding).toBe("terrarium");
     expect(layer.type).toBe("hillshade");
-    expect(layer.paint["hillshade-method"]).toBe("igor");
-    expect(layer.paint["hillshade-exaggeration"]).toBeLessThanOrEqual(0.25);
+    expect(layer.paint["hillshade-method"]).toBe("standard");
+    expect(layer.paint["hillshade-exaggeration"]).toBeGreaterThanOrEqual(0.5);
+    expect(layer.paint["hillshade-exaggeration"]).toBeLessThanOrEqual(0.6);
     expect(style.sources.hillshade.attribution).toContain("U.S. Geological Survey");
     expect(style.sources["osm-map"].attribution).toContain("OpenStreetMap");
     expect(groundIndex).toBeLessThan(hillshadeIndex);

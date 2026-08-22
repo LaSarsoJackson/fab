@@ -99,13 +99,13 @@ export const createMapStyle = () => ({
       type: "hillshade",
       source: "hillshade",
       paint: {
-        "hillshade-method": "igor",
+        "hillshade-method": "standard",
         "hillshade-illumination-anchor": "map",
         "hillshade-illumination-direction": 315,
-        "hillshade-exaggeration": 0.24,
-        "hillshade-shadow-color": "rgba(38, 47, 41, 0.36)",
-        "hillshade-highlight-color": "rgba(255, 255, 255, 0.08)",
-        "hillshade-accent-color": "rgba(44, 57, 48, 0.2)",
+        "hillshade-exaggeration": 0.55,
+        "hillshade-shadow-color": "rgba(35, 45, 40, 0.68)",
+        "hillshade-highlight-color": "rgba(255, 252, 242, 0.28)",
+        "hillshade-accent-color": "rgba(42, 55, 47, 0.52)",
       },
     },
     {
