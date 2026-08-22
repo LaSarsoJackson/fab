@@ -175,6 +175,7 @@ test("clicking a burial cluster reveals its children without clearing the sectio
     await visibleCount.getAttribute("data-visible-marker-count")
   )).toBeGreaterThan(0);
   const initialVisibleCount = Number(await visibleCount.getAttribute("data-visible-marker-count"));
+  await page.waitForTimeout(800);
 
   const mapCanvas = page.locator(".maplibregl-canvas");
   // This fixed viewport places a dense Section 18 cluster at this canvas point.
@@ -188,6 +189,35 @@ test("clicking a burial cluster reveals its children without clearing the sectio
     .not.toBe(initialVisibleCount);
   await expect.poll(async () => Number(await visibleCount.getAttribute("data-visible-marker-count")))
     .toBeGreaterThan(0);
+});
+
+test("selecting a grave preserves a closer map zoom", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("./?view=map&section=18");
+
+  const visibleCount = page.locator("[data-visible-marker-count]");
+  await expect.poll(async () => Number(await visibleCount.getAttribute("data-visible-marker-count")))
+    .toBeGreaterThan(0);
+  await page.waitForTimeout(800);
+  const mapCanvas = page.locator(".maplibregl-canvas");
+  await mapCanvas.click({ position: { x: 620, y: 186 } });
+  await expect.poll(async () => Number(await visibleCount.getAttribute("data-visible-marker-count")))
+    .toBeGreaterThan(100);
+
+  await mapCanvas.click({ position: { x: 565, y: 293 } });
+  await expect(page.getByRole("article")).toBeVisible();
+  const firstRecord = new URL(page.url()).searchParams.get("record");
+
+  const zoomIn = page.getByRole("button", { name: "Zoom in" });
+  await zoomIn.click();
+  await page.waitForTimeout(400);
+  await zoomIn.click();
+  await expect(zoomIn).toBeDisabled();
+
+  await mapCanvas.click({ position: { x: 734, y: 204 } });
+  await expect.poll(() => new URL(page.url()).searchParams.get("record"))
+    .not.toBe(firstRecord);
+  await expect(zoomIn).toBeDisabled();
 });
 
 test("short iPhone landscape keeps the mobile destination bar", async ({ page }) => {
