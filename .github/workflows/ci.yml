@@ -17,6 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
+    outputs:
+      pages_artifact_name: ${{ steps.pages_artifact_name.outputs.name }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -39,10 +42,16 @@ jobs:
       - name: Build production site
         run: bun run build
 
+      - name: Set GitHub Pages artifact name
+        id: pages_artifact_name
+        if: github.event_name == 'push'
+        run: echo "name=github-pages-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+
       - name: Upload GitHub Pages artifact
         if: github.event_name == 'push'
         uses: actions/upload-pages-artifact@v5
         with:
+          name: ${{ steps.pages_artifact_name.outputs.name }}
           path: dist
 
       - name: Install Chromium
@@ -84,3 +93,5 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+        with:
+          artifact_name: ${{ needs.quality.outputs.pages_artifact_name }}

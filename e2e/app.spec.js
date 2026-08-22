@@ -2,7 +2,11 @@ import { expect, test } from "@playwright/test";
 
 const APP_PORT = process.env.PLAYWRIGHT_APP_PORT || "4173";
 const APP_HOSTS = new Set([`127.0.0.1:${APP_PORT}`, `localhost:${APP_PORT}`]);
-const TILE_HOSTS = ["tile.openstreetmap.org", "services.arcgisonline.com"];
+const TILE_HOSTS = [
+  "tile.openstreetmap.org",
+  "services.arcgisonline.com",
+  "s3.amazonaws.com",
+];
 
 const isProviderTileFetchError = (message) => (
   message === "TypeError: Failed to fetch" ||
