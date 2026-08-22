@@ -23,9 +23,9 @@ export const validateReleaseMetadata = ({
   releaseTag = "",
 }) => {
   const errors = [];
-  const version = packageJson?.version;
+  const version = String(packageJson?.version || "");
 
-  if (typeof version !== "string" || !SEMVER_PATTERN.test(version)) {
+  if (!SEMVER_PATTERN.test(version)) {
     errors.push("package.json version must use SemVer, for example 1.2.3.");
     return errors;
   }

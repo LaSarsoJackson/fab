@@ -32,13 +32,17 @@ const INTERACTIVE_LAYER_IDS = [
   MAP_LAYER_IDS.sections,
 ];
 
+const parseStoredBoolean = (value, fallback) => (
+  value === true || value === false ? value : fallback
+);
+
 const readMapPreferences = () => {
   try {
     const stored = JSON.parse(globalThis.localStorage?.getItem(MAP_PREFERENCES_KEY) || "null");
     return {
       basemap: stored?.basemap === "imagery" ? "imagery" : "map",
-      hillshade: typeof stored?.hillshade === "boolean" ? stored.hillshade : true,
-      showSections: typeof stored?.showSections === "boolean" ? stored.showSections : false,
+      hillshade: parseStoredBoolean(stored?.hillshade, true),
+      showSections: parseStoredBoolean(stored?.showSections, false),
     };
   } catch {
     return DEFAULT_MAP_PREFERENCES;

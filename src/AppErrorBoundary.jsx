@@ -17,9 +17,7 @@ export default class AppErrorBoundary extends React.Component {
   }
 
   handleReload() {
-    if (typeof window !== "undefined") {
-      window.location.reload();
-    }
+    window.location.reload();
   }
 
   render() {
