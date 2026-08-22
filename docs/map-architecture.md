@@ -23,13 +23,14 @@ which renderer consumes it.
 ## Layer order
 
 1. reference map or imagery
-2. low-opacity hillshade
-3. cemetery ground and boundary
-4. optional section fill
-5. cemetery roads
-6. optional section boundaries and selected section
-7. burial-result clusters and individual tour stops
-8. selected record
+2. cemetery ground tint
+3. restrained native hillshade
+4. cemetery boundary
+5. optional section fill
+6. cemetery roads
+7. optional section boundaries and selected section
+8. burial-result clusters and individual tour stops
+9. selected record
 
 That order is the visual hierarchy. Do not solve prominence by raising every
 line width or adding more controls.

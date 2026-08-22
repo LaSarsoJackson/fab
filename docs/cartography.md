@@ -12,8 +12,9 @@ grave or tour stop.
   treats the basemap as context that should recede behind thematic data.
 - Esri’s [World Hillshade guidance](https://www.esri.com/arcgis-blog/products/arcgis-living-atlas/national-government/symbolizing-the-hillshade-for-the-world-topographic-map)
   calls for noncompetitive relief, especially in flatter areas.
-- The [MapLibre style specification](https://maplibre.org/maplibre-style-spec/)
-  defines the source/layer model used here.
+- The [MapLibre hillshade example](https://maplibre.org/maplibre-gl-js/docs/examples/add-a-hillshade-layer/)
+  uses a raster DEM with a native hillshade layer instead of a pre-rendered
+  gray raster overlay.
 - The [OpenStreetMap tile policy](https://operations.osmfoundation.org/policies/tiles/)
   requires visible attribution and forbids bulk or offline preloading from the
   standard tile service.
@@ -22,7 +23,10 @@ grave or tour stop.
 
 - Default to a muted reference map for orientation.
 - Offer provider imagery, not checked-in ortho exports.
-- Keep hillshade available and on by default at 24% opacity.
+- Keep hillshade available and on by default. Use restrained native MapLibre
+  shading over a Terrarium DEM so relief adds shape without washing out the
+  reference map. Draw the cemetery ground tint beneath the hillshade; draw
+  boundary, sections, roads, and all markers above it.
 - Draw the cemetery boundary and roads above terrain context.
 - Keep sections off until the user asks for them.
 - When sections are on, use a warm fill beneath the cemetery roads and draw
@@ -45,4 +49,6 @@ grave or tour stop.
 - no layer drawer with implementation-oriented names
 
 Hillshade remains because the cemetery’s terrain materially affects on-site
-orientation. It is context, not the subject.
+orientation. It is context, not the subject. The DEM uses Mapzen Terrain Tiles;
+in this United States extent its elevation data is credited to the USGS 3D
+Elevation Program.

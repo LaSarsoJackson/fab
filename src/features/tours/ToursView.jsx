@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from "react";
-import { SearchIcon, ToursIcon } from "../../app/icons";
+import { SearchIcon } from "../../app/icons";
 import { FAB_TOUR_DEFINITIONS } from "../fab/tours";
 
 export default function ToursView({
@@ -19,8 +19,7 @@ export default function ToursView({
 
   return (
     <section className="tours-view" aria-labelledby="tours-title">
-      <header className="page-heading page-heading--centered">
-        <p className="page-heading__eyebrow">Explore the cemetery</p>
+      <header className="page-heading">
         <h1 id="tours-title">Search Tours</h1>
         <p>Choose a tour or collection, then explore its places on the map.</p>
       </header>
@@ -63,7 +62,6 @@ export default function ToursView({
                   disabled={isLoading}
                   onClick={() => onSelectTour(tour)}
                 >
-                  <span className="tour-card__icon"><ToursIcon /></span>
                   <span className="tour-card__content">
                     <span className="tour-card__name">{tour.name}</span>
                     <span className="tour-card__action">
