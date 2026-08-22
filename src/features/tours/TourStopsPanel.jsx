@@ -6,6 +6,7 @@ export default function TourStopsPanel({
   tour,
   records = [],
   selectedRecord,
+  onExit,
   onSelect,
 }) {
   const selectedPlaceRef = useRef(null);
@@ -27,7 +28,12 @@ export default function TourStopsPanel({
           <p>{isCollection ? "Collection" : "Tour places"}</p>
           <h2 id={headingId}>{tour.name}</h2>
         </div>
-        <span aria-label={`${records.length} places`}>{records.length}</span>
+        <div className="tour-stops-panel__actions">
+          <span aria-label={`${records.length} places`}>{records.length}</span>
+          {onExit ? (
+            <button type="button" className="text-button" onClick={onExit}>All tours</button>
+          ) : null}
+        </div>
       </header>
       <ol className="tour-stops-panel__list">
         {records.map((record, index) => {

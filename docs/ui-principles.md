@@ -32,6 +32,9 @@ Usability is the design system.
 - Keep tour stops in a keyboard-accessible list as well as on the map.
 - Call large inventories collections instead of implying that every dataset is
   a sequenced walk.
+- Order explicit tours by deterministic proximity from their authored first
+  stop; keep collections in source order. This improves browsing without
+  presenting the result as reviewed pedestrian routing.
 - Keep the active tour name and place position visible while details are open.
 - Provide Previous, All places, and Next with no server-side navigation state.
 - Remember only the last tour and place so a user can resume after an abrupt
@@ -45,8 +48,9 @@ Usability is the design system.
 - Keep sharing secondary under “Share pinned grave.”
 - Link biography-bearing records directly to the canonical ARCE biography; do
   not mirror or embed the legacy biography site inside FAB.
-- Do not draw a computed walking route until its order and geometry have been
-  reviewed for cemetery use.
+- Do not draw a walking route line until pedestrian geometry has been reviewed
+  for cemetery use; proximity ordering alone makes no safety or accessibility
+  claim.
 
 ## Visual language
 

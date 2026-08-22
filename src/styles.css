@@ -785,6 +785,10 @@ p {
   gap: 12px;
 }
 
+.tour-stops-panel__header > :first-child {
+  min-width: 0;
+}
+
 .tour-stops-panel__header p {
   margin-bottom: 2px;
   color: var(--muted);
@@ -800,7 +804,13 @@ p {
   line-height: 1.15;
 }
 
-.tour-stops-panel__header > span {
+.tour-stops-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tour-stops-panel__actions > span {
   min-width: 30px;
   height: 30px;
   display: grid;
@@ -811,6 +821,13 @@ p {
   font-size: 0.78rem;
   font-weight: 750;
   font-variant-numeric: tabular-nums;
+}
+
+.tour-stops-panel__actions .text-button {
+  min-height: 40px;
+  padding-right: 8px;
+  padding-left: 8px;
+  font-size: 0.78rem;
 }
 
 .tour-stops-panel__list {

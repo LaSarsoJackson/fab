@@ -173,6 +173,16 @@ export default function App() {
     updateRoute({ record: "" }, { replace: true });
   };
 
+  const returnToTours = () => {
+    updateRoute({
+      view: APP_VIEWS.TOURS,
+      query: "",
+      section: "",
+      tour: "",
+      record: "",
+    });
+  };
+
   const continueSavedTour = () => {
     if (!continueTour) return;
     const savedRecord = tourProgress.tourKey === continueTour.key ? tourProgress.recordId : "";
@@ -298,6 +308,7 @@ export default function App() {
                 records={records}
                 selectedRecord={selectedRecord}
                 detailsOpen={detailsOpen}
+                onExit={returnToTours}
                 onSelect={selectRecord}
               />
             ) : null}

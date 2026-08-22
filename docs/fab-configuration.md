@@ -17,8 +17,11 @@ Map provider URLs and paint belong in `mapStyle.js`. Route values belong in
 `routes.js`. Add configuration to the owning module instead of rebuilding a
 cross-cutting product profile.
 
-Feature order currently drives the neutral numbered place list; it is not a
-walking-route guarantee. A future reviewed route belongs directly on its tour
-definition as stable ordered record IDs and, when available, one reviewed local
-GeoJSON line. Do not add a generic route registry or infer an order from the
-cemetery road layer.
+Explicit `kind: "tour"` definitions use a deterministic nearest-neighbor visit
+order anchored at the source first stop. `kind: "collection"` definitions stay
+source-ordered because they are inventories, not itineraries. The proximity
+order is a browsing aid, not a reviewed pedestrian route or a safety claim. A
+future reviewed route belongs directly on its tour definition as stable ordered
+record IDs and, when available, one reviewed local GeoJSON line. Do not add a
+generic route registry or infer pedestrian geometry from the cemetery road
+layer.
