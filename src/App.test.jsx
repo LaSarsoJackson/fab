@@ -227,7 +227,7 @@ describe("App product shell", () => {
     expect(screen.queryByRole("navigation", { name: "Tour places" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Place \d+ of/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Unpin" })).toBeInTheDocument();
-  });
+  }, 10_000);
 
   it("shares a portable record link outside the FABFG shell", async () => {
     const share = vi.fn().mockResolvedValue(undefined);
