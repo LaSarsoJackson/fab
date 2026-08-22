@@ -8,6 +8,8 @@ import {
   setWorkerUrl,
 } from "maplibre-gl";
 import mapLibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
+import sections from "../../data/ARC_Sections.json";
+import { getGeoJsonBounds } from "../../shared/geoJsonBounds";
 import { recordsToFeatureCollection } from "../locator/burialRecords";
 import { CEMETERY_VIEW, createMapStyle, MAP_LAYER_IDS } from "./mapStyle";
 
@@ -18,6 +20,9 @@ const DEFAULT_MAP_PREFERENCES = Object.freeze({
   hillshade: true,
   showSections: false,
 });
+const SECTION_FEATURES = new globalThis.Map(
+  sections.features.map((feature) => [String(feature.properties?.Section || "").trim(), feature])
+);
 
 const readMapPreferences = () => {
   try {
@@ -47,6 +52,8 @@ export default function MapView({
   selectedSection = "",
   focusKey = "",
   tourStopsPresent = false,
+  sectionRecordCount = 0,
+  sectionRecordsStatus = "idle",
   onBrowseSection,
   onRecordSelect,
   onSectionSelect,
@@ -117,7 +124,7 @@ export default function MapView({
     void addGeolocateControl();
     map.addControl(new AttributionControl({ compact: true }), "bottom-right");
 
-    map.on("load", () => {
+    map.on("style.load", () => {
       if (mapRef.current === map) setReadyMap(map);
     });
 
@@ -183,8 +190,8 @@ export default function MapView({
       });
       setVisibleMarkerCount(visible.length);
     };
-    map.once("idle", updateVisibleMarkerCount);
-    return () => map.off("idle", updateVisibleMarkerCount);
+    map.on("render", updateVisibleMarkerCount);
+    return () => map.off("render", updateVisibleMarkerCount);
   }, [readyMap, records]);
 
   useEffect(() => {
@@ -213,25 +220,80 @@ export default function MapView({
 
   useEffect(() => {
     const map = readyMap;
-    if (!map || mapRef.current !== map || !focusKey) return;
-    if (selectedRecord?.coordinates) {
-      map.flyTo({ center: selectedRecord.coordinates, zoom: Math.max(map.getZoom(), 18), essential: true });
-      return;
-    }
-    const points = records.filter(({ coordinates }) => Array.isArray(coordinates));
-    if (points.length === 0) return;
-    const bounds = points.reduce(
-      (nextBounds, record) => nextBounds.extend(record.coordinates),
-      new LngLatBounds(points[0].coordinates, points[0].coordinates)
-    );
-    const desktop = map.getContainer().clientWidth >= 720;
-    const padding = tourStopsPresent
-      ? desktop
-        ? { top: 72, right: 360, bottom: 72, left: 72 }
-        : { top: 72, right: 32, bottom: 176, left: 32 }
-      : 72;
-    map.fitBounds(bounds, { padding, maxZoom: 17, duration: 700 });
-  }, [focusKey, readyMap, records, selectedRecord, tourStopsPresent]);
+    if (!active || !map || mapRef.current !== map || !focusKey) return undefined;
+
+    // Route changes and responsive panels can resize the map in the same render.
+    // Fit only after layout settles so MapLibre never uses stale canvas dimensions.
+    const frame = requestAnimationFrame(() => {
+      if (mapRef.current !== map) return;
+      map.stop();
+      map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+      map.resize();
+      const width = map.getContainer().clientWidth;
+      const height = map.getContainer().clientHeight;
+      if (width === 0 || height === 0) return;
+
+      const shortViewport = height < 500;
+      const sidePanel = width >= 720 && height >= 500;
+      const splitDetail = width >= 1080 && height >= 500;
+      if (selectedRecord?.coordinates) {
+        const tourRecord = selectedRecord.source === "tour";
+        map.flyTo({
+          center: selectedRecord.coordinates,
+          zoom: tourRecord ? 17.2 : 18,
+          padding: splitDetail && tourRecord
+            ? { top: 72, right: 360, bottom: 72, left: 460 }
+            : {
+              top: shortViewport ? 72 : 104,
+              right: 32,
+              bottom: shortViewport ? Math.min(132, height * 0.45) : Math.min(420, height * 0.48),
+              left: 32,
+            },
+          retainPadding: false,
+          essential: true,
+        });
+        return;
+      }
+      if (selectedSection) {
+        const sectionFeature = SECTION_FEATURES.get(String(selectedSection));
+        const sectionBounds = getGeoJsonBounds(sectionFeature);
+        if (sectionBounds) {
+          const [[south, west], [north, east]] = sectionBounds;
+          map.fitBounds([[west, south], [east, north]], {
+            padding: {
+              top: shortViewport ? 116 : 126,
+              right: sidePanel && tourStopsPresent ? 360 : 48,
+              bottom: shortViewport ? 48 : tourStopsPresent ? 180 : 64,
+              left: 48,
+            },
+            maxZoom: 17.4,
+            duration: 650,
+            retainPadding: false,
+          });
+          return;
+        }
+      }
+      const points = records.filter(({ coordinates }) => Array.isArray(coordinates));
+      if (points.length === 0) return;
+      const bounds = points.reduce(
+        (nextBounds, record) => nextBounds.extend(record.coordinates),
+        new LngLatBounds(points[0].coordinates, points[0].coordinates)
+      );
+      const padding = tourStopsPresent
+        ? sidePanel
+          ? { top: 72, right: 360, bottom: 72, left: 72 }
+          : {
+            top: shortViewport ? 60 : 72,
+            right: 32,
+            bottom: shortViewport ? Math.min(132, height * 0.45) : 176,
+            left: 32,
+          }
+        : 72;
+      map.fitBounds(bounds, { padding, maxZoom: 17, duration: 700, retainPadding: false });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [active, focusKey, readyMap, records, selectedRecord, selectedSection, tourStopsPresent]);
 
   return (
     <div className="map-view">
@@ -263,16 +325,18 @@ export default function MapView({
           />
           Sections
         </label>
-        {selectedSection ? (
-          <button
-            type="button"
-            className="map-section-action"
-            onClick={() => onBrowseSection?.(selectedSection)}
-          >
-            View Section {selectedSection} burials
-          </button>
-        ) : null}
       </div>
+      {selectedSection ? (
+        <div className="map-section-context" role="group" aria-label={`Section ${selectedSection}`}>
+          <strong>Section {selectedSection}</strong>
+          {sectionRecordsStatus === "loading" ? <span role="status">Loading…</span> : null}
+          {sectionRecordsStatus === "ready" ? (
+            <span>{sectionRecordCount.toLocaleString()} burials</span>
+          ) : null}
+          {sectionRecordsStatus === "error" ? <span role="status">Unavailable</span> : null}
+          <button type="button" onClick={() => onBrowseSection?.(selectedSection)}>List</button>
+        </div>
+      ) : null}
       <div ref={containerRef} className="map-canvas" role="region" aria-label="Albany Rural Cemetery map" />
     </div>
   );

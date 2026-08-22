@@ -2,9 +2,17 @@ import { useDeferredValue, useMemo, useState } from "react";
 import { SearchIcon, ToursIcon } from "../../app/icons";
 import { FAB_TOUR_DEFINITIONS } from "../fab/tours";
 
-export default function ToursView({ loadingTour = "", onSelectTour }) {
+export default function ToursView({
+  continueTour = null,
+  loadingTour = "",
+  onContinueTour,
+  onSelectTour,
+}) {
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query.trim().toLocaleLowerCase());
+  const continueLabel = continueTour?.kind === "collection"
+    ? "Return to collection"
+    : "Continue tour";
   const tours = useMemo(() => FAB_TOUR_DEFINITIONS.filter(({ name }) => (
     !deferredQuery || name.toLocaleLowerCase().includes(deferredQuery)
   )), [deferredQuery]);
@@ -14,8 +22,22 @@ export default function ToursView({ loadingTour = "", onSelectTour }) {
       <header className="page-heading page-heading--centered">
         <p className="page-heading__eyebrow">Explore the cemetery</p>
         <h1 id="tours-title">Search Tours</h1>
-        <p>Choose a curated tour, then use the map to move through its stops.</p>
+        <p>Choose a tour or collection, then explore its places on the map.</p>
       </header>
+
+      {continueTour ? (
+        <button
+          type="button"
+          className="tour-continue"
+          aria-label={`${continueLabel}: ${continueTour.name}${continueTour.recordName ? ` from ${continueTour.recordName}` : ""}`}
+          onClick={onContinueTour}
+        >
+          <span className="tour-continue__eyebrow">{continueLabel}</span>
+          <strong>{continueTour.name}</strong>
+          {continueTour.recordName ? <span>{continueTour.recordName}</span> : null}
+          <span className="tour-continue__action">Return to map</span>
+        </button>
+      ) : null}
 
       <label className="tour-search" htmlFor="tour-query">
         <SearchIcon />
@@ -44,7 +66,9 @@ export default function ToursView({ loadingTour = "", onSelectTour }) {
                   <span className="tour-card__icon"><ToursIcon /></span>
                   <span className="tour-card__content">
                     <span className="tour-card__name">{tour.name}</span>
-                    <span className="tour-card__action">{isLoading ? "Loading…" : "Open tour"}</span>
+                    <span className="tour-card__action">
+                      {isLoading ? "Loading…" : tour.kind === "collection" ? "Open collection" : "Open tour"}
+                    </span>
                   </span>
                 </button>
               </li>

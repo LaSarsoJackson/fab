@@ -40,6 +40,16 @@ describe("tour definitions", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
+  test("distinguishes authored tours from mapped collections", () => {
+    const kinds = new Set(FAB_TOUR_DEFINITIONS.map(({ kind }) => kind));
+    const collectionKeys = FAB_TOUR_DEFINITIONS
+      .filter(({ kind }) => kind === "collection")
+      .map(({ key }) => key);
+
+    expect(kinds).toEqual(new Set(["tour", "collection"]));
+    expect(collectionKeys).toEqual(["Lot7", "Sec49", "GAR"]);
+  });
+
   test("every bundled tour dataset normalizes into the map record shape", () => {
     FAB_TOUR_DEFINITIONS.forEach((definition) => {
       const dataset = TOUR_DATASETS_BY_KEY[definition.key];

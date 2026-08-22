@@ -199,6 +199,7 @@ p {
 }
 
 .app-navigation__item:active,
+.tour-continue:active,
 .tour-card:active,
 .tour-stop:active,
 .record-row:active,
@@ -260,6 +261,57 @@ p {
 
 .tours-view {
   padding: clamp(28px, 7vw, 72px) max(18px, env(safe-area-inset-left)) 48px;
+}
+
+.tour-continue {
+  width: min(100%, 480px);
+  min-height: 72px;
+  margin: 0 auto 14px;
+  padding: 13px 15px;
+  display: grid;
+  gap: 2px;
+  color: var(--ink);
+  text-align: left;
+  background: var(--accent-soft);
+  border: 0;
+  border-radius: 15px;
+  box-shadow:
+    0 0 0 1px rgba(49, 95, 76, 0.12),
+    0 3px 12px rgba(25, 34, 29, 0.07);
+  transition-property: background-color, box-shadow, scale;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.tour-continue:hover {
+  background: #e3eee5;
+  box-shadow:
+    0 0 0 1px rgba(49, 95, 76, 0.2),
+    0 5px 16px rgba(25, 34, 29, 0.09);
+}
+
+.tour-continue__eyebrow {
+  color: var(--accent-strong);
+  font-size: 0.68rem;
+  font-weight: 760;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.tour-continue strong {
+  text-wrap: balance;
+}
+
+.tour-continue > span:not(.tour-continue__eyebrow, .tour-continue__action) {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.tour-continue__action {
+  margin-top: 3px;
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .tour-search {
@@ -598,26 +650,64 @@ p {
   accent-color: var(--accent);
 }
 
-.map-section-action {
+.map-section-context {
+  position: absolute;
+  top: calc(max(10px, env(safe-area-inset-top)) + 52px);
+  left: max(10px, env(safe-area-inset-left));
+  z-index: 5;
+  min-height: 44px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px rgba(31, 41, 36, 0.1),
+    0 3px 14px rgba(25, 34, 29, 0.12);
+  backdrop-filter: blur(14px);
+}
+
+.map-section-context strong {
+  padding: 0 7px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.map-section-context > span {
+  padding: 0 7px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.map-section-context button {
   min-height: 36px;
-  padding: 0 11px;
-  color: #fff;
-  background: var(--accent);
+  padding: 0 9px;
+  color: var(--accent-strong);
+  background: transparent;
   border: 0;
-  border-radius: 9px;
+  border-radius: 8px;
   font-size: 0.76rem;
   font-weight: 700;
   white-space: nowrap;
-  transition-property: background-color, scale;
+  transition-property: background-color, color, scale;
   transition-duration: 150ms;
   transition-timing-function: ease-out;
 }
 
-.map-section-action:hover {
-  background: var(--accent-strong);
+.map-section-context button:hover,
+.map-section-context button[aria-pressed="true"] {
+  background: var(--accent-soft);
 }
 
-.map-section-action:active {
+.map-section-context button:disabled {
+  color: var(--muted);
+}
+
+.map-section-context button:active {
   scale: 0.96;
 }
 
@@ -874,12 +964,15 @@ p {
 .record-card__tour-navigation {
   margin-top: 12px;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
 .record-card__tour-navigation .text-button {
   width: 100%;
+  min-height: 44px;
+  padding-right: 5px;
+  padding-left: 5px;
 }
 
 .record-card__tour-navigation .text-button:disabled {
@@ -966,6 +1059,16 @@ button.secondary-button {
   height: 44px;
 }
 
+.maplibregl-ctrl-top-right {
+  top: env(safe-area-inset-top);
+  right: env(safe-area-inset-right);
+}
+
+.maplibregl-ctrl-bottom-right {
+  right: env(safe-area-inset-right);
+  bottom: env(safe-area-inset-bottom);
+}
+
 .maplibregl-ctrl-attrib {
   display: block;
   color: #3f4b44;
@@ -977,7 +1080,7 @@ button.secondary-button {
   color: #315f4c;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 720px) and (min-height: 500px) {
   :root {
     --navigation-height: 72px;
   }
@@ -1134,24 +1237,59 @@ button.secondary-button {
   }
 }
 
-@media (max-width: 719px) {
+@media (max-width: 1079px), (max-height: 499px) {
   .map-page--record-open .tour-stops-panel {
     display: none;
   }
 }
 
+@media (max-height: 499px) and (min-width: 500px) {
+  .record-card,
+  .tour-stops-panel {
+    right: auto;
+    width: min(520px, calc(100% - 82px));
+  }
+}
+
 @media (max-width: 430px) {
   .map-toolbar {
-    align-items: stretch;
-    flex-wrap: wrap;
+    align-items: center;
+    flex-wrap: nowrap;
   }
 
-  .map-section-action {
-    width: 100%;
+  .segmented-control button {
+    padding-right: 7px;
+    padding-left: 7px;
   }
 
   .toggle-control {
-    min-height: 32px;
+    min-height: 40px;
+    padding-right: 4px;
+    padding-left: 4px;
+    gap: 4px;
+    font-size: 0.72rem;
+  }
+}
+
+@media (max-width: 350px) {
+  .map-toolbar {
+    max-width: calc(100% - 20px);
+  }
+
+  .segmented-control button {
+    padding-right: 5px;
+    padding-left: 5px;
+    font-size: 0.72rem;
+  }
+
+  .toggle-control {
+    padding-right: 2px;
+    padding-left: 2px;
+    font-size: 0.68rem;
+  }
+
+  .maplibregl-ctrl-top-right {
+    top: calc(env(safe-area-inset-top) + 62px);
   }
 }
 

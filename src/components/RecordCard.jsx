@@ -64,7 +64,7 @@ export default function RecordCard({
           {record.tourName ? (
             <p className="record-card__source">
               {record.tourName}
-              {tourContext ? ` · Stop ${tourContext.position} of ${tourContext.total}` : ""}
+              {tourContext ? ` · Place ${tourContext.position} of ${tourContext.total}` : ""}
             </p>
           ) : null}
           <h2 id="record-card-title">{record.displayName}</h2>
@@ -74,12 +74,27 @@ export default function RecordCard({
         </div>
       </div>
       {tourContext ? (
-        <nav className="record-card__tour-navigation" aria-label="Tour stops">
-          <button type="button" className="text-button" disabled={!tourContext.onPrevious} onClick={tourContext.onPrevious || undefined}>
-            Previous stop
+        <nav className="record-card__tour-navigation" aria-label="Tour places">
+          <button
+            type="button"
+            className="text-button"
+            aria-label="Previous place"
+            disabled={!tourContext.onPrevious}
+            onClick={tourContext.onPrevious || undefined}
+          >
+            Previous
           </button>
-          <button type="button" className="text-button" disabled={!tourContext.onNext} onClick={tourContext.onNext || undefined}>
-            Next stop
+          <button type="button" className="text-button" onClick={tourContext.onOverview}>
+            All places
+          </button>
+          <button
+            type="button"
+            className="text-button"
+            aria-label="Next place"
+            disabled={!tourContext.onNext}
+            onClick={tourContext.onNext || undefined}
+          >
+            Next
           </button>
         </nav>
       ) : null}
@@ -99,7 +114,7 @@ export default function RecordCard({
             Read biography <ExternalIcon />
           </a>
         ) : null}
-        <button type="button" className="secondary-button" onClick={onUnpin}>Unpin</button>
+        {!tourContext ? <button type="button" className="secondary-button" onClick={onUnpin}>Unpin</button> : null}
       </div>
       <details className="record-card__share">
         <summary>Share pinned grave</summary>
