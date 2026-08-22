@@ -17,6 +17,7 @@ test.beforeEach(async ({ page }, testInfo) => {
     // MapLibre can omit the provider URL from this message. Same-origin fetch
     // failures are still captured with their URL by requestfailed below.
     if (message.type() === "error" && !isProviderTileFetchError(text)) errors.push(text);
+    if (message.type() === "warning" && text.includes("Map cannot fit within canvas")) errors.push(text);
   });
   page.on("pageerror", (error) => errors.push(error.stack || error.message));
   page.on("requestfailed", (request) => {
@@ -51,13 +52,15 @@ test("tour selection opens one MapLibre map", async ({ page }) => {
   await page.getByLabel("Sections", { exact: true }).check();
   await expect(page.getByLabel("Sections", { exact: true })).toBeChecked();
 
-  const stopPanel = page.getByRole("complementary", { name: "Notables Tour 2020" });
-  await expect(stopPanel).toBeVisible();
-  await stopPanel.getByRole("button", { name: /James Hall/ }).click();
+  const placesPanel = page.getByRole("complementary", { name: "Notables Tour 2020" });
+  await expect(placesPanel).toBeVisible();
+  await expect(placesPanel.getByText("Tour places")).toBeVisible();
+  await placesPanel.getByRole("button", { name: /James Hall/ }).click();
   await expect(page.getByRole("heading", { name: "James Hall" })).toBeVisible();
-  await expect(page.getByText(/Notables Tour 2020 · Stop \d+ of 38/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Previous stop" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Next stop" })).toBeVisible();
+  await expect(page.getByText(/Notables Tour 2020 · Place \d+ of 38/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Previous place" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "All places" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Next place" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Read biography/ }))
     .toHaveAttribute("href", "https://www.albany.edu/arce/Hall1.html");
   await expect.poll(() => new URL(page.url()).searchParams.get("record"))
@@ -66,8 +69,19 @@ test("tour selection opens one MapLibre map", async ({ page }) => {
   await page.reload();
   await expect(page.getByRole("heading", { name: "James Hall" })).toBeVisible();
   await page.getByRole("button", { name: "Close details" }).click();
-  await expect(stopPanel.getByRole("button", { name: /James Hall/ }))
+  await expect(placesPanel.getByRole("button", { name: /James Hall/ }))
     .toHaveAttribute("aria-current", "location");
+
+  await page.setViewportSize({ width: 900, height: 700 });
+  await placesPanel.getByRole("button", { name: /James Hall/ }).click();
+  await expect(page.getByRole("heading", { name: "James Hall" })).toBeVisible();
+  await expect(placesPanel).toBeHidden();
+  await page.getByRole("button", { name: "All places" }).click();
+  await expect(placesPanel).toBeVisible();
+
+  await page.getByRole("button", { name: "Search Tours", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Continue tour: Notables Tour 2020 from James Hall" }))
+    .toBeVisible();
 });
 
 test("map context and appearance survive destination changes and reload", async ({ page }) => {
@@ -120,18 +134,65 @@ test("section deep links browse the requested cemetery section", async ({ page }
   await expect(page.locator(".record-row").first()).toBeVisible({ timeout: 30_000 });
 });
 
-test("selected sections stay on the map until browsing is requested", async ({ page }) => {
+test("selected sections map every burial and keep the list one action away", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("./?view=map&section=18");
 
-  const browse = page.getByRole("button", { name: "View Section 18 burials" });
-  await expect(browse).toBeVisible();
+  const appearance = page.getByLabel("Map appearance");
+  const section = page.getByRole("group", { name: "Section 18" });
+  await expect(section).toBeVisible();
   await expect.poll(() => new URL(page.url()).searchParams.get("view")).toBe("map");
+  const appearanceBox = await appearance.boundingBox();
+  expect(appearanceBox.height).toBeLessThanOrEqual(56);
 
-  await browse.click();
+  const burialCount = section.getByText(/burials$/);
+  await expect(burialCount).toBeVisible({ timeout: 30_000 });
+  await expect.poll(async () => Number((await burialCount.textContent()).replace(/\D/g, "")))
+    .toBeGreaterThan(0);
+  await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
+    .toBeGreaterThan(0);
+
+  await section.getByRole("button", { name: "List" }).click();
   await expect(page).toHaveURL(/view=burials.*section=18/);
   await page.goBack();
   await expect(page).toHaveURL(/view=map.*section=18/);
-  await expect(page.getByRole("button", { name: "View Section 18 burials" })).toBeVisible();
+  const restoredSection = page.getByRole("group", { name: "Section 18" });
+  await expect(restoredSection.getByText(/burials$/)).toBeVisible({ timeout: 30_000 });
+  await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
+    .toBeGreaterThan(0);
+});
+
+test("short iPhone landscape keeps the mobile destination bar", async ({ page }) => {
+  await page.setViewportSize({ width: 750, height: 342 });
+  await page.goto("./?view=tours");
+
+  await expect(page.locator(".app-navigation__brand")).toBeHidden();
+  await expect(page.locator(".app-navigation__website")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Cemetery Map", exact: true })).toBeInViewport();
+
+  await page.goto("./?view=map&tour=Notable");
+  const placesPanel = page.getByRole("complementary", { name: "Notables Tour 2020" });
+  const mapControls = page.locator(".maplibregl-ctrl-top-right");
+  await expect(placesPanel).toBeVisible();
+  const placesBox = await placesPanel.boundingBox();
+  const controlsBox = await mapControls.boundingBox();
+  expect(placesBox.x + placesBox.width).toBeLessThan(controlsBox.x);
+
+  await placesPanel.getByRole("button", { name: /James Hall/ }).click();
+  const recordCard = page.getByRole("article", { name: "James Hall" });
+  await expect(recordCard).toBeVisible();
+  const recordBox = await recordCard.boundingBox();
+  expect(recordBox.x + recordBox.width).toBeLessThan(controlsBox.x);
+});
+
+test("narrow WebViews keep appearance and map controls separate", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("./?view=map");
+
+  const appearanceBox = await page.getByLabel("Map appearance").boundingBox();
+  const controlsBox = await page.locator(".maplibregl-ctrl-top-right").boundingBox();
+  expect(appearanceBox.x + appearanceBox.width).toBeLessThanOrEqual(320);
+  expect(controlsBox.y).toBeGreaterThanOrEqual(appearanceBox.y + appearanceBox.height);
 });
 
 test("mobile keeps the three primary destinations visible", async ({ page }) => {

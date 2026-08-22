@@ -25,9 +25,17 @@ Usability is the design system.
 - Keep the general map quiet: boundary and roads before sections and graves.
 - Sections appear only after an explicit choice and read clearly when enabled.
 - Selecting a section highlights it on the map. Opening its burial list is a
-  separate explicit action so the map does not disappear under the user.
+  separate action so the map does not disappear under the user. The section
+  route automatically maps every record in that section and clusters only the
+  density; List opens the browsable records. A section selection replaces a
+  visible tour on the map, while Continue preserves the last tour place.
 - Keep tour stops in a keyboard-accessible list as well as on the map.
-- Keep the active tour name and stop position visible while stop details are open.
+- Call large inventories collections instead of implying that every dataset is
+  a sequenced walk.
+- Keep the active tour name and place position visible while details are open.
+- Provide Previous, All places, and Next with no server-side navigation state.
+- Remember only the last tour and place so a user can resume after an abrupt
+  destination change or browser restart.
 - Keep every active tour stop individually visible on the map. Reserve
   clustering for larger burial-result sets.
 - One physical location may represent multiple records; do not invent spatial
@@ -37,6 +45,8 @@ Usability is the design system.
 - Keep sharing secondary under “Share pinned grave.”
 - Link biography-bearing records directly to the canonical ARCE biography; do
   not mirror or embed the legacy biography site inside FAB.
+- Do not draw a computed walking route until its order and geometry have been
+  reviewed for cemetery use.
 
 ## Visual language
 

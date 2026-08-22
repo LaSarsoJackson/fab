@@ -22,7 +22,31 @@ shell owns its tabs; embedded FAB owns content and route behavior.
 
 External directions are built in [`src/shared/routing.js`](../src/shared/routing.js).
 Apple platforms open Apple Maps; Android and other platforms use Google Maps.
-FAB does not maintain a second client-side routing engine over cemetery roads.
+FAB does not compute a walking line from `ARC_Roads.json`. That file describes
+road geometry but does not establish pedestrian access, crossings, closures, or
+a reviewed visit order. A shortest-path result would look authoritative without
+being trustworthy.
+
+Tour place-to-place navigation stays local and URL-backed: selecting a place
+updates `record`, Previous and Next move through the bundled place list, and All
+places returns to the tour overview. These controls browse the current tour;
+they do not claim a reviewed walking order. Collections do not get ordinal or
+Previous and Next controls. The last selected tour and place are stored as the
+small versioned record `fab.tour-progress.v1`; the URL remains the shareable
+source of truth.
+
+## Reviewed walking routes
+
+Do not infer a route from feature array order or proximity. When ARCE supplies a
+reviewed route, add the smallest durable data to the existing tour definition:
+
+- an explicit ordered list of stable record IDs
+- optionally, one reviewed GeoJSON `LineString` for the intended walk
+
+MapLibre can render that local line directly. It does not require a routing
+service, graph cache, worker, or new runtime dependency. Until those facts are
+curated, FAB should show every place and provide Previous, Next, and
+device-navigation actions without drawing a false route.
 
 Changing a parameter or its meaning is a shared web/native contract change and
 requires both browser and wrapper acceptance.

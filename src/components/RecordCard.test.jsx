@@ -58,6 +58,7 @@ describe("RecordCard", () => {
 
   it("keeps tour position and adjacent stops available with the record", () => {
     const onPrevious = vi.fn();
+    const onOverview = vi.fn();
     const onNext = vi.fn();
     render(
       <RecordCard
@@ -66,14 +67,17 @@ describe("RecordCard", () => {
         shareUrl="https://example.test/"
         onClose={() => {}}
         onUnpin={() => {}}
-        tourContext={{ position: 2, total: 38, onPrevious, onNext }}
+        tourContext={{ position: 2, total: 38, onPrevious, onOverview, onNext }}
       />
     );
 
-    expect(screen.getByText("Notables Tour 2020 · Stop 2 of 38")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Previous stop" }));
-    fireEvent.click(screen.getByRole("button", { name: "Next stop" }));
+    expect(screen.getByText("Notables Tour 2020 · Place 2 of 38")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Previous place" }));
+    fireEvent.click(screen.getByRole("button", { name: "All places" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next place" }));
     expect(onPrevious).toHaveBeenCalledOnce();
+    expect(onOverview).toHaveBeenCalledOnce();
     expect(onNext).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Unpin" })).not.toBeInTheDocument();
   });
 });
