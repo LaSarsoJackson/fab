@@ -650,10 +650,6 @@ p {
   white-space: nowrap;
 }
 
-.map-section-context > .map-cluster-hint {
-  color: #8f4918;
-}
-
 .map-section-context button {
   min-height: 36px;
   padding: 0 9px;

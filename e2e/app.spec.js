@@ -143,7 +143,7 @@ test("section deep links browse the requested cemetery section", async ({ page }
   await expect(page.locator(".record-row").first()).toBeVisible({ timeout: 30_000 });
 });
 
-test("selected sections map every burial and keep the list one action away", async ({ page }) => {
+test("selected sections highlight the map and keep the useful burial list one action away", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("./?view=map&section=18");
 
@@ -154,80 +154,16 @@ test("selected sections map every burial and keep the list one action away", asy
   const appearanceBox = await appearance.boundingBox();
   expect(appearanceBox.height).toBeLessThanOrEqual(56);
 
-  const burialCount = section.getByText(/burials$/);
-  await expect(burialCount).toBeVisible({ timeout: 30_000 });
-  await expect.poll(async () => Number((await burialCount.textContent()).replace(/\D/g, "")))
-    .toBeGreaterThan(0);
-  await expect(section.getByText("Gold = grouped graves", { exact: true })).toBeVisible();
-  await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
-    .toBeGreaterThan(0);
+  await expect(section.getByText("Gold = grouped graves", { exact: true })).toHaveCount(0);
+  await expect(page.locator("[data-visible-marker-count]")).toHaveAttribute("data-visible-marker-count", "0");
 
-  await section.getByRole("button", { name: "List" }).click();
+  await section.getByRole("button", { name: "View burials" }).click();
   await expect(page).toHaveURL(/view=burials.*section=18/);
   await page.goBack();
   await expect(page).toHaveURL(/view=map.*section=18/);
   const restoredSection = page.getByRole("group", { name: "Section 18" });
-  await expect(restoredSection.getByText(/burials$/)).toBeVisible({ timeout: 30_000 });
-  await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
-    .toBeGreaterThan(0);
-});
-
-test("clicking a burial cluster reveals its children without clearing the section", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto("./?view=map&section=18");
-
-  const section = page.getByRole("group", { name: "Section 18" });
-  const burialCount = section.getByText(/burials$/);
-  const visibleCount = page.locator("[data-visible-marker-count]");
-  await expect.poll(async () => Number((await burialCount.textContent()).replace(/\D/g, "")))
-    .toBeGreaterThan(0);
-  await expect.poll(async () => Number(
-    await visibleCount.getAttribute("data-visible-marker-count")
-  )).toBeGreaterThan(0);
-  const initialVisibleCount = Number(await visibleCount.getAttribute("data-visible-marker-count"));
-  await page.waitForTimeout(800);
-
-  const mapCanvas = page.locator(".maplibregl-canvas");
-  // This fixed viewport places a dense Section 18 cluster at this canvas point.
-  // The count change below proves the click expanded it instead of hitting bare map.
-  await mapCanvas.click({ position: { x: 620, y: 186 } });
-
-  await expect.poll(() => new URL(page.url()).searchParams.get("section")).toBe("18");
-  await expect.poll(async () => Number((await burialCount.textContent()).replace(/\D/g, "")))
-    .toBeGreaterThan(0);
-  await expect.poll(async () => Number(await visibleCount.getAttribute("data-visible-marker-count")))
-    .not.toBe(initialVisibleCount);
-  await expect.poll(async () => Number(await visibleCount.getAttribute("data-visible-marker-count")))
-    .toBeGreaterThan(0);
-});
-
-test("selecting a grave preserves a closer map zoom", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto("./?view=map&section=18");
-
-  const visibleCount = page.locator("[data-visible-marker-count]");
-  await expect.poll(async () => Number(await visibleCount.getAttribute("data-visible-marker-count")))
-    .toBeGreaterThan(0);
-  await page.waitForTimeout(800);
-  const mapCanvas = page.locator(".maplibregl-canvas");
-  await mapCanvas.click({ position: { x: 620, y: 186 } });
-  await expect.poll(async () => Number(await visibleCount.getAttribute("data-visible-marker-count")))
-    .toBeGreaterThan(100);
-
-  await mapCanvas.click({ position: { x: 565, y: 293 } });
-  await expect(page.getByRole("article")).toBeVisible();
-  const firstRecord = new URL(page.url()).searchParams.get("record");
-
-  const zoomIn = page.getByRole("button", { name: "Zoom in" });
-  await zoomIn.click();
-  await page.waitForTimeout(400);
-  await zoomIn.click();
-  await expect(zoomIn).toBeDisabled();
-
-  await mapCanvas.click({ position: { x: 734, y: 204 } });
-  await expect.poll(() => new URL(page.url()).searchParams.get("record"))
-    .not.toBe(firstRecord);
-  await expect(zoomIn).toBeDisabled();
+  await expect(restoredSection.getByRole("button", { name: "View burials" })).toBeVisible();
+  await expect(page.locator("[data-visible-marker-count]")).toHaveAttribute("data-visible-marker-count", "0");
 });
 
 test("short iPhone landscape keeps the mobile destination bar", async ({ page }) => {

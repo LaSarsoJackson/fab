@@ -35,8 +35,8 @@ grave or tour stop.
   section boundaries above them.
 - Show every stop in the active tour; do not collapse curated stops into
   proximity clusters.
-- Cluster burial-result density only where individual points would otherwise
-  overwhelm the map.
+- Keep section inventories in the Burial Locator. The map highlights the
+  selected section and pins an individual grave only after a visitor chooses it.
 - Use one warm section highlight and one strong selected-record color.
 - Keep labels supplied by the reference basemap; do not add an external glyph
   service solely to label section polygons.

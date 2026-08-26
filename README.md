@@ -43,7 +43,7 @@ No Python image server or geospatial Python environment is required.
 ## Commands
 
 - `bun run start`: run the Vite development server
-- `bun run lint`: run ESLint and the vendored anti-slop Oxlint rules
+- `bun run lint`: run ESLint, Oxlint complexity checks, and the vendored anti-slop rules
 - `bun run test`: run Bun unit/data tests and Vitest component tests
 - `bun run test:e2e`: run the Playwright product flows
 - `bun run build`: generate tour aliases and build `dist/`

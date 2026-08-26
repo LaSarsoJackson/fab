@@ -25,10 +25,10 @@ Usability is the design system.
 - Keep the general map quiet: boundary and roads before sections and graves.
 - Sections appear only after an explicit choice and read clearly when enabled.
 - Selecting a section highlights it on the map. Opening its burial list is a
-  separate action so the map does not disappear under the user. The section
-  route automatically maps every record in that section and clusters only the
-  density; List opens the browsable records. A section selection replaces a
-  visible tour on the map, while Continue preserves the last tour place.
+  separate action so the map does not disappear under the user. Do not replace
+  the useful list with hundreds of unlabeled markers. A section selection
+  replaces a visible tour on the map, while Continue preserves the last tour
+  place.
 - Keep tour stops in a keyboard-accessible list as well as on the map.
 - Call large inventories collections instead of implying that every dataset is
   a sequenced walk.
@@ -39,8 +39,8 @@ Usability is the design system.
 - Provide Previous, All places, and Next with no server-side navigation state.
 - Remember only the last tour and place so a user can resume after an abrupt
   destination change or browser restart.
-- Keep every active tour stop individually visible on the map. Reserve
-  clustering for larger burial-result sets.
+- Keep every active tour stop individually visible on the map. Pin an individual
+  burial only after the visitor chooses it from the locator.
 - One physical location may represent multiple records; do not invent spatial
   precision by spreading canonical coordinates.
 - Close hides the detail card but leaves the pin.

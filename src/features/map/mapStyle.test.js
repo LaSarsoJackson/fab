@@ -33,14 +33,11 @@ describe("cartographic style contract", () => {
     expect(hillshadeIndex).toBeLessThan(recordsIndex);
   });
 
-  test("distinguishes cemetery paths and grouped burials from map context", () => {
+  test("distinguishes cemetery paths from map context", () => {
     const casing = style.layers.find(({ id }) => id === "cemetery-road-casing");
-    const clusters = style.layers.find(({ id }) => id === MAP_LAYER_IDS.clusters);
-    const records = style.layers.find(({ id }) => id === MAP_LAYER_IDS.records);
 
     expect(casing.paint["line-color"]).toBe("#b64032");
     expect(casing.paint["line-opacity"]).toBeGreaterThanOrEqual(0.9);
-    expect(clusters.paint["circle-color"]).not.toBe(records.paint["circle-color"]);
   });
 
   test("keeps sections off by default and legible when enabled", () => {
@@ -59,13 +56,13 @@ describe("cartographic style contract", () => {
     expect(outlineLayer.paint["line-opacity"]).toBeGreaterThanOrEqual(0.8);
   });
 
-  test("clusters burial density without collapsing curated tour stops", () => {
-    const clusterLayer = style.layers.find(({ id }) => id === MAP_LAYER_IDS.clusters);
+  test("keeps individual graves and curated tour stops directly selectable", () => {
+    const recordLayer = style.layers.find(({ id }) => id === MAP_LAYER_IDS.records);
     const tourLayer = style.layers.find(({ id }) => id === MAP_LAYER_IDS.tourRecords);
 
-    expect(style.sources.records.cluster).toBe(true);
+    expect(style.sources.records.cluster).toBeUndefined();
     expect(style.sources["tour-records"].cluster).toBeUndefined();
-    expect(clusterLayer.source).toBe("records");
+    expect(recordLayer.source).toBe("records");
     expect(tourLayer.source).toBe("tour-records");
     expect(tourLayer.paint["circle-color"]).toBe("#ad5a2a");
   });
