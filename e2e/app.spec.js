@@ -4,7 +4,6 @@ const APP_PORT = process.env.PLAYWRIGHT_APP_PORT || "4173";
 const APP_HOSTS = new Set([`127.0.0.1:${APP_PORT}`, `localhost:${APP_PORT}`]);
 const TILE_HOSTS = [
   "tile.openstreetmap.org",
-  "services.arcgisonline.com",
   "s3.amazonaws.com",
 ];
 
@@ -103,7 +102,6 @@ test("map context and appearance survive destination changes and reload", async 
   await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
     .toBe(38);
 
-  await page.getByRole("button", { name: "Imagery", exact: true }).click();
   await page.getByLabel("Hillshade", { exact: true }).uncheck();
   await page.getByLabel("Sections", { exact: true }).check();
   await page.getByRole("button", { name: "Search Tours", exact: true }).click();
@@ -111,12 +109,10 @@ test("map context and appearance survive destination changes and reload", async 
 
   await page.getByRole("button", { name: "Cemetery Map", exact: true }).click();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
-  await expect(page.getByRole("button", { name: "Imagery", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByLabel("Hillshade", { exact: true })).not.toBeChecked();
   await expect(page.getByLabel("Sections", { exact: true })).toBeChecked();
 
   await page.reload();
-  await expect(page.getByRole("button", { name: "Imagery", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByLabel("Hillshade", { exact: true })).not.toBeChecked();
   await expect(page.getByLabel("Sections", { exact: true })).toBeChecked();
   await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
@@ -162,6 +158,7 @@ test("selected sections map every burial and keep the list one action away", asy
   await expect(burialCount).toBeVisible({ timeout: 30_000 });
   await expect.poll(async () => Number((await burialCount.textContent()).replace(/\D/g, "")))
     .toBeGreaterThan(0);
+  await expect(section.getByText("Gold = grouped graves", { exact: true })).toBeVisible();
   await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
     .toBeGreaterThan(0);
 

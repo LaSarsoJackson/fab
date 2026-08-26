@@ -79,9 +79,8 @@ Cemetery Map tab.
 
 The map uses provider tiles instead of repository-built orthophoto exports:
 
-- a restrained OpenStreetMap reference map
-- Esri World Imagery as an optional imagery basemap
-- Esri World Hillshade at low opacity
+- one OpenStreetMap reference map, kept clear enough for labels and landmarks
+- visible terrain relief beneath the reference map
 - local cemetery boundary and roads above the terrain context
 - sections only after an explicit user choice
 

@@ -16,7 +16,6 @@ import { CEMETERY_VIEW, createMapStyle, MAP_LAYER_IDS } from "./mapStyle";
 const EMPTY_COLLECTION = { type: "FeatureCollection", features: [] };
 const MAP_PREFERENCES_KEY = "fab.map-preferences.v1";
 const DEFAULT_MAP_PREFERENCES = Object.freeze({
-  basemap: "map",
   hillshade: true,
   showSections: false,
 });
@@ -40,7 +39,6 @@ const readMapPreferences = () => {
   try {
     const stored = JSON.parse(globalThis.localStorage?.getItem(MAP_PREFERENCES_KEY) || "null");
     return {
-      basemap: stored?.basemap === "imagery" ? "imagery" : "map",
       hillshade: parseStoredBoolean(stored?.hillshade, true),
       showSections: parseStoredBoolean(stored?.showSections, false),
     };
@@ -79,7 +77,7 @@ export default function MapView({
   const [readyMap, setReadyMap] = useState(null);
   const [preferences, setPreferences] = useState(readMapPreferences);
   const [visibleMarkerCount, setVisibleMarkerCount] = useState(null);
-  const { basemap, hillshade, showSections } = preferences;
+  const { hillshade, showSections } = preferences;
 
   const updatePreference = (key, value) => {
     setPreferences((current) => {
@@ -223,8 +221,6 @@ export default function MapView({
   useEffect(() => {
     const map = readyMap;
     if (!map || mapRef.current !== map) return;
-    setLayerVisibility(map, MAP_LAYER_IDS.map, basemap === "map");
-    setLayerVisibility(map, MAP_LAYER_IDS.imagery, basemap === "imagery");
     setLayerVisibility(map, MAP_LAYER_IDS.hillshade, hillshade);
     const visible = showSections || Boolean(selectedSection);
     setLayerVisibility(map, MAP_LAYER_IDS.sections, visible);
@@ -235,7 +231,7 @@ export default function MapView({
       ["to-string", ["get", "Section"]],
       String(selectedSection || ""),
     ]);
-  }, [basemap, hillshade, readyMap, selectedSection, showSections]);
+  }, [hillshade, readyMap, selectedSection, showSections]);
 
   useEffect(() => {
     const map = readyMap;
@@ -324,10 +320,6 @@ export default function MapView({
         {records.length.toLocaleString()} mapped {records.length === 1 ? "record" : "records"}
       </p>
       <div className="map-toolbar" aria-label="Map appearance">
-        <div className="segmented-control" aria-label="Basemap">
-          <button type="button" aria-pressed={basemap === "map"} onClick={() => updatePreference("basemap", "map")}>Map</button>
-          <button type="button" aria-pressed={basemap === "imagery"} onClick={() => updatePreference("basemap", "imagery")}>Imagery</button>
-        </div>
         <label className="toggle-control">
           <input
             type="checkbox"
@@ -351,6 +343,9 @@ export default function MapView({
           {sectionRecordsStatus === "loading" ? <span role="status">Loading…</span> : null}
           {sectionRecordsStatus === "ready" ? (
             <span>{sectionRecordCount.toLocaleString()} burials</span>
+          ) : null}
+          {sectionRecordsStatus === "ready" && sectionRecordCount > 1 ? (
+            <span className="map-cluster-hint">Gold = grouped graves</span>
           ) : null}
           {sectionRecordsStatus === "error" ? <span role="status">Unavailable</span> : null}
           <button type="button" onClick={() => onBrowseSection?.(selectedSection)}>List</button>

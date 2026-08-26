@@ -13,7 +13,6 @@ export const CEMETERY_VIEW = Object.freeze({
 
 export const MAP_LAYER_IDS = Object.freeze({
   map: "basemap-map",
-  imagery: "basemap-imagery",
   hillshade: "terrain-hillshade",
   sections: "cemetery-sections",
   sectionOutlines: "cemetery-section-outlines",
@@ -32,13 +31,6 @@ export const createMapStyle = () => ({
       tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
       tileSize: 256,
       attribution: "© <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap contributors</a>",
-      maxzoom: 19,
-    },
-    imagery: {
-      type: "raster",
-      tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
-      tileSize: 256,
-      attribution: "Tiles © Esri, Vantor, Earthstar Geographics, and the GIS User Community",
       maxzoom: 19,
     },
     hillshade: {
@@ -64,37 +56,6 @@ export const createMapStyle = () => ({
   },
   layers: [
     {
-      id: MAP_LAYER_IDS.map,
-      type: "raster",
-      source: "osm-map",
-      paint: {
-        "raster-opacity": 0.92,
-        "raster-saturation": -0.55,
-        "raster-contrast": -0.03,
-        "raster-brightness-min": 0.08,
-        "raster-brightness-max": 0.98,
-      },
-    },
-    {
-      id: MAP_LAYER_IDS.imagery,
-      type: "raster",
-      source: "imagery",
-      layout: { visibility: "none" },
-      paint: {
-        "raster-saturation": -0.08,
-        "raster-contrast": -0.05,
-      },
-    },
-    {
-      id: "cemetery-ground",
-      type: "fill",
-      source: "boundary",
-      paint: {
-        "fill-color": "#edf1e6",
-        "fill-opacity": 0.18,
-      },
-    },
-    {
       id: MAP_LAYER_IDS.hillshade,
       type: "hillshade",
       source: "hillshade",
@@ -102,10 +63,31 @@ export const createMapStyle = () => ({
         "hillshade-method": "standard",
         "hillshade-illumination-anchor": "map",
         "hillshade-illumination-direction": 315,
-        "hillshade-exaggeration": 0.55,
-        "hillshade-shadow-color": "rgba(35, 45, 40, 0.68)",
-        "hillshade-highlight-color": "rgba(255, 252, 242, 0.28)",
-        "hillshade-accent-color": "rgba(42, 55, 47, 0.52)",
+        "hillshade-exaggeration": 0.9,
+        "hillshade-shadow-color": "#243c32",
+        "hillshade-highlight-color": "#fffdf4",
+        "hillshade-accent-color": "#425b4f",
+      },
+    },
+    {
+      id: MAP_LAYER_IDS.map,
+      type: "raster",
+      source: "osm-map",
+      paint: {
+        "raster-opacity": 0.72,
+        "raster-saturation": -0.1,
+        "raster-contrast": 0.06,
+        "raster-brightness-min": 0.04,
+        "raster-brightness-max": 1,
+      },
+    },
+    {
+      id: "cemetery-ground",
+      type: "fill",
+      source: "boundary",
+      paint: {
+        "fill-color": "#fffdf7",
+        "fill-opacity": 0.06,
       },
     },
     {
@@ -142,8 +124,9 @@ export const createMapStyle = () => ({
       type: "line",
       source: "roads",
       paint: {
-        "line-color": "rgba(37,48,43,0.34)",
-        "line-width": ["interpolate", ["linear"], ["zoom"], 13, 1.8, 18, 6],
+        "line-color": "#b64032",
+        "line-opacity": 0.92,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 13, 2.4, 18, 7],
       },
     },
     {
@@ -183,10 +166,10 @@ export const createMapStyle = () => ({
       source: "records",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": "#315f4c",
+        "circle-color": "#b96724",
         "circle-radius": ["step", ["get", "point_count"], 17, 10, 20, 40, 24],
-        "circle-stroke-color": "#ffffff",
-        "circle-stroke-width": 2,
+        "circle-stroke-color": "#fff8ed",
+        "circle-stroke-width": 3,
       },
     },
     {

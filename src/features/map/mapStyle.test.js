@@ -4,13 +4,15 @@ import { createMapStyle, MAP_LAYER_IDS } from "./mapStyle";
 describe("cartographic style contract", () => {
   const style = createMapStyle();
 
-  test("uses provider basemaps rather than local ortho exports", () => {
-    expect(style.sources.imagery.tiles[0]).toContain("World_Imagery");
+  test("uses one provider reference map rather than a basemap gallery", () => {
+    expect(style.sources["osm-map"].tiles[0]).toContain("openstreetmap.org");
+    expect(style.sources.imagery).toBeUndefined();
     expect(JSON.stringify(style)).not.toContain("/basemaps/");
   });
 
-  test("keeps restrained hillshade and visible source attribution", () => {
+  test("keeps legible hillshade beneath the labeled reference map", () => {
     const layer = style.layers.find(({ id }) => id === MAP_LAYER_IDS.hillshade);
+    const mapIndex = style.layers.findIndex(({ id }) => id === MAP_LAYER_IDS.map);
     const groundIndex = style.layers.findIndex(({ id }) => id === "cemetery-ground");
     const hillshadeIndex = style.layers.findIndex(({ id }) => id === MAP_LAYER_IDS.hillshade);
     const boundaryIndex = style.layers.findIndex(({ id }) => id === "cemetery-boundary");
@@ -20,14 +22,25 @@ describe("cartographic style contract", () => {
     expect(style.sources.hillshade.encoding).toBe("terrarium");
     expect(layer.type).toBe("hillshade");
     expect(layer.paint["hillshade-method"]).toBe("standard");
-    expect(layer.paint["hillshade-exaggeration"]).toBeGreaterThanOrEqual(0.5);
-    expect(layer.paint["hillshade-exaggeration"]).toBeLessThanOrEqual(0.6);
+    expect(layer.paint["hillshade-exaggeration"]).toBeGreaterThanOrEqual(0.7);
+    expect(layer.paint["hillshade-exaggeration"]).toBeLessThanOrEqual(0.95);
     expect(style.sources.hillshade.attribution).toContain("U.S. Geological Survey");
     expect(style.sources["osm-map"].attribution).toContain("OpenStreetMap");
-    expect(groundIndex).toBeLessThan(hillshadeIndex);
+    expect(hillshadeIndex).toBeLessThan(mapIndex);
+    expect(mapIndex).toBeLessThan(groundIndex);
     expect(hillshadeIndex).toBeLessThan(boundaryIndex);
     expect(hillshadeIndex).toBeLessThan(roadsIndex);
     expect(hillshadeIndex).toBeLessThan(recordsIndex);
+  });
+
+  test("distinguishes cemetery paths and grouped burials from map context", () => {
+    const casing = style.layers.find(({ id }) => id === "cemetery-road-casing");
+    const clusters = style.layers.find(({ id }) => id === MAP_LAYER_IDS.clusters);
+    const records = style.layers.find(({ id }) => id === MAP_LAYER_IDS.records);
+
+    expect(casing.paint["line-color"]).toBe("#b64032");
+    expect(casing.paint["line-opacity"]).toBeGreaterThanOrEqual(0.9);
+    expect(clusters.paint["circle-color"]).not.toBe(records.paint["circle-color"]);
   });
 
   test("keeps sections off by default and legible when enabled", () => {

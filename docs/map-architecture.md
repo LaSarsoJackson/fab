@@ -22,9 +22,9 @@ which renderer consumes it.
 
 ## Layer order
 
-1. reference map or imagery
-2. cemetery ground tint
-3. restrained native hillshade
+1. native hillshade
+2. reference map
+3. neutral cemetery ground tint
 4. cemetery boundary
 5. optional section fill
 6. cemetery roads
