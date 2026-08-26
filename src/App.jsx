@@ -10,9 +10,147 @@ import TourStopsPanel from "./features/tours/TourStopsPanel";
 import ToursView from "./features/tours/ToursView";
 
 const MapView = lazy(() => import("./features/map/MapView"));
-const SECTION_MAP_LIMIT = 5000;
 
 const getCurrentRoute = () => readAppRoute(window.location.search);
+
+const getContinueRecord = (selectedRecord, continueTour) => {
+  if (selectedRecord?.source !== "tour") return null;
+  return selectedRecord.tourKey === continueTour?.key ? selectedRecord : null;
+};
+
+const getContinueTourDetails = (continueTour, continueRecord, tourProgress) => {
+  if (!continueTour) return null;
+  let recordName = continueRecord?.displayName || "";
+  if (!recordName && tourProgress.tourKey === continueTour.key) {
+    recordName = tourProgress.recordName;
+  }
+  return { ...continueTour, recordName };
+};
+
+const getSelectedTourIndex = (selectedRecord, records) => {
+  if (selectedRecord?.source !== "tour") return -1;
+  return records.findIndex(({ id }) => String(id) === String(selectedRecord.id));
+};
+
+const getTourContext = ({ activeTour, records, selectedTourIndex, selectRecord, showTourOverview }) => {
+  if (selectedTourIndex < 0 || activeTour?.kind !== "tour") return null;
+  return {
+    position: selectedTourIndex + 1,
+    total: records.length,
+    onOverview: showTourOverview,
+    onPrevious: selectedTourIndex > 0
+      ? () => selectRecord(records[selectedTourIndex - 1])
+      : null,
+    onNext: selectedTourIndex < records.length - 1
+      ? () => selectRecord(records[selectedTourIndex + 1])
+      : null,
+  };
+};
+
+const ToursDestination = ({
+  active,
+  continueTour,
+  loadingTour,
+  onContinueTour,
+  onSelectTour,
+}) => {
+  if (!active) return null;
+  return (
+    <ToursView
+      continueTour={continueTour}
+      loadingTour={loadingTour}
+      onContinueTour={onContinueTour}
+      onSelectTour={onSelectTour}
+    />
+  );
+};
+
+const LocatorDestination = ({ active, burialSearch, route, onRouteChange, onSelect }) => {
+  if (!active) return null;
+  return (
+    <LocatorView
+      initialQuery={route.query}
+      initialSection={route.section}
+      search={burialSearch}
+      onRouteChange={onRouteChange}
+      onSelect={onSelect}
+    />
+  );
+};
+
+const MapDestination = ({
+  activeTour,
+  browseSection,
+  detailsOpen,
+  hasVisitedMap,
+  loadError,
+  loadingTour,
+  MapComponent,
+  records,
+  returnToTours,
+  route,
+  selectedRecord,
+  selectRecord,
+  selectSection,
+  setDetailsOpen,
+  shareUrl,
+  tourContext,
+  unpin,
+}) => {
+  if (!hasVisitedMap && route.view !== APP_VIEWS.MAP) return null;
+  const active = route.view === APP_VIEWS.MAP;
+  const mapClassName = [
+    "map-page",
+    activeTour && detailsOpen ? "map-page--record-open" : "",
+  ].filter(Boolean).join(" ");
+  const handleRecordSelect = (record) => {
+    if (!record) return;
+    if (String(record.id) === String(selectedRecord?.id)) {
+      setDetailsOpen(true);
+      return;
+    }
+    selectRecord(record);
+  };
+
+  return (
+    <section className={mapClassName} aria-label="Cemetery Map" hidden={!active}>
+      <Suspense fallback={<p className="map-loading" role="status">Loading cemetery map…</p>}>
+        <MapComponent
+          active={active}
+          records={records}
+          selectedRecord={selectedRecord}
+          selectedSection={route.section}
+          focusKey={selectedRecord?.id || route.section || route.tour || "cemetery"}
+          tourStopsPresent={Boolean(activeTour)}
+          onRecordSelect={handleRecordSelect}
+          onSectionSelect={selectSection}
+          onBrowseSection={browseSection}
+        />
+      </Suspense>
+      {loadingTour ? <p className="map-status" role="status">Loading tour…</p> : null}
+      {loadError ? <p className="map-status map-status--error">{loadError}</p> : null}
+      {activeTour && !loadingTour ? (
+        <TourStopsPanel
+          tour={activeTour}
+          records={records}
+          selectedRecord={selectedRecord}
+          detailsOpen={detailsOpen}
+          onExit={returnToTours}
+          onSelect={selectRecord}
+        />
+      ) : null}
+      <RecordCard
+        key={selectedRecord?.id || "none"}
+        record={selectedRecord}
+        open={detailsOpen}
+        shareUrl={shareUrl}
+        onClose={() => setDetailsOpen(false)}
+        onUnpin={unpin}
+        tourContext={tourContext}
+      />
+    </section>
+  );
+};
 
 export default function App({ MapComponent = MapView, useBurialSearchHook = useBurialSearch } = {}) {
   const [route, setRoute] = useState(getCurrentRoute);
@@ -26,16 +164,11 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
   const runBurialSearch = burialSearch.runSearch;
   const loadingTour = route.tour && tourLoadState.key !== route.tour ? route.tour : "";
   const loadError = tourLoadState.key === route.tour ? tourLoadState.error : "";
-  const activeTour = route.tour ? findTourDefinition(route.tour) : null;
+  const activeTour = findTourDefinition(route.tour);
   const savedTour = findTourDefinition(tourProgress.tourKey);
   const continueTour = activeTour || savedTour;
-  const continueRecord = selectedRecord?.source === "tour" &&
-    selectedRecord.tourKey === continueTour?.key
-    ? selectedRecord
-    : null;
-  const selectedTourIndex = selectedRecord?.source === "tour"
-    ? records.findIndex(({ id }) => String(id) === String(selectedRecord.id))
-    : -1;
+  const continueRecord = getContinueRecord(selectedRecord, continueTour);
+  const selectedTourIndex = getSelectedTourIndex(selectedRecord, records);
 
   const commitRoute = useCallback((nextRoute) => {
     setRoute(nextRoute);
@@ -59,24 +192,6 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, [commitRoute]);
-
-  useEffect(() => {
-    if (route.view !== APP_VIEWS.MAP || !route.section || route.tour) return undefined;
-    let cancelled = false;
-    runBurialSearch({ section: route.section, limit: SECTION_MAP_LIMIT })
-      .then((sectionRecords) => {
-        if (cancelled) return;
-        const currentRoute = getCurrentRoute();
-        if (
-          currentRoute.view === APP_VIEWS.MAP &&
-          currentRoute.section === route.section &&
-          !currentRoute.tour
-        ) {
-          setRecords(sectionRecords);
-        }
-      });
-    return () => { cancelled = true; };
-  }, [route.section, route.tour, route.view, runBurialSearch]);
 
   useEffect(() => {
     if (!route.tour) return undefined;
@@ -237,102 +352,58 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
     })
     : "", [selectedRecord]);
 
+  const continueTourDetails = getContinueTourDetails(continueTour, continueRecord, tourProgress);
+  const tourContext = getTourContext({
+    activeTour,
+    records,
+    selectedTourIndex,
+    selectRecord,
+    showTourOverview,
+  });
+
+  const updateLocatorRoute = (changes) => {
+    if (changes.section !== undefined && changes.section !== route.section) setRecords([]);
+    updateRoute(changes, { replace: true });
+  };
+
   return (
     <div className={["app-shell", route.embedded ? "app-shell--embedded" : ""].filter(Boolean).join(" ")}>
       <a className="skip-link" href="#main-content">Skip to content</a>
       <AppNavigation activeView={route.view} embedded={route.embedded} onNavigate={navigate} />
       <main id="main-content" className="app-content" tabIndex={-1}>
-        {route.view === APP_VIEWS.TOURS ? (
-          <ToursView
-            continueTour={continueTour ? {
-              ...continueTour,
-              recordName: continueRecord?.displayName || (
-                tourProgress.tourKey === continueTour.key ? tourProgress.recordName : ""
-              ),
-            } : null}
-            loadingTour={loadingTour}
-            onContinueTour={continueSavedTour}
-            onSelectTour={selectTour}
-          />
-        ) : null}
-        {route.view === APP_VIEWS.LOCATOR ? (
-          <LocatorView
-            initialQuery={route.query}
-            initialSection={route.section}
-            search={burialSearch}
-            onRouteChange={(changes) => {
-              if (changes.section !== undefined && changes.section !== route.section) {
-                setRecords([]);
-              }
-              updateRoute(changes, { replace: true });
-            }}
-            onSelect={selectRecord}
-          />
-        ) : null}
-        {hasVisitedMap || route.view === APP_VIEWS.MAP ? (
-          <section
-            className={[
-              "map-page",
-              activeTour && detailsOpen ? "map-page--record-open" : "",
-            ].filter(Boolean).join(" ")}
-            aria-label="Cemetery Map"
-            hidden={route.view !== APP_VIEWS.MAP}
-          >
-            <Suspense fallback={<p className="map-loading" role="status">Loading cemetery map…</p>}>
-              <MapComponent
-                active={route.view === APP_VIEWS.MAP}
-                records={records}
-                selectedRecord={selectedRecord}
-                selectedSection={route.section}
-                focusKey={selectedRecord?.id || route.section || route.tour || "cemetery"}
-                tourStopsPresent={Boolean(activeTour)}
-                sectionRecordCount={!activeTour ? records.filter(({ source }) => source === "burial").length : 0}
-                sectionRecordsStatus={!activeTour ? burialSearch.status : "idle"}
-                onRecordSelect={(record) => {
-                  if (!record) return;
-                  if (String(record.id) === String(selectedRecord?.id)) {
-                    setDetailsOpen(true);
-                    return;
-                  }
-                  selectRecord(record);
-                }}
-                onSectionSelect={selectSection}
-                onBrowseSection={browseSection}
-              />
-            </Suspense>
-            {loadingTour ? <p className="map-status" role="status">Loading tour…</p> : null}
-            {loadError ? <p className="map-status map-status--error">{loadError}</p> : null}
-            {activeTour && !loadingTour ? (
-              <TourStopsPanel
-                tour={activeTour}
-                records={records}
-                selectedRecord={selectedRecord}
-                detailsOpen={detailsOpen}
-                onExit={returnToTours}
-                onSelect={selectRecord}
-              />
-            ) : null}
-            <RecordCard
-              key={selectedRecord?.id || "none"}
-              record={selectedRecord}
-              open={detailsOpen}
-              shareUrl={shareUrl}
-              onClose={() => setDetailsOpen(false)}
-              onUnpin={unpin}
-              tourContext={selectedTourIndex >= 0 && activeTour?.kind === "tour" ? {
-                position: selectedTourIndex + 1,
-                total: records.length,
-                onOverview: showTourOverview,
-                onPrevious: selectedTourIndex > 0
-                  ? () => selectRecord(records[selectedTourIndex - 1])
-                  : null,
-                onNext: selectedTourIndex < records.length - 1
-                  ? () => selectRecord(records[selectedTourIndex + 1])
-                  : null,
-              } : null}
-            />
-          </section>
-        ) : null}
+        <ToursDestination
+          active={route.view === APP_VIEWS.TOURS}
+          continueTour={continueTourDetails}
+          loadingTour={loadingTour}
+          onContinueTour={continueSavedTour}
+          onSelectTour={selectTour}
+        />
+        <LocatorDestination
+          active={route.view === APP_VIEWS.LOCATOR}
+          burialSearch={burialSearch}
+          route={route}
+          onRouteChange={updateLocatorRoute}
+          onSelect={selectRecord}
+        />
+        <MapDestination
+          activeTour={activeTour}
+          browseSection={browseSection}
+          detailsOpen={detailsOpen}
+          hasVisitedMap={hasVisitedMap}
+          loadError={loadError}
+          loadingTour={loadingTour}
+          MapComponent={MapComponent}
+          records={records}
+          returnToTours={returnToTours}
+          route={route}
+          selectedRecord={selectedRecord}
+          selectRecord={selectRecord}
+          selectSection={selectSection}
+          setDetailsOpen={setDetailsOpen}
+          shareUrl={shareUrl}
+          tourContext={tourContext}
+          unpin={unpin}
+        />
       </main>
     </div>
   );

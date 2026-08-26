@@ -16,7 +16,6 @@ import { CEMETERY_VIEW, createMapStyle, MAP_LAYER_IDS } from "./mapStyle";
 const EMPTY_COLLECTION = { type: "FeatureCollection", features: [] };
 const MAP_PREFERENCES_KEY = "fab.map-preferences.v1";
 const DEFAULT_MAP_PREFERENCES = Object.freeze({
-  basemap: "map",
   hillshade: true,
   showSections: false,
 });
@@ -28,7 +27,6 @@ const INTERACTIVE_LAYER_IDS = [
   MAP_LAYER_IDS.selectedRecord,
   MAP_LAYER_IDS.tourRecords,
   MAP_LAYER_IDS.records,
-  MAP_LAYER_IDS.clusters,
   MAP_LAYER_IDS.sections,
 ];
 
@@ -40,7 +38,6 @@ const readMapPreferences = () => {
   try {
     const stored = JSON.parse(globalThis.localStorage?.getItem(MAP_PREFERENCES_KEY) || "null");
     return {
-      basemap: stored?.basemap === "imagery" ? "imagery" : "map",
       hillshade: parseStoredBoolean(stored?.hillshade, true),
       showSections: parseStoredBoolean(stored?.showSections, false),
     };
@@ -57,6 +54,93 @@ const setLayerVisibility = (map, layerId, visible) => {
   }
 };
 
+const getViewportLayout = (map) => {
+  const width = map.getContainer().clientWidth;
+  const height = map.getContainer().clientHeight;
+  return {
+    width,
+    height,
+    short: height < 500,
+    sidePanel: width >= 720 && height >= 500,
+    splitDetail: width >= 1080 && height >= 500,
+  };
+};
+
+const focusSelectedRecord = (map, selectedRecord, viewport) => {
+  if (!selectedRecord?.coordinates) return false;
+  const tourRecord = selectedRecord.source === "tour";
+  const detailPadding = {
+    top: viewport.short ? 72 : 104,
+    right: 32,
+    bottom: viewport.short
+      ? Math.min(132, viewport.height * 0.45)
+      : Math.min(420, viewport.height * 0.48),
+    left: 32,
+  };
+  map.flyTo({
+    center: selectedRecord.coordinates,
+    zoom: Math.max(map.getZoom(), tourRecord ? 17.2 : 18),
+    padding: viewport.splitDetail && tourRecord
+      ? { top: 72, right: 360, bottom: 72, left: 460 }
+      : detailPadding,
+    retainPadding: false,
+    essential: true,
+  });
+  return true;
+};
+
+const focusSelectedSection = (map, selectedSection, tourStopsPresent, viewport) => {
+  if (!selectedSection) return false;
+  const sectionFeature = SECTION_FEATURES.get(String(selectedSection));
+  const sectionBounds = getGeoJsonBounds(sectionFeature);
+  if (!sectionBounds) return false;
+  const [[south, west], [north, east]] = sectionBounds;
+  map.fitBounds([[west, south], [east, north]], {
+    padding: {
+      top: viewport.short ? 116 : 126,
+      right: viewport.sidePanel && tourStopsPresent ? 360 : 48,
+      bottom: viewport.short ? 48 : tourStopsPresent ? 180 : 64,
+      left: 48,
+    },
+    maxZoom: 17.4,
+    duration: 650,
+    retainPadding: false,
+  });
+  return true;
+};
+
+const focusRecords = (map, records, tourStopsPresent, viewport) => {
+  const points = records.filter(({ coordinates }) => Array.isArray(coordinates));
+  if (points.length === 0) return;
+  const bounds = points.reduce(
+    (nextBounds, record) => nextBounds.extend(record.coordinates),
+    new LngLatBounds(points[0].coordinates, points[0].coordinates)
+  );
+  let padding = 72;
+  if (tourStopsPresent && viewport.sidePanel) {
+    padding = { top: 72, right: 360, bottom: 72, left: 72 };
+  } else if (tourStopsPresent) {
+    padding = {
+      top: viewport.short ? 60 : 72,
+      right: 32,
+      bottom: viewport.short ? Math.min(132, viewport.height * 0.45) : 176,
+      left: 32,
+    };
+  }
+  map.fitBounds(bounds, { padding, maxZoom: 17, duration: 700, retainPadding: false });
+};
+
+const focusMap = ({ map, records, selectedRecord, selectedSection, tourStopsPresent }) => {
+  map.stop();
+  map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+  map.resize();
+  const viewport = getViewportLayout(map);
+  if (viewport.width === 0 || viewport.height === 0) return;
+  if (focusSelectedRecord(map, selectedRecord, viewport)) return;
+  if (focusSelectedSection(map, selectedSection, tourStopsPresent, viewport)) return;
+  focusRecords(map, records, tourStopsPresent, viewport);
+};
+
 export default function MapView({
   active = true,
   records = [],
@@ -64,8 +148,6 @@ export default function MapView({
   selectedSection = "",
   focusKey = "",
   tourStopsPresent = false,
-  sectionRecordCount = 0,
-  sectionRecordsStatus = "idle",
   onBrowseSection,
   onRecordSelect,
   onSectionSelect,
@@ -79,7 +161,7 @@ export default function MapView({
   const [readyMap, setReadyMap] = useState(null);
   const [preferences, setPreferences] = useState(readMapPreferences);
   const [visibleMarkerCount, setVisibleMarkerCount] = useState(null);
-  const { basemap, hillshade, showSections } = preferences;
+  const { hillshade, showSections } = preferences;
 
   const updatePreference = (key, value) => {
     setPreferences((current) => {
@@ -153,16 +235,10 @@ export default function MapView({
       const record = recordsRef.current.find(({ id }) => String(id) === recordId);
       if (record) onRecordSelectRef.current?.(record);
     };
-    map.on("click", async (event) => {
+    map.on("click", (event) => {
       const feature = findInteractiveFeature(event.point);
       if (!feature) return;
 
-      if (feature.layer.id === MAP_LAYER_IDS.clusters) {
-        const source = map.getSource("records");
-        const zoom = await source.getClusterExpansionZoom(feature.properties.cluster_id);
-        map.easeTo({ center: feature.geometry.coordinates, zoom });
-        return;
-      }
       if (feature.layer.id === MAP_LAYER_IDS.sections) {
         const section = String(feature.properties?.Section || "").trim();
         if (section) onSectionSelectRef.current?.(section);
@@ -205,7 +281,7 @@ export default function MapView({
 
     const updateVisibleMarkerCount = () => {
       const visible = map.queryRenderedFeatures({
-        layers: [MAP_LAYER_IDS.records, MAP_LAYER_IDS.tourRecords, MAP_LAYER_IDS.clusters],
+        layers: [MAP_LAYER_IDS.records, MAP_LAYER_IDS.tourRecords],
       });
       setVisibleMarkerCount(visible.length);
     };
@@ -223,8 +299,6 @@ export default function MapView({
   useEffect(() => {
     const map = readyMap;
     if (!map || mapRef.current !== map) return;
-    setLayerVisibility(map, MAP_LAYER_IDS.map, basemap === "map");
-    setLayerVisibility(map, MAP_LAYER_IDS.imagery, basemap === "imagery");
     setLayerVisibility(map, MAP_LAYER_IDS.hillshade, hillshade);
     const visible = showSections || Boolean(selectedSection);
     setLayerVisibility(map, MAP_LAYER_IDS.sections, visible);
@@ -235,7 +309,7 @@ export default function MapView({
       ["to-string", ["get", "Section"]],
       String(selectedSection || ""),
     ]);
-  }, [basemap, hillshade, readyMap, selectedSection, showSections]);
+  }, [hillshade, readyMap, selectedSection, showSections]);
 
   useEffect(() => {
     const map = readyMap;
@@ -245,70 +319,7 @@ export default function MapView({
     // Fit only after layout settles so MapLibre never uses stale canvas dimensions.
     const frame = requestAnimationFrame(() => {
       if (mapRef.current !== map) return;
-      map.stop();
-      map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
-      map.resize();
-      const width = map.getContainer().clientWidth;
-      const height = map.getContainer().clientHeight;
-      if (width === 0 || height === 0) return;
-
-      const shortViewport = height < 500;
-      const sidePanel = width >= 720 && height >= 500;
-      const splitDetail = width >= 1080 && height >= 500;
-      if (selectedRecord?.coordinates) {
-        const tourRecord = selectedRecord.source === "tour";
-        map.flyTo({
-          center: selectedRecord.coordinates,
-          zoom: Math.max(map.getZoom(), tourRecord ? 17.2 : 18),
-          padding: splitDetail && tourRecord
-            ? { top: 72, right: 360, bottom: 72, left: 460 }
-            : {
-              top: shortViewport ? 72 : 104,
-              right: 32,
-              bottom: shortViewport ? Math.min(132, height * 0.45) : Math.min(420, height * 0.48),
-              left: 32,
-            },
-          retainPadding: false,
-          essential: true,
-        });
-        return;
-      }
-      if (selectedSection) {
-        const sectionFeature = SECTION_FEATURES.get(String(selectedSection));
-        const sectionBounds = getGeoJsonBounds(sectionFeature);
-        if (sectionBounds) {
-          const [[south, west], [north, east]] = sectionBounds;
-          map.fitBounds([[west, south], [east, north]], {
-            padding: {
-              top: shortViewport ? 116 : 126,
-              right: sidePanel && tourStopsPresent ? 360 : 48,
-              bottom: shortViewport ? 48 : tourStopsPresent ? 180 : 64,
-              left: 48,
-            },
-            maxZoom: 17.4,
-            duration: 650,
-            retainPadding: false,
-          });
-          return;
-        }
-      }
-      const points = records.filter(({ coordinates }) => Array.isArray(coordinates));
-      if (points.length === 0) return;
-      const bounds = points.reduce(
-        (nextBounds, record) => nextBounds.extend(record.coordinates),
-        new LngLatBounds(points[0].coordinates, points[0].coordinates)
-      );
-      const padding = tourStopsPresent
-        ? sidePanel
-          ? { top: 72, right: 360, bottom: 72, left: 72 }
-          : {
-            top: shortViewport ? 60 : 72,
-            right: 32,
-            bottom: shortViewport ? Math.min(132, height * 0.45) : 176,
-            left: 32,
-          }
-        : 72;
-      map.fitBounds(bounds, { padding, maxZoom: 17, duration: 700, retainPadding: false });
+      focusMap({ map, records, selectedRecord, selectedSection, tourStopsPresent });
     });
 
     return () => cancelAnimationFrame(frame);
@@ -324,10 +335,6 @@ export default function MapView({
         {records.length.toLocaleString()} mapped {records.length === 1 ? "record" : "records"}
       </p>
       <div className="map-toolbar" aria-label="Map appearance">
-        <div className="segmented-control" aria-label="Basemap">
-          <button type="button" aria-pressed={basemap === "map"} onClick={() => updatePreference("basemap", "map")}>Map</button>
-          <button type="button" aria-pressed={basemap === "imagery"} onClick={() => updatePreference("basemap", "imagery")}>Imagery</button>
-        </div>
         <label className="toggle-control">
           <input
             type="checkbox"
@@ -348,12 +355,9 @@ export default function MapView({
       {selectedSection ? (
         <div className="map-section-context" role="group" aria-label={`Section ${selectedSection}`}>
           <strong>Section {selectedSection}</strong>
-          {sectionRecordsStatus === "loading" ? <span role="status">Loading…</span> : null}
-          {sectionRecordsStatus === "ready" ? (
-            <span>{sectionRecordCount.toLocaleString()} burials</span>
-          ) : null}
-          {sectionRecordsStatus === "error" ? <span role="status">Unavailable</span> : null}
-          <button type="button" onClick={() => onBrowseSection?.(selectedSection)}>List</button>
+          <button type="button" onClick={() => onBrowseSection?.(selectedSection)}>
+            View burials
+          </button>
         </div>
       ) : null}
       <div ref={containerRef} className="map-canvas" role="region" aria-label="Albany Rural Cemetery map" />

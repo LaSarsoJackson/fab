@@ -8,7 +8,6 @@ const runBurialSearch = vi.fn();
 const TestMapView = ({
   active,
   records = [],
-  sectionRecordCount,
   selectedSection,
   onBrowseSection,
   onSectionSelect,
@@ -21,8 +20,7 @@ const TestMapView = ({
     <button type="button" onClick={() => onSectionSelect("18")}>Select Section 18</button>
     {selectedSection ? (
       <div role="group" aria-label={`Section ${selectedSection}`}>
-        {sectionRecordCount ? <span>{sectionRecordCount} burials</span> : null}
-        <button type="button" onClick={() => onBrowseSection(selectedSection)}>List</button>
+        <button type="button" onClick={() => onBrowseSection(selectedSection)}>View burials</button>
       </div>
     ) : null}
   </div>
@@ -133,7 +131,7 @@ describe("App product shell", () => {
     })).toBeInTheDocument();
   });
 
-  it("keeps a section on the map, reveals its burials there, and opens its list explicitly", async () => {
+  it("keeps a section highlighted and opens its useful burial list explicitly", async () => {
     window.history.replaceState({}, "", "/fab/?view=map");
     renderApp();
 
@@ -142,16 +140,15 @@ describe("App product shell", () => {
     expect(new URL(window.location.href).searchParams.get("section")).toBe("18");
 
     const sectionContext = screen.getByRole("group", { name: "Section 18" });
-    await waitFor(() => expect(runBurialSearch).toHaveBeenCalledWith({ section: "18", limit: 5000 }));
-    await waitFor(() => expect(screen.getByLabelText("Albany Rural Cemetery map"))
-      .toHaveAttribute("data-record-count", "1"));
-    expect(within(sectionContext).getByText("1 burials")).toBeInTheDocument();
+    expect(runBurialSearch).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Albany Rural Cemetery map"))
+      .toHaveAttribute("data-record-count", "0");
 
     fireEvent.click(screen.getByRole("button", { name: "Select Section 18" }));
     expect(screen.getByLabelText("Albany Rural Cemetery map"))
-      .toHaveAttribute("data-record-count", "1");
+      .toHaveAttribute("data-record-count", "0");
 
-    fireEvent.click(within(sectionContext).getByRole("button", { name: "List" }));
+    fireEvent.click(within(sectionContext).getByRole("button", { name: "View burials" }));
     expect(screen.getByRole("heading", { name: "Burial Locator" })).toBeInTheDocument();
     expect(screen.getByLabelText("Section number")).toHaveValue("18");
   });
@@ -163,13 +160,13 @@ describe("App product shell", () => {
     fireEvent.click(within(panel).getByRole("button", { name: /James Hall/ }));
 
     fireEvent.click(screen.getByRole("button", { name: "Select Section 18" }));
-    await waitFor(() => expect(runBurialSearch).toHaveBeenCalledWith({ section: "18", limit: 5000 }));
     const params = new URL(window.location.href).searchParams;
     expect(params.get("section")).toBe("18");
     expect(params.has("tour")).toBe(false);
     expect(params.has("record")).toBe(false);
-    await waitFor(() => expect(screen.getByLabelText("Albany Rural Cemetery map"))
-      .toHaveAttribute("data-record-count", "1"));
+    expect(runBurialSearch).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Albany Rural Cemetery map"))
+      .toHaveAttribute("data-record-count", "0");
 
     fireEvent.click(screen.getByRole("button", { name: "Search Tours" }));
     expect(screen.getByRole("button", { name: "Continue tour: Notables Tour 2020 from James Hall" }))
@@ -223,7 +220,7 @@ describe("App product shell", () => {
     expect(await screen.findByRole("heading", { name: "James Hall" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Select Section 18" }));
-    await waitFor(() => expect(runBurialSearch).toHaveBeenCalledWith({ section: "18", limit: 5000 }));
+    expect(runBurialSearch).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Search Tours" }));
 
     expect(screen.getByRole("button", {

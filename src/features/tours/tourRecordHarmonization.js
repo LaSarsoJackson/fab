@@ -450,6 +450,51 @@ const getRecordDistanceMeters = (left, right) => {
   return 6371008.8 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
 };
 
+const scoreNormalizedNames = (tourNormalized, burialNormalized) => {
+  if (!tourNormalized || !burialNormalized) return 0;
+  let score = tourNormalized === burialNormalized ? 10 : 0;
+  const tourTokens = tourNormalized.split(" ").filter(Boolean);
+  const burialTokens = burialNormalized.split(" ").filter(Boolean);
+  const sharedTokens = tourTokens.filter((token) => burialTokens.includes(token));
+  score += sharedTokens.length * 1.5;
+
+  const tourLast = tourTokens[tourTokens.length - 1];
+  const burialLast = burialTokens[burialTokens.length - 1];
+  if (tourLast && burialLast && tourLast === burialLast) score += 4;
+
+  const tourFirst = getPrimaryNameToken(tourNormalized);
+  const burialFirst = getPrimaryNameToken(burialNormalized);
+  if (tourFirst && burialFirst && tourFirst === burialFirst) score += 3;
+  return score;
+};
+
+const scoreMatchingPlot = (tourRecord, burialRecord) => {
+  let score = 0;
+  if (
+    isSpecificPlotValue(tourRecord.Grave) &&
+    isSpecificPlotValue(burialRecord.Grave) &&
+    String(tourRecord.Grave) === String(burialRecord.Grave)
+  ) {
+    score += 2;
+  }
+  if (
+    isSpecificPlotValue(tourRecord.Tier) &&
+    isSpecificPlotValue(burialRecord.Tier) &&
+    String(tourRecord.Tier) === String(burialRecord.Tier)
+  ) {
+    score += 1;
+  }
+  return score;
+};
+
+const scoreDistance = (distanceMeters) => {
+  if (distanceMeters <= 4) return 6;
+  if (distanceMeters <= 12) return 4;
+  if (distanceMeters <= 25) return 2;
+  if (distanceMeters <= 50) return 1;
+  return 0;
+};
+
 /**
  * Keep the tour/burial heuristic in one place so the runtime and the admin
  * artifact builder score records the same way.
@@ -463,66 +508,17 @@ const scoreTourBurialMatch = (tourRecord, burialRecord) => {
     return Number.NEGATIVE_INFINITY;
   }
 
-  let score = 0;
   const tourName = cleanRecordValue(tourRecord.fullName || tourRecord.displayName);
   const burialName = cleanRecordValue(burialRecord.fullName || burialRecord.displayName);
   const tourNormalized = normalizeRecordName(tourName);
   const burialNormalized = normalizeRecordName(burialName);
-
-  if (tourNormalized && burialNormalized) {
-    if (tourNormalized === burialNormalized) {
-      score += 10;
-    }
-
-    const tourTokens = tourNormalized.split(" ").filter(Boolean);
-    const burialTokens = burialNormalized.split(" ").filter(Boolean);
-    const sharedTokens = tourTokens.filter((token) => burialTokens.includes(token));
-
-    score += sharedTokens.length * 1.5;
-
-    const tourLast = tourTokens[tourTokens.length - 1];
-    const burialLast = burialTokens[burialTokens.length - 1];
-    if (tourLast && burialLast && tourLast === burialLast) {
-      score += 4;
-    }
-
-    const tourFirst = getPrimaryNameToken(tourNormalized);
-    const burialFirst = getPrimaryNameToken(burialNormalized);
-    if (tourFirst && burialFirst && tourFirst === burialFirst) {
-      score += 3;
-    }
-  }
-
-  if (
-    isSpecificPlotValue(tourRecord.Grave) &&
-    isSpecificPlotValue(burialRecord.Grave) &&
-    String(tourRecord.Grave) === String(burialRecord.Grave)
-  ) {
-    score += 2;
-  }
-
-  if (
-    isSpecificPlotValue(tourRecord.Tier) &&
-    isSpecificPlotValue(burialRecord.Tier) &&
-    String(tourRecord.Tier) === String(burialRecord.Tier)
-  ) {
-    score += 1;
-  }
-
   const distanceMeters = getRecordDistanceMeters(tourRecord, burialRecord);
-  if (distanceMeters <= 4) {
-    score += 6;
-  } else if (distanceMeters <= 12) {
-    score += 4;
-  } else if (distanceMeters <= 25) {
-    score += 2;
-  } else if (distanceMeters <= 50) {
-    score += 1;
-  }
-
-  score += getMatchingLifeDateCount(tourRecord, burialRecord) * MATCHING_LIFE_DATE_SCORE;
-
-  return score;
+  return (
+    scoreNormalizedNames(tourNormalized, burialNormalized) +
+    scoreMatchingPlot(tourRecord, burialRecord) +
+    scoreDistance(distanceMeters) +
+    getMatchingLifeDateCount(tourRecord, burialRecord) * MATCHING_LIFE_DATE_SCORE
+  );
 };
 
 const buildStableRecordKey = (record = {}) => cleanRecordValue(

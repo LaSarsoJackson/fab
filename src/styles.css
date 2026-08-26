@@ -205,8 +205,7 @@ p {
 .primary-button:active,
 .secondary-button:active,
 .text-button:active,
-.icon-button:active,
-.segmented-control button:active {
+.icon-button:active {
   scale: 0.96;
 }
 
@@ -599,33 +598,6 @@ p {
   border: 1px solid rgba(24, 33, 29, 0.14);
   border-radius: 10px;
   box-shadow: 0 3px 12px rgba(24, 33, 29, 0.1);
-}
-
-.segmented-control {
-  display: flex;
-  padding: 2px;
-  background: #f0f2f0;
-  border-radius: 7px;
-}
-
-.segmented-control button {
-  min-height: 36px;
-  padding: 0 10px;
-  color: var(--muted);
-  background: transparent;
-  border: 0;
-  border-radius: 6px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  transition-property: color, background-color, box-shadow, scale;
-  transition-duration: 150ms;
-  transition-timing-function: ease-out;
-}
-
-.segmented-control button[aria-pressed="true"] {
-  color: var(--ink);
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(25, 34, 29, 0.14);
 }
 
 .toggle-control {
@@ -1302,11 +1274,6 @@ button.secondary-button {
     flex-wrap: nowrap;
   }
 
-  .segmented-control button {
-    padding-right: 7px;
-    padding-left: 7px;
-  }
-
   .toggle-control {
     min-height: 40px;
     padding-right: 4px;
@@ -1368,12 +1335,6 @@ button.secondary-button {
 @media (max-width: 350px) {
   .map-toolbar {
     max-width: calc(100% - 20px);
-  }
-
-  .segmented-control button {
-    padding-right: 5px;
-    padding-left: 5px;
-    font-size: 0.72rem;
   }
 
   .toggle-control {

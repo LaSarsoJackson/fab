@@ -22,19 +22,21 @@ grave or tour stop.
 ## FAB rules
 
 - Default to a muted reference map for orientation.
-- Offer provider imagery, not checked-in ortho exports.
-- Keep hillshade available and on by default. Use restrained native MapLibre
-  shading over a Terrarium DEM so relief adds shape without washing out the
-  reference map. Draw the cemetery ground tint beneath the hillshade; draw
-  boundary, sections, roads, and all markers above it.
+- Use one reference map. A second imagery choice adds controls without helping
+  visitors identify cemetery landmarks beneath the tree canopy.
+- Keep hillshade available and on by default. Use native MapLibre shading over
+  a Terrarium DEM beneath the labeled reference map so relief reads without
+  dimming place names. Draw boundary, sections, roads, and all markers above it.
 - Draw the cemetery boundary and roads above terrain context.
+- Give cemetery paths a warm red casing so they remain distinct from streets
+  and the pale path lines in the reference map.
 - Keep sections off until the user asks for them.
 - When sections are on, use a warm fill beneath the cemetery roads and draw
   section boundaries above them.
 - Show every stop in the active tour; do not collapse curated stops into
   proximity clusters.
-- Cluster burial-result density only where individual points would otherwise
-  overwhelm the map.
+- Keep section inventories in the Burial Locator. The map highlights the
+  selected section and pins an individual grave only after a visitor chooses it.
 - Use one warm section highlight and one strong selected-record color.
 - Keep labels supplied by the reference basemap; do not add an external glyph
   service solely to label section polygons.
@@ -43,6 +45,7 @@ grave or tour stop.
 ## What is deliberately absent
 
 - no local ortho tiling or export grid
+- no imagery basemap control
 - no pitch, terrain exaggeration, or 3D monuments
 - no decorative map textures
 - no separate color per burial category

@@ -40,18 +40,15 @@ describe("data pipeline coordinate integrity", () => {
     expect(coordinateMismatches).toEqual([]);
   });
 
-  test("keeps every current section within the client-side map result limit", () => {
-    const sectionCounts = new Map();
+  test("keeps coordinates available when a section list opens an individual grave", () => {
     const missingCoordinates = [];
 
     SearchBurials.forEach((row) => {
       const section = String(row.s || "").trim();
       if (!section) return;
-      sectionCounts.set(section, (sectionCounts.get(section) || 0) + 1);
       if (!Array.isArray(row.c) || row.c.length !== 2) missingCoordinates.push(row.i);
     });
 
-    expect(Math.max(...sectionCounts.values())).toBeLessThanOrEqual(5000);
     expect(missingCoordinates).toEqual([]);
   });
 

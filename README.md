@@ -43,7 +43,7 @@ No Python image server or geospatial Python environment is required.
 ## Commands
 
 - `bun run start`: run the Vite development server
-- `bun run lint`: run ESLint and the vendored anti-slop Oxlint rules
+- `bun run lint`: run ESLint, Oxlint complexity checks, and the vendored anti-slop rules
 - `bun run test`: run Bun unit/data tests and Vitest component tests
 - `bun run test:e2e`: run the Playwright product flows
 - `bun run build`: generate tour aliases and build `dist/`
@@ -79,9 +79,8 @@ Cemetery Map tab.
 
 The map uses provider tiles instead of repository-built orthophoto exports:
 
-- a restrained OpenStreetMap reference map
-- Esri World Imagery as an optional imagery basemap
-- Esri World Hillshade at low opacity
+- one OpenStreetMap reference map, kept clear enough for labels and landmarks
+- visible terrain relief beneath the reference map
 - local cemetery boundary and roads above the terrain context
 - sections only after an explicit user choice
 
