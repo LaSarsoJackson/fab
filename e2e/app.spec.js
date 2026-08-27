@@ -166,6 +166,31 @@ test("selected sections highlight the map and keep the useful burial list one ac
   await expect(page.locator("[data-visible-marker-count]")).toHaveAttribute("data-visible-marker-count", "0");
 });
 
+test("map attribution stays clear of mobile tour and detail overlays", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("./?view=map&tour=Notable");
+
+  const attribution = page.locator(".maplibregl-ctrl-attrib");
+  const controls = page.locator(".maplibregl-ctrl-top-right");
+  const placesPanel = page.getByRole("complementary", { name: "Notables Tour 2020" });
+  await expect(attribution).toBeVisible();
+  await expect(placesPanel).toBeVisible();
+
+  const attributionBox = await attribution.boundingBox();
+  const controlsBox = await controls.boundingBox();
+  const placesBox = await placesPanel.boundingBox();
+  expect(attributionBox.y + attributionBox.height).toBeLessThanOrEqual(placesBox.y);
+  expect(attributionBox.x + attributionBox.width).toBeLessThanOrEqual(controlsBox.x);
+
+  await placesPanel.getByRole("button", { name: /James Hall/ }).click();
+  const recordCard = page.getByRole("article", { name: "James Hall" });
+  await expect(recordCard).toBeVisible();
+  const detailAttributionBox = await attribution.boundingBox();
+  const recordBox = await recordCard.boundingBox();
+  expect(detailAttributionBox.y + detailAttributionBox.height).toBeLessThanOrEqual(recordBox.y);
+  expect(detailAttributionBox.x + detailAttributionBox.width).toBeLessThanOrEqual(controlsBox.x);
+});
+
 test("short iPhone landscape keeps the mobile destination bar", async ({ page }) => {
   await page.setViewportSize({ width: 750, height: 342 });
   await page.goto("./?view=tours");

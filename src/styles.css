@@ -1046,6 +1046,20 @@ button.secondary-button {
   bottom: env(safe-area-inset-bottom);
 }
 
+.map-page--bottom-overlay .maplibregl-ctrl-bottom-right {
+  top: calc(max(10px, env(safe-area-inset-top)) + 104px);
+  right: auto;
+  bottom: auto;
+  left: max(10px, env(safe-area-inset-left));
+  width: calc(100% - 76px);
+}
+
+.map-page--bottom-overlay .maplibregl-ctrl-attrib {
+  width: auto;
+  max-width: min(370px, 100%);
+  margin: 0;
+}
+
 .maplibregl-ctrl-attrib {
   display: block;
   color: #3f4b44;
