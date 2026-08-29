@@ -99,13 +99,9 @@ const MapDestination = ({
 }) => {
   if (!hasVisitedMap && route.view !== APP_VIEWS.MAP) return null;
   const active = route.view === APP_VIEWS.MAP;
-  const hasBottomOverlay = Boolean(
-    (activeTour && !loadingTour) || (selectedRecord && detailsOpen)
-  );
   const mapClassName = [
     "map-page",
     activeTour && detailsOpen ? "map-page--record-open" : "",
-    hasBottomOverlay ? "map-page--bottom-overlay" : "",
   ].filter(Boolean).join(" ");
   const handleRecordSelect = (record) => {
     if (!record) return;
