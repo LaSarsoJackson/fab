@@ -4,8 +4,8 @@ import { createMapStyle, MAP_LAYER_IDS } from "./mapStyle";
 describe("cartographic style contract", () => {
   const style = createMapStyle();
 
-  test("uses one provider reference map rather than a basemap gallery", () => {
-    expect(style.sources["osm-map"].tiles[0]).toContain("openstreetmap.org");
+  test("uses the established streets reference map rather than a basemap gallery", () => {
+    expect(style.sources["reference-map"].tiles[0]).toContain("World_Street_Map");
     expect(style.sources.imagery).toBeUndefined();
     expect(JSON.stringify(style)).not.toContain("/basemaps/");
   });
@@ -25,7 +25,8 @@ describe("cartographic style contract", () => {
     expect(layer.paint["hillshade-exaggeration"]).toBeGreaterThanOrEqual(0.7);
     expect(layer.paint["hillshade-exaggeration"]).toBeLessThanOrEqual(0.95);
     expect(style.sources.hillshade.attribution).toContain("U.S. Geological Survey");
-    expect(style.sources["osm-map"].attribution).toContain("OpenStreetMap");
+    expect(style.sources["reference-map"].attribution).toContain("Esri");
+    expect(style.sources["reference-map"].attribution).toContain("OpenStreetMap");
     expect(hillshadeIndex).toBeLessThan(mapIndex);
     expect(mapIndex).toBeLessThan(groundIndex);
     expect(hillshadeIndex).toBeLessThan(boundaryIndex);

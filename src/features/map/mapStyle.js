@@ -25,11 +25,11 @@ export const MAP_LAYER_IDS = Object.freeze({
 export const createMapStyle = () => ({
   version: 8,
   sources: {
-    "osm-map": {
+    "reference-map": {
       type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"],
       tileSize: 256,
-      attribution: "© <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap contributors</a>",
+      attribution: "Sources: <a href=\"https://www.esri.com/\">Esri</a>, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, © OpenStreetMap contributors, and the GIS User Community",
       maxzoom: 19,
     },
     hillshade: {
@@ -65,11 +65,11 @@ export const createMapStyle = () => ({
     {
       id: MAP_LAYER_IDS.map,
       type: "raster",
-      source: "osm-map",
+      source: "reference-map",
       paint: {
-        "raster-opacity": 0.72,
-        "raster-saturation": -0.1,
-        "raster-contrast": 0.06,
+        "raster-opacity": 0.78,
+        "raster-saturation": -0.18,
+        "raster-contrast": 0.02,
         "raster-brightness-min": 0.04,
         "raster-brightness-max": 1,
       },
