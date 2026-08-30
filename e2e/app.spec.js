@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 const APP_PORT = process.env.PLAYWRIGHT_APP_PORT || "4173";
 const APP_HOSTS = new Set([`127.0.0.1:${APP_PORT}`, `localhost:${APP_PORT}`]);
 const TILE_HOSTS = [
-  "services.arcgisonline.com",
+  "tile.openstreetmap.org",
   "s3.amazonaws.com",
 ];
 

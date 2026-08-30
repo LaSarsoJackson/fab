@@ -15,14 +15,13 @@ grave or tour stop.
 - The [MapLibre hillshade example](https://maplibre.org/maplibre-gl-js/docs/examples/add-a-hillshade-layer/)
   uses a raster DEM with a native hillshade layer instead of a pre-rendered
   gray raster overlay.
-- The Esri World Street Map service provides the familiar street and landmark
-  context used by the earlier burial map. Keep its complete source attribution
-  visible.
+- The [OpenStreetMap tile policy](https://operations.osmfoundation.org/policies/tiles/)
+  requires visible attribution and forbids bulk or offline preloading from the
+  standard tile service.
 
 ## FAB rules
 
-- Default to the Esri streets reference map for the familiar orientation and
-  landmark context of the earlier burial map.
+- Default to a muted reference map for orientation.
 - Use one reference map. A second imagery choice adds controls without helping
   visitors identify cemetery landmarks beneath the tree canopy.
 - Keep hillshade available and on by default. Use native MapLibre shading over

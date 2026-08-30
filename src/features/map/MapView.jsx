@@ -217,7 +217,7 @@ export default function MapView({
     };
     void addGeolocateControl();
     map.addControl(new AttributionControl({ compact: true }), "bottom-right");
-    // Keep complete provider credits behind the compact info control on first load.
+    // MapLibre opens compact attribution initially; collapse it after first render.
     map.once("idle", () => map.fire("drag"));
 
     map.on("style.load", () => {

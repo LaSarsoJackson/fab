@@ -79,7 +79,7 @@ Cemetery Map tab.
 
 The map uses provider tiles instead of repository-built orthophoto exports:
 
-- one Esri streets reference map, matching the earlier burial-map context
+- one OpenStreetMap reference map, kept clear enough for labels and landmarks
 - visible terrain relief beneath the reference map
 - local cemetery boundary and roads above the terrain context
 - sections only after an explicit user choice
