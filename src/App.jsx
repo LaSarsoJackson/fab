@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { APP_VIEWS, buildAppUrl, readAppRoute } from "./app/routes";
+import { APP_VIEWS, buildAppUrl, postFabfgRouteChange, readAppRoute } from "./app/routes";
 import AppNavigation from "./components/AppNavigation";
 import RecordCard from "./components/RecordCard";
 import LocatorView from "./features/locator/LocatorView";
@@ -185,6 +185,7 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
     const nextUrl = buildAppUrl(window.location.href, changes);
     window.history[replace ? "replaceState" : "pushState"]({}, "", nextUrl);
     commitRoute(readAppRoute(new URL(nextUrl).search));
+    postFabfgRouteChange(nextUrl);
   }, [commitRoute]);
 
   useEffect(() => {

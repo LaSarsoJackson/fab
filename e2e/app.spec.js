@@ -240,3 +240,26 @@ test("FABFG embedded routes do not duplicate native navigation", async ({ page }
     }
   }
 });
+
+test("FABFG receives the complete Map route when a hosted tour is selected", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__fabfgMessages = [];
+    window.ReactNativeWebView = {
+      postMessage(message) {
+        window.__fabfgMessages.push(JSON.parse(message));
+      },
+    };
+  });
+  await page.goto("./?view=tours&embed=fabfg&campaign=summer");
+
+  await page.getByRole("button", { name: /Notables Tour 2020/ }).click();
+  await expect(page).toHaveURL(/view=map/);
+
+  const message = await page.evaluate(() => window.__fabfgMessages.at(-1));
+  expect(message.type).toBe("fab.route-change.v1");
+  expect(message.view).toBe("map");
+  const url = new URL(message.url);
+  expect(url.searchParams.get("tour")).toBe("Notable");
+  expect(url.searchParams.get("embed")).toBe("fabfg");
+  expect(url.searchParams.get("campaign")).toBe("summer");
+});

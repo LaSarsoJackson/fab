@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { APP_VIEWS, buildAppUrl, getFabfgUrls, readAppRoute } from "./routes";
+import {
+  APP_VIEWS,
+  buildAppUrl,
+  FABFG_ROUTE_MESSAGE_TYPE,
+  getFabfgUrls,
+  postFabfgRouteChange,
+  readAppRoute,
+} from "./routes";
 
 describe("app route contract", () => {
   test("opens tours by default and accepts the FABFG burial alias", () => {
@@ -50,5 +57,36 @@ describe("app route contract", () => {
     expect(urls.map).toContain("view=map");
     expect(urls.burials).toContain("view=burials");
     Object.values(urls).forEach((url) => expect(url).toContain("embed=fabfg"));
+  });
+
+  test("posts the complete embedded route to the native shell", () => {
+    const messages = [];
+    const posted = postFabfgRouteChange(
+      "https://example.test/fab/?view=map&embed=fabfg&tour=Notable&record=tour%3ANotable%3A1",
+      { postMessage: (message) => messages.push(JSON.parse(message)) }
+    );
+
+    expect(posted).toBe(true);
+    expect(messages).toEqual([{
+      type: FABFG_ROUTE_MESSAGE_TYPE,
+      view: APP_VIEWS.MAP,
+      url: "https://example.test/fab/?view=map&embed=fabfg&tour=Notable&record=tour%3ANotable%3A1",
+    }]);
+  });
+
+  test("does not post routes outside the FABFG embedded contract", () => {
+    const messages = [];
+    const bridge = { postMessage: (message) => messages.push(message) };
+
+    expect(postFabfgRouteChange("https://example.test/fab/?view=map", bridge)).toBe(false);
+    expect(postFabfgRouteChange(
+      "https://example.test/fab/?view=map&embed=fabfg",
+      undefined
+    )).toBe(false);
+    expect(postFabfgRouteChange(
+      "https://example.test/fab/?view=map&embed=fabfg",
+      { postMessage: "not callable" }
+    )).toBe(false);
+    expect(messages).toEqual([]);
   });
 });

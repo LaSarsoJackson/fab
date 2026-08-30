@@ -35,14 +35,15 @@ const useTestBurialSearch = () => ({
   runSearch: runBurialSearch,
 });
 
-const renderApp = () => render(
-  <App MapComponent={TestMapView} useBurialSearchHook={useTestBurialSearch} />
+const renderApp = (useBurialSearchHook = useTestBurialSearch) => render(
+  <App MapComponent={TestMapView} useBurialSearchHook={useBurialSearchHook} />
 );
 
 describe("App product shell", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/fab/?view=tours");
     Object.defineProperty(navigator, "share", { configurable: true, value: undefined });
+    delete window.ReactNativeWebView;
     window.localStorage.clear();
     clearBurialSearch.mockReset();
     runBurialSearch.mockReset();
@@ -78,6 +79,77 @@ describe("App product shell", () => {
     renderApp();
     expect(screen.queryByRole("navigation", { name: "Primary" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Search Tours" })).toBeInTheDocument();
+  });
+
+  it("tells FABFG to open Map with the complete selected tour URL", async () => {
+    const postMessage = vi.fn();
+    window.ReactNativeWebView = { postMessage };
+    window.history.replaceState({}, "", "/fab/?view=tours&embed=fabfg&campaign=summer");
+
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: /Notables Tour 2020/ }));
+
+    await screen.findByRole("complementary", { name: "Notables Tour 2020" });
+    expect(postMessage).toHaveBeenCalledOnce();
+    const message = JSON.parse(postMessage.mock.calls[0][0]);
+    const url = new URL(message.url);
+    expect(message).toMatchObject({ type: "fab.route-change.v1", view: "map" });
+    expect(url.searchParams.get("view")).toBe("map");
+    expect(url.searchParams.get("tour")).toBe("Notable");
+    expect(url.searchParams.get("embed")).toBe("fabfg");
+    expect(url.searchParams.get("campaign")).toBe("summer");
+  });
+
+  it("tells FABFG to open Map with the complete selected burial URL", () => {
+    const burial = {
+      id: "burial:section-18:first",
+      source: "burial",
+      displayName: "Section record",
+      section: "18",
+      coordinates: [-73.73, 42.7],
+    };
+    const postMessage = vi.fn();
+    window.ReactNativeWebView = { postMessage };
+    window.history.replaceState(
+      {},
+      "",
+      "/fab/?view=burials&embed=fabfg&q=Hall&section=18"
+    );
+
+    renderApp(() => ({
+      status: "ready",
+      results: [burial],
+      total: 1,
+      error: "",
+      clear: clearBurialSearch,
+      runSearch: runBurialSearch,
+    }));
+    fireEvent.click(screen.getByRole("button", { name: /Section record/ }));
+
+    expect(postMessage).toHaveBeenCalledOnce();
+    const message = JSON.parse(postMessage.mock.calls[0][0]);
+    const url = new URL(message.url);
+    expect(message).toMatchObject({ type: "fab.route-change.v1", view: "map" });
+    expect(url.searchParams.get("record")).toBe(burial.id);
+    expect(url.searchParams.get("q")).toBe("Hall");
+    expect(url.searchParams.get("section")).toBe("18");
+    expect(url.searchParams.get("embed")).toBe("fabfg");
+  });
+
+  it("does not post non-embedded or popstate route changes to FABFG", () => {
+    const postMessage = vi.fn();
+    window.ReactNativeWebView = { postMessage };
+    const view = renderApp();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cemetery Map" }));
+    expect(postMessage).not.toHaveBeenCalled();
+
+    view.unmount();
+    window.history.replaceState({}, "", "/fab/?view=tours&embed=fabfg");
+    renderApp();
+    window.history.pushState({}, "", "/fab/?view=map&embed=fabfg");
+    fireEvent.popState(window);
+    expect(postMessage).not.toHaveBeenCalled();
   });
 
   it("selects a tour stop without relying on the canvas and restores its deep link", async () => {

@@ -14,6 +14,8 @@ export const ROUTE_KEYS = Object.freeze({
   embed: "embed",
 });
 
+export const FABFG_ROUTE_MESSAGE_TYPE = "fab.route-change.v1";
+
 const clean = (value) => String(value || "").trim();
 
 const normalizeView = (value) => {
@@ -85,6 +87,23 @@ export const buildAppUrl = (currentUrl, changes = {}) => {
   else url.searchParams.delete(ROUTE_KEYS.embed);
 
   return url.toString();
+};
+
+export const postFabfgRouteChange = (nextUrl, bridge = globalThis.ReactNativeWebView) => {
+  const url = new URL(nextUrl);
+  const route = readAppRoute(url.search);
+  if (!route.embedded || !bridge?.postMessage) return false;
+
+  try {
+    bridge.postMessage(JSON.stringify({
+      type: FABFG_ROUTE_MESSAGE_TYPE,
+      view: route.view,
+      url: url.toString(),
+    }));
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 export const getFabfgUrls = (rootUrl) => ({
