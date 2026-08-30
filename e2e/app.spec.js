@@ -263,3 +263,25 @@ test("FABFG receives the complete Map route when a hosted tour is selected", asy
   expect(url.searchParams.get("embed")).toBe("fabfg");
   expect(url.searchParams.get("campaign")).toBe("summer");
 });
+
+test("FABFG receives the complete Burials route when browsing a map section", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__fabfgMessages = [];
+    window.ReactNativeWebView = {
+      postMessage(message) {
+        window.__fabfgMessages.push(JSON.parse(message));
+      },
+    };
+  });
+  await page.goto("./?view=map&section=18&embed=fabfg");
+
+  await page.getByRole("button", { name: "View burials" }).click();
+  await expect(page).toHaveURL(/view=burials/);
+
+  const message = await page.evaluate(() => window.__fabfgMessages.at(-1));
+  expect(message.type).toBe("fab.route-change.v1");
+  expect(message.view).toBe("burials");
+  const url = new URL(message.url);
+  expect(url.searchParams.get("section")).toBe("18");
+  expect(url.searchParams.get("embed")).toBe("fabfg");
+});

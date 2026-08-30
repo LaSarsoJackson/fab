@@ -136,6 +136,25 @@ describe("App product shell", () => {
     expect(url.searchParams.get("embed")).toBe("fabfg");
   });
 
+  it("tells FABFG to open Burials with the selected map section", () => {
+    const postMessage = vi.fn();
+    window.ReactNativeWebView = { postMessage };
+    window.history.replaceState({}, "", "/fab/?view=map&embed=fabfg");
+
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Select Section 18" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Section 18" }))
+      .getByRole("button", { name: "View burials" }));
+
+    expect(postMessage).toHaveBeenCalledTimes(2);
+    const message = JSON.parse(postMessage.mock.calls.at(-1)[0]);
+    const url = new URL(message.url);
+    expect(message).toMatchObject({ type: "fab.route-change.v1", view: "burials" });
+    expect(url.searchParams.get("view")).toBe("burials");
+    expect(url.searchParams.get("section")).toBe("18");
+    expect(url.searchParams.get("embed")).toBe("fabfg");
+  });
+
   it("does not post non-embedded or popstate route changes to FABFG", () => {
     const postMessage = vi.fn();
     window.ReactNativeWebView = { postMessage };
