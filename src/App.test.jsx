@@ -81,16 +81,20 @@ describe("App product shell", () => {
     expect(screen.getByRole("heading", { name: "Search Tours" })).toBeInTheDocument();
   });
 
-  it("tells FABFG to open Map with the complete selected tour URL", async () => {
+  it("hands a cross-view tour route to FABFG without mutating the source view", () => {
     const postMessage = vi.fn();
     window.ReactNativeWebView = { postMessage };
     window.history.replaceState({}, "", "/fab/?view=tours&embed=fabfg&campaign=summer");
+    const sourceUrl = window.location.href;
 
     renderApp();
     fireEvent.click(screen.getByRole("button", { name: /Notables Tour 2020/ }));
 
-    await screen.findByRole("complementary", { name: "Notables Tour 2020" });
     expect(postMessage).toHaveBeenCalledOnce();
+    expect(window.location.href).toBe(sourceUrl);
+    expect(screen.getByRole("heading", { name: "Search Tours" })).toBeInTheDocument();
+    expect(screen.queryByRole("complementary", { name: "Notables Tour 2020" }))
+      .not.toBeInTheDocument();
     const message = JSON.parse(postMessage.mock.calls[0][0]);
     const url = new URL(message.url);
     expect(message).toMatchObject({ type: "fab.route-change.v1", view: "map" });
@@ -127,6 +131,9 @@ describe("App product shell", () => {
     fireEvent.click(screen.getByRole("button", { name: /Section record/ }));
 
     expect(postMessage).toHaveBeenCalledOnce();
+    expect(screen.getByRole("heading", { name: "Burial Locator" })).toBeInTheDocument();
+    expect(new URL(window.location.href).searchParams.get("view")).toBe("burials");
+    expect(screen.queryByRole("heading", { name: "Section record" })).not.toBeInTheDocument();
     const message = JSON.parse(postMessage.mock.calls[0][0]);
     const url = new URL(message.url);
     expect(message).toMatchObject({ type: "fab.route-change.v1", view: "map" });
@@ -147,6 +154,8 @@ describe("App product shell", () => {
       .getByRole("button", { name: "View burials" }));
 
     expect(postMessage).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("region", { name: "Cemetery Map" })).toBeVisible();
+    expect(new URL(window.location.href).searchParams.get("view")).toBe("map");
     const message = JSON.parse(postMessage.mock.calls.at(-1)[0]);
     const url = new URL(message.url);
     expect(message).toMatchObject({ type: "fab.route-change.v1", view: "burials" });
@@ -155,7 +164,37 @@ describe("App product shell", () => {
     expect(url.searchParams.get("embed")).toBe("fabfg");
   });
 
-  it("does not post non-embedded or popstate route changes to FABFG", () => {
+  it.each([
+    ["a missing bridge", undefined],
+    ["a throwing bridge", { postMessage: vi.fn(() => { throw new Error("disconnected"); }) }],
+  ])("navigates locally when an embedded cross-view handoff has %s", async (_label, bridge) => {
+    window.history.replaceState({}, "", "/fab/?view=tours&embed=fabfg");
+    if (bridge) window.ReactNativeWebView = bridge;
+
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: /Notables Tour 2020/ }));
+
+    expect(await screen.findByRole("complementary", { name: "Notables Tour 2020" }))
+      .toBeInTheDocument();
+    expect(new URL(window.location.href).searchParams.get("view")).toBe("map");
+  });
+
+  it("keeps same-view embedded changes local and posts their durable route", () => {
+    const postMessage = vi.fn();
+    window.ReactNativeWebView = { postMessage };
+    window.history.replaceState({}, "", "/fab/?view=map&embed=fabfg");
+
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Select Section 18" }));
+
+    expect(new URL(window.location.href).searchParams.get("section")).toBe("18");
+    expect(screen.getByRole("group", { name: "Section 18" })).toBeInTheDocument();
+    expect(postMessage).toHaveBeenCalledOnce();
+    expect(new URL(JSON.parse(postMessage.mock.calls[0][0]).url).searchParams.get("section"))
+      .toBe("18");
+  });
+
+  it("posts the visible embedded route after WebView Back/popstate", () => {
     const postMessage = vi.fn();
     window.ReactNativeWebView = { postMessage };
     const view = renderApp();
@@ -166,9 +205,14 @@ describe("App product shell", () => {
     view.unmount();
     window.history.replaceState({}, "", "/fab/?view=tours&embed=fabfg");
     renderApp();
-    window.history.pushState({}, "", "/fab/?view=map&embed=fabfg");
+    window.history.pushState({}, "", "/fab/?view=tours&embed=fabfg&q=Hall");
     fireEvent.popState(window);
-    expect(postMessage).not.toHaveBeenCalled();
+    expect(postMessage).toHaveBeenCalledOnce();
+    expect(JSON.parse(postMessage.mock.calls[0][0])).toMatchObject({
+      type: "fab.route-change.v1",
+      view: "tours",
+      url: window.location.href,
+    });
   });
 
   it("selects a tour stop without relying on the canvas and restores its deep link", async () => {

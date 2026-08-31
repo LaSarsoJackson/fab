@@ -87,6 +87,10 @@ describe("app route contract", () => {
       "https://example.test/fab/?view=map&embed=fabfg",
       { postMessage: "not callable" }
     )).toBe(false);
+    expect(postFabfgRouteChange(
+      "https://example.test/fab/?view=map&embed=fabfg",
+      { postMessage: () => { throw new Error("disconnected"); } }
+    )).toBe(false);
     expect(messages).toEqual([]);
   });
 });

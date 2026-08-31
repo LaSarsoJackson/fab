@@ -183,13 +183,22 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
 
   const updateRoute = useCallback((changes, { replace = false } = {}) => {
     const nextUrl = buildAppUrl(window.location.href, changes);
+    const nextRoute = readAppRoute(new URL(nextUrl).search);
+    const changesView = nextRoute.view !== route.view;
+
+    if (changesView && postFabfgRouteChange(nextUrl)) return false;
+
     window.history[replace ? "replaceState" : "pushState"]({}, "", nextUrl);
-    commitRoute(readAppRoute(new URL(nextUrl).search));
-    postFabfgRouteChange(nextUrl);
-  }, [commitRoute]);
+    commitRoute(nextRoute);
+    if (!changesView) postFabfgRouteChange(nextUrl);
+    return true;
+  }, [commitRoute, route.view]);
 
   useEffect(() => {
-    const handlePopState = () => commitRoute(getCurrentRoute());
+    const handlePopState = () => {
+      commitRoute(getCurrentRoute());
+      postFabfgRouteChange(window.location.href);
+    };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, [commitRoute]);
@@ -258,23 +267,33 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
   };
 
   const selectTour = (tour) => {
+    const handledLocally = updateRoute({
+      view: APP_VIEWS.MAP,
+      tour: tour.key,
+      record: "",
+      query: "",
+      section: "",
+    });
+    if (!handledLocally) return;
+
     setSelectedRecord(null);
     setDetailsOpen(false);
     setTourLoadState({ key: "", error: "" });
     rememberTour(tour.key);
-    updateRoute({ view: APP_VIEWS.MAP, tour: tour.key, record: "", query: "", section: "" });
   };
 
   const selectRecord = (record) => {
-    setSelectedRecord(record);
-    setDetailsOpen(true);
-    if (!records.some(({ id }) => String(id) === String(record.id))) setRecords([record]);
-    if (record.source === "tour") rememberTour(record.tourKey || route.tour, record);
-    updateRoute({
+    const handledLocally = updateRoute({
       view: APP_VIEWS.MAP,
       record: record.id,
       tour: record.source === "tour" ? record.tourKey || route.tour : "",
     });
+    if (!handledLocally) return;
+
+    setSelectedRecord(record);
+    setDetailsOpen(true);
+    if (!records.some(({ id }) => String(id) === String(record.id))) setRecords([record]);
+    if (record.source === "tour") rememberTour(record.tourKey || route.tour, record);
   };
 
   const unpin = () => {
@@ -313,16 +332,18 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
 
   const browseSection = (section) => {
     const normalizedSection = String(section || "").trim();
-    setRecords([]);
-    setSelectedRecord(null);
-    setDetailsOpen(false);
-    updateRoute({
+    const handledLocally = updateRoute({
       view: APP_VIEWS.LOCATOR,
       section: normalizedSection,
       query: "",
       tour: "",
       record: "",
     });
+    if (!handledLocally) return;
+
+    setRecords([]);
+    setSelectedRecord(null);
+    setDetailsOpen(false);
   };
 
   const selectSection = (section) => {
