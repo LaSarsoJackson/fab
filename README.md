@@ -1,4 +1,22 @@
-# FAB
+# Albany Rural Cemetery — Grave Finder
+
+**An interactive map, burial locator, and tour guide for Albany Rural Cemetery.**
+
+[Open the application](https://lasarsojackson.github.io/fab/) · [Search burial records](https://lasarsojackson.github.io/fab/?view=burials) · [Explore the cemetery map](https://lasarsojackson.github.io/fab/?view=map)
+
+## About the project
+
+Historic burial records become more useful when people can connect them to a place. Grave Finder brings searchable records, cemetery geography, and curated tours into one public web application.
+
+Visitors can search a 97,457-record burial index, locate graves on an interactive map, and explore the cemetery through tours. The project combines GIS data with a web interface for public access to local history.
+
+| Destination | What visitors can do |
+| --- | --- |
+| Search Tours | Find and open a curated tour. |
+| Cemetery Map | Explore cemetery roads, sections, tour stops, and selected graves. |
+| Burial Locator | Search burial records and open their mapped locations. |
+
+## Development overview
 
 FAB is the shared Albany Grave Finder web app. It has three user destinations:
 
