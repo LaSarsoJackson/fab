@@ -30,7 +30,9 @@ message after updating the browser URL:
 The `url` is the complete route and remains the source of truth. FABFG validates
 the hosted origin, `/fab/` path, `embed=fabfg`, and matching `view`, then changes
 the visible native tab without reconstructing query parameters. Initial loads
-and browser `popstate` events do not post messages, which prevents route loops.
+do not post messages. Browser `popstate` events post the route that the WebView
+has already displayed so the native shell can persist Back navigation without
+reloading that WebView.
 
 External directions are built in [`src/shared/routing.js`](../src/shared/routing.js).
 Apple platforms open Apple Maps; Android and other platforms use Google Maps.
