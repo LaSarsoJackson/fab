@@ -40,7 +40,7 @@ describe("cartographic style contract", () => {
     expect(casing.paint["line-opacity"]).toBeGreaterThanOrEqual(0.9);
   });
 
-  test("keeps sections off by default and legible when enabled", () => {
+  test("keeps section polygons tappable while their shading is off", () => {
     const sectionIndex = style.layers.findIndex(({ id }) => id === MAP_LAYER_IDS.sections);
     const roadIndex = style.layers.findIndex(({ id }) => id === "cemetery-roads");
     const outlineIndex = style.layers.findIndex(({ id }) => id === MAP_LAYER_IDS.sectionOutlines);
@@ -48,7 +48,8 @@ describe("cartographic style contract", () => {
     const layer = style.layers[sectionIndex];
     const outlineLayer = style.layers[outlineIndex];
 
-    expect(layer.layout.visibility).toBe("none");
+    expect(layer.layout?.visibility).not.toBe("none");
+    expect(layer.paint["fill-opacity"]).toBe(0);
     expect(outlineLayer.layout.visibility).toBe("none");
     expect(sectionIndex).toBeLessThan(roadIndex);
     expect(outlineIndex).toBeGreaterThan(roadIndex);

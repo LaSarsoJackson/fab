@@ -38,9 +38,9 @@ line width or adding more controls.
 ## Interaction rules
 
 - No pitch or rotation; this is a small-site wayfinding map.
-- Sections stay hidden until requested or selected. Clicking one highlights and
-  fits it in place, then keeps the section's burial list one action away. Do not
-  replace that list with hundreds of unlabeled grave markers.
+- Section polygons remain tappable when shading is off. Clicking one identifies,
+  highlights, and fits that section, then keeps its burial list one action away.
+  Do not replace that list with hundreds of unlabeled grave markers.
 - Curated tour stops are never proximity-clustered; every stop remains visible.
 - A selected record is rendered once in the dedicated selected source.
 - Tour stops remain directly selectable in an accessible HTML list; the canvas

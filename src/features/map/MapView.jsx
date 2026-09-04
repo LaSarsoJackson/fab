@@ -310,15 +310,17 @@ export default function MapView({
     const map = readyMap;
     if (!map || mapRef.current !== map) return;
     setLayerVisibility(map, MAP_LAYER_IDS.hillshade, hillshade);
-    const visible = showSections || Boolean(selectedSection);
-    setLayerVisibility(map, MAP_LAYER_IDS.sections, visible);
-    setLayerVisibility(map, MAP_LAYER_IDS.sectionOutlines, visible);
-    setLayerVisibility(map, MAP_LAYER_IDS.selectedSection, visible && Boolean(selectedSection));
-    map.setFilter(MAP_LAYER_IDS.selectedSection, [
+    const matchesSection = [
       "==",
       ["to-string", ["get", "Section"]],
       String(selectedSection || ""),
+    ];
+    map.setPaintProperty(MAP_LAYER_IDS.sections, "fill-opacity", [
+      "case", matchesSection, 0.28, showSections ? 0.18 : 0,
     ]);
+    setLayerVisibility(map, MAP_LAYER_IDS.sectionOutlines, showSections);
+    setLayerVisibility(map, MAP_LAYER_IDS.selectedSection, Boolean(selectedSection));
+    map.setFilter(MAP_LAYER_IDS.selectedSection, matchesSection);
   }, [hillshade, readyMap, selectedSection, showSections]);
 
   useEffect(() => {

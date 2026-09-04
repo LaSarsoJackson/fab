@@ -30,7 +30,8 @@ or tour stop.
 - Draw the cemetery boundary and roads above terrain context.
 - Give cemetery paths a warm red casing so they remain distinct from streets
   and the pale path lines in the reference map.
-- Keep sections off until the user asks for them.
+- Keep all-section shading off until requested. Section taps still identify and
+  highlight the selected section.
 - When sections are on, use a warm fill beneath the cemetery roads and draw
   section boundaries above them.
 - Show every stop in the active tour; do not collapse curated stops into

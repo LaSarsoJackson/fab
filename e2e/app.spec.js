@@ -186,6 +186,33 @@ test("section deep links browse the requested cemetery section", async ({ page }
   await expect(page.locator(".record-row").first()).toBeVisible({ timeout: 30_000 });
 });
 
+// Interior points in Section 18 at the map's initial camera for each viewport.
+for (const { viewport, sectionPoint } of [
+  { viewport: { width: 1440, height: 960 }, sectionPoint: { x: 697, y: 244 } },
+  { viewport: { width: 390, height: 844 }, sectionPoint: { x: 171, y: 238 } },
+]) {
+  test(`section taps work with section shading off at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto("./?view=map");
+    await expect(page.getByLabel("Sections", { exact: true })).not.toBeChecked();
+    await expect(page.locator("[data-visible-marker-count]")).toHaveAttribute("data-visible-marker-count", "0");
+
+    const canvas = page.locator(".maplibregl-canvas");
+    await expect.poll(async () => {
+      await canvas.hover({ position: sectionPoint });
+      return canvas.evaluate((element) => element.style.cursor);
+    }).toBe("pointer");
+    await canvas.click({ position: sectionPoint });
+
+    const sectionContext = page.getByRole("group", { name: "Section 18" });
+    await expect(sectionContext).toBeVisible();
+    await expect(page).toHaveURL(/view=map.*section=18/);
+    await sectionContext.getByRole("button", { name: "View burials" }).click();
+    await expect(page.getByLabel("Section", { exact: true })).toHaveValue("18");
+    await expect(page.locator(".record-row").first()).toBeVisible();
+  });
+}
+
 test("selected sections highlight the map and keep the useful burial list one action away", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("./?view=map&section=18");

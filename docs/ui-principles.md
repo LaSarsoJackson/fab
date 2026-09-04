@@ -36,8 +36,8 @@
 
 - Keep the general map quiet. Boundary and roads come before optional sections
   and graves.
-- Highlight a selected section on the map. Open its burial list only after the
-  visitor chooses View burials.
+- Identify and highlight a tapped section even when section shading is off.
+  Open its burial list only after the visitor chooses View burials.
 - Keep canonical coordinates. Several burial records may share one location.
 - Do not draw a walking route without reviewed pedestrian geometry.
 

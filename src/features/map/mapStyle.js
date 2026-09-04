@@ -106,10 +106,10 @@ export const createMapStyle = () => ({
       id: MAP_LAYER_IDS.sections,
       type: "fill",
       source: "sections",
-      layout: { visibility: "none" },
       paint: {
         "fill-color": "#d9a441",
-        "fill-opacity": 0.18,
+        // Transparent polygons remain available for section taps.
+        "fill-opacity": 0,
       },
     },
     {
