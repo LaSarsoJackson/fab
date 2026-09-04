@@ -4,7 +4,7 @@ const APP_PORT = process.env.PLAYWRIGHT_APP_PORT || "4173";
 const APP_HOSTS = new Set([`127.0.0.1:${APP_PORT}`, `localhost:${APP_PORT}`]);
 const TILE_HOSTS = [
   "tile.openstreetmap.org",
-  "s3.amazonaws.com",
+  "services.arcgisonline.com",
 ];
 
 const isProviderTileFetchError = (message) => (
@@ -12,6 +12,24 @@ const isProviderTileFetchError = (message) => (
   message.includes("AJAXError: Failed to fetch") &&
   TILE_HOSTS.some((host) => message.includes(host))
 );
+
+const expectNoOverlap = async (first, second) => {
+  const [a, b] = await Promise.all([first.boundingBox(), second.boundingBox()]);
+  expect(
+    a.x + a.width <= b.x || b.x + b.width <= a.x ||
+    a.y + a.height <= b.y || b.y + b.height <= a.y,
+  ).toBe(true);
+};
+
+const openAttribution = async (page) => {
+  const attribution = page.locator(".maplibregl-ctrl-attrib");
+  await expect(attribution).toHaveClass(/maplibregl-compact$/);
+  await page.getByLabel("Map credits").click();
+  const attributionBox = await attribution.boundingBox();
+  const mapBox = await page.locator(".maplibregl-map").boundingBox();
+  expect(attributionBox.y + attributionBox.height).toBeLessThanOrEqual(mapBox.y + mapBox.height);
+  return attribution;
+};
 
 test.beforeEach(async ({ page }, testInfo) => {
   const errors = [];
@@ -49,12 +67,13 @@ test("tour selection opens one MapLibre map", async ({ page }) => {
   await expect(page).toHaveURL(/view=map.*tour=Notable/);
   await expect(page.getByRole("region", { name: "Albany Rural Cemetery map" })).toBeVisible();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
-  const hillshade = page.getByLabel("Hillshade", { exact: true });
-  await expect(hillshade).toBeChecked();
+  const terrain = page.getByLabel("Terrain", { exact: true });
+  await expect(terrain).toBeChecked();
+  await openAttribution(page);
   await expect(page.getByRole("link", { name: "U.S. Geological Survey" })).toBeVisible();
-  await hillshade.uncheck();
+  await terrain.uncheck();
   await expect(page.getByRole("link", { name: "U.S. Geological Survey" })).toHaveCount(0);
-  await hillshade.check();
+  await terrain.check();
   await expect(page.getByRole("link", { name: "U.S. Geological Survey" })).toBeVisible();
   await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
     .toBe(38);
@@ -63,10 +82,10 @@ test("tour selection opens one MapLibre map", async ({ page }) => {
 
   const placesPanel = page.getByRole("complementary", { name: "Notables Tour 2020" });
   await expect(placesPanel).toBeVisible();
-  await expect(placesPanel.getByText("Tour places")).toBeVisible();
+  await expect(placesPanel.getByText("38 stops")).toBeVisible();
   await placesPanel.getByRole("button", { name: /James Hall/ }).click();
   await expect(page.getByRole("heading", { name: "James Hall" })).toBeVisible();
-  await expect(page.getByText(/Notables Tour 2020 · Place \d+ of 38/)).toBeVisible();
+  await expect(page.getByText(/Notables Tour 2020 · \d+ of 38/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Previous place" })).toBeVisible();
   await expect(page.getByRole("button", { name: "All places" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Next place" })).toBeVisible();
@@ -81,14 +100,21 @@ test("tour selection opens one MapLibre map", async ({ page }) => {
   await expect(placesPanel.getByRole("button", { name: /James Hall/ }))
     .toHaveAttribute("aria-current", "location");
 
-  await page.setViewportSize({ width: 900, height: 700 });
+  await page.setViewportSize({ width: 720, height: 500 });
   await placesPanel.getByRole("button", { name: /James Hall/ }).click();
-  await expect(page.getByRole("heading", { name: "James Hall" })).toBeVisible();
+  const recordCard = page.getByRole("article", { name: "James Hall" });
+  const mapControls = page.locator(".maplibregl-ctrl-top-right");
+  const attribution = page.locator(".maplibregl-ctrl-attrib");
+  await expect(recordCard).toBeVisible();
   await expect(placesPanel).toBeHidden();
+  await expectNoOverlap(recordCard, mapControls);
+  await expectNoOverlap(recordCard, attribution);
   await page.getByRole("button", { name: "All places" }).click();
   await expect(placesPanel).toBeVisible();
+  await expectNoOverlap(placesPanel, mapControls);
+  await expectNoOverlap(placesPanel, attribution);
 
-  await placesPanel.getByRole("button", { name: "All tours", exact: true }).click();
+  await placesPanel.getByRole("button", { name: "Back to Search Tours" }).click();
   await expect(page).toHaveURL(/view=tours/);
   await expect.poll(() => new URL(page.url()).searchParams.get("tour")).toBeNull();
   await expect.poll(() => new URL(page.url()).searchParams.get("record")).toBeNull();
@@ -102,21 +128,39 @@ test("map context and appearance survive destination changes and reload", async 
   await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
     .toBe(38);
 
-  await page.getByLabel("Hillshade", { exact: true }).uncheck();
+  await page.getByLabel("Terrain", { exact: true }).uncheck();
   await page.getByLabel("Sections", { exact: true }).check();
   await page.getByRole("button", { name: "Search Tours", exact: true }).click();
   await expect.poll(() => new URL(page.url()).searchParams.get("tour")).toBe("Notable");
 
   await page.getByRole("button", { name: "Cemetery Map", exact: true }).click();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
-  await expect(page.getByLabel("Hillshade", { exact: true })).not.toBeChecked();
+  await expect(page.getByLabel("Terrain", { exact: true })).not.toBeChecked();
   await expect(page.getByLabel("Sections", { exact: true })).toBeChecked();
 
   await page.reload();
-  await expect(page.getByLabel("Hillshade", { exact: true })).not.toBeChecked();
+  await expect(page.getByLabel("Terrain", { exact: true })).not.toBeChecked();
   await expect(page.getByLabel("Sections", { exact: true })).toBeChecked();
   await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
     .toBe(38);
+});
+
+test("collections stay list-first and pin only the chosen grave", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("./?view=tours");
+  await page.getByRole("button", { name: /Section 49.*Browse graves/ }).click();
+
+  const panel = page.getByRole("complementary", { name: "Section 49" });
+  await expect(panel.getByText("1,060 graves")).toBeVisible();
+  await expect(panel.locator(".tour-stop__number")).toHaveCount(0);
+  await expect(page.locator("[data-visible-marker-count]")).toHaveAttribute("data-visible-marker-count", "0");
+
+  const firstGrave = panel.locator(".tour-stop").first();
+  const graveName = await firstGrave.locator("strong").innerText();
+  await firstGrave.click();
+  await expect(page.getByRole("heading", { name: graveName })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Unpin" })).toBeVisible();
+  await expect(page.locator("[data-visible-marker-count]")).toHaveAttribute("data-visible-marker-count", "1");
 });
 
 test("burial search opens the selected grave on the map", async ({ page }) => {
@@ -138,16 +182,43 @@ test("burial search opens the selected grave on the map", async ({ page }) => {
 test("section deep links browse the requested cemetery section", async ({ page }) => {
   await page.goto("./?view=burials&section=18");
 
-  await expect(page.getByLabel("Section number")).toHaveValue("18");
-  await expect(page.locator(".result-count")).toContainText("records");
+  await expect(page.getByLabel("Section")).toHaveValue("18");
+  await expect(page.locator(".result-count")).toContainText("matches");
   await expect(page.locator(".record-row").first()).toBeVisible({ timeout: 30_000 });
 });
+
+// Interior points in Section 18 at the map's initial camera for each viewport.
+for (const { viewport, sectionPoint } of [
+  { viewport: { width: 1440, height: 960 }, sectionPoint: { x: 697, y: 244 } },
+  { viewport: { width: 390, height: 844 }, sectionPoint: { x: 171, y: 238 } },
+]) {
+  test(`section taps work with section shading off at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto("./?view=map");
+    await expect(page.getByLabel("Sections", { exact: true })).not.toBeChecked();
+    await expect(page.locator("[data-visible-marker-count]")).toHaveAttribute("data-visible-marker-count", "0");
+
+    const canvas = page.locator(".maplibregl-canvas");
+    await expect.poll(async () => {
+      await canvas.hover({ position: sectionPoint });
+      return canvas.evaluate((element) => element.style.cursor);
+    }).toBe("pointer");
+    await canvas.click({ position: sectionPoint });
+
+    const sectionContext = page.getByRole("group", { name: "Section 18" });
+    await expect(sectionContext).toBeVisible();
+    await expect(page).toHaveURL(/view=map.*section=18/);
+    await sectionContext.getByRole("button", { name: "View burials" }).click();
+    await expect(page.getByLabel("Section", { exact: true })).toHaveValue("18");
+    await expect(page.locator(".record-row").first()).toBeVisible();
+  });
+}
 
 test("selected sections highlight the map and keep the useful burial list one action away", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("./?view=map&section=18");
 
-  const appearance = page.getByLabel("Map appearance");
+  const appearance = page.getByLabel("Map options");
   const section = page.getByRole("group", { name: "Section 18" });
   await expect(section).toBeVisible();
   await expect.poll(() => new URL(page.url()).searchParams.get("view")).toBe("map");
@@ -177,40 +248,37 @@ test("short iPhone landscape keeps the mobile destination bar", async ({ page })
   await page.goto("./?view=map&tour=Notable");
   const placesPanel = page.getByRole("complementary", { name: "Notables Tour 2020" });
   const mapControls = page.locator(".maplibregl-ctrl-top-right");
+  const attribution = await openAttribution(page);
   await expect(placesPanel).toBeVisible();
-  const placesBox = await placesPanel.boundingBox();
-  const controlsBox = await mapControls.boundingBox();
-  expect(placesBox.x + placesBox.width).toBeLessThan(controlsBox.x);
+  await expectNoOverlap(placesPanel, mapControls);
+  await expectNoOverlap(placesPanel, attribution);
+  await expectNoOverlap(mapControls, attribution);
 
   await placesPanel.getByRole("button", { name: /James Hall/ }).click();
   const recordCard = page.getByRole("article", { name: "James Hall" });
   await expect(recordCard).toBeVisible();
-  const recordBox = await recordCard.boundingBox();
-  expect(recordBox.x + recordBox.width).toBeLessThan(controlsBox.x);
+  await expectNoOverlap(recordCard, mapControls);
+  await expectNoOverlap(recordCard, attribution);
 });
 
 test("narrow WebViews keep appearance and map controls separate", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto("./?view=map");
-
-  const appearanceBox = await page.getByLabel("Map appearance").boundingBox();
-  const controlsBox = await page.locator(".maplibregl-ctrl-top-right").boundingBox();
-  expect(appearanceBox.x + appearanceBox.width).toBeLessThanOrEqual(320);
-  expect(controlsBox.y).toBeGreaterThanOrEqual(appearanceBox.y + appearanceBox.height);
-});
-
-test("narrow tour panels keep the return to tours action reachable", async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 568 });
   await page.goto("./?view=map&tour=Notable");
 
+  const appearance = page.getByLabel("Map options");
+  const controls = page.locator(".maplibregl-ctrl-top-right");
+  const attribution = await openAttribution(page);
   const placesPanel = page.getByRole("complementary", { name: "Notables Tour 2020" });
-  const allTours = placesPanel.getByRole("button", { name: "All tours", exact: true });
-  await expect(placesPanel).toBeVisible();
-  await expect(allTours).toBeVisible();
-  const actionBox = await allTours.boundingBox();
-  expect(actionBox.x).toBeGreaterThanOrEqual(0);
-  expect(actionBox.x + actionBox.width).toBeLessThanOrEqual(320);
+  const allTours = placesPanel.getByRole("button", { name: "Back to Search Tours" });
+  await expectNoOverlap(appearance, controls);
+  await expect(allTours).toBeInViewport();
 
+  await placesPanel.getByRole("button", { name: /James Hall/ }).click();
+  const recordCard = page.getByRole("article", { name: "James Hall" });
+  await expectNoOverlap(controls, recordCard);
+  await expectNoOverlap(attribution, recordCard);
+
+  await page.getByRole("button", { name: "All places" }).click();
   await allTours.click();
   await expect(page).toHaveURL(/view=tours/);
 });

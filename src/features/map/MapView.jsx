@@ -8,10 +8,10 @@ import {
   setWorkerUrl,
 } from "maplibre-gl";
 import mapLibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import sections from "../../data/ARC_Sections.json";
-import { getGeoJsonBounds } from "../../shared/geoJsonBounds";
+import { isCoordinatePairValid } from "../../shared/geoJsonBounds";
 import { recordsToFeatureCollection } from "../locator/burialRecords";
 import { CEMETERY_VIEW, createMapStyle, MAP_LAYER_IDS } from "./mapStyle";
+import { getSectionBounds } from "./mapSections";
 
 const EMPTY_COLLECTION = { type: "FeatureCollection", features: [] };
 const MAP_PREFERENCES_KEY = "fab.map-preferences.v1";
@@ -19,9 +19,6 @@ const DEFAULT_MAP_PREFERENCES = Object.freeze({
   hillshade: true,
   showSections: false,
 });
-const SECTION_FEATURES = new globalThis.Map(
-  sections.features.map((feature) => [String(feature.properties?.Section || "").trim(), feature])
-);
 // One canvas point can intersect several MapLibre layers. The first match owns the click.
 const INTERACTIVE_LAYER_IDS = [
   MAP_LAYER_IDS.selectedRecord,
@@ -67,7 +64,7 @@ const getViewportLayout = (map) => {
 };
 
 const focusSelectedRecord = (map, selectedRecord, viewport) => {
-  if (!selectedRecord?.coordinates) return false;
+  if (!isCoordinatePairValid(selectedRecord?.coordinates)) return false;
   const tourRecord = selectedRecord.source === "tour";
   const detailPadding = {
     top: viewport.short ? 72 : 104,
@@ -91,8 +88,7 @@ const focusSelectedRecord = (map, selectedRecord, viewport) => {
 
 const focusSelectedSection = (map, selectedSection, tourStopsPresent, viewport) => {
   if (!selectedSection) return false;
-  const sectionFeature = SECTION_FEATURES.get(String(selectedSection));
-  const sectionBounds = getGeoJsonBounds(sectionFeature);
+  const sectionBounds = getSectionBounds(selectedSection);
   if (!sectionBounds) return false;
   const [[south, west], [north, east]] = sectionBounds;
   map.fitBounds([[west, south], [east, north]], {
@@ -110,7 +106,7 @@ const focusSelectedSection = (map, selectedSection, tourStopsPresent, viewport) 
 };
 
 const focusRecords = (map, records, tourStopsPresent, viewport) => {
-  const points = records.filter(({ coordinates }) => Array.isArray(coordinates));
+  const points = records.filter(({ coordinates }) => isCoordinatePairValid(coordinates));
   if (points.length === 0) return;
   const bounds = points.reduce(
     (nextBounds, record) => nextBounds.extend(record.coordinates),
@@ -147,6 +143,7 @@ export default function MapView({
   selectedRecord = null,
   selectedSection = "",
   focusKey = "",
+  showRecordMarkers = true,
   tourStopsPresent = false,
   onBrowseSection,
   onRecordSelect,
@@ -158,6 +155,7 @@ export default function MapView({
   const onRecordSelectRef = useRef(onRecordSelect);
   const onSectionSelectRef = useRef(onSectionSelect);
   const selectedRecordRef = useRef(selectedRecord);
+  const selectedSectionRef = useRef(selectedSection);
   const [readyMap, setReadyMap] = useState(null);
   const [preferences, setPreferences] = useState(readMapPreferences);
   const [visibleMarkerCount, setVisibleMarkerCount] = useState(null);
@@ -180,7 +178,8 @@ export default function MapView({
     onRecordSelectRef.current = onRecordSelect;
     onSectionSelectRef.current = onSectionSelect;
     selectedRecordRef.current = selectedRecord;
-  }, [onRecordSelect, onSectionSelect, records, selectedRecord]);
+    selectedSectionRef.current = selectedSection;
+  }, [onRecordSelect, onSectionSelect, records, selectedRecord, selectedSection]);
 
   useEffect(() => {
     const [west, south, east, north] = CEMETERY_VIEW.bounds;
@@ -217,6 +216,14 @@ export default function MapView({
     };
     void addGeolocateControl();
     map.addControl(new AttributionControl({ compact: true }), "bottom-right");
+    const attribution = containerRef.current?.querySelector(".maplibregl-ctrl-attrib");
+    const attributionButton = attribution?.querySelector(".maplibregl-ctrl-attrib-button");
+    attributionButton?.setAttribute("aria-label", "Map credits");
+    attributionButton?.setAttribute("title", "Map credits");
+    map.once("idle", () => {
+      attribution?.removeAttribute("open");
+      attribution?.classList.remove("maplibregl-compact-show");
+    });
 
     map.on("style.load", () => {
       if (mapRef.current === map) setReadyMap(map);
@@ -241,7 +248,12 @@ export default function MapView({
 
       if (feature.layer.id === MAP_LAYER_IDS.sections) {
         const section = String(feature.properties?.Section || "").trim();
-        if (section) onSectionSelectRef.current?.(section);
+        if (!section) return;
+        // Repeated taps do not change the route, but should still frame the section.
+        if (section === selectedSectionRef.current && !selectedRecordRef.current) {
+          focusMap({ map, records: [], selectedSection: section, tourStopsPresent: false });
+        }
+        onSectionSelectRef.current?.(section);
         return;
       }
       if (feature.layer.id === MAP_LAYER_IDS.selectedRecord) {
@@ -274,20 +286,23 @@ export default function MapView({
   useEffect(() => {
     const map = readyMap;
     if (!map || mapRef.current !== map) return;
-    const burialRecords = records.filter(({ source }) => source !== "tour");
-    const tourRecords = records.filter(({ source }) => source === "tour");
+    const visibleRecords = showRecordMarkers
+      ? records.filter(({ id }) => String(id) !== String(selectedRecord?.id))
+      : [];
+    const burialRecords = visibleRecords.filter(({ source }) => source !== "tour");
+    const tourRecords = visibleRecords.filter(({ source }) => source === "tour");
     map.getSource("records")?.setData(recordsToFeatureCollection(burialRecords));
     map.getSource("tour-records")?.setData(recordsToFeatureCollection(tourRecords));
 
     const updateVisibleMarkerCount = () => {
       const visible = map.queryRenderedFeatures({
-        layers: [MAP_LAYER_IDS.records, MAP_LAYER_IDS.tourRecords],
+        layers: [MAP_LAYER_IDS.records, MAP_LAYER_IDS.tourRecords, MAP_LAYER_IDS.selectedRecord],
       });
       setVisibleMarkerCount(visible.length);
     };
     map.on("render", updateVisibleMarkerCount);
     return () => map.off("render", updateVisibleMarkerCount);
-  }, [readyMap, records]);
+  }, [readyMap, records, selectedRecord, showRecordMarkers]);
 
   useEffect(() => {
     const map = readyMap;
@@ -300,15 +315,19 @@ export default function MapView({
     const map = readyMap;
     if (!map || mapRef.current !== map) return;
     setLayerVisibility(map, MAP_LAYER_IDS.hillshade, hillshade);
-    const visible = showSections || Boolean(selectedSection);
-    setLayerVisibility(map, MAP_LAYER_IDS.sections, visible);
-    setLayerVisibility(map, MAP_LAYER_IDS.sectionOutlines, visible);
-    setLayerVisibility(map, MAP_LAYER_IDS.selectedSection, visible && Boolean(selectedSection));
-    map.setFilter(MAP_LAYER_IDS.selectedSection, [
+    const matchesSection = [
       "==",
       ["to-string", ["get", "Section"]],
       String(selectedSection || ""),
+    ];
+    map.setPaintProperty(MAP_LAYER_IDS.sections, "fill-opacity", [
+      "case", matchesSection, 0.28, showSections ? 0.18 : 0,
     ]);
+    setLayerVisibility(map, MAP_LAYER_IDS.sectionOutlines, showSections);
+    setLayerVisibility(map, MAP_LAYER_IDS.selectedSection, Boolean(selectedSection));
+    map.setFilter(MAP_LAYER_IDS.selectedSection, matchesSection);
+    setLayerVisibility(map, MAP_LAYER_IDS.sectionLabels, showSections || Boolean(selectedSection));
+    map.setFilter(MAP_LAYER_IDS.sectionLabels, showSections ? null : matchesSection);
   }, [hillshade, readyMap, selectedSection, showSections]);
 
   useEffect(() => {
@@ -332,16 +351,16 @@ export default function MapView({
         aria-live="polite"
         data-visible-marker-count={visibleMarkerCount ?? ""}
       >
-        {records.length.toLocaleString()} mapped {records.length === 1 ? "record" : "records"}
+        {(visibleMarkerCount ?? 0).toLocaleString()} {tourStopsPresent && showRecordMarkers ? "tour stops" : "graves"} shown on the map
       </p>
-      <div className="map-toolbar" aria-label="Map appearance">
+      <div className="map-toolbar" aria-label="Map options">
         <label className="toggle-control">
           <input
             type="checkbox"
             checked={hillshade}
             onChange={(event) => updatePreference("hillshade", event.target.checked)}
           />
-          Hillshade
+          Terrain
         </label>
         <label className="toggle-control">
           <input

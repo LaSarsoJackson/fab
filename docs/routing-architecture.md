@@ -15,41 +15,41 @@ updates. `src/App.jsx` decides when a user action changes that route.
 - `embed=fabfg`
 - legacy `share=<packed selection>` for backward-compatible reads only
 
-New share links use `record`; do not create new packed field packets.
+New share links use `record`. Do not create new packed field packets.
 
-FABFG should load the three canonical routes with `embed=fabfg`. The native
-shell owns its tabs; embedded FAB owns content and route behavior.
+Load the three canonical routes in FABFG with `embed=fabfg`. The native shell
+owns its tabs. Embedded FAB owns content and route behavior.
 
-When an embedded user action changes destinations, FAB posts a versioned native
-message after updating the browser URL:
+After an embedded route change, FAB posts the complete URL to the native shell:
 
 ```json
 {"type":"fab.route-change.v1","view":"map","url":"https://lasarsojackson.github.io/fab/?view=map&embed=fabfg&tour=Notable"}
 ```
 
-The `url` is the complete route and remains the source of truth. FABFG validates
-the hosted origin, `/fab/` path, `embed=fabfg`, and matching `view`, then changes
-the visible native tab without reconstructing query parameters. Initial loads
-do not post messages. Browser `popstate` events post the route that the WebView
-has already displayed so the native shell can persist Back navigation without
-reloading that WebView.
+FABFG checks the host, `/fab/` path, `embed=fabfg`, and matching `view`, then
+opens the destination tab with that URL. Same-tab changes persist in Expo Router
+without reloading the WebView. Browser Back posts the restored route as well.
+Initial loads do not post messages. Home clears the current tab's saved URL.
+
+FABFG supports iOS. Browser tests cover the hosted contract; an installed
+iPhone and iPad must also verify tab changes, Back, Home, Retry, location
+permission, and external links before a native release.
 
 External directions are built in [`src/shared/routing.js`](../src/shared/routing.js).
-Apple platforms open Apple Maps; Android and other platforms use Google Maps.
+Apple platforms open Apple Maps. Android and other platforms use Google Maps.
 FAB does not compute a walking line from `ARC_Roads.json`. That file describes
 road geometry but does not establish pedestrian access, crossings, closures, or
 a reviewed visit order. A shortest-path result would look authoritative without
 being trustworthy.
 
-Tour place-to-place navigation stays local and URL-backed: selecting a place
-updates `record`, Previous and Next move through the bundled place list, and All
-places returns to the tour overview. Explicit `kind: "tour"` definitions use a
-deterministic nearest-neighbor visit order anchored at the source first stop;
-`kind: "collection"` definitions stay source-ordered. This is a simple visit
-ordering aid, not a reviewed pedestrian route or a safety/distance claim.
-Collections do not get ordinal or Previous and Next controls. The last selected
-tour and place are stored as the small versioned record `fab.tour-progress.v1`;
-the URL remains the shareable source of truth.
+Tour place-to-place navigation stays local and URL-backed. Selecting a place
+updates `record`. Previous and Next move through the bundled place list, and All
+places returns to the tour overview. A `tour` uses a deterministic proximity
+order anchored at its first source record. A `collection` stays in source order
+and does not get numbers or Previous and Next controls. The order is a browsing
+aid, not a pedestrian route or a safety claim. The app stores the last selected
+tour and place in `fab.tour-progress.v1`. The URL remains the shareable source
+of truth.
 
 ## Reviewed walking routes
 
@@ -61,9 +61,9 @@ data to the existing tour definition:
 - optionally, one reviewed GeoJSON `LineString` for the intended walk
 
 MapLibre can render that local line directly. It does not require a routing
-service, graph cache, worker, or new runtime dependency. Until those facts are
-curated, FAB should show every place and provide Previous, Next, and
-device-navigation actions without drawing a false route line.
+service, graph cache, worker, or new runtime dependency. Until ARCE supplies
+those facts, FAB shows every place and provides Previous, Next, and
+device-navigation actions without drawing a route line.
 
 Changing a parameter or its meaning is a shared web/native contract change and
 requires both browser and wrapper acceptance.

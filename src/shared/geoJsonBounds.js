@@ -9,9 +9,10 @@ const updateBounds = (currentBounds, lng, lat) => ({
   east: Math.max(currentBounds.east, lng),
 });
 
-const isCoordinatePairValid = ([lngValue, latValue]) => {
-  const lng = Number(lngValue);
-  const lat = Number(latValue);
+export const isCoordinatePairValid = (coordinatePair) => {
+  if (!Array.isArray(coordinatePair)) return false;
+
+  const [lng, lat] = coordinatePair;
 
   return (
     Number.isFinite(lat) &&

@@ -1,68 +1,49 @@
 # UI principles
 
-Usability is the design system.
-
 ## Product hierarchy
 
-- Search Tours, Cemetery Map, and Burial Locator are distinct destinations.
-- The ARCE website is a clearly external action.
-- Tours opens by default.
-- FABFG embedded routes do not draw a second navigation bar.
-- Moving between destinations preserves the current tour, pin, section, and
-  locator query until a new task explicitly replaces them.
+- Keep Search Tours, Cemetery Map, and Burial Locator as separate destinations.
+- Open Search Tours by default.
+- Keep the ARCE website as an external action.
+- Hide web navigation when FABFG owns the tabs.
+- Preserve the active tour, pin, section, and locator query when the visitor
+  moves between destinations.
 
-## Interaction
+## Labels and controls
 
-- Use familiar controls and direct labels.
-- Keep touch targets at least 44 px where space permits.
-- Give pressed controls a small `scale: 0.96` response.
-- Limit transitions to the properties that change; never use `transition: all`.
-- Honor `prefers-reduced-motion` and device safe areas.
-- Preserve keyboard focus and visible focus rings.
+- Name controls for the visitor's action: Browse graves, View stops, Terrain,
+  Sections, View burials, and Map credits.
+- Keep implementation terms out of visitor-facing copy.
+- Keep touch targets at least 44 px where the layout permits.
+- Preserve keyboard focus, visible focus rings, reduced-motion preferences, and
+  device safe areas.
+- Limit transitions to the properties that change.
 
-## Map and selection
+## Tours, collections, and graves
 
-- Keep the general map quiet: boundary and roads before sections and graves.
-- Sections appear only after an explicit choice and read clearly when enabled.
-- Selecting a section highlights it on the map. Opening its burial list is a
-  separate action so the map does not disappear under the user. Do not replace
-  the useful list with hundreds of unlabeled markers. A section selection
-  replaces a visible tour on the map, while Continue preserves the last tour
-  place.
-- Keep tour stops in a keyboard-accessible list as well as on the map.
-- Call large inventories collections instead of implying that every dataset is
-  a sequenced walk.
-- Order explicit tours by deterministic proximity from their authored first
-  stop; keep collections in source order. This improves browsing without
-  presenting the result as reviewed pedestrian routing.
-- Keep the active tour name and place position visible while details are open.
-- Provide Previous, All places, and Next with no server-side navigation state.
-- Remember only the last tour and place so a user can resume after an abrupt
-  destination change or browser restart.
-- Keep every active tour stop individually visible on the map. Pin an individual
-  burial only after the visitor chooses it from the locator.
-- One physical location may represent multiple records; do not invent spatial
-  precision by spreading canonical coordinates.
-- Close hides the detail card but leaves the pin.
-- Unpin is the destructive selection action and must be explicit.
-- Keep sharing secondary under “Share pinned grave.”
-- Link biography-bearing records directly to the canonical ARCE biography; do
-  not mirror or embed the legacy biography site inside FAB.
-- Do not draw a walking route line until pedestrian geometry has been reviewed
-  for cemetery use; proximity ordering alone makes no safety or accessibility
-  claim.
+- Show tour stops in an HTML list and on the map.
+- Show collections as unnumbered grave lists. Do not present an inventory as a
+  walking tour.
+- Keep collection markers hidden until the visitor chooses a grave.
+- Show the active tour name and position while its details are open.
+- Provide Previous, All places, and Next for tours. Collections do not get
+  adjacent-stop controls.
+- Close hides the detail card and keeps the pin. Unpin removes it.
+- Keep sharing under "Share pinned grave."
+- Open ARCE biographies on the canonical ARCE page.
 
-## Visual language
+## Map and section behavior
 
-- Use system typography, balanced headings, and readable line lengths.
-- Use calm neutral surfaces, one green action color, and a warm selection accent.
-- Use thin borders and subtle shadows to establish hierarchy.
-- Use tabular numerals for dates and result counts.
-- Inset image outlines use restrained black/white opacity, not gray borders.
+- Keep the general map quiet. Boundary and roads come before optional sections
+  and graves.
+- Identify and highlight a tapped section even when section shading is off.
+  Open its burial list only after the visitor chooses View burials.
+- Keep canonical coordinates. Several burial records may share one location.
+- Do not draw a walking route without reviewed pedestrian geometry.
 
-## Performance behavior
+## Loading
 
-- Do not load MapLibre until the map destination is needed.
-- Do not load the burial index until a real name or section search starts.
-- Search and prepare the large index in a worker.
-- Keep the first Tours screen useful before any map or data request completes.
+- Load MapLibre on the first visit to Cemetery Map.
+- Load the burial index after a name or section search starts.
+- Search the burial index in a worker.
+- Keep Search Tours usable before map or burial data loads.

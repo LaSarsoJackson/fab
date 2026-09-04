@@ -13,6 +13,7 @@ export default function LocatorView({
   const query = initialQuery;
   const section = initialSection;
   const deferredQuery = useDeferredValue(query);
+  const normalizedQuery = query.trim();
   const { clear, runSearch } = search;
 
   useEffect(() => {
@@ -25,68 +26,54 @@ export default function LocatorView({
     runSearch({ query: normalizedQuery, section: normalizedSection });
   }, [clear, deferredQuery, runSearch, section]);
 
-  const updateQuery = (value) => {
-    onRouteChange({ query: value });
-  };
-
-  const updateSection = (value) => {
-    onRouteChange({ section: value });
-  };
-
   return (
     <section className="locator-view" aria-labelledby="locator-title">
       <header className="page-heading">
-        <p className="page-heading__eyebrow">97,457 cemetery records</p>
         <h1 id="locator-title">Burial Locator</h1>
-        <p>Search by name. Add a section only when you need to narrow the list.</p>
+        <p>Search by name or cemetery section.</p>
       </header>
 
-      <div className="locator-search">
-        <label htmlFor="burial-query">Name</label>
-        <div className="search-field">
+      <div className="locator-fields">
+        <label className="locator-field" htmlFor="burial-query">
+          <span>Name</span>
           <input
             id="burial-query"
             type="search"
             value={query}
-            onChange={(event) => updateQuery(event.target.value)}
+            onChange={(event) => onRouteChange({ query: event.target.value })}
             placeholder="First or last name"
             autoComplete="off"
             enterKeyHint="search"
           />
-          {query ? (
-            <button type="button" className="text-button" onClick={() => updateQuery("")}>
-              Clear
-            </button>
-          ) : null}
-        </div>
-
-        <details className="section-filter" open={Boolean(section)}>
-          <summary>Filter by cemetery section</summary>
-          <label htmlFor="burial-section">Section number</label>
+        </label>
+        <label className="locator-field locator-field--section" htmlFor="burial-section">
+          <span>Section</span>
           <input
             id="burial-section"
+            type="search"
             inputMode="numeric"
             value={section}
-            onChange={(event) => updateSection(event.target.value)}
-            placeholder="For example, 49"
+            onChange={(event) => onRouteChange({ section: event.target.value })}
+            placeholder="e.g. 49"
+            enterKeyHint="search"
           />
-        </details>
+        </label>
       </div>
 
       <div className="locator-results" aria-live="polite">
-        {search.status === "loading" ? <p className="status-message">Searching cemetery records…</p> : null}
+        {search.status === "loading" ? <p className="status-message">Searching…</p> : null}
         {search.status === "error" ? <p className="status-message status-message--error">{search.error}</p> : null}
-        {search.status === "idle" ? (
-          <p className="status-message">Enter at least two letters, or browse a section.</p>
+        {search.status === "idle" && normalizedQuery.length === 1 ? (
+          <p className="status-message">Type at least 2 letters.</p>
         ) : null}
         {search.status === "ready" && search.total === 0 ? (
-          <p className="status-message">No burial records match this search.</p>
+          <p className="status-message">No burials found.</p>
         ) : null}
         {search.status === "ready" && search.total > 0 ? (
           <>
             <p className="result-count">
-              {search.total.toLocaleString()} {search.total === 1 ? "record" : "records"}
-              {search.total > search.results.length ? ` · showing first ${search.results.length}` : ""}
+              {search.total.toLocaleString()} {search.total === 1 ? "match" : "matches"}
+              {search.total > search.results.length ? ` · first ${search.results.length} shown` : ""}
             </p>
             <ol className="record-list">
               {search.results.map((record) => (
