@@ -121,6 +121,7 @@ const MapDestination = ({
           selectedRecord={selectedRecord}
           selectedSection={route.section}
           focusKey={selectedRecord?.id || route.section || route.tour || "cemetery"}
+          showRecordMarkers={activeTour?.kind !== "collection"}
           tourStopsPresent={Boolean(activeTour)}
           onRecordSelect={handleRecordSelect}
           onSectionSelect={selectSection}

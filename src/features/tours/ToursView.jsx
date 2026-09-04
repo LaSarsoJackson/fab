@@ -11,7 +11,7 @@ export default function ToursView({
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query.trim().toLocaleLowerCase());
   const continueLabel = continueTour?.kind === "collection"
-    ? "Return to collection"
+    ? "Continue browsing"
     : "Continue tour";
   const tours = useMemo(() => FAB_TOUR_DEFINITIONS.filter(({ name }) => (
     !deferredQuery || name.toLocaleLowerCase().includes(deferredQuery)
@@ -21,7 +21,7 @@ export default function ToursView({
     <section className="tours-view" aria-labelledby="tours-title">
       <header className="page-heading">
         <h1 id="tours-title">Search Tours</h1>
-        <p>Choose a tour or collection, then explore its places on the map.</p>
+        <p>Choose a tour or browse graves by section or group.</p>
       </header>
 
       {continueTour ? (
@@ -34,7 +34,7 @@ export default function ToursView({
           <span className="tour-continue__eyebrow">{continueLabel}</span>
           <strong>{continueTour.name}</strong>
           {continueTour.recordName ? <span>{continueTour.recordName}</span> : null}
-          <span className="tour-continue__action">Return to map</span>
+          <span className="tour-continue__action">Open map</span>
         </button>
       ) : null}
 
@@ -65,7 +65,7 @@ export default function ToursView({
                   <span className="tour-card__content">
                     <span className="tour-card__name">{tour.name}</span>
                     <span className="tour-card__action">
-                      {isLoading ? "Loading…" : tour.kind === "collection" ? "Open collection" : "Open tour"}
+                      {isLoading ? "Loading…" : tour.kind === "collection" ? "Browse graves" : "View stops"}
                     </span>
                   </span>
                 </button>
@@ -74,7 +74,7 @@ export default function ToursView({
           })}
         </ul>
       ) : (
-        <p className="status-message">No tours match “{query}.”</p>
+        <p className="status-message">No tours match "{query}".</p>
       )}
     </section>
   );

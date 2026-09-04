@@ -22,7 +22,7 @@ const RecordIdentity = ({ record, birth, death, tourContext }) => (
     {record.tourName ? (
       <p className="record-card__source">
         {record.tourName}
-        {tourContext ? ` · Place ${tourContext.position} of ${tourContext.total}` : ""}
+        {tourContext ? ` · ${tourContext.position} of ${tourContext.total}` : ""}
       </p>
     ) : null}
     <h2 id="record-card-title">{record.displayName}</h2>
@@ -35,7 +35,7 @@ const RecordIdentity = ({ record, birth, death, tourContext }) => (
 const TourNavigation = ({ tourContext }) => {
   if (!tourContext) return null;
   return (
-    <nav className="record-card__tour-navigation" aria-label="Tour places">
+    <nav className="record-card__tour-navigation" aria-label="Tour stops">
       <button
         type="button"
         className="text-button"

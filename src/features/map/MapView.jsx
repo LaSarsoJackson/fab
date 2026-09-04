@@ -9,7 +9,7 @@ import {
 } from "maplibre-gl";
 import mapLibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import sections from "../../data/ARC_Sections.json";
-import { getGeoJsonBounds } from "../../shared/geoJsonBounds";
+import { getGeoJsonBounds, isCoordinatePairValid } from "../../shared/geoJsonBounds";
 import { recordsToFeatureCollection } from "../locator/burialRecords";
 import { CEMETERY_VIEW, createMapStyle, MAP_LAYER_IDS } from "./mapStyle";
 
@@ -67,7 +67,7 @@ const getViewportLayout = (map) => {
 };
 
 const focusSelectedRecord = (map, selectedRecord, viewport) => {
-  if (!selectedRecord?.coordinates) return false;
+  if (!isCoordinatePairValid(selectedRecord?.coordinates)) return false;
   const tourRecord = selectedRecord.source === "tour";
   const detailPadding = {
     top: viewport.short ? 72 : 104,
@@ -110,7 +110,7 @@ const focusSelectedSection = (map, selectedSection, tourStopsPresent, viewport) 
 };
 
 const focusRecords = (map, records, tourStopsPresent, viewport) => {
-  const points = records.filter(({ coordinates }) => Array.isArray(coordinates));
+  const points = records.filter(({ coordinates }) => isCoordinatePairValid(coordinates));
   if (points.length === 0) return;
   const bounds = points.reduce(
     (nextBounds, record) => nextBounds.extend(record.coordinates),
@@ -147,6 +147,7 @@ export default function MapView({
   selectedRecord = null,
   selectedSection = "",
   focusKey = "",
+  showRecordMarkers = true,
   tourStopsPresent = false,
   onBrowseSection,
   onRecordSelect,
@@ -217,6 +218,14 @@ export default function MapView({
     };
     void addGeolocateControl();
     map.addControl(new AttributionControl({ compact: true }), "bottom-right");
+    const attribution = containerRef.current?.querySelector(".maplibregl-ctrl-attrib");
+    const attributionButton = attribution?.querySelector(".maplibregl-ctrl-attrib-button");
+    attributionButton?.setAttribute("aria-label", "Map credits");
+    attributionButton?.setAttribute("title", "Map credits");
+    map.once("idle", () => {
+      attribution?.removeAttribute("open");
+      attribution?.classList.remove("maplibregl-compact-show");
+    });
 
     map.on("style.load", () => {
       if (mapRef.current === map) setReadyMap(map);
@@ -274,8 +283,9 @@ export default function MapView({
   useEffect(() => {
     const map = readyMap;
     if (!map || mapRef.current !== map) return;
-    const burialRecords = records.filter(({ source }) => source !== "tour");
-    const tourRecords = records.filter(({ source }) => source === "tour");
+    const visibleRecords = showRecordMarkers ? records : [];
+    const burialRecords = visibleRecords.filter(({ source }) => source !== "tour");
+    const tourRecords = visibleRecords.filter(({ source }) => source === "tour");
     map.getSource("records")?.setData(recordsToFeatureCollection(burialRecords));
     map.getSource("tour-records")?.setData(recordsToFeatureCollection(tourRecords));
 
@@ -287,7 +297,7 @@ export default function MapView({
     };
     map.on("render", updateVisibleMarkerCount);
     return () => map.off("render", updateVisibleMarkerCount);
-  }, [readyMap, records]);
+  }, [readyMap, records, showRecordMarkers]);
 
   useEffect(() => {
     const map = readyMap;
@@ -332,16 +342,16 @@ export default function MapView({
         aria-live="polite"
         data-visible-marker-count={visibleMarkerCount ?? ""}
       >
-        {records.length.toLocaleString()} mapped {records.length === 1 ? "record" : "records"}
+        {(visibleMarkerCount ?? 0).toLocaleString()} {tourStopsPresent && showRecordMarkers ? "tour stops" : "graves"} shown on the map
       </p>
-      <div className="map-toolbar" aria-label="Map appearance">
+      <div className="map-toolbar" aria-label="Map options">
         <label className="toggle-control">
           <input
             type="checkbox"
             checked={hillshade}
             onChange={(event) => updatePreference("hillshade", event.target.checked)}
           />
-          Hillshade
+          Terrain
         </label>
         <label className="toggle-control">
           <input

@@ -20,35 +20,44 @@ export default function TourStopsPanel({
 
   const headingId = `tour-stops-${tour.key}`;
   const isCollection = tour.kind === "collection";
+  const List = isCollection ? "ul" : "ol";
+  const itemNoun = isCollection ? "grave" : "stop";
+  const itemLabel = records.length === 1 ? itemNoun : `${itemNoun}s`;
 
   return (
     <aside className="tour-stops-panel" aria-labelledby={headingId}>
       <header className="tour-stops-panel__header">
-        <div>
-          <p>{isCollection ? "Collection" : "Tour places"}</p>
-          <h2 id={headingId}>{tour.name}</h2>
-        </div>
+        <h2 id={headingId}>{tour.name}</h2>
         <div className="tour-stops-panel__actions">
-          <span aria-label={`${records.length} places`}>{records.length}</span>
+          <span>{records.length.toLocaleString()} {itemLabel}</span>
           {onExit ? (
-            <button type="button" className="text-button" onClick={onExit}>All tours</button>
+            <button
+              type="button"
+              className="text-button"
+              aria-label="Back to Search Tours"
+              onClick={onExit}
+            >
+              Back
+            </button>
           ) : null}
         </div>
       </header>
-      <ol className="tour-stops-panel__list">
+      <List className="tour-stops-panel__list">
         {records.map((record, index) => {
           const selected = String(record.id) === String(selectedRecord?.id);
-          const location = formatRecordLocation(record) || "Mapped place";
+          const location = formatRecordLocation(record) || "Location not recorded";
           return (
             <li key={record.id}>
               <button
                 ref={selected ? selectedPlaceRef : undefined}
                 type="button"
-                className="tour-stop"
+                className={`tour-stop${isCollection ? " tour-stop--collection" : ""}`}
                 aria-current={selected ? "location" : undefined}
                 onClick={() => onSelect(record)}
               >
-                <span className="tour-stop__number" aria-hidden="true">{index + 1}</span>
+                {!isCollection ? (
+                  <span className="tour-stop__number" aria-hidden="true">{index + 1}</span>
+                ) : null}
                 <span className="tour-stop__copy">
                   <strong>{record.displayName}</strong>
                   <span className="tour-stop__summary">{record.extraTitle || location}</span>
@@ -58,7 +67,7 @@ export default function TourStopsPanel({
             </li>
           );
         })}
-      </ol>
+      </List>
     </aside>
   );
 }

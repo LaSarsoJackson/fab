@@ -21,8 +21,7 @@ describe("TourStopsPanel", () => {
     render(<TourStopsPanel tour={tour} records={records} onExit={onExit} onSelect={onSelect} />);
 
     const panel = screen.getByRole("complementary", { name: "Notables Tour 2020" });
-    expect(within(panel).getByText("Tour places")).toBeInTheDocument();
-    expect(within(panel).getByLabelText("2 places")).toBeInTheDocument();
+    expect(within(panel).getByText("2 stops")).toBeInTheDocument();
     expect(within(panel).getAllByRole("button")).toHaveLength(3);
     expect(within(panel).getByText("Father of modern geology")).toBeInTheDocument();
     expect(within(panel).getByText("Section 18 · Lot 93")).toBeInTheDocument();
@@ -30,7 +29,7 @@ describe("TourStopsPanel", () => {
     fireEvent.click(within(panel).getByRole("button", { name: /James Hall/ }));
     expect(onSelect).toHaveBeenCalledWith(records[0]);
 
-    fireEvent.click(within(panel).getByRole("button", { name: "All tours" }));
+    fireEvent.click(within(panel).getByRole("button", { name: "Back to Search Tours" }));
     expect(onExit).toHaveBeenCalledOnce();
   });
 
@@ -59,9 +58,9 @@ describe("TourStopsPanel", () => {
       />
     );
 
-    expect(screen.getByText("Collection")).toBeInTheDocument();
-    expect(screen.queryByText("Tour places")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "All tours" }));
+    expect(screen.getByText("2 graves")).toBeInTheDocument();
+    expect(document.querySelectorAll(".tour-stop__number")).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Back to Search Tours" }));
     expect(onExit).toHaveBeenCalledOnce();
   });
 });

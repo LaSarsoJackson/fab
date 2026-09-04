@@ -1,15 +1,15 @@
 # Cartography
 
 FAB is a cemetery wayfinding map, not a basemap gallery. Every cartographic
-choice should help a visitor understand the cemetery and act on a selected
-grave or tour stop.
+choice must help a visitor understand the cemetery and act on a selected grave
+or tour stop.
 
 ## Evidence
 
 - Esri’s [primary design principles for cartography](https://www.esri.com/arcgis-blog/products/arcgis-pro/mapping/primary-design-principles-for-cartography)
   put figure-ground and visual hierarchy ahead of decoration.
 - Esri’s [visual hierarchy guidance](https://www.esri.com/arcgis-blog/products/arcgis-online/education/visual-hierarchy-for-maps)
-  treats the basemap as context that should recede behind thematic data.
+  treats the basemap as context that recedes behind thematic data.
 - Esri’s [World Hillshade guidance](https://www.esri.com/arcgis-blog/products/arcgis-living-atlas/national-government/symbolizing-the-hillshade-for-the-world-topographic-map)
   calls for noncompetitive relief, especially in flatter areas.
 - The [MapLibre hillshade example](https://maplibre.org/maplibre-gl-js/docs/examples/add-a-hillshade-layer/)

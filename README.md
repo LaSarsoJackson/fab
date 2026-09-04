@@ -61,7 +61,7 @@ No Python image server or geospatial Python environment is required.
 ## Commands
 
 - `bun run start`: run the Vite development server
-- `bun run lint`: run ESLint, Oxlint complexity checks, and the vendored anti-slop rules
+- `bun run lint`: run ESLint, Oxlint complexity checks, and project-specific lint rules
 - `bun run test`: run Bun unit/data tests and Vitest component tests
 - `bun run test:e2e`: run the Playwright product flows
 - `bun run build`: generate tour aliases and build `dist/`
@@ -82,16 +82,15 @@ The query string is the route contract:
 Additional parameters are `q`, `section`, `tour`, and `record`. Old packed
 `share` links remain readable, but new links use the smaller `record` contract.
 
-FABFG should load the same hosted app with `embed=fabfg` so the native shell
-owns the tabs and the web app does not draw a duplicate navigation bar:
+Load the same hosted app in FABFG with `embed=fabfg`. The native shell owns the
+tabs, and the web app does not draw a duplicate navigation bar:
 
 - `?view=tours&embed=fabfg`
 - `?view=map&embed=fabfg`
 - `?view=burials&embed=fabfg`
 
-Its native tabs should use the same Search Tours, Cemetery Map, and Burial
-Locator labels. The ARCE website is a separate external action; it is not the
-Cemetery Map tab.
+Use Search Tours, Cemetery Map, and Burial Locator for the native tab labels.
+Keep the ARCE website as a separate external action.
 
 ## Cartography
 
