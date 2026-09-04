@@ -40,7 +40,7 @@ export const createMapStyle = () => ({
       type: "raster",
       tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}"],
       tileSize: 256,
-      attribution: "Terrain © Esri, <a href=\"https://www.usgs.gov/3d-elevation-program\">U.S. Geological Survey</a>, and contributors",
+      attribution: "Terrain sources: Esri, Vantor, Airbus DS, <a href=\"https://www.usgs.gov/3d-elevation-program\">U.S. Geological Survey</a>, NGA, NASA, CGIAR, N Robinson, NCEAS, NLS, OS, NMA, Geodatastyrelsen, Rijkswaterstaat, GSA, Geoland, FEMA, Intermap, and the GIS user community",
       maxzoom: 16,
     },
     boundary: { type: "geojson", data: boundary },
