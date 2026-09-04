@@ -9,7 +9,7 @@ contract releases.
 - Restored the earlier terrain source, reduced the competing basemap colors,
   and added readable cemetery road, landmark, and section labels.
 - Kept section taps available with shading off and corrected zooming for
-  sections made of multiple polygons.
+  sections made of multiple polygons, including repeated section taps.
 - Rendered selected graves once and included selected collection graves in
   the visible marker count.
 

@@ -10,7 +10,6 @@ import {
 import mapLibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { isCoordinatePairValid } from "../../shared/geoJsonBounds";
 import { recordsToFeatureCollection } from "../locator/burialRecords";
-import { MAP_LANDMARKS } from "../fab/mapLandmarks";
 import { CEMETERY_VIEW, createMapStyle, MAP_LAYER_IDS } from "./mapStyle";
 import { getSectionBounds } from "./mapSections";
 
@@ -25,7 +24,6 @@ const INTERACTIVE_LAYER_IDS = [
   MAP_LAYER_IDS.selectedRecord,
   MAP_LAYER_IDS.tourRecords,
   MAP_LAYER_IDS.records,
-  MAP_LAYER_IDS.landmarkLabels,
   MAP_LAYER_IDS.sections,
 ];
 
@@ -157,6 +155,7 @@ export default function MapView({
   const onRecordSelectRef = useRef(onRecordSelect);
   const onSectionSelectRef = useRef(onSectionSelect);
   const selectedRecordRef = useRef(selectedRecord);
+  const selectedSectionRef = useRef(selectedSection);
   const [readyMap, setReadyMap] = useState(null);
   const [preferences, setPreferences] = useState(readMapPreferences);
   const [visibleMarkerCount, setVisibleMarkerCount] = useState(null);
@@ -179,7 +178,8 @@ export default function MapView({
     onRecordSelectRef.current = onRecordSelect;
     onSectionSelectRef.current = onSectionSelect;
     selectedRecordRef.current = selectedRecord;
-  }, [onRecordSelect, onSectionSelect, records, selectedRecord]);
+    selectedSectionRef.current = selectedSection;
+  }, [onRecordSelect, onSectionSelect, records, selectedRecord, selectedSection]);
 
   useEffect(() => {
     const [west, south, east, north] = CEMETERY_VIEW.bounds;
@@ -239,8 +239,7 @@ export default function MapView({
     };
     const selectRecord = (feature) => {
       const recordId = String(feature.properties?.id || "");
-      const candidates = feature.layer.id === MAP_LAYER_IDS.landmarkLabels ? MAP_LANDMARKS : recordsRef.current;
-      const record = candidates.find(({ id }) => String(id) === recordId);
+      const record = recordsRef.current.find(({ id }) => String(id) === recordId);
       if (record) onRecordSelectRef.current?.(record);
     };
     map.on("click", (event) => {
@@ -249,7 +248,12 @@ export default function MapView({
 
       if (feature.layer.id === MAP_LAYER_IDS.sections) {
         const section = String(feature.properties?.Section || "").trim();
-        if (section) onSectionSelectRef.current?.(section);
+        if (!section) return;
+        // Repeated taps do not change the route, but should still frame the section.
+        if (section === selectedSectionRef.current && !selectedRecordRef.current) {
+          focusMap({ map, records: [], selectedSection: section, tourStopsPresent: false });
+        }
+        onSectionSelectRef.current?.(section);
         return;
       }
       if (feature.layer.id === MAP_LAYER_IDS.selectedRecord) {
@@ -305,7 +309,6 @@ export default function MapView({
     if (!map || mapRef.current !== map) return;
     const data = selectedRecord ? recordsToFeatureCollection([selectedRecord]) : EMPTY_COLLECTION;
     map.getSource("selected")?.setData(data);
-    map.setFilter(MAP_LAYER_IDS.landmarkLabels, ["!=", ["get", "id"], String(selectedRecord?.id || "")]);
   }, [readyMap, selectedRecord]);
 
   useEffect(() => {

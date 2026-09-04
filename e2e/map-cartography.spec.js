@@ -34,7 +34,7 @@ const canvasPixels = (page) => page.evaluate(() => new Promise((resolve) => {
 }));
 
 for (const width of [375, 1440]) {
-  test(`terrain and landmark names render and landmark taps open the right record at ${width}px`, async ({ page }, testInfo) => {
+  test(`terrain and landmark names render without intercepting section taps at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const errors = [];
     const fontRequests = [];
@@ -43,7 +43,7 @@ for (const width of [375, 1440]) {
       if (/\.pbf(?:\?|$)|\.woff2?(?:\?|$)/.test(request.url())) fontRequests.push(request.url());
     });
     await observeMap(page);
-    await page.goto("./?view=map");
+    await page.goto("./?view=map&section=49");
     await waitForMap(page);
     await page.evaluate(() => globalThis.testMap.jumpTo({
       center: [-73.73362, 42.70749], zoom: 16.8,
@@ -51,7 +51,7 @@ for (const width of [375, 1440]) {
     await waitForMap(page);
     await expect.poll(() => page.evaluate(() => (
       globalThis.testMap.queryRenderedFeatures({ layers: ["cemetery-landmark-labels"] })
-        .map(({ properties }) => properties.name)
+        .map(({ properties }) => properties.Full_Name)
     ))).toContain("President Chester A. Arthur");
     await expect.poll(() => page.evaluate(() => (
       globalThis.testMap.queryRenderedFeatures({ layers: ["cemetery-road-labels"] })
@@ -76,25 +76,47 @@ for (const width of [375, 1440]) {
       const center = map.project([-73.73362297435509, 42.707493868452055]);
       for (let y = center.y - 50; y <= center.y + 50; y += 4) {
         for (let x = center.x - 90; x <= center.x + 90; x += 4) {
-          if (map.queryRenderedFeatures([x, y], { layers: ["cemetery-landmark-labels"] })
-            .some(({ properties }) => properties.id === "tour:Notable:18:24:8")) return { x, y };
+          const labels = map.queryRenderedFeatures([x, y], { layers: ["cemetery-landmark-labels"] });
+          const sections = map.queryRenderedFeatures([x, y], { layers: ["cemetery-sections"] });
+          if (labels.some(({ properties }) => properties.Full_Name === "President Chester A. Arthur") &&
+            sections.some(({ properties }) => String(properties.Section) === "24")) return { x, y };
         }
       }
       return null;
     });
     expect(labelPoint).not.toBeNull();
     await page.locator(".maplibregl-canvas").click({ position: labelPoint });
-    await expect(page.getByRole("heading", { name: "President Chester A. Arthur", exact: true })).toBeVisible();
-    await expect.poll(() => new URL(page.url()).searchParams.get("record")).toBe("tour:Notable:18:24:8");
-    await expect.poll(() => page.evaluate(() => (
-      globalThis.testMap.queryRenderedFeatures({ layers: ["records", "tour-records", "selected-record"] })
-        .filter(({ properties }) => properties.id === "tour:Notable:18:24:8").length
-    ))).toBe(1);
+    await expect(page.getByRole("group", { name: "Section 24", exact: true })).toBeVisible();
+    expect(new URL(page.url()).searchParams.has("tour")).toBe(false);
+    expect(new URL(page.url()).searchParams.has("record")).toBe(false);
+    await waitForMap(page);
+    const fittedZoom = await page.evaluate(() => globalThis.testMap.getZoom());
+    await page.evaluate(() => globalThis.testMap.jumpTo({ center: [-73.73362, 42.70749], zoom: 15.2 }));
+    await waitForMap(page);
+    const sectionPoint = await page.evaluate(() => {
+      const point = globalThis.testMap.project([-73.73362, 42.70749]);
+      return { x: point.x, y: point.y };
+    });
+    await page.locator(".maplibregl-canvas").click({ position: sectionPoint });
+    await expect.poll(() => page.evaluate(() => globalThis.testMap.getZoom())).toBeCloseTo(fittedZoom, 1);
     await page.reload();
-    await expect(page.getByRole("heading", { name: "President Chester A. Arthur", exact: true })).toBeVisible();
+    await expect(page.getByRole("group", { name: "Section 24", exact: true })).toBeVisible();
     expect(errors).toEqual([]);
   });
 }
+
+test("a selected tour grave has one marker and restores its record", async ({ page }) => {
+  await observeMap(page);
+  await page.goto("./?view=map&tour=Notable&record=tour%3ANotable%3A18%3A24%3A8");
+  await expect(page.getByRole("heading", { name: "President Chester A. Arthur", exact: true })).toBeVisible();
+  await waitForMap(page);
+  await expect.poll(() => page.evaluate(() => (
+    globalThis.testMap.queryRenderedFeatures({ layers: ["records", "tour-records", "selected-record"] })
+      .filter(({ properties }) => properties.id === "tour:Notable:18:24:8").length
+  ))).toBe(1);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "President Chester A. Arthur", exact: true })).toBeVisible();
+});
 
 test("Section 49 fits every polygon and section numbers remain available with terrain off", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });

@@ -1,8 +1,7 @@
 import boundary from "../../data/ARC_Boundary.json";
 import roads from "../../data/ARC_Roads.json";
 import sections from "../../data/ARC_Sections.json";
-import { MAP_LANDMARKS } from "../fab/mapLandmarks";
-import { recordsToFeatureCollection } from "../locator/burialRecords";
+import landmarks from "../../data/NotablesTour20.json";
 import { BOUNDARY_BBOX } from "./generatedBounds";
 
 const EMPTY_COLLECTION = { type: "FeatureCollection", features: [] };
@@ -46,7 +45,7 @@ export const createMapStyle = () => ({
     boundary: { type: "geojson", data: boundary },
     roads: { type: "geojson", data: roads },
     sections: { type: "geojson", data: sections },
-    landmarks: { type: "geojson", data: recordsToFeatureCollection(MAP_LANDMARKS) },
+    landmarks: { type: "geojson", data: landmarks },
     records: { type: "geojson", data: EMPTY_COLLECTION },
     "tour-records": { type: "geojson", data: EMPTY_COLLECTION },
     selected: { type: "geojson", data: EMPTY_COLLECTION },
@@ -200,7 +199,7 @@ export const createMapStyle = () => ({
       source: "landmarks",
       minzoom: 15.5,
       layout: {
-        "text-field": ["get", "name"],
+        "text-field": ["get", "Full_Name"],
         "text-font": ["Arial"],
         "text-size": ["interpolate", ["linear"], ["zoom"], 15.5, 13, 18, 15],
         "text-variable-anchor": ["top", "bottom", "left", "right"],

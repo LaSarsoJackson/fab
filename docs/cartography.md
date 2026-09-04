@@ -41,8 +41,8 @@ or tour stop.
 - Use one warm section highlight and one strong selected-record color.
 - Label roads from `ARC_Roads.json` and landmarks from `NotablesTour20.json`.
   Draw these names above the basemap at full opacity with pale halos. Use local
-  fonts, collision handling, and zoom thresholds. A landmark label opens the
-  same record as its tour entry; names and coordinates remain source-derived.
+  fonts, collision handling, and zoom thresholds. Names are reference labels;
+  visitors select graves through the locator or an active tour.
 - Keep provider attribution visible in every map mode.
 
 ## What is deliberately absent

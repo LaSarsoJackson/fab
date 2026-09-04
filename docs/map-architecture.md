@@ -44,8 +44,7 @@ line width or adding more controls.
   Do not replace that list with hundreds of unlabeled grave markers.
 - Fit every polygon belonging to the selected section. Sections such as 49
   consist of multiple features; using only one gives an incomplete extent.
-- Landmark labels use existing Notables Tour records and open their normal
-  record/deep-link flow. The selected landmark's background label is suppressed.
+- Landmark names label the map. They do not start a tour or intercept section taps.
 - Curated tour stops are never proximity-clustered; every stop remains visible.
 - A selected record is rendered once in the dedicated selected source.
 - Tour stops remain directly selectable in an accessible HTML list; the canvas
