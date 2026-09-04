@@ -35,14 +35,15 @@ const useTestBurialSearch = () => ({
   runSearch: runBurialSearch,
 });
 
-const renderApp = () => render(
-  <App MapComponent={TestMapView} useBurialSearchHook={useTestBurialSearch} />
+const renderApp = (useBurialSearchHook = useTestBurialSearch) => render(
+  <App MapComponent={TestMapView} useBurialSearchHook={useBurialSearchHook} />
 );
 
 describe("App product shell", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/fab/?view=tours");
     Object.defineProperty(navigator, "share", { configurable: true, value: undefined });
+    delete window.ReactNativeWebView;
     window.localStorage.clear();
     clearBurialSearch.mockReset();
     runBurialSearch.mockReset();
@@ -78,6 +79,140 @@ describe("App product shell", () => {
     renderApp();
     expect(screen.queryByRole("navigation", { name: "Primary" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Search Tours" })).toBeInTheDocument();
+  });
+
+  it("hands a cross-view tour route to FABFG without mutating the source view", () => {
+    const postMessage = vi.fn();
+    window.ReactNativeWebView = { postMessage };
+    window.history.replaceState({}, "", "/fab/?view=tours&embed=fabfg&campaign=summer");
+    const sourceUrl = window.location.href;
+
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: /Notables Tour 2020/ }));
+
+    expect(postMessage).toHaveBeenCalledOnce();
+    expect(window.location.href).toBe(sourceUrl);
+    expect(screen.getByRole("heading", { name: "Search Tours" })).toBeInTheDocument();
+    expect(screen.queryByRole("complementary", { name: "Notables Tour 2020" }))
+      .not.toBeInTheDocument();
+    const message = JSON.parse(postMessage.mock.calls[0][0]);
+    const url = new URL(message.url);
+    expect(message).toMatchObject({ type: "fab.route-change.v1", view: "map" });
+    expect(url.searchParams.get("view")).toBe("map");
+    expect(url.searchParams.get("tour")).toBe("Notable");
+    expect(url.searchParams.get("embed")).toBe("fabfg");
+    expect(url.searchParams.get("campaign")).toBe("summer");
+  });
+
+  it("tells FABFG to open Map with the complete selected burial URL", () => {
+    const burial = {
+      id: "burial:section-18:first",
+      source: "burial",
+      displayName: "Section record",
+      section: "18",
+      coordinates: [-73.73, 42.7],
+    };
+    const postMessage = vi.fn();
+    window.ReactNativeWebView = { postMessage };
+    window.history.replaceState(
+      {},
+      "",
+      "/fab/?view=burials&embed=fabfg&q=Hall&section=18"
+    );
+
+    renderApp(() => ({
+      status: "ready",
+      results: [burial],
+      total: 1,
+      error: "",
+      clear: clearBurialSearch,
+      runSearch: runBurialSearch,
+    }));
+    fireEvent.click(screen.getByRole("button", { name: /Section record/ }));
+
+    expect(postMessage).toHaveBeenCalledOnce();
+    expect(screen.getByRole("heading", { name: "Burial Locator" })).toBeInTheDocument();
+    expect(new URL(window.location.href).searchParams.get("view")).toBe("burials");
+    expect(screen.queryByRole("heading", { name: "Section record" })).not.toBeInTheDocument();
+    const message = JSON.parse(postMessage.mock.calls[0][0]);
+    const url = new URL(message.url);
+    expect(message).toMatchObject({ type: "fab.route-change.v1", view: "map" });
+    expect(url.searchParams.get("record")).toBe(burial.id);
+    expect(url.searchParams.get("q")).toBe("Hall");
+    expect(url.searchParams.get("section")).toBe("18");
+    expect(url.searchParams.get("embed")).toBe("fabfg");
+  });
+
+  it("tells FABFG to open Burials with the selected map section", () => {
+    const postMessage = vi.fn();
+    window.ReactNativeWebView = { postMessage };
+    window.history.replaceState({}, "", "/fab/?view=map&embed=fabfg");
+
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Select Section 18" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Section 18" }))
+      .getByRole("button", { name: "View burials" }));
+
+    expect(postMessage).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("region", { name: "Cemetery Map" })).toBeVisible();
+    expect(new URL(window.location.href).searchParams.get("view")).toBe("map");
+    const message = JSON.parse(postMessage.mock.calls.at(-1)[0]);
+    const url = new URL(message.url);
+    expect(message).toMatchObject({ type: "fab.route-change.v1", view: "burials" });
+    expect(url.searchParams.get("view")).toBe("burials");
+    expect(url.searchParams.get("section")).toBe("18");
+    expect(url.searchParams.get("embed")).toBe("fabfg");
+  });
+
+  it.each([
+    ["a missing bridge", undefined],
+    ["a throwing bridge", { postMessage: vi.fn(() => { throw new Error("disconnected"); }) }],
+  ])("navigates locally when an embedded cross-view handoff has %s", async (_label, bridge) => {
+    window.history.replaceState({}, "", "/fab/?view=tours&embed=fabfg");
+    if (bridge) window.ReactNativeWebView = bridge;
+
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: /Notables Tour 2020/ }));
+
+    expect(await screen.findByRole("complementary", { name: "Notables Tour 2020" }))
+      .toBeInTheDocument();
+    expect(new URL(window.location.href).searchParams.get("view")).toBe("map");
+  });
+
+  it("keeps same-view embedded changes local and posts their durable route", () => {
+    const postMessage = vi.fn();
+    window.ReactNativeWebView = { postMessage };
+    window.history.replaceState({}, "", "/fab/?view=map&embed=fabfg");
+
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Select Section 18" }));
+
+    expect(new URL(window.location.href).searchParams.get("section")).toBe("18");
+    expect(screen.getByRole("group", { name: "Section 18" })).toBeInTheDocument();
+    expect(postMessage).toHaveBeenCalledOnce();
+    expect(new URL(JSON.parse(postMessage.mock.calls[0][0]).url).searchParams.get("section"))
+      .toBe("18");
+  });
+
+  it("posts the visible embedded route after WebView Back/popstate", () => {
+    const postMessage = vi.fn();
+    window.ReactNativeWebView = { postMessage };
+    const view = renderApp();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cemetery Map" }));
+    expect(postMessage).not.toHaveBeenCalled();
+
+    view.unmount();
+    window.history.replaceState({}, "", "/fab/?view=tours&embed=fabfg");
+    renderApp();
+    window.history.pushState({}, "", "/fab/?view=tours&embed=fabfg&q=Hall");
+    fireEvent.popState(window);
+    expect(postMessage).toHaveBeenCalledOnce();
+    expect(JSON.parse(postMessage.mock.calls[0][0])).toMatchObject({
+      type: "fab.route-change.v1",
+      view: "tours",
+      url: window.location.href,
+    });
   });
 
   it("selects a tour stop without relying on the canvas and restores its deep link", async () => {

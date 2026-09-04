@@ -20,6 +20,20 @@ New share links use `record`; do not create new packed field packets.
 FABFG should load the three canonical routes with `embed=fabfg`. The native
 shell owns its tabs; embedded FAB owns content and route behavior.
 
+When an embedded user action changes destinations, FAB posts a versioned native
+message after updating the browser URL:
+
+```json
+{"type":"fab.route-change.v1","view":"map","url":"https://lasarsojackson.github.io/fab/?view=map&embed=fabfg&tour=Notable"}
+```
+
+The `url` is the complete route and remains the source of truth. FABFG validates
+the hosted origin, `/fab/` path, `embed=fabfg`, and matching `view`, then changes
+the visible native tab without reconstructing query parameters. Initial loads
+do not post messages. Browser `popstate` events post the route that the WebView
+has already displayed so the native shell can persist Back navigation without
+reloading that WebView.
+
 External directions are built in [`src/shared/routing.js`](../src/shared/routing.js).
 Apple platforms open Apple Maps; Android and other platforms use Google Maps.
 FAB does not compute a walking line from `ARC_Roads.json`. That file describes
