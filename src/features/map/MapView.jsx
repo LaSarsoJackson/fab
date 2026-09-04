@@ -8,10 +8,11 @@ import {
   setWorkerUrl,
 } from "maplibre-gl";
 import mapLibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import sections from "../../data/ARC_Sections.json";
-import { getGeoJsonBounds, isCoordinatePairValid } from "../../shared/geoJsonBounds";
+import { isCoordinatePairValid } from "../../shared/geoJsonBounds";
 import { recordsToFeatureCollection } from "../locator/burialRecords";
+import { MAP_LANDMARKS } from "../fab/mapLandmarks";
 import { CEMETERY_VIEW, createMapStyle, MAP_LAYER_IDS } from "./mapStyle";
+import { getSectionBounds } from "./mapSections";
 
 const EMPTY_COLLECTION = { type: "FeatureCollection", features: [] };
 const MAP_PREFERENCES_KEY = "fab.map-preferences.v1";
@@ -19,14 +20,12 @@ const DEFAULT_MAP_PREFERENCES = Object.freeze({
   hillshade: true,
   showSections: false,
 });
-const SECTION_FEATURES = new globalThis.Map(
-  sections.features.map((feature) => [String(feature.properties?.Section || "").trim(), feature])
-);
 // One canvas point can intersect several MapLibre layers. The first match owns the click.
 const INTERACTIVE_LAYER_IDS = [
   MAP_LAYER_IDS.selectedRecord,
   MAP_LAYER_IDS.tourRecords,
   MAP_LAYER_IDS.records,
+  MAP_LAYER_IDS.landmarkLabels,
   MAP_LAYER_IDS.sections,
 ];
 
@@ -91,8 +90,7 @@ const focusSelectedRecord = (map, selectedRecord, viewport) => {
 
 const focusSelectedSection = (map, selectedSection, tourStopsPresent, viewport) => {
   if (!selectedSection) return false;
-  const sectionFeature = SECTION_FEATURES.get(String(selectedSection));
-  const sectionBounds = getGeoJsonBounds(sectionFeature);
+  const sectionBounds = getSectionBounds(selectedSection);
   if (!sectionBounds) return false;
   const [[south, west], [north, east]] = sectionBounds;
   map.fitBounds([[west, south], [east, north]], {
@@ -241,7 +239,8 @@ export default function MapView({
     };
     const selectRecord = (feature) => {
       const recordId = String(feature.properties?.id || "");
-      const record = recordsRef.current.find(({ id }) => String(id) === recordId);
+      const candidates = feature.layer.id === MAP_LAYER_IDS.landmarkLabels ? MAP_LANDMARKS : recordsRef.current;
+      const record = candidates.find(({ id }) => String(id) === recordId);
       if (record) onRecordSelectRef.current?.(record);
     };
     map.on("click", (event) => {
@@ -283,7 +282,9 @@ export default function MapView({
   useEffect(() => {
     const map = readyMap;
     if (!map || mapRef.current !== map) return;
-    const visibleRecords = showRecordMarkers ? records : [];
+    const visibleRecords = showRecordMarkers
+      ? records.filter(({ id }) => String(id) !== String(selectedRecord?.id))
+      : [];
     const burialRecords = visibleRecords.filter(({ source }) => source !== "tour");
     const tourRecords = visibleRecords.filter(({ source }) => source === "tour");
     map.getSource("records")?.setData(recordsToFeatureCollection(burialRecords));
@@ -291,19 +292,20 @@ export default function MapView({
 
     const updateVisibleMarkerCount = () => {
       const visible = map.queryRenderedFeatures({
-        layers: [MAP_LAYER_IDS.records, MAP_LAYER_IDS.tourRecords],
+        layers: [MAP_LAYER_IDS.records, MAP_LAYER_IDS.tourRecords, MAP_LAYER_IDS.selectedRecord],
       });
       setVisibleMarkerCount(visible.length);
     };
     map.on("render", updateVisibleMarkerCount);
     return () => map.off("render", updateVisibleMarkerCount);
-  }, [readyMap, records, showRecordMarkers]);
+  }, [readyMap, records, selectedRecord, showRecordMarkers]);
 
   useEffect(() => {
     const map = readyMap;
     if (!map || mapRef.current !== map) return;
     const data = selectedRecord ? recordsToFeatureCollection([selectedRecord]) : EMPTY_COLLECTION;
     map.getSource("selected")?.setData(data);
+    map.setFilter(MAP_LAYER_IDS.landmarkLabels, ["!=", ["get", "id"], String(selectedRecord?.id || "")]);
   }, [readyMap, selectedRecord]);
 
   useEffect(() => {
@@ -321,6 +323,8 @@ export default function MapView({
     setLayerVisibility(map, MAP_LAYER_IDS.sectionOutlines, showSections);
     setLayerVisibility(map, MAP_LAYER_IDS.selectedSection, Boolean(selectedSection));
     map.setFilter(MAP_LAYER_IDS.selectedSection, matchesSection);
+    setLayerVisibility(map, MAP_LAYER_IDS.sectionLabels, showSections || Boolean(selectedSection));
+    map.setFilter(MAP_LAYER_IDS.sectionLabels, showSections ? null : matchesSection);
   }, [hillshade, readyMap, selectedSection, showSections]);
 
   useEffect(() => {

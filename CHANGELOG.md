@@ -6,6 +6,13 @@ contract releases.
 
 ## [Unreleased]
 
+- Restored the earlier terrain source, reduced the competing basemap colors,
+  and added readable cemetery road, landmark, and section labels.
+- Kept section taps available with shading off and corrected zooming for
+  sections made of multiple polygons.
+- Rendered selected graves once and included selected collection graves in
+  the visible marker count.
+
 ## [0.3.0] - 2026-08-13
 
 - Replaced the mobile drawer with three fixed, touch-friendly Tours, Map, and

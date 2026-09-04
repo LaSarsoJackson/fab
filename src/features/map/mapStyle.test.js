@@ -10,7 +10,7 @@ describe("cartographic style contract", () => {
     expect(JSON.stringify(style)).not.toContain("/basemaps/");
   });
 
-  test("keeps legible hillshade beneath the labeled reference map", () => {
+  test("restores the earlier terrain source and draws cemetery labels above it", () => {
     const layer = style.layers.find(({ id }) => id === MAP_LAYER_IDS.hillshade);
     const mapIndex = style.layers.findIndex(({ id }) => id === MAP_LAYER_IDS.map);
     const groundIndex = style.layers.findIndex(({ id }) => id === "cemetery-ground");
@@ -18,12 +18,9 @@ describe("cartographic style contract", () => {
     const boundaryIndex = style.layers.findIndex(({ id }) => id === "cemetery-boundary");
     const roadsIndex = style.layers.findIndex(({ id }) => id === "cemetery-roads");
     const recordsIndex = style.layers.findIndex(({ id }) => id === MAP_LAYER_IDS.records);
-    expect(style.sources.hillshade.type).toBe("raster-dem");
-    expect(style.sources.hillshade.encoding).toBe("terrarium");
-    expect(layer.type).toBe("hillshade");
-    expect(layer.paint["hillshade-method"]).toBe("standard");
-    expect(layer.paint["hillshade-exaggeration"]).toBeGreaterThanOrEqual(0.7);
-    expect(layer.paint["hillshade-exaggeration"]).toBeLessThanOrEqual(0.95);
+    expect(style.sources.hillshade.type).toBe("raster");
+    expect(style.sources.hillshade.tiles[0]).toContain("Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}");
+    expect(layer.type).toBe("raster");
     expect(style.sources.hillshade.attribution).toContain("U.S. Geological Survey");
     expect(style.sources["osm-map"].attribution).toContain("OpenStreetMap");
     expect(hillshadeIndex).toBeLessThan(mapIndex);
@@ -31,12 +28,19 @@ describe("cartographic style contract", () => {
     expect(hillshadeIndex).toBeLessThan(boundaryIndex);
     expect(hillshadeIndex).toBeLessThan(roadsIndex);
     expect(hillshadeIndex).toBeLessThan(recordsIndex);
+    for (const id of ["cemetery-road-labels", MAP_LAYER_IDS.landmarkLabels, MAP_LAYER_IDS.sectionLabels]) {
+      expect(style.layers.findIndex((candidate) => candidate.id === id)).toBeGreaterThan(roadsIndex);
+    }
+    // Labels use local fonts and stay independent of the raster's opacity.
+    expect(style.glyphs).toBeUndefined();
+    expect(style.layers.find(({ id }) => id === MAP_LAYER_IDS.landmarkLabels).paint["text-opacity"] ?? 1).toBe(1);
   });
 
   test("distinguishes cemetery paths from map context", () => {
     const casing = style.layers.find(({ id }) => id === "cemetery-road-casing");
-
-    expect(casing.paint["line-color"]).toBe("#b64032");
+    const roads = style.layers.find(({ id }) => id === "cemetery-roads");
+    expect(roads.paint["line-color"]).toBe("#b64032");
+    expect(casing.paint["line-color"]).not.toBe(roads.paint["line-color"]);
     expect(casing.paint["line-opacity"]).toBeGreaterThanOrEqual(0.9);
   });
 

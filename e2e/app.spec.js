@@ -4,7 +4,7 @@ const APP_PORT = process.env.PLAYWRIGHT_APP_PORT || "4173";
 const APP_HOSTS = new Set([`127.0.0.1:${APP_PORT}`, `localhost:${APP_PORT}`]);
 const TILE_HOSTS = [
   "tile.openstreetmap.org",
-  "s3.amazonaws.com",
+  "services.arcgisonline.com",
 ];
 
 const isProviderTileFetchError = (message) => (
@@ -160,6 +160,7 @@ test("collections stay list-first and pin only the chosen grave", async ({ page 
   await firstGrave.click();
   await expect(page.getByRole("heading", { name: graveName })).toBeVisible();
   await expect(page.getByRole("button", { name: "Unpin" })).toBeVisible();
+  await expect(page.locator("[data-visible-marker-count]")).toHaveAttribute("data-visible-marker-count", "1");
 });
 
 test("burial search opens the selected grave on the map", async ({ page }) => {
