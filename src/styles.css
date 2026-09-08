@@ -1009,11 +1009,10 @@ button.secondary-button {
 }
 
 .maplibregl-ctrl-bottom-right {
-  top: calc(max(10px, env(safe-area-inset-top)) + 112px);
-  right: auto;
+  top: calc(env(safe-area-inset-top) + 156px);
+  right: env(safe-area-inset-right);
   bottom: auto;
   left: max(10px, env(safe-area-inset-left));
-  width: calc(100% - 76px);
 }
 
 .maplibregl-ctrl-attrib {
@@ -1024,13 +1023,32 @@ button.secondary-button {
   font-size: 10px;
 }
 
+.maplibregl-ctrl-attrib.maplibregl-compact {
+  box-sizing: border-box;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.maplibregl-ctrl-attrib.maplibregl-compact-show {
+  padding: 2px 48px 2px 8px;
+}
+
+.maplibregl-ctrl-attrib-inner {
+  max-height: 48px;
+  overflow-y: auto;
+}
+
 .maplibregl-ctrl-attrib-button {
-  min-width: 40px;
-  min-height: 40px;
+  width: 42px;
+  height: 42px;
   background-position: center;
   background-repeat: no-repeat;
   background-size: 24px 24px;
-  border-radius: 50%;
+  border-radius: var(--radius);
 }
 
 .maplibregl-ctrl-attrib a {
@@ -1222,16 +1240,7 @@ button.secondary-button {
   }
 
   .maplibregl-ctrl-bottom-right {
-    top: calc(env(safe-area-inset-top) + 166px);
-    right: max(10px, env(safe-area-inset-right));
-    bottom: auto;
     left: min(540px, calc(100% - 150px));
-    width: auto;
-  }
-
-  .maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-inner {
-    max-height: calc(100vh - 266px);
-    overflow-y: auto;
   }
 }
 
