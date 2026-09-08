@@ -48,6 +48,14 @@ for (const width of [375, 1440]) {
     await observeMap(page);
     await page.goto("./?view=map&section=49");
     await waitForMap(page);
+    await page.evaluate(() => globalThis.testMap.jumpTo({ zoom: 16 }));
+    await waitForMap(page);
+    expect(await page.evaluate(() => globalThis.testMap.queryRenderedFeatures({
+      layers: ["cemetery-landmark-labels"],
+    }).length)).toBe(0);
+    const credits = await page.getByLabel("Map credits", { exact: true }).boundingBox();
+    const zoom = await page.getByRole("button", { name: "Zoom in", exact: true }).boundingBox();
+    expect(Math.abs((credits.x + credits.width / 2) - (zoom.x + zoom.width / 2))).toBeLessThan(2);
     await page.evaluate(() => globalThis.testMap.jumpTo({
       center: [-73.73362, 42.70749], zoom: 16.8,
     }));

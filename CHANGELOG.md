@@ -6,6 +6,8 @@ contract releases.
 
 ## [Unreleased]
 
+- Reduced map label density and outlines, and aligned map credits with the
+  right-hand controls on mobile.
 - Restored the earlier terrain source, reduced the competing basemap colors,
   and added readable cemetery road, landmark, and section labels.
 - Kept section taps available with shading off and corrected zooming for
