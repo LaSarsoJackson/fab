@@ -9,6 +9,7 @@ const TestMapView = ({
   active,
   records = [],
   selectedSection,
+  showRecordMarkers,
   onBrowseSection,
   onSectionSelect,
 }) => (
@@ -16,6 +17,7 @@ const TestMapView = ({
     aria-label="Albany Rural Cemetery map"
     data-active={active}
     data-record-count={records.length}
+    data-record-markers={showRecordMarkers}
   >
     <button type="button" onClick={() => onSectionSelect("18")}>Select Section 18</button>
     {selectedSection ? (
@@ -257,7 +259,7 @@ describe("App product shell", () => {
     const panel = await screen.findByRole("complementary", { name: "Notables Tour 2020" });
     fireEvent.click(within(panel).getByRole("button", { name: /James Hall/ }));
 
-    fireEvent.click(within(panel).getByRole("button", { name: "All tours" }));
+    fireEvent.click(within(panel).getByRole("button", { name: "Back to Search Tours" }));
 
     expect(screen.getByRole("heading", { name: "Search Tours" })).toBeInTheDocument();
     expect(new URL(window.location.href).search).toBe("?view=tours");
@@ -285,7 +287,7 @@ describe("App product shell", () => {
 
     fireEvent.click(within(sectionContext).getByRole("button", { name: "View burials" }));
     expect(screen.getByRole("heading", { name: "Burial Locator" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Section number")).toHaveValue("18");
+    expect(screen.getByLabelText("Section")).toHaveValue("18");
   });
 
   it("turns a section click into a section map without losing the resumable tour", async () => {
@@ -367,11 +369,13 @@ describe("App product shell", () => {
     renderApp();
     fireEvent.click(screen.getByRole("button", { name: /Section 49/ }));
     const panel = await screen.findByRole("complementary", { name: "Section 49" });
+    expect(screen.getByLabelText("Albany Rural Cemetery map"))
+      .toHaveAttribute("data-record-markers", "false");
     const collectionPlace = panel.querySelector(".tour-stop");
     expect(collectionPlace).not.toBeNull();
     fireEvent.click(collectionPlace);
 
-    expect(screen.queryByRole("navigation", { name: "Tour places" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Tour stops" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Place \d+ of/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Unpin" })).toBeInTheDocument();
   }, 10_000);

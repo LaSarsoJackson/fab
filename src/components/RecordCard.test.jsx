@@ -50,7 +50,7 @@ describe("RecordCard", () => {
     );
 
     expect(screen.getByText("Notables Tour 2020")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Read biography/ }))
+    expect(screen.getByRole("link", { name: "Read biography", exact: true }))
       .toHaveAttribute("href", "https://www.albany.edu/arce/james-hall.html");
     expect(container.querySelector(".record-card__portrait"))
       .toHaveAttribute("src", "https://www.albany.edu/arce/images/james-hall.jpg");
@@ -71,7 +71,7 @@ describe("RecordCard", () => {
       />
     );
 
-    expect(screen.getByText("Notables Tour 2020 · Place 2 of 38")).toBeInTheDocument();
+    expect(screen.getByText("Notables Tour 2020 · 2 of 38")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Previous place" }));
     fireEvent.click(screen.getByRole("button", { name: "All places" }));
     fireEvent.click(screen.getByRole("button", { name: "Next place" }));

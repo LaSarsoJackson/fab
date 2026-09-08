@@ -4,6 +4,7 @@ import {
   formatRecordSecondaryText,
   normalizeRecordName,
 } from "../fab/recordValues";
+import { isCoordinatePairValid } from "../../shared/geoJsonBounds";
 
 export const buildBurialRecord = (feature) => {
   const properties = feature.properties || feature;
@@ -76,11 +77,7 @@ export const inflateBurialRow = (row = {}) => {
 export const recordsToFeatureCollection = (records = []) => ({
   type: "FeatureCollection",
   features: records
-    .filter((record) => (
-      Array.isArray(record?.coordinates) &&
-      Number.isFinite(record.coordinates[0]) &&
-      Number.isFinite(record.coordinates[1])
-    ))
+    .filter((record) => isCoordinatePairValid(record?.coordinates))
     .map((record) => ({
       type: "Feature",
       id: record.id,

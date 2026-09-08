@@ -1,6 +1,7 @@
 import boundary from "../../data/ARC_Boundary.json";
 import roads from "../../data/ARC_Roads.json";
 import sections from "../../data/ARC_Sections.json";
+import landmarks from "../../data/NotablesTour20.json";
 import { BOUNDARY_BBOX } from "./generatedBounds";
 
 const EMPTY_COLLECTION = { type: "FeatureCollection", features: [] };
@@ -16,7 +17,9 @@ export const MAP_LAYER_IDS = Object.freeze({
   hillshade: "terrain-hillshade",
   sections: "cemetery-sections",
   sectionOutlines: "cemetery-section-outlines",
+  sectionLabels: "cemetery-section-labels",
   selectedSection: "selected-section",
+  landmarkLabels: "cemetery-landmark-labels",
   records: "records",
   tourRecords: "tour-records",
   selectedRecord: "selected-record",
@@ -33,33 +36,33 @@ export const createMapStyle = () => ({
       maxzoom: 19,
     },
     hillshade: {
-      type: "raster-dem",
-      tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+      type: "raster",
+      tiles: ["https://services.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}"],
       tileSize: 256,
-      encoding: "terrarium",
-      attribution: "Terrain data courtesy of <a href=\"https://www.usgs.gov/3d-elevation-program\">U.S. Geological Survey</a>",
-      maxzoom: 15,
+      attribution: "Terrain sources: Esri, Vantor, Airbus DS, <a href=\"https://www.usgs.gov/3d-elevation-program\">U.S. Geological Survey</a>, NGA, NASA, CGIAR, N Robinson, NCEAS, NLS, OS, NMA, Geodatastyrelsen, Rijkswaterstaat, GSA, Geoland, FEMA, Intermap, and the GIS user community",
+      maxzoom: 16,
     },
     boundary: { type: "geojson", data: boundary },
     roads: { type: "geojson", data: roads },
     sections: { type: "geojson", data: sections },
+    landmarks: { type: "geojson", data: landmarks },
     records: { type: "geojson", data: EMPTY_COLLECTION },
     "tour-records": { type: "geojson", data: EMPTY_COLLECTION },
     selected: { type: "geojson", data: EMPTY_COLLECTION },
   },
   layers: [
     {
+      id: "map-background",
+      type: "background",
+      paint: { "background-color": "#f6f5ef" },
+    },
+    {
       id: MAP_LAYER_IDS.hillshade,
-      type: "hillshade",
+      type: "raster",
       source: "hillshade",
       paint: {
-        "hillshade-method": "standard",
-        "hillshade-illumination-anchor": "map",
-        "hillshade-illumination-direction": 315,
-        "hillshade-exaggeration": 0.9,
-        "hillshade-shadow-color": "#243c32",
-        "hillshade-highlight-color": "#fffdf4",
-        "hillshade-accent-color": "#425b4f",
+        "raster-opacity": 1,
+        "raster-saturation": -1,
       },
     },
     {
@@ -67,10 +70,10 @@ export const createMapStyle = () => ({
       type: "raster",
       source: "osm-map",
       paint: {
-        "raster-opacity": 0.72,
-        "raster-saturation": -0.1,
-        "raster-contrast": 0.06,
-        "raster-brightness-min": 0.04,
+        "raster-opacity": 0.38,
+        "raster-saturation": -0.8,
+        "raster-contrast": 0,
+        "raster-brightness-min": 0,
         "raster-brightness-max": 1,
       },
     },
@@ -106,10 +109,10 @@ export const createMapStyle = () => ({
       id: MAP_LAYER_IDS.sections,
       type: "fill",
       source: "sections",
-      layout: { visibility: "none" },
       paint: {
         "fill-color": "#d9a441",
-        "fill-opacity": 0.18,
+        // Transparent polygons remain available for section taps.
+        "fill-opacity": 0,
       },
     },
     {
@@ -117,9 +120,9 @@ export const createMapStyle = () => ({
       type: "line",
       source: "roads",
       paint: {
-        "line-color": "#b64032",
-        "line-opacity": 0.92,
-        "line-width": ["interpolate", ["linear"], ["zoom"], 13, 2.4, 18, 7],
+        "line-color": "#fffdf7",
+        "line-opacity": 1,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 13, 3.5, 18, 7],
       },
     },
     {
@@ -127,8 +130,8 @@ export const createMapStyle = () => ({
       type: "line",
       source: "roads",
       paint: {
-        "line-color": "#f8f6ef",
-        "line-width": ["interpolate", ["linear"], ["zoom"], 13, 1, 18, 4],
+        "line-color": "#b64032",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 13, 1.8, 18, 3.5],
       },
     },
     {
@@ -151,6 +154,63 @@ export const createMapStyle = () => ({
       paint: {
         "line-color": "#8d5317",
         "line-width": 3,
+      },
+    },
+    {
+      id: "cemetery-road-labels",
+      type: "symbol",
+      source: "roads",
+      minzoom: 15,
+      filter: ["!=", ["coalesce", ["get", "Cemetery_R"], ""], ""],
+      layout: {
+        "symbol-placement": "line",
+        "symbol-spacing": 250,
+        "text-field": ["get", "Cemetery_R"],
+        "text-font": ["Arial"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 15, 12, 18, 14],
+        "text-padding": 8,
+      },
+      paint: {
+        "text-color": "#49342c",
+        "text-halo-color": "#fffdf7",
+        "text-halo-width": 2,
+      },
+    },
+    {
+      id: MAP_LAYER_IDS.sectionLabels,
+      type: "symbol",
+      source: "sections",
+      layout: {
+        visibility: "none",
+        "text-field": ["concat", "Section ", ["to-string", ["get", "Section"]]],
+        "text-font": ["Arial"],
+        "text-size": 13,
+        "text-padding": 10,
+      },
+      paint: {
+        "text-color": "#684818",
+        "text-halo-color": "#fffdf7",
+        "text-halo-width": 2,
+      },
+    },
+    {
+      id: MAP_LAYER_IDS.landmarkLabels,
+      type: "symbol",
+      source: "landmarks",
+      minzoom: 15.5,
+      layout: {
+        "text-field": ["get", "Full_Name"],
+        "text-font": ["Arial"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 15.5, 13, 18, 15],
+        "text-variable-anchor": ["top", "bottom", "left", "right"],
+        "text-radial-offset": 0.5,
+        "text-max-width": 10,
+        "text-padding": 6,
+      },
+      paint: {
+        "text-color": "#263b30",
+        "text-halo-color": "#fffdf7",
+        "text-halo-width": 2,
       },
     },
     {

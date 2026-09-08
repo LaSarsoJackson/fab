@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CloseIcon, ExternalIcon } from "../app/icons";
 import { resolveArceBiographyUrl, resolveArceImageUrl } from "../features/fab/arceLinks";
 import { formatRecordLocation } from "../features/locator/burialRecords";
@@ -6,12 +6,12 @@ import { buildDirectionsLink } from "../shared/routing";
 
 const clean = (value) => String(value || "").trim();
 
-const RecordPortrait = ({ imageUrl, biographyUrl }) => {
+const RecordPortrait = ({ imageUrl, biographyUrl, name }) => {
   if (!imageUrl) return null;
   const image = <img src={imageUrl} alt="" className="record-card__portrait" />;
   if (!biographyUrl) return image;
   return (
-    <a href={biographyUrl} target="_blank" rel="noreferrer" className="record-card__portrait-link">
+    <a href={biographyUrl} target="_blank" rel="noreferrer" className="record-card__portrait-link" aria-label={`Read biography of ${name}`}>
       {image}
     </a>
   );
@@ -22,7 +22,7 @@ const RecordIdentity = ({ record, birth, death, tourContext }) => (
     {record.tourName ? (
       <p className="record-card__source">
         {record.tourName}
-        {tourContext ? ` · Place ${tourContext.position} of ${tourContext.total}` : ""}
+        {tourContext ? ` · ${tourContext.position} of ${tourContext.total}` : ""}
       </p>
     ) : null}
     <h2 id="record-card-title">{record.displayName}</h2>
@@ -35,7 +35,7 @@ const RecordIdentity = ({ record, birth, death, tourContext }) => (
 const TourNavigation = ({ tourContext }) => {
   if (!tourContext) return null;
   return (
-    <nav className="record-card__tour-navigation" aria-label="Tour places">
+    <nav className="record-card__tour-navigation" aria-label="Tour stops">
       <button
         type="button"
         className="text-button"
@@ -91,6 +91,12 @@ export default function RecordCard({
   tourContext = null,
 }) {
   const [shareStatus, setShareStatus] = useState("");
+  const closeButtonRef = useRef(null);
+
+  useEffect(() => {
+    if (open) closeButtonRef.current?.focus({ preventScroll: true });
+  }, [open, record?.id]);
+
   if (!record || !open) return null;
 
   const birth = clean(record.birth || record.Birth);
@@ -125,25 +131,27 @@ export default function RecordCard({
 
   return (
     <article className="record-card" aria-labelledby="record-card-title">
-      <button type="button" className="icon-button record-card__close" onClick={onClose} aria-label="Close details">
+      <button ref={closeButtonRef} type="button" className="icon-button record-card__close" onClick={onClose} aria-label="Close details">
         <CloseIcon />
       </button>
-      <div className="record-card__body">
-        <RecordPortrait imageUrl={imageUrl} biographyUrl={biographyUrl} />
-        <RecordIdentity record={record} birth={birth} death={death} tourContext={tourContext} />
+      <div className="record-card__details" key={record.id}>
+        <div className="record-card__body">
+          <RecordPortrait imageUrl={imageUrl} biographyUrl={biographyUrl} name={record.displayName} />
+          <RecordIdentity record={record} birth={birth} death={death} tourContext={tourContext} />
+        </div>
+        <TourNavigation tourContext={tourContext} />
+        <details className="record-card__share">
+          <summary>Share pinned grave</summary>
+          <button type="button" className="text-button" onClick={share}>Share link</button>
+          {shareStatus ? <span role="status">{shareStatus}</span> : null}
+        </details>
       </div>
-      <TourNavigation tourContext={tourContext} />
       <RecordActions
         biographyUrl={biographyUrl}
         directions={directions}
         onUnpin={onUnpin}
         tourContext={tourContext}
       />
-      <details className="record-card__share">
-        <summary>Share pinned grave</summary>
-        <button type="button" className="text-button" onClick={share}>Share link</button>
-        {shareStatus ? <span role="status">{shareStatus}</span> : null}
-      </details>
     </article>
   );
 }

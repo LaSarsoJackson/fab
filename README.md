@@ -6,9 +6,7 @@
 
 ## About the project
 
-Historic burial records become more useful when people can connect them to a place. Grave Finder brings searchable records, cemetery geography, and curated tours into one public web application.
-
-Visitors can search a 97,457-record burial index, locate graves on an interactive map, and explore the cemetery through tours. The project combines GIS data with a web interface for public access to local history.
+Visitors can search a 97,457-record burial index, locate graves on an interactive map, and explore the cemetery through tours.
 
 | Destination | What visitors can do |
 | --- | --- |
@@ -18,15 +16,9 @@ Visitors can search a 97,457-record burial index, locate graves on an interactiv
 
 ## Development overview
 
-FAB is the shared Albany Grave Finder web app. It has three user destinations:
-
-- Search Tours
-- Cemetery Map
-- Burial Locator
-
-The web app owns the product, map, data delivery, and deep-link contract. `FABFG`
-is a thin native shell around those hosted destinations; it must not recreate
-the web app’s map or search state.
+FAB is the shared Albany Grave Finder web app. It owns the map, data delivery,
+and deep-link contract. `FABFG` is a thin native shell around those hosted
+destinations; it must not recreate the web app’s map or search state.
 
 ## Stack
 
@@ -61,7 +53,7 @@ No Python image server or geospatial Python environment is required.
 ## Commands
 
 - `bun run start`: run the Vite development server
-- `bun run lint`: run ESLint, Oxlint complexity checks, and the vendored anti-slop rules
+- `bun run lint`: run ESLint, Oxlint complexity checks, and project-specific lint rules
 - `bun run test`: run Bun unit/data tests and Vitest component tests
 - `bun run test:e2e`: run the Playwright product flows
 - `bun run build`: generate tour aliases and build `dist/`
@@ -82,25 +74,24 @@ The query string is the route contract:
 Additional parameters are `q`, `section`, `tour`, and `record`. Old packed
 `share` links remain readable, but new links use the smaller `record` contract.
 
-FABFG should load the same hosted app with `embed=fabfg` so the native shell
-owns the tabs and the web app does not draw a duplicate navigation bar:
+Load the same hosted app in FABFG with `embed=fabfg`. The native shell owns the
+tabs, and the web app does not draw a duplicate navigation bar:
 
 - `?view=tours&embed=fabfg`
 - `?view=map&embed=fabfg`
 - `?view=burials&embed=fabfg`
 
-Its native tabs should use the same Search Tours, Cemetery Map, and Burial
-Locator labels. The ARCE website is a separate external action; it is not the
-Cemetery Map tab.
+Use Search Tours, Cemetery Map, and Burial Locator for the native tab labels.
+Keep the ARCE website as a separate external action.
 
 ## Cartography
 
 The map uses provider tiles instead of repository-built orthophoto exports:
 
-- one OpenStreetMap reference map, kept clear enough for labels and landmarks
-- visible terrain relief beneath the reference map
+- one muted OpenStreetMap reference map over Esri World Hillshade
+- road names and Notables Tour landmarks drawn above the basemap in local fonts
 - local cemetery boundary and roads above the terrain context
-- sections only after an explicit user choice
+- section boundaries and numbers on request, with section taps always available
 
 Provider attribution stays visible. The design follows figure-ground and visual
 hierarchy guidance: the basemap recedes, cemetery structure reads next, and the

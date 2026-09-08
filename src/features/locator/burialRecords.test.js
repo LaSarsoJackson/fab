@@ -41,4 +41,20 @@ describe("burial record delivery shape", () => {
       geometry: { type: "Point", coordinates: [-73.73, 42.7] },
     });
   });
+
+  test("keeps malformed source coordinates out of the renderer", () => {
+    const valid = inflateBurialRow(row);
+    const collection = recordsToFeatureCollection([
+      valid,
+      { ...valid, id: "bad-longitude", coordinates: [-1.7976931348623157e+308, 42.7] },
+      { ...valid, id: "bad-latitude", coordinates: [-73.73, 142.7] },
+      { ...valid, id: "missing", coordinates: null },
+      { ...valid, id: "null-pair", coordinates: [null, null] },
+      { ...valid, id: "blank-pair", coordinates: ["", ""] },
+      { ...valid, id: "string-pair", coordinates: ["-73.73", "42.7"] },
+    ]);
+
+    expect(collection.features).toHaveLength(1);
+    expect(collection.features[0].id).toBe("12");
+  });
 });

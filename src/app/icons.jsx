@@ -41,15 +41,14 @@ export const ExternalIcon = (props) => (
   </Icon>
 );
 
-export const LocateIcon = (props) => (
-  <Icon {...props}>
-    <circle cx="12" cy="12" r="3" />
-    <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-  </Icon>
-);
-
 export const CloseIcon = (props) => (
   <Icon {...props}>
     <path d="m6 6 12 12M18 6 6 18" />
+  </Icon>
+);
+
+export const ArrowRightIcon = (props) => (
+  <Icon {...props}>
+    <path d="M4 12h16m-6-6 6 6-6 6" />
   </Icon>
 );

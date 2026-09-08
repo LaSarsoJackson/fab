@@ -14,7 +14,7 @@ FAB has one long-lived branch and one delivery path.
 - Do not add `dev`, `staging`, automated promotion branches, or branch-name
   policy checks. They add handoffs without changing the deployed artifact.
 
-GitHub should protect `main` with the `CI / Quality` check, conversation
+GitHub must protect `main` with the `CI / Quality` check, conversation
 resolution, and no force pushes or deletion. Keep the repository default branch
 and Pages source on `main`.
 
@@ -37,7 +37,7 @@ builds the app, and creates the GitHub Release. Tags do not control deployment;
 1. Run `bun run check` and `bun run test:e2e`.
 2. Verify the browser flows affected by the change.
 3. Merge the focused pull request to `main`.
-4. Verify the public GitHub Pages route, not only the Actions result.
+4. Verify the public GitHub Pages route after CI passes.
 5. For a numbered release, update the version and changelog before tagging the
    merged commit.
 

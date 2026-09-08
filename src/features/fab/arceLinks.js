@@ -1,8 +1,6 @@
 const ARCE_ROOT = "https://www.albany.edu/arce";
 const clean = (value) => String(value || "").trim();
 
-export const ARCE_HOME_URL = `${ARCE_ROOT}/`;
-
 export const resolveArceBiographyUrl = (value) => {
   const candidate = clean(value);
   if (!candidate || /\.(?:jpe?g|png|gif|webp|svg)$/i.test(candidate)) return "";

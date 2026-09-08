@@ -26,7 +26,7 @@ Use these gates:
 - `bun run check` for the release-quality local gate
 
 Focused branches target `main`. Do not add integration, staging, promotion, or
-agent-specific branch layers.
+tool-specific branch layers.
 
 ## Ownership
 
