@@ -46,3 +46,9 @@ export const CloseIcon = (props) => (
     <path d="m6 6 12 12M18 6 6 18" />
   </Icon>
 );
+
+export const ArrowRightIcon = (props) => (
+  <Icon {...props}>
+    <path d="M4 12h16m-6-6 6 6-6 6" />
+  </Icon>
+);

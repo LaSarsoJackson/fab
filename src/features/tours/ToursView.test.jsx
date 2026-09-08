@@ -17,7 +17,7 @@ describe("ToursView", () => {
     const onSelectTour = vi.fn();
     render(<ToursView onContinueTour={() => {}} onSelectTour={onSelectTour} />);
 
-    fireEvent.change(screen.getByPlaceholderText("Find a tour"), { target: { value: "Mayors" } });
+    fireEvent.change(screen.getByLabelText("Search tours"), { target: { value: "Mayors" } });
     await waitFor(() => expect(screen.getByRole("button", { name: /Mayors of Albany.*View stops/ })).toBeVisible());
     expect(screen.queryByRole("button", { name: /Notables Tour 2020/ })).not.toBeInTheDocument();
 

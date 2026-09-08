@@ -37,10 +37,13 @@ for (const width of [375, 1440]) {
   test(`terrain and landmark names render without intercepting section taps at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const errors = [];
-    const fontRequests = [];
+    const externalFontRequests = [];
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("request", (request) => {
-      if (/\.pbf(?:\?|$)|\.woff2?(?:\?|$)/.test(request.url())) fontRequests.push(request.url());
+      if (/\.pbf(?:\?|$)|\.woff2?(?:\?|$)/.test(request.url()) &&
+        new URL(request.url()).origin !== new URL(page.url()).origin) {
+        externalFontRequests.push(request.url());
+      }
     });
     await observeMap(page);
     await page.goto("./?view=map&section=49");
@@ -57,7 +60,7 @@ for (const width of [375, 1440]) {
       globalThis.testMap.queryRenderedFeatures({ layers: ["cemetery-road-labels"] })
         .map(({ properties }) => properties.Cemetery_R)
     ))).toContain("South Ridge Road");
-    expect(fontRequests).toEqual([]);
+    expect(externalFontRequests).toEqual([]);
 
     const terrainPixels = await canvasPixels(page);
     await page.getByLabel("Terrain", { exact: true }).uncheck();
@@ -150,3 +153,54 @@ test("Section 49 fits every polygon and section numbers remain available with te
   await expect(page.getByLabel("Section", { exact: true })).toHaveValue("49");
   await expect(page.locator(".record-row").first()).toBeVisible();
 });
+
+for (const viewport of [
+  { width: 320, height: 568 },
+  { width: 375, height: 812 },
+  { width: 720, height: 500 },
+  { width: 750, height: 342 },
+  { width: 1280, height: 800 },
+]) {
+  test(`selected grave and Navigate stay visible at ${viewport.width}×${viewport.height}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await observeMap(page);
+    await page.goto("./?view=map&tour=Notable");
+    await waitForMap(page);
+    const list = page.getByRole("complementary", { name: "Notables Tour 2020" });
+    if (viewport.width < 720) {
+      const panel = await list.boundingBox();
+      expect(panel.height).toBeLessThanOrEqual(190);
+    }
+    await list.getByRole("button", { name: /James Hall/ }).click();
+    await waitForMap(page);
+    await expect(list).toBeHidden();
+    const card = await page.getByRole("article", { name: "James Hall" }).boundingBox();
+    const pin = await page.evaluate(() => {
+      const map = globalThis.testMap;
+      const feature = map.querySourceFeatures("selected")[0];
+      if (!feature) return null;
+      const point = map.project(feature.geometry.coordinates);
+      const canvas = map.getCanvas().getBoundingClientRect();
+      return { x: canvas.x + point.x, y: canvas.y + point.y };
+    });
+    expect(pin).not.toBeNull();
+    expect(pin.x).toBeGreaterThan(12);
+    expect(pin.x).toBeLessThan(viewport.width - 12);
+    expect(pin.y).toBeGreaterThan(12);
+    expect(pin.y).toBeLessThan(viewport.height - 12);
+    expect(pin.x + 12 < card.x || pin.x - 12 > card.x + card.width ||
+      pin.y + 12 < card.y || pin.y - 12 > card.y + card.height).toBe(true);
+    const navigate = page.getByRole("link", { name: "Navigate", exact: true });
+    await expect(navigate).toBeInViewport({ ratio: 1 });
+    await expect(page.getByRole("link", { name: "Read biography", exact: true }))
+      .toBeInViewport({ ratio: 1 });
+    const action = await navigate.boundingBox();
+    expect(action.y).toBeGreaterThanOrEqual(card.y);
+    expect(action.y + action.height).toBeLessThanOrEqual(card.y + card.height);
+    await page.locator(".record-card__details").evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect(navigate).toBeInViewport({ ratio: 1 });
+    await expect(page.getByRole("button", { name: "Close details" })).toBeInViewport({ ratio: 1 });
+  });
+}

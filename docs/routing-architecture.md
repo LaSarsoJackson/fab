@@ -39,8 +39,7 @@ External directions are built in [`src/shared/routing.js`](../src/shared/routing
 Apple platforms open Apple Maps. Android and other platforms use Google Maps.
 FAB does not compute a walking line from `ARC_Roads.json`. That file describes
 road geometry but does not establish pedestrian access, crossings, closures, or
-a reviewed visit order. A shortest-path result would look authoritative without
-being trustworthy.
+a reviewed visit order.
 
 Tour place-to-place navigation stays local and URL-backed. Selecting a place
 updates `record`. Previous and Next move through the bundled place list, and All

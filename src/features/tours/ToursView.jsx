@@ -1,5 +1,5 @@
-import { useDeferredValue, useMemo, useState } from "react";
-import { SearchIcon } from "../../app/icons";
+import { useState } from "react";
+import { ArrowRightIcon, SearchIcon } from "../../app/icons";
 import { FAB_TOUR_DEFINITIONS } from "../fab/tours";
 
 export default function ToursView({
@@ -9,20 +9,33 @@ export default function ToursView({
   onSelectTour,
 }) {
   const [query, setQuery] = useState("");
-  const deferredQuery = useDeferredValue(query.trim().toLocaleLowerCase());
+  const normalizedQuery = query.trim().toLocaleLowerCase();
   const continueLabel = continueTour?.kind === "collection"
     ? "Continue browsing"
     : "Continue tour";
-  const tours = useMemo(() => FAB_TOUR_DEFINITIONS.filter(({ name }) => (
-    !deferredQuery || name.toLocaleLowerCase().includes(deferredQuery)
-  )), [deferredQuery]);
+  const tours = FAB_TOUR_DEFINITIONS.filter(({ name }) => (
+    !normalizedQuery || name.toLocaleLowerCase().includes(normalizedQuery)
+  ));
 
   return (
     <section className="tours-view" aria-labelledby="tours-title">
-      <header className="page-heading">
-        <h1 id="tours-title">Search Tours</h1>
-        <p>Choose a tour or browse graves by section or group.</p>
-      </header>
+      <div className="catalogue-heading">
+        <header className="page-heading">
+          <h1 id="tours-title">Search Tours</h1>
+          <p>Choose a tour or browse graves by section or group.</p>
+        </header>
+        <label className="tour-search" htmlFor="tour-query">
+          <SearchIcon />
+          <span className="visually-hidden">Search tours</span>
+          <input
+            id="tour-query"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Find a tour or group"
+          />
+        </label>
+      </div>
 
       {continueTour ? (
         <button
@@ -38,43 +51,39 @@ export default function ToursView({
         </button>
       ) : null}
 
-      <label className="tour-search" htmlFor="tour-query">
-        <SearchIcon />
-        <span className="visually-hidden">Search tours</span>
-        <input
-          id="tour-query"
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Find a tour"
-        />
-      </label>
-
       {tours.length > 0 ? (
-        <ul className="tour-grid">
-          {tours.map((tour) => {
-            const isLoading = loadingTour === tour.key;
+        <div className="tour-catalogue">
+          {["collection", "tour"].map((kind) => {
+            const entries = tours.filter((tour) => tour.kind === kind);
+            if (!entries.length) return null;
             return (
-              <li key={tour.key}>
-                <button
-                  type="button"
-                  className="tour-card"
-                  disabled={isLoading}
-                  onClick={() => onSelectTour(tour)}
-                >
-                  <span className="tour-card__content">
-                    <span className="tour-card__name">{tour.name}</span>
-                    <span className="tour-card__action">
-                      {isLoading ? "Loading…" : tour.kind === "collection" ? "Browse graves" : "View stops"}
-                    </span>
-                  </span>
-                </button>
-              </li>
+              <section key={kind} className={`tour-group tour-group--${kind}`} aria-labelledby={`group-${kind}`}>
+                <h2 id={`group-${kind}`}>{kind === "tour" ? "Tours" : "Sections & groups"}</h2>
+                <ul className="tour-list">
+                  {entries.map((tour) => {
+                    const isLoading = loadingTour === tour.key;
+                    return (
+                      <li key={tour.key}>
+                        <button
+                          type="button"
+                          className="tour-row"
+                          aria-label={`${tour.name}: ${kind === "collection" ? "Browse graves" : "View stops"}`}
+                          disabled={isLoading}
+                          onClick={() => onSelectTour(tour)}
+                        >
+                          <span className="tour-row__name">{tour.name}</span>
+                          {isLoading ? <span className="tour-row__loading">Loading…</span> : <ArrowRightIcon />}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             );
           })}
-        </ul>
+        </div>
       ) : (
-        <p className="status-message">No tours match "{query}".</p>
+        <p className="status-message">No tours or groups match “{query}”.</p>
       )}
     </section>
   );

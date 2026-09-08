@@ -6,9 +6,7 @@
 
 ## About the project
 
-Historic burial records become more useful when people can connect them to a place. Grave Finder brings searchable records, cemetery geography, and curated tours into one public web application.
-
-Visitors can search a 97,457-record burial index, locate graves on an interactive map, and explore the cemetery through tours. The project combines GIS data with a web interface for public access to local history.
+Visitors can search a 97,457-record burial index, locate graves on an interactive map, and explore the cemetery through tours.
 
 | Destination | What visitors can do |
 | --- | --- |
@@ -18,15 +16,9 @@ Visitors can search a 97,457-record burial index, locate graves on an interactiv
 
 ## Development overview
 
-FAB is the shared Albany Grave Finder web app. It has three user destinations:
-
-- Search Tours
-- Cemetery Map
-- Burial Locator
-
-The web app owns the product, map, data delivery, and deep-link contract. `FABFG`
-is a thin native shell around those hosted destinations; it must not recreate
-the web app’s map or search state.
+FAB is the shared Albany Grave Finder web app. It owns the map, data delivery,
+and deep-link contract. `FABFG` is a thin native shell around those hosted
+destinations; it must not recreate the web app’s map or search state.
 
 ## Stack
 

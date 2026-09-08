@@ -83,13 +83,16 @@ test("tour selection opens one MapLibre map", async ({ page }) => {
   const placesPanel = page.getByRole("complementary", { name: "Notables Tour 2020" });
   await expect(placesPanel).toBeVisible();
   await expect(placesPanel.getByText("38 stops")).toBeVisible();
-  await placesPanel.getByRole("button", { name: /James Hall/ }).click();
+  await placesPanel.getByRole("button", { name: /James Hall/ }).focus();
+  await page.keyboard.press("Enter");
+  await expect(placesPanel).toBeHidden();
+  await expect(page.getByRole("button", { name: "Close details" })).toBeFocused();
   await expect(page.getByRole("heading", { name: "James Hall" })).toBeVisible();
   await expect(page.getByText(/Notables Tour 2020 · \d+ of 38/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Previous place" })).toBeVisible();
   await expect(page.getByRole("button", { name: "All places" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Next place" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Read biography/ }))
+  await expect(page.getByRole("link", { name: "Read biography", exact: true }))
     .toHaveAttribute("href", "https://www.albany.edu/arce/Hall1.html");
   await expect.poll(() => new URL(page.url()).searchParams.get("record"))
     .toBe("tour:Notable:1:18:93");
@@ -97,6 +100,7 @@ test("tour selection opens one MapLibre map", async ({ page }) => {
   await page.reload();
   await expect(page.getByRole("heading", { name: "James Hall" })).toBeVisible();
   await page.getByRole("button", { name: "Close details" }).click();
+  await expect(placesPanel.getByRole("button", { name: /James Hall/ })).toBeFocused();
   await expect(placesPanel.getByRole("button", { name: /James Hall/ }))
     .toHaveAttribute("aria-current", "location");
 

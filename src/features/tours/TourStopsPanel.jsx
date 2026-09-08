@@ -14,6 +14,7 @@ export default function TourStopsPanel({
   useEffect(() => {
     if (detailsOpen) return;
     selectedPlaceRef.current?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    selectedPlaceRef.current?.focus({ preventScroll: true });
   }, [detailsOpen, selectedRecord?.id]);
 
   if (!tour || records.length === 0) return null;
@@ -60,8 +61,7 @@ export default function TourStopsPanel({
                 ) : null}
                 <span className="tour-stop__copy">
                   <strong>{record.displayName}</strong>
-                  <span className="tour-stop__summary">{record.extraTitle || location}</span>
-                  {record.extraTitle ? <span className="tour-stop__location">{location}</span> : null}
+                  <span>{location}</span>
                 </span>
               </button>
             </li>

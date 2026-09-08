@@ -64,6 +64,3 @@ cemetery-wide burial source is never added to MapLibre. The small Notables Tour
 dataset supplies background landmark names. Current tour stops and individually
 selected burials use separate GeoJSON sources so the map does not hide a
 selected place. Fonts render locally without a glyph-service request.
-
-Do not introduce a second renderer or adapter layer. A renderer migration would
-be the point to add an interface; anticipation is not evidence.

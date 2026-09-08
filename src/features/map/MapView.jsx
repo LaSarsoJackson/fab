@@ -54,12 +54,13 @@ const setLayerVisibility = (map, layerId, visible) => {
 const getViewportLayout = (map) => {
   const width = map.getContainer().clientWidth;
   const height = map.getContainer().clientHeight;
+  // Match the panel breakpoint in styles.css; the canvas excludes web navigation.
+  const short = globalThis.matchMedia("(max-height: 499px)").matches;
   return {
     width,
     height,
-    short: height < 500,
-    sidePanel: width >= 720 && height >= 500,
-    splitDetail: width >= 1080 && height >= 500,
+    short,
+    sidePanel: width >= 720 && !short,
   };
 };
 
@@ -74,11 +75,17 @@ const focusSelectedRecord = (map, selectedRecord, viewport) => {
       : Math.min(420, viewport.height * 0.48),
     left: 32,
   };
+  if (viewport.short && viewport.width >= 500) {
+    detailPadding.top = 56;
+    detailPadding.bottom = 56;
+    detailPadding.left = Math.min(520, viewport.width - 170) + 32;
+    detailPadding.right = 80;
+  }
   map.flyTo({
     center: selectedRecord.coordinates,
     zoom: Math.max(map.getZoom(), tourRecord ? 17.2 : 18),
-    padding: viewport.splitDetail && tourRecord
-      ? { top: 72, right: 360, bottom: 72, left: 460 }
+    padding: viewport.sidePanel
+      ? { top: 72, right: 384, bottom: 72, left: 48 }
       : detailPadding,
     retainPadding: false,
     essential: true,
@@ -95,7 +102,7 @@ const focusSelectedSection = (map, selectedSection, tourStopsPresent, viewport) 
     padding: {
       top: viewport.short ? 116 : 126,
       right: viewport.sidePanel && tourStopsPresent ? 360 : 48,
-      bottom: viewport.short ? 48 : tourStopsPresent ? 180 : 64,
+      bottom: viewport.short ? 48 : tourStopsPresent && !viewport.sidePanel ? 214 : 64,
       left: 48,
     },
     maxZoom: 17.4,
@@ -119,7 +126,7 @@ const focusRecords = (map, records, tourStopsPresent, viewport) => {
     padding = {
       top: viewport.short ? 60 : 72,
       right: 32,
-      bottom: viewport.short ? Math.min(132, viewport.height * 0.45) : 176,
+      bottom: viewport.short ? Math.min(132, viewport.height * 0.45) : 214,
       left: 32,
     };
   }

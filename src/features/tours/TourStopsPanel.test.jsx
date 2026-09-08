@@ -23,7 +23,6 @@ describe("TourStopsPanel", () => {
     const panel = screen.getByRole("complementary", { name: "Notables Tour 2020" });
     expect(within(panel).getByText("2 stops")).toBeInTheDocument();
     expect(within(panel).getAllByRole("button")).toHaveLength(3);
-    expect(within(panel).getByText("Father of modern geology")).toBeInTheDocument();
     expect(within(panel).getByText("Section 18 · Lot 93")).toBeInTheDocument();
 
     fireEvent.click(within(panel).getByRole("button", { name: /James Hall/ }));

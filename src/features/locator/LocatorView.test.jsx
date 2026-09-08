@@ -13,7 +13,7 @@ const createSearch = (overrides = {}) => ({
 });
 
 describe("LocatorView", () => {
-  it("keeps name and section search visible without repeating empty-state instructions", () => {
+  it("keeps name and section search directly editable", () => {
     const search = createSearch();
     const onRouteChange = vi.fn();
     render(
@@ -24,7 +24,7 @@ describe("LocatorView", () => {
       />
     );
 
-    expect(screen.getByText("Search by name or cemetery section.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Burial Locator" })).toBeInTheDocument();
     expect(screen.getByLabelText("Name")).toBeVisible();
     expect(screen.getByLabelText("Section")).toBeVisible();
     expect(screen.queryByText(/Enter at least/)).not.toBeInTheDocument();

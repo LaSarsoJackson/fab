@@ -12,6 +12,9 @@ contract releases.
   sections made of multiple polygons, including repeated section taps.
 - Rendered selected graves once and included selected collection graves in
   the visible marker count.
+- Made tours, groups, and burial search easier to browse on phones and desktops.
+- Reduced map panel coverage and kept Navigate and Read biography visible while
+  grave details scroll, including on short screens.
 
 ## [0.3.0] - 2026-08-13
 

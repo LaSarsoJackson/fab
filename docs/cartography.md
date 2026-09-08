@@ -1,8 +1,7 @@
 # Cartography
 
-FAB is a cemetery wayfinding map, not a basemap gallery. Every cartographic
-choice must help a visitor understand the cemetery and act on a selected grave
-or tour stop.
+Use the basemap for orientation and keep cemetery roads, sections, and selected
+graves distinct.
 
 ## Evidence
 
@@ -23,7 +22,7 @@ or tour stop.
 - Default to a muted reference map for orientation.
 - Use one reference map. A second imagery choice adds controls without helping
   visitors identify cemetery landmarks beneath the tree canopy.
-- Keep terrain on by default. Use the earlier Esri World Hillshade source under
+- Keep terrain on by default. Use Esri World Hillshade under
   a desaturated, translucent OpenStreetMap reference layer. The cemetery's
   ravines must remain visible at the overview and at walking scale.
 - Draw the cemetery boundary and roads above terrain context.
