@@ -6,10 +6,12 @@ contract releases.
 
 ## [Unreleased]
 
-- Reduced map label density and outlines, and aligned map credits with the
-  right-hand controls on mobile.
-- Restored the earlier terrain source, reduced the competing basemap colors,
-  and added readable cemetery road, landmark, and section labels.
+- Restored Esri World Hillshade as the default basemap, with Streets as a
+  separate choice, and removed duplicate reference and section labels.
+- Kept map credits collapsed on first load at the bottom-right corner,
+  with room below record panels when opened.
+- Restored small burial points for selected sections, a name picker for
+  overlapping graves, and deselection by tapping blank map space or Clear section.
 - Kept section taps available with shading off and corrected zooming for
   sections made of multiple polygons, including repeated section taps.
 - Rendered selected graves once and included selected collection graves in

@@ -22,4 +22,12 @@ describe("worker search engine", () => {
     expect(searchPreparedRows(prepared, { section: "12" }).total).toBe(2);
     expect(searchPreparedRows(prepared, { recordId: "2" }).rows[0].l).toBe("O'Connor");
   });
+
+  test("never expands an invalid section into all burial points", () => {
+    const prepared = prepareSearchRows(rows);
+    expect(searchPreparedRows(prepared, { section: "---", limit: Infinity }))
+      .toEqual({ total: 0, rows: [] });
+    expect(searchPreparedRows(prepared, { section: "12", limit: Infinity }).rows)
+      .toHaveLength(2);
+  });
 });

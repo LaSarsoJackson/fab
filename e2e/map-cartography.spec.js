@@ -33,6 +33,89 @@ const canvasPixels = (page) => page.evaluate(() => new Promise((resolve) => {
   map.triggerRepaint();
 }));
 
+test("credits start collapsed before tiles finish and stay in the bottom-right corner", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await observeMap(page);
+  let releaseTiles;
+  const pendingTiles = new Promise((resolve) => { releaseTiles = resolve; });
+  await page.route("https://services.arcgisonline.com/**", async (route) => {
+    await pendingTiles;
+    await route.continue();
+  });
+  await page.goto("./?view=map");
+  const attribution = page.locator(".maplibregl-ctrl-attrib");
+  await expect(page.getByLabel("Map credits", { exact: true })).toBeVisible();
+  await expect(attribution).not.toHaveAttribute("open", "");
+  expect(await page.evaluate(() => globalThis.testMap.loaded())).toBe(false);
+  releaseTiles();
+  await waitForMap(page);
+  await expect(attribution).not.toHaveAttribute("open", "");
+  await page.setViewportSize({ width: 812, height: 375 });
+  await expect(attribution).not.toHaveAttribute("open", "");
+  await page.getByLabel("Map credits", { exact: true }).click();
+  await expect(attribution).toHaveAttribute("open", "");
+  await expect(attribution.getByRole("link", { name: "U.S. Geological Survey" })).toBeVisible();
+  await page.getByLabel("Map credits", { exact: true }).click();
+  await expect(attribution).not.toHaveAttribute("open", "");
+});
+
+for (const width of [375, 1440]) {
+  test(`section points offer overlapping burials and clear on a blank tap at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await observeMap(page);
+    await page.goto("./?view=map&section=15");
+    await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]")
+      .getAttribute("data-visible-marker-count"))).toBeGreaterThan(0);
+    await waitForMap(page);
+    const data = await page.evaluate(() => globalThis.testMap.getSource("records").getData());
+    expect(data.features.length).toBe(1150);
+    const target = await page.evaluate(() => {
+      const map = globalThis.testMap;
+      for (const feature of map.queryRenderedFeatures({ layers: ["records"] })) {
+        const { x, y } = map.project(feature.geometry.coordinates);
+        if (x < 20 || x > map.getContainer().clientWidth - 70 || y < 150 || y > map.getContainer().clientHeight - 50) continue;
+        const nearby = map.queryRenderedFeatures([[x - 6, y - 6], [x + 6, y + 6]], { layers: ["records"] });
+        const names = [...new Set(nearby.map(({ properties }) => properties.name))];
+        if (names.length > 1 && names.length < 20) return { x, y, names };
+      }
+      return null;
+    });
+    expect(target).not.toBeNull();
+    await testInfo.attach("section-points", { body: await page.screenshot(), contentType: "image/png" });
+    await page.locator(".maplibregl-canvas").click({ position: { x: target.x, y: target.y } });
+    const picker = page.getByRole("complementary", { name: "Burials at this point" });
+    await expect(picker).toBeVisible();
+    for (const name of target.names) await expect(picker.getByText(name, { exact: true }).first()).toBeVisible();
+    await picker.getByRole("button").nth(2).click();
+    await expect(page.getByRole("article")).toBeVisible();
+    expect(new URL(page.url()).searchParams.has("record")).toBe(true);
+    await waitForMap(page);
+    const blank = await page.evaluate(() => {
+      const map = globalThis.testMap;
+      const canvas = map.getCanvas().getBoundingClientRect();
+      for (let y = 140; y < canvas.height - 50; y += 10) {
+        for (let x = 20; x < canvas.width - 70; x += 10) {
+          if (document.elementFromPoint(canvas.x + x, canvas.y + y) !== map.getCanvas()) continue;
+          if (!map.queryRenderedFeatures([[x - 8, y - 8], [x + 8, y + 8]], {
+            layers: ["cemetery-sections", "records", "selected-record"],
+          }).length) return { x, y };
+        }
+      }
+      return null;
+    });
+    expect(blank).not.toBeNull();
+    await page.locator(".maplibregl-canvas").click({ position: blank });
+    await expect(page.getByRole("group", { name: "Section 15" })).toHaveCount(0);
+    await expect(page.getByRole("article")).toHaveCount(0);
+    await expect(page.locator("[data-visible-marker-count]")).toHaveAttribute("data-visible-marker-count", "0");
+    expect(new URL(page.url()).searchParams.has("section")).toBe(false);
+    await page.goBack();
+    await expect(page.getByRole("group", { name: "Section 15" })).toBeVisible();
+    await page.getByRole("button", { name: "Clear section", exact: true }).click();
+    await expect(page.getByRole("group", { name: "Section 15" })).toHaveCount(0);
+  });
+}
+
 for (const width of [375, 1440]) {
   test(`terrain and landmark names render without intercepting section taps at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
@@ -54,8 +137,10 @@ for (const width of [375, 1440]) {
       layers: ["cemetery-landmark-labels"],
     }).length)).toBe(0);
     const credits = await page.getByLabel("Map credits", { exact: true }).boundingBox();
-    const zoom = await page.getByRole("button", { name: "Zoom in", exact: true }).boundingBox();
-    expect(Math.abs((credits.x + credits.width / 2) - (zoom.x + zoom.width / 2))).toBeLessThan(2);
+    const mapBox = await page.locator(".maplibregl-map").boundingBox();
+    expect(mapBox.x + mapBox.width - credits.x - credits.width).toBeLessThanOrEqual(12);
+    expect(mapBox.y + mapBox.height - credits.y - credits.height).toBeLessThanOrEqual(12);
+    await expect(page.locator(".maplibregl-ctrl-attrib")).not.toHaveAttribute("open", "");
     await page.evaluate(() => globalThis.testMap.jumpTo({
       center: [-73.73362, 42.70749], zoom: 16.8,
     }));
@@ -71,14 +156,14 @@ for (const width of [375, 1440]) {
     expect(externalFontRequests).toEqual([]);
 
     const terrainPixels = await canvasPixels(page);
-    await page.getByLabel("Terrain", { exact: true }).uncheck();
+    await page.getByLabel("Basemap", { exact: true }).selectOption("streets");
     await waitForMap(page);
     const flatPixels = await canvasPixels(page);
     const meanDifference = terrainPixels.reduce((sum, value, index) => (
       index % 4 === 3 ? sum : sum + Math.abs(value - flatPixels[index])
     ), 0) / (120 * 120 * 3);
     expect(meanDifference, "terrain must change the rendered relief, not just its checkbox").toBeGreaterThan(4);
-    await page.getByLabel("Terrain", { exact: true }).check();
+    await page.getByLabel("Basemap", { exact: true }).selectOption("terrain");
     await waitForMap(page);
     await testInfo.attach("terrain-and-landmarks", { body: await page.screenshot(), contentType: "image/png" });
 
@@ -101,15 +186,6 @@ for (const width of [375, 1440]) {
     expect(new URL(page.url()).searchParams.has("tour")).toBe(false);
     expect(new URL(page.url()).searchParams.has("record")).toBe(false);
     await waitForMap(page);
-    const fittedZoom = await page.evaluate(() => globalThis.testMap.getZoom());
-    await page.evaluate(() => globalThis.testMap.jumpTo({ center: [-73.73362, 42.70749], zoom: 15.2 }));
-    await waitForMap(page);
-    const sectionPoint = await page.evaluate(() => {
-      const point = globalThis.testMap.project([-73.73362, 42.70749]);
-      return { x: point.x, y: point.y };
-    });
-    await page.locator(".maplibregl-canvas").click({ position: sectionPoint });
-    await expect.poll(() => page.evaluate(() => globalThis.testMap.getZoom())).toBeCloseTo(fittedZoom, 1);
     await page.reload();
     await expect(page.getByRole("group", { name: "Section 24", exact: true })).toBeVisible();
     expect(errors).toEqual([]);
@@ -152,7 +228,8 @@ test("Section 49 fits every polygon and section numbers remain available with te
     expect(corner.y).toBeGreaterThanOrEqual(110);
     expect(corner.y).toBeLessThanOrEqual(extent.height - 50);
   }
-  await page.getByLabel("Terrain", { exact: true }).uncheck();
+  await page.getByLabel("Basemap", { exact: true }).selectOption("streets");
+  await page.getByLabel("Sections", { exact: true }).check();
   await expect.poll(() => page.evaluate(() => (
     globalThis.testMap.queryRenderedFeatures({ layers: ["cemetery-section-labels"] })
       .map(({ properties }) => String(properties.Section))

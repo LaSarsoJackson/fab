@@ -19,7 +19,7 @@ const DEFAULT_MAP_PREFERENCES = Object.freeze({
   hillshade: true,
   showSections: false,
 });
-// One canvas point can intersect several MapLibre layers. The first match owns the click.
+// Grave points take precedence over the underlying section.
 const INTERACTIVE_LAYER_IDS = [
   MAP_LAYER_IDS.selectedRecord,
   MAP_LAYER_IDS.tourRecords,
@@ -153,13 +153,13 @@ export default function MapView({
   showRecordMarkers = true,
   tourStopsPresent = false,
   onBrowseSection,
-  onRecordSelect,
+  onRecordsSelect,
   onSectionSelect,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const recordsRef = useRef(records);
-  const onRecordSelectRef = useRef(onRecordSelect);
+  const onRecordsSelectRef = useRef(onRecordsSelect);
   const onSectionSelectRef = useRef(onSectionSelect);
   const selectedRecordRef = useRef(selectedRecord);
   const selectedSectionRef = useRef(selectedSection);
@@ -182,11 +182,11 @@ export default function MapView({
 
   useEffect(() => {
     recordsRef.current = records;
-    onRecordSelectRef.current = onRecordSelect;
+    onRecordsSelectRef.current = onRecordsSelect;
     onSectionSelectRef.current = onSectionSelect;
     selectedRecordRef.current = selectedRecord;
     selectedSectionRef.current = selectedSection;
-  }, [onRecordSelect, onSectionSelect, records, selectedRecord, selectedSection]);
+  }, [onRecordsSelect, onSectionSelect, records, selectedRecord, selectedSection]);
 
   useEffect(() => {
     const [west, south, east, north] = CEMETERY_VIEW.bounds;
@@ -227,49 +227,44 @@ export default function MapView({
     const attributionButton = attribution?.querySelector(".maplibregl-ctrl-attrib-button");
     attributionButton?.setAttribute("aria-label", "Map credits");
     attributionButton?.setAttribute("title", "Map credits");
-    map.once("idle", () => {
-      attribution?.removeAttribute("open");
-      attribution?.classList.remove("maplibregl-compact-show");
-    });
+    // MapLibre otherwise opens compact credits when the first source arrives.
+    attribution?.classList.add("maplibregl-compact");
+    attribution?.removeAttribute("open");
+    attribution?.classList.remove("maplibregl-compact-show");
 
     map.on("style.load", () => {
       if (mapRef.current === map) setReadyMap(map);
     });
 
-    const findInteractiveFeature = (point) => {
-      const features = map.queryRenderedFeatures(point, { layers: INTERACTIVE_LAYER_IDS });
-      for (const layerId of INTERACTIVE_LAYER_IDS) {
-        const feature = features.find(({ layer }) => layer?.id === layerId);
-        if (feature) return feature;
-      }
-      return null;
-    };
-    const selectRecord = (feature) => {
-      const recordId = String(feature.properties?.id || "");
-      const record = recordsRef.current.find(({ id }) => String(id) === recordId);
-      if (record) onRecordSelectRef.current?.(record);
-    };
     map.on("click", (event) => {
-      const feature = findInteractiveFeature(event.point);
-      if (!feature) return;
+      // A small touch tolerance also finds coincident graves without giant clusters.
+      const pointFeatures = map.queryRenderedFeatures([
+        [event.point.x - 6, event.point.y - 6],
+        [event.point.x + 6, event.point.y + 6],
+      ], { layers: INTERACTIVE_LAYER_IDS.slice(0, 3) });
+      const recordIds = new Set(pointFeatures.map(({ properties }) => String(properties.id)));
+      const candidates = recordsRef.current.filter(({ id }) => recordIds.has(String(id)));
+      const selected = selectedRecordRef.current;
+      if (selected && recordIds.has(String(selected.id)) && !candidates.some(({ id }) => id === selected.id)) {
+        candidates.push(selected);
+      }
+      if (candidates.length > 0) {
+        onRecordsSelectRef.current?.(candidates);
+        return;
+      }
+      const [feature] = map.queryRenderedFeatures(event.point, { layers: [MAP_LAYER_IDS.sections] });
+      if (!feature) {
+        onSectionSelectRef.current?.("");
+        return;
+      }
 
-      if (feature.layer.id === MAP_LAYER_IDS.sections) {
-        const section = String(feature.properties?.Section || "").trim();
-        if (!section) return;
-        // Repeated taps do not change the route, but should still frame the section.
-        if (section === selectedSectionRef.current && !selectedRecordRef.current) {
-          focusMap({ map, records: [], selectedSection: section, tourStopsPresent: false });
-        }
-        onSectionSelectRef.current?.(section);
-        return;
+      const section = String(feature.properties?.Section || "").trim();
+      if (!section) return;
+      // Repeated taps do not change the route, but should still frame the section.
+      if (section === selectedSectionRef.current && !selectedRecordRef.current) {
+        focusMap({ map, records: [], selectedSection: section, tourStopsPresent: false });
       }
-      if (feature.layer.id === MAP_LAYER_IDS.selectedRecord) {
-        const selected = selectedRecordRef.current;
-        const record = recordsRef.current.find(({ id }) => String(id) === String(selected?.id));
-        onRecordSelectRef.current?.(record || selected);
-        return;
-      }
-      selectRecord(feature);
+      onSectionSelectRef.current?.(section);
     });
 
     INTERACTIVE_LAYER_IDS.forEach((layerId) => {
@@ -322,6 +317,9 @@ export default function MapView({
     const map = readyMap;
     if (!map || mapRef.current !== map) return;
     setLayerVisibility(map, MAP_LAYER_IDS.hillshade, hillshade);
+    setLayerVisibility(map, MAP_LAYER_IDS.map, !hillshade);
+    setLayerVisibility(map, "cemetery-road-labels", hillshade);
+    setLayerVisibility(map, MAP_LAYER_IDS.landmarkLabels, hillshade);
     const matchesSection = [
       "==",
       ["to-string", ["get", "Section"]],
@@ -333,8 +331,7 @@ export default function MapView({
     setLayerVisibility(map, MAP_LAYER_IDS.sectionOutlines, showSections);
     setLayerVisibility(map, MAP_LAYER_IDS.selectedSection, Boolean(selectedSection));
     map.setFilter(MAP_LAYER_IDS.selectedSection, matchesSection);
-    setLayerVisibility(map, MAP_LAYER_IDS.sectionLabels, showSections || Boolean(selectedSection));
-    map.setFilter(MAP_LAYER_IDS.sectionLabels, showSections ? null : matchesSection);
+    setLayerVisibility(map, MAP_LAYER_IDS.sectionLabels, showSections);
   }, [hillshade, readyMap, selectedSection, showSections]);
 
   useEffect(() => {
@@ -362,12 +359,14 @@ export default function MapView({
       </p>
       <div className="map-toolbar" aria-label="Map options">
         <label className="toggle-control">
-          <input
-            type="checkbox"
-            checked={hillshade}
-            onChange={(event) => updatePreference("hillshade", event.target.checked)}
-          />
-          Terrain
+          <select
+            aria-label="Basemap"
+            value={hillshade ? "terrain" : "streets"}
+            onChange={(event) => updatePreference("hillshade", event.target.value === "terrain")}
+          >
+            <option value="terrain">Terrain</option>
+            <option value="streets">Streets</option>
+          </select>
         </label>
         <label className="toggle-control">
           <input
@@ -383,6 +382,9 @@ export default function MapView({
           <strong>Section {selectedSection}</strong>
           <button type="button" onClick={() => onBrowseSection?.(selectedSection)}>
             View burials
+          </button>
+          <button type="button" aria-label="Clear section" onClick={() => onSectionSelect?.("")}>
+            ×
           </button>
         </div>
       ) : null}

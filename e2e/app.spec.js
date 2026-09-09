@@ -67,13 +67,13 @@ test("tour selection opens one MapLibre map", async ({ page }) => {
   await expect(page).toHaveURL(/view=map.*tour=Notable/);
   await expect(page.getByRole("region", { name: "Albany Rural Cemetery map" })).toBeVisible();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
-  const terrain = page.getByLabel("Terrain", { exact: true });
-  await expect(terrain).toBeChecked();
+  const terrain = page.getByLabel("Basemap", { exact: true });
+  await expect(terrain).toHaveValue("terrain");
   await openAttribution(page);
   await expect(page.getByRole("link", { name: "U.S. Geological Survey" })).toBeVisible();
-  await terrain.uncheck();
+  await terrain.selectOption("streets");
   await expect(page.getByRole("link", { name: "U.S. Geological Survey" })).toHaveCount(0);
-  await terrain.check();
+  await terrain.selectOption("terrain");
   await expect(page.getByRole("link", { name: "U.S. Geological Survey" })).toBeVisible();
   await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
     .toBe(38);
@@ -132,18 +132,18 @@ test("map context and appearance survive destination changes and reload", async 
   await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
     .toBe(38);
 
-  await page.getByLabel("Terrain", { exact: true }).uncheck();
+  await page.getByLabel("Basemap", { exact: true }).selectOption("streets");
   await page.getByLabel("Sections", { exact: true }).check();
   await page.getByRole("button", { name: "Search Tours", exact: true }).click();
   await expect.poll(() => new URL(page.url()).searchParams.get("tour")).toBe("Notable");
 
   await page.getByRole("button", { name: "Cemetery Map", exact: true }).click();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
-  await expect(page.getByLabel("Terrain", { exact: true })).not.toBeChecked();
+  await expect(page.getByLabel("Basemap", { exact: true })).toHaveValue("streets");
   await expect(page.getByLabel("Sections", { exact: true })).toBeChecked();
 
   await page.reload();
-  await expect(page.getByLabel("Terrain", { exact: true })).not.toBeChecked();
+  await expect(page.getByLabel("Basemap", { exact: true })).toHaveValue("streets");
   await expect(page.getByLabel("Sections", { exact: true })).toBeChecked();
   await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
     .toBe(38);
@@ -230,7 +230,7 @@ test("selected sections highlight the map and keep the useful burial list one ac
   expect(appearanceBox.height).toBeLessThanOrEqual(56);
 
   await expect(section.getByText("Gold = grouped graves", { exact: true })).toHaveCount(0);
-  await expect(page.locator("[data-visible-marker-count]")).toHaveAttribute("data-visible-marker-count", "0");
+  await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count"))).toBeGreaterThan(0);
 
   await section.getByRole("button", { name: "View burials" }).click();
   await expect(page).toHaveURL(/view=burials.*section=18/);
@@ -238,7 +238,7 @@ test("selected sections highlight the map and keep the useful burial list one ac
   await expect(page).toHaveURL(/view=map.*section=18/);
   const restoredSection = page.getByRole("group", { name: "Section 18" });
   await expect(restoredSection.getByRole("button", { name: "View burials" })).toBeVisible();
-  await expect(page.locator("[data-visible-marker-count]")).toHaveAttribute("data-visible-marker-count", "0");
+  await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count"))).toBeGreaterThan(0);
 });
 
 test("short iPhone landscape keeps the mobile destination bar", async ({ page }) => {

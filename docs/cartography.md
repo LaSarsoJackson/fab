@@ -19,30 +19,29 @@ graves distinct.
 
 ## FAB rules
 
-- Default to a muted reference map for orientation.
-- Use one reference map. A second imagery choice adds controls without helping
-  visitors identify cemetery landmarks beneath the tree canopy.
-- Keep terrain on by default. Use Esri World Hillshade under
-  a desaturated, translucent OpenStreetMap reference layer. The cemetery's
-  ravines must remain visible at the overview and at walking scale.
+- Default to Esri World Hillshade, as in Ewa's June 2026 map contribution.
+  Keep OpenStreetMap available as the separate Streets choice. Do not blend
+  the street raster over hillshade; its colors and labels obscure the relief.
+- Omit canopy imagery. Visitors need terrain, paths, and cemetery landmarks.
 - Draw the cemetery boundary and roads above terrain context.
 - Draw cemetery paths in red with a pale casing so they remain distinct from
   streets, terrain, and section boundaries.
 - Keep all-section shading off until requested. Section taps still identify and
   highlight the selected section.
 - When sections are on, use a warm fill beneath the cemetery roads and draw
-  section boundaries and numbers above them. Keep the selected section's
-  number visible when all-section shading is off.
+  section boundaries and numbers above them. With shading off, the section
+  control names the selection without repeated labels on its polygons.
 - Show every stop in the active tour; do not collapse curated stops into
   proximity clusters.
-- Keep section inventories in the Burial Locator. The map highlights the
-  selected section and pins an individual grave only after a visitor chooses it.
+- Load the selected section's burial points. Keep points small, and offer a
+  name list when a tap hits overlapping graves. View burials opens the full
+  section inventory in Burial Locator. A blank map tap clears the selection.
 - Use one warm section highlight and one strong selected-record color.
 - Label roads from `ARC_Roads.json` and landmarks from `NotablesTour20.json`.
-  Draw these names above the basemap at full opacity with pale halos. Use local
-  fonts, collision handling, and zoom thresholds. Names are reference labels;
-  visitors select graves through the locator or an active tour.
-- Keep provider attribution visible in every map mode.
+  Draw these names on Terrain with pale halos, local fonts, collision handling,
+  and zoom thresholds. Streets uses its own labels, avoiding duplicate names.
+- Keep provider credits collapsed at the map's bottom-right corner on first
+  load. Opening credits must leave them readable and clear of record panels.
 
 ## What is deliberately absent
 
@@ -53,12 +52,8 @@ graves distinct.
 - no separate color per burial category
 - no layer drawer with implementation-oriented names
 
-The September 2026 visual comparison found clearer ravines with the earlier
-Esri hillshade source. Merely increasing native DEM exaggeration or reducing
-the street map's opacity did not also solve label readability. Terrain and
-cemetery labels therefore use separate layers. Credit Esri, USGS, and the
-terrain contributors alongside OpenStreetMap.
-
-Check the cemetery overview, Chester Arthur's grave, a selected section, and
-all-section shading on desktop and a small phone. Repeat with Terrain off.
-Interaction tests and source presence alone do not establish readable relief.
+Ewa's August 2026 screenshots show faint terrain, unreadable landmark names,
+and oversized burial groups. Validate these concerns in the rendered map:
+the cemetery overview, Chester Arthur's grave, a crowded section, and
+all-section shading on desktop and a small phone. Repeat in Streets mode.
+Source presence and passing interaction tests alone do not establish legibility.
