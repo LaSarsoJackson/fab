@@ -12,6 +12,7 @@ const TestMapView = ({
   showRecordMarkers,
   onBrowseSection,
   onSectionSelect,
+  onRecordsSelect,
 }) => (
   <div
     aria-label="Albany Rural Cemetery map"
@@ -20,6 +21,8 @@ const TestMapView = ({
     data-record-markers={showRecordMarkers}
   >
     <button type="button" onClick={() => onSectionSelect("18")}>Select Section 18</button>
+    <button type="button" onClick={() => onSectionSelect("")}>Click blank map</button>
+    <button type="button" onClick={() => onRecordsSelect(records)}>Click burial point</button>
     {selectedSection ? (
       <div role="group" aria-label={`Section ${selectedSection}`}>
         <button type="button" onClick={() => onBrowseSection(selectedSection)}>View burials</button>
@@ -268,7 +271,7 @@ describe("App product shell", () => {
     })).toBeInTheDocument();
   });
 
-  it("keeps a section highlighted and opens its useful burial list explicitly", async () => {
+  it("loads section points and keeps its full burial list available", async () => {
     window.history.replaceState({}, "", "/fab/?view=map");
     renderApp();
 
@@ -277,17 +280,50 @@ describe("App product shell", () => {
     expect(new URL(window.location.href).searchParams.get("section")).toBe("18");
 
     const sectionContext = screen.getByRole("group", { name: "Section 18" });
-    expect(runBurialSearch).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("Albany Rural Cemetery map"))
-      .toHaveAttribute("data-record-count", "0");
+    expect(runBurialSearch).toHaveBeenCalledWith({ section: "18", limit: Infinity });
+    await waitFor(() => expect(screen.getByLabelText("Albany Rural Cemetery map"))
+      .toHaveAttribute("data-record-count", "1"));
 
     fireEvent.click(screen.getByRole("button", { name: "Select Section 18" }));
-    expect(screen.getByLabelText("Albany Rural Cemetery map"))
-      .toHaveAttribute("data-record-count", "0");
+    await waitFor(() => expect(screen.getByLabelText("Albany Rural Cemetery map"))
+      .toHaveAttribute("data-record-count", "1"));
 
     fireEvent.click(within(sectionContext).getByRole("button", { name: "View burials" }));
     expect(screen.getByRole("heading", { name: "Burial Locator" })).toBeInTheDocument();
     expect(screen.getByLabelText("Section")).toHaveValue("18");
+  });
+
+  it("clears a section and its points on a blank map click, including an in-flight search", async () => {
+    let finishSearch;
+    runBurialSearch.mockImplementationOnce(() => new Promise((resolve) => { finishSearch = resolve; }));
+    window.history.replaceState({}, "", "/fab/?view=map");
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Select Section 18" }));
+    await waitFor(() => expect(runBurialSearch).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Click blank map" }));
+    finishSearch([{ id: "late", displayName: "Late result", coordinates: [-73.73, 42.7] }]);
+    await waitFor(() => expect(screen.getByLabelText("Albany Rural Cemetery map"))
+      .toHaveAttribute("data-record-count", "0"));
+    expect(screen.queryByRole("group", { name: "Section 18" })).not.toBeInTheDocument();
+    expect(new URL(window.location.href).searchParams.has("section")).toBe(false);
+  });
+
+  it("offers every overlapping burial and opens the chosen record", async () => {
+    runBurialSearch.mockResolvedValueOnce([
+      { id: "one", displayName: "First burial", source: "burial", coordinates: [-73.73, 42.7] },
+      { id: "two", displayName: "Second burial", source: "burial", coordinates: [-73.73, 42.7] },
+    ]);
+    window.history.replaceState({}, "", "/fab/?view=map&section=18");
+    renderApp();
+    await waitFor(() => expect(screen.getByLabelText("Albany Rural Cemetery map"))
+      .toHaveAttribute("data-record-count", "2"));
+    fireEvent.click(screen.getByRole("button", { name: "Click burial point" }));
+    const picker = screen.getByRole("complementary", { name: "Burials at this point" });
+    expect(within(picker).getByRole("button", { name: "First burial" })).toBeVisible();
+    fireEvent.click(within(picker).getByRole("button", { name: "Second burial" }));
+    expect(screen.getByRole("heading", { name: "Second burial" })).toBeVisible();
+    expect(new URL(window.location.href).searchParams.get("record")).toBe("two");
+    expect(screen.queryByRole("complementary", { name: "Burials at this point" })).not.toBeInTheDocument();
   });
 
   it("turns a section click into a section map without losing the resumable tour", async () => {
@@ -301,9 +337,9 @@ describe("App product shell", () => {
     expect(params.get("section")).toBe("18");
     expect(params.has("tour")).toBe(false);
     expect(params.has("record")).toBe(false);
-    expect(runBurialSearch).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("Albany Rural Cemetery map"))
-      .toHaveAttribute("data-record-count", "0");
+    expect(runBurialSearch).toHaveBeenCalledWith({ section: "18", limit: Infinity });
+    await waitFor(() => expect(screen.getByLabelText("Albany Rural Cemetery map"))
+      .toHaveAttribute("data-record-count", "1"));
 
     fireEvent.click(screen.getByRole("button", { name: "Search Tours" }));
     expect(screen.getByRole("button", { name: "Continue tour: Notables Tour 2020 from James Hall" }))
@@ -357,7 +393,7 @@ describe("App product shell", () => {
     expect(await screen.findByRole("heading", { name: "James Hall" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Select Section 18" }));
-    expect(runBurialSearch).not.toHaveBeenCalled();
+    expect(runBurialSearch).toHaveBeenCalledWith({ section: "18", limit: Infinity });
     fireEvent.click(screen.getByRole("button", { name: "Search Tours" }));
 
     expect(screen.getByRole("button", {

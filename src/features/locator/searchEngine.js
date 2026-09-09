@@ -36,6 +36,8 @@ export const searchPreparedRows = (preparedRows, {
 } = {}) => {
   const normalizedQuery = normalizeSearchText(query);
   const normalizedSection = normalizeSearchText(section);
+  // An invalid section in a deep link must not become a cemetery-wide query.
+  if (section && !normalizedSection) return { total: 0, rows: [] };
   const normalizedId = clean(recordId);
   const tokens = normalizedQuery.split(" ").filter(Boolean);
   const matches = [];

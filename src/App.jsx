@@ -4,6 +4,7 @@ import AppNavigation from "./components/AppNavigation";
 import RecordCard from "./components/RecordCard";
 import LocatorView from "./features/locator/LocatorView";
 import useBurialSearch from "./features/locator/useBurialSearch";
+import MapRecordPicker from "./features/map/MapRecordPicker";
 import { findTourDefinition, loadTour } from "./features/tours/loadTour";
 import { readTourProgress, writeTourProgress } from "./features/tours/tourProgress";
 import TourStopsPanel from "./features/tours/TourStopsPanel";
@@ -85,13 +86,17 @@ const MapDestination = ({
   hasVisitedMap,
   loadError,
   loadingTour,
+  loadingSection,
   MapComponent,
+  pointRecords,
   records,
   returnToTours,
   route,
   selectedRecord,
   selectRecord,
   selectSection,
+  selectMapRecords,
+  clearPointRecords,
   setDetailsOpen,
   shareUrl,
   tourContext,
@@ -101,16 +106,8 @@ const MapDestination = ({
   const active = route.view === APP_VIEWS.MAP;
   const mapClassName = [
     "map-page",
-    activeTour && detailsOpen ? "map-page--record-open" : "",
+    activeTour && (detailsOpen || pointRecords.length) ? "map-page--record-open" : "",
   ].filter(Boolean).join(" ");
-  const handleRecordSelect = (record) => {
-    if (!record) return;
-    if (String(record.id) === String(selectedRecord?.id)) {
-      setDetailsOpen(true);
-      return;
-    }
-    selectRecord(record);
-  };
 
   return (
     <section className={mapClassName} aria-label="Cemetery Map" hidden={!active}>
@@ -123,12 +120,13 @@ const MapDestination = ({
           focusKey={selectedRecord?.id || route.section || route.tour || "cemetery"}
           showRecordMarkers={activeTour?.kind !== "collection"}
           tourStopsPresent={Boolean(activeTour)}
-          onRecordSelect={handleRecordSelect}
+          onRecordsSelect={selectMapRecords}
           onSectionSelect={selectSection}
           onBrowseSection={browseSection}
         />
       </Suspense>
       {loadingTour ? <p className="map-status" role="status">Loading tour…</p> : null}
+      {loadingSection ? <p className="map-status" role="status">Loading section burials…</p> : null}
       {loadError ? <p className="map-status map-status--error">{loadError}</p> : null}
       {activeTour && !loadingTour ? (
         <TourStopsPanel
@@ -140,6 +138,7 @@ const MapDestination = ({
           onSelect={selectRecord}
         />
       ) : null}
+      <MapRecordPicker records={pointRecords} onSelect={selectRecord} onClose={clearPointRecords} />
       <RecordCard
         key={selectedRecord?.id || "none"}
         record={selectedRecord}
@@ -159,12 +158,15 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
   const [records, setRecords] = useState(() => route.legacySelection ? [route.legacySelection] : []);
   const [selectedRecord, setSelectedRecord] = useState(route.legacySelection);
   const [detailsOpen, setDetailsOpen] = useState(Boolean(route.legacySelection));
+  const [pointRecords, setPointRecords] = useState([]);
   const [tourLoadState, setTourLoadState] = useState({ key: "", error: "" });
   const [tourProgress, setTourProgress] = useState(readTourProgress);
   const burialSearch = useBurialSearchHook();
   const runBurialSearch = burialSearch.runSearch;
   const loadingTour = route.tour && tourLoadState.key !== route.tour ? route.tour : "";
-  const loadError = tourLoadState.key === route.tour ? tourLoadState.error : "";
+  const loadError = route.tour
+    ? tourLoadState.key === route.tour ? tourLoadState.error : ""
+    : route.section ? burialSearch.error : "";
   const activeTour = findTourDefinition(route.tour);
   const savedTour = findTourDefinition(tourProgress.tourKey);
   const continueTour = activeTour || savedTour;
@@ -172,6 +174,8 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
   const selectedTourIndex = getSelectedTourIndex(selectedRecord, records);
 
   const commitRoute = useCallback((nextRoute) => {
+    if (nextRoute.section !== route.section) setRecords([]);
+    setPointRecords([]);
     setRoute(nextRoute);
     if (nextRoute.view === APP_VIEWS.MAP) setHasVisitedMap(true);
     if (!nextRoute.record && !nextRoute.legacySelection) {
@@ -180,7 +184,7 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
     }
     if (nextRoute.tour || nextRoute.record || nextRoute.section || nextRoute.legacySelection) return;
     setRecords([]);
-  }, []);
+  }, [route.section]);
 
   const updateRoute = useCallback((changes, { replace = false } = {}) => {
     const nextUrl = buildAppUrl(window.location.href, changes);
@@ -235,6 +239,15 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
       });
     return () => { cancelled = true; };
   }, [route.record, route.tour]);
+
+  useEffect(() => {
+    if (route.view !== APP_VIEWS.MAP || !route.section || route.tour) return;
+    let cancelled = false;
+    runBurialSearch({ section: route.section, limit: Infinity }).then((sectionRecords) => {
+      if (!cancelled) setRecords(sectionRecords);
+    });
+    return () => { cancelled = true; };
+  }, [route.view, route.section, route.tour, runBurialSearch]);
 
   useEffect(() => {
     if (!route.record || route.tour || String(selectedRecord?.id) === route.record) return;
@@ -303,6 +316,19 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
     updateRoute({ record: "" }, { replace: true });
   };
 
+  const selectMapRecords = (candidates) => {
+    if (candidates.length === 1) {
+      if (String(candidates[0].id) === String(selectedRecord?.id)) {
+        setDetailsOpen(true);
+        return;
+      }
+      selectRecord(candidates[0]);
+      return;
+    }
+    unpin();
+    setPointRecords(candidates);
+  };
+
   const showTourOverview = () => {
     setSelectedRecord(null);
     setDetailsOpen(false);
@@ -349,8 +375,11 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
 
   const selectSection = (section) => {
     const normalizedSection = String(section || "").trim();
-    if (!normalizedSection) return;
-
+    setPointRecords([]);
+    if (!normalizedSection && !route.section) {
+      unpin();
+      return;
+    }
     setSelectedRecord(null);
     setDetailsOpen(false);
     if (normalizedSection === route.section && !route.tour) {
@@ -415,13 +444,17 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
           hasVisitedMap={hasVisitedMap}
           loadError={loadError}
           loadingTour={loadingTour}
+          loadingSection={route.section && !route.tour && burialSearch.status === "loading"}
           MapComponent={MapComponent}
+          pointRecords={pointRecords}
           records={records}
           returnToTours={returnToTours}
           route={route}
           selectedRecord={selectedRecord}
           selectRecord={selectRecord}
           selectSection={selectSection}
+          selectMapRecords={selectMapRecords}
+          clearPointRecords={() => setPointRecords([])}
           setDetailsOpen={setDetailsOpen}
           shareUrl={shareUrl}
           tourContext={tourContext}

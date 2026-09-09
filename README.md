@@ -88,10 +88,11 @@ Keep the ARCE website as a separate external action.
 
 The map uses provider tiles instead of repository-built orthophoto exports:
 
-- one muted OpenStreetMap reference map over Esri World Hillshade
-- road names and Notables Tour landmarks drawn above the basemap in local fonts
+- Esri World Hillshade by default, with a separate OpenStreetMap Streets choice
+- road names and Notables Tour landmarks in local fonts on Terrain
 - local cemetery boundary and roads above the terrain context
 - section boundaries and numbers on request, with section taps always available
+- small burial points in the selected section, with a name picker for overlaps
 
 Provider attribution stays visible. The design follows figure-ground and visual
 hierarchy guidance: the basemap recedes, cemetery structure reads next, and the

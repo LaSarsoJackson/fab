@@ -69,22 +69,7 @@ export const createMapStyle = () => ({
       id: MAP_LAYER_IDS.map,
       type: "raster",
       source: "osm-map",
-      paint: {
-        "raster-opacity": 0.38,
-        "raster-saturation": -0.8,
-        "raster-contrast": 0,
-        "raster-brightness-min": 0,
-        "raster-brightness-max": 1,
-      },
-    },
-    {
-      id: "cemetery-ground",
-      type: "fill",
-      source: "boundary",
-      paint: {
-        "fill-color": "#fffdf7",
-        "fill-opacity": 0.06,
-      },
+      layout: { visibility: "none" },
     },
     {
       id: "cemetery-boundary-halo",
@@ -219,9 +204,9 @@ export const createMapStyle = () => ({
       source: "records",
       paint: {
         "circle-color": "#315f4c",
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 5, 18, 8],
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 2.5, 18, 4],
         "circle-stroke-color": "#ffffff",
-        "circle-stroke-width": 2,
+        "circle-stroke-width": 1,
       },
     },
     {

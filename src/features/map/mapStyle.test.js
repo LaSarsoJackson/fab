@@ -13,7 +13,6 @@ describe("cartographic style contract", () => {
   test("restores the earlier terrain source and draws cemetery labels above it", () => {
     const layer = style.layers.find(({ id }) => id === MAP_LAYER_IDS.hillshade);
     const mapIndex = style.layers.findIndex(({ id }) => id === MAP_LAYER_IDS.map);
-    const groundIndex = style.layers.findIndex(({ id }) => id === "cemetery-ground");
     const hillshadeIndex = style.layers.findIndex(({ id }) => id === MAP_LAYER_IDS.hillshade);
     const boundaryIndex = style.layers.findIndex(({ id }) => id === "cemetery-boundary");
     const roadsIndex = style.layers.findIndex(({ id }) => id === "cemetery-roads");
@@ -24,7 +23,8 @@ describe("cartographic style contract", () => {
     expect(style.sources.hillshade.attribution).toContain("U.S. Geological Survey");
     expect(style.sources["osm-map"].attribution).toContain("OpenStreetMap");
     expect(hillshadeIndex).toBeLessThan(mapIndex);
-    expect(mapIndex).toBeLessThan(groundIndex);
+    expect(style.layers[mapIndex].layout.visibility).toBe("none");
+    expect(style.layers.some(({ id }) => id === "cemetery-ground")).toBe(false);
     expect(hillshadeIndex).toBeLessThan(boundaryIndex);
     expect(hillshadeIndex).toBeLessThan(roadsIndex);
     expect(hillshadeIndex).toBeLessThan(recordsIndex);
