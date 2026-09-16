@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import manifest from "../../public/manifest.json";
 import {
   APP_VIEWS,
   buildAppUrl,
@@ -9,13 +10,23 @@ import {
 } from "./routes";
 
 describe("app route contract", () => {
-  test("opens tours by default and accepts the FABFG burial alias", () => {
-    expect(readAppRoute("").view).toBe(APP_VIEWS.TOURS);
+  test("opens the cemetery map by default and accepts the FABFG burial alias", () => {
+    expect(readAppRoute("").view).toBe(APP_VIEWS.MAP);
+    expect(readAppRoute("?view=unknown").view).toBe(APP_VIEWS.MAP);
+    expect(readAppRoute("?view=tours").view).toBe(APP_VIEWS.TOURS);
+    expect(readAppRoute("?embed=fabfg")).toMatchObject({ view: APP_VIEWS.MAP, embedded: true });
+    expect(buildAppUrl("https://example.test/fab/")).toBe("https://example.test/fab/?view=map");
     expect(readAppRoute("?view=search").view).toBe(APP_VIEWS.LOCATOR);
     expect(readAppRoute("?view=burials&embed=fabfg")).toMatchObject({
       view: APP_VIEWS.LOCATOR,
       embedded: true,
     });
+  });
+
+  test("installed web apps launch the cemetery map", () => {
+    const launchUrl = new URL(manifest.start_url, "https://example.test/fab/");
+    expect(launchUrl.pathname).toBe("/fab/");
+    expect(readAppRoute(launchUrl.search).view).toBe(APP_VIEWS.MAP);
   });
 
   test("routes record and tour deep links to the map", () => {

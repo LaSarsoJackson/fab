@@ -23,8 +23,8 @@ const normalizeView = (value) => {
   if (view === "search" || view === "locator" || view === APP_VIEWS.LOCATOR) {
     return APP_VIEWS.LOCATOR;
   }
-  if (view === APP_VIEWS.MAP) return APP_VIEWS.MAP;
-  return APP_VIEWS.TOURS;
+  if (view === APP_VIEWS.TOURS) return APP_VIEWS.TOURS;
+  return APP_VIEWS.MAP;
 };
 
 const decodeLegacySelection = (value) => {
@@ -49,10 +49,9 @@ export const readAppRoute = (search = "") => {
   const record = clean(params.get(ROUTE_KEYS.record));
   const tour = clean(params.get(ROUTE_KEYS.tour));
   const legacySelection = decodeLegacySelection(params.get(ROUTE_KEYS.legacyShare));
-  const hasMapContext = Boolean(record || tour || legacySelection);
 
   return {
-    view: requestedView ? normalizeView(requestedView) : hasMapContext ? APP_VIEWS.MAP : APP_VIEWS.TOURS,
+    view: normalizeView(requestedView),
     query: clean(params.get(ROUTE_KEYS.query)),
     section: clean(params.get(ROUTE_KEYS.section)),
     tour,

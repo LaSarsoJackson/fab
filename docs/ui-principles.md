@@ -2,8 +2,8 @@
 
 ## Product hierarchy
 
-- Keep Search Tours, Cemetery Map, and Burial Locator as separate destinations.
-- Open Search Tours by default.
+- Keep Cemetery Map, Search Tours, and Burial Locator as separate destinations.
+- Open Cemetery Map by default.
 - Keep the ARCE website as an external action.
 - Hide web navigation when FABFG owns the tabs.
 - Preserve the active tour, pin, section, and locator query when the visitor

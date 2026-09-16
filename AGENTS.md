@@ -12,8 +12,8 @@ Read the task-specific note before changing map, routing, UI, data, or release b
 
 ## Product contract
 
-FAB has three destinations: Search Tours, Cemetery Map, and Burial Locator. The
-ARCE website is an external action. Tours is the default web route.
+FAB has three destinations: Cemetery Map, Search Tours, and Burial Locator. The
+ARCE website is an external action. Cemetery Map is the default web route.
 
 `FABFG` is a native shell over hosted FAB routes. Its WebViews should use
 `embed=fabfg`, which hides web navigation so there is one visible tab owner.

@@ -63,13 +63,24 @@ describe("App product shell", () => {
     ]);
   });
 
-  it("starts with tours and exposes three unambiguous destinations", () => {
+  it("opens an explicit tours route", () => {
     renderApp();
     expect(screen.getByRole("heading", { name: "Search Tours" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Search Tours" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("button", { name: "Cemetery Map" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Burial Locator" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "ARCE website" })).toHaveAttribute("target", "_blank");
+  });
+
+  it("opens the map first with destinations in visitor order", () => {
+    window.history.replaceState({}, "", "/fab/");
+    renderApp();
+    const navigation = screen.getByRole("navigation", { name: "Primary" });
+    expect(within(navigation).getAllByRole("button").map((button) => button.textContent))
+      .toEqual(["Cemetery Map", "Search Tours", "Burial Locator"]);
+    expect(within(navigation).getByRole("button", { name: "Cemetery Map" }))
+      .toHaveAttribute("aria-current", "page");
+    expect(screen.getByLabelText("Albany Rural Cemetery map")).toHaveAttribute("data-active", "true");
   });
 
   it("uses the route as the single tab state", () => {

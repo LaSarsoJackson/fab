@@ -57,6 +57,25 @@ test.afterEach(async ({ page: _page }, testInfo) => {
   expect(testInfo.errors, "browser console and local requests should be clean").toEqual([]);
 });
 
+for (const width of [1440, 375]) {
+  test(`cemetery map is the landing page at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 });
+    await page.goto("./");
+    const navigation = page.getByRole("navigation", { name: "Primary" });
+    await expect(navigation.getByRole("button")).toHaveText(["Cemetery Map", "Search Tours", "Burial Locator"]);
+    await expect(navigation.getByRole("button", { name: "Cemetery Map" })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("region", { name: "Albany Rural Cemetery map" })).toBeVisible();
+    await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
+    await openAttribution(page);
+    await expect(page.getByRole("link", { name: "U.S. Geological Survey" })).toBeVisible();
+    for (const button of await navigation.getByRole("button").all()) await expect(button).toBeInViewport();
+    await navigation.getByRole("button", { name: "Search Tours" }).click();
+    await expect(page.getByRole("heading", { name: "Search Tours" })).toBeVisible();
+    await page.goBack();
+    await expect(navigation.getByRole("button", { name: "Cemetery Map" })).toHaveAttribute("aria-current", "page");
+  });
+}
+
 test("tour selection opens one MapLibre map", async ({ page }) => {
   await page.goto("./?view=tours");
   await expect(page).toHaveTitle("Albany Grave Finder");
