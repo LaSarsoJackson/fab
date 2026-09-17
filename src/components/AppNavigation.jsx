@@ -2,8 +2,8 @@ import { APP_VIEWS } from "../app/routes";
 import { ExternalIcon, MapIcon, SearchIcon, ToursIcon } from "../app/icons";
 
 const ITEMS = [
-  { view: APP_VIEWS.TOURS, label: "Search Tours", Icon: ToursIcon },
   { view: APP_VIEWS.MAP, label: "Cemetery Map", Icon: MapIcon },
+  { view: APP_VIEWS.TOURS, label: "Search Tours", Icon: ToursIcon },
   { view: APP_VIEWS.LOCATOR, label: "Burial Locator", Icon: SearchIcon },
 ];
 

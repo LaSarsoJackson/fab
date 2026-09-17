@@ -69,7 +69,7 @@ Vitest/jsdom. User flows live under `e2e/` and run with Playwright.
 
 Map or routing changes must cover:
 
-1. Tours default route and tour selection.
+1. Cemetery Map default route, explicit Tours route, and tour selection.
 2. Locator search and result selection.
 3. One MapLibre instance with hillshade and visible attribution.
 4. Close preserving a pin and Unpin clearing it.

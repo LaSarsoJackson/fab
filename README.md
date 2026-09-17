@@ -10,8 +10,8 @@ Visitors can search a 97,457-record burial index, locate graves on an interactiv
 
 | Destination | What visitors can do |
 | --- | --- |
-| Search Tours | Find and open a curated tour. |
 | Cemetery Map | Explore cemetery roads, sections, tour stops, and selected graves. |
+| Search Tours | Find and open a curated tour. |
 | Burial Locator | Search burial records and open their mapped locations. |
 
 ## Development overview
@@ -63,7 +63,7 @@ No Python image server or geospatial Python environment is required.
 
 ## Product routes and FABFG
 
-The query string is the route contract:
+Cemetery Map opens by default. The query string is the route contract:
 
 | Destination | `view` value | Purpose |
 | --- | --- | --- |
@@ -81,7 +81,7 @@ tabs, and the web app does not draw a duplicate navigation bar:
 - `?view=map&embed=fabfg`
 - `?view=burials&embed=fabfg`
 
-Use Search Tours, Cemetery Map, and Burial Locator for the native tab labels.
+Use Cemetery Map, Search Tours, and Burial Locator for the native tab labels.
 Keep the ARCE website as a separate external action.
 
 ## Cartography

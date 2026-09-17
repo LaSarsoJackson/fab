@@ -1,6 +1,8 @@
 # Routing architecture
 
 FAB is a static app, so the query string is the public route contract.
+Missing or unrecognized `view` values open Cemetery Map. Explicit destination
+links, including `view=tours`, retain their destination.
 
 [`src/app/routes.js`](../src/app/routes.js) owns destination parsing and URL
 updates. `src/App.jsx` decides when a user action changes that route.
