@@ -1359,3 +1359,30 @@ button.secondary-button {
     animation-iteration-count: 1 !important;
   }
 }
+
+.map-location-message {
+  position: absolute;
+  top: calc(max(10px, env(safe-area-inset-top)) + 64px);
+  left: max(10px, env(safe-area-inset-left));
+  z-index: 6;
+  width: min(330px, calc(100% - max(10px, env(safe-area-inset-left)) - max(72px, env(safe-area-inset-right))));
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #c8cec9;
+  border-radius: 8px;
+  background: #fff;
+  color: #24372d;
+  font-size: 0.8rem;
+}
+
+.map-location-message button {
+  flex-shrink: 0;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.map-location-message ~ .map-section-context {
+  top: calc(max(10px, env(safe-area-inset-top)) + 220px);
+}

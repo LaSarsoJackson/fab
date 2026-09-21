@@ -29,17 +29,18 @@ graves distinct.
 - Keep all-section shading off until requested. Section taps still identify and
   highlight the selected section.
 - When sections are on, use a warm fill beneath the cemetery roads and draw
-  section boundaries and numbers above them. With shading off, the section
-  control names the selection without repeated labels on its polygons.
+  section boundaries and numbers above them. With shading off, section numbers
+  appear from zoom 16 so visitors can orient themselves without selecting a tour.
 - Show every stop in the active tour; do not collapse curated stops into
   proximity clusters.
 - Load the selected section's burial points. Keep points small, and offer a
   name list when a tap hits overlapping graves. View burials opens the full
   section inventory in Burial Locator. A blank map tap clears the selection.
 - Use one warm section highlight and one strong selected-record color.
-- Label roads from `ARC_Roads.json` and landmarks from `NotablesTour20.json`.
-  Draw these names on Terrain with pale halos, local fonts, collision handling,
-  and zoom thresholds. Streets uses its own labels, avoiding duplicate names.
+- Label roads from `ARC_Roads.json` on Terrain and sections from `ARC_Sections.json`
+  in both map modes. Use local fonts, pale halos, and collision handling. Do not
+  add unsolicited burial-name labels as visitors zoom; selected records and tour
+  stops provide individual identification. Streets retains its provider labels.
 - Keep provider credits collapsed at the map's bottom-right corner on first
   load. Opening credits must leave them readable and clear of record panels.
 

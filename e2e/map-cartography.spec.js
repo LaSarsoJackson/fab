@@ -117,7 +117,7 @@ for (const width of [375, 1440]) {
 }
 
 for (const width of [375, 1440]) {
-  test(`terrain and landmark names render without intercepting section taps at ${width}px`, async ({ page }, testInfo) => {
+  test(`terrain and section labels render without unsolicited burial names at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const errors = [];
     const externalFontRequests = [];
@@ -133,9 +133,10 @@ for (const width of [375, 1440]) {
     await waitForMap(page);
     await page.evaluate(() => globalThis.testMap.jumpTo({ zoom: 16 }));
     await waitForMap(page);
-    expect(await page.evaluate(() => globalThis.testMap.queryRenderedFeatures({
-      layers: ["cemetery-landmark-labels"],
-    }).length)).toBe(0);
+    expect(await page.evaluate(() => globalThis.testMap.getLayer("cemetery-landmark-labels"))).toBeUndefined();
+    await expect.poll(() => page.evaluate(() => globalThis.testMap.queryRenderedFeatures({
+      layers: ["cemetery-section-labels"],
+    }).length)).toBeGreaterThan(0);
     const credits = await page.getByLabel("Map credits", { exact: true }).boundingBox();
     const mapBox = await page.locator(".maplibregl-map").boundingBox();
     expect(mapBox.x + mapBox.width - credits.x - credits.width).toBeLessThanOrEqual(12);
@@ -145,10 +146,6 @@ for (const width of [375, 1440]) {
       center: [-73.73362, 42.70749], zoom: 16.8,
     }));
     await waitForMap(page);
-    await expect.poll(() => page.evaluate(() => (
-      globalThis.testMap.queryRenderedFeatures({ layers: ["cemetery-landmark-labels"] })
-        .map(({ properties }) => properties.Full_Name)
-    ))).toContain("President Chester A. Arthur");
     await expect.poll(() => page.evaluate(() => (
       globalThis.testMap.queryRenderedFeatures({ layers: ["cemetery-road-labels"] })
         .map(({ properties }) => properties.Cemetery_R)
@@ -165,23 +162,13 @@ for (const width of [375, 1440]) {
     expect(meanDifference, "terrain must change the rendered relief, not just its checkbox").toBeGreaterThan(4);
     await page.getByLabel("Basemap", { exact: true }).selectOption("terrain");
     await waitForMap(page);
-    await testInfo.attach("terrain-and-landmarks", { body: await page.screenshot(), contentType: "image/png" });
+    await testInfo.attach("terrain-and-sections", { body: await page.screenshot(), contentType: "image/png" });
 
-    const labelPoint = await page.evaluate(() => {
-      const map = globalThis.testMap;
-      const center = map.project([-73.73362297435509, 42.707493868452055]);
-      for (let y = center.y - 50; y <= center.y + 50; y += 4) {
-        for (let x = center.x - 90; x <= center.x + 90; x += 4) {
-          const labels = map.queryRenderedFeatures([x, y], { layers: ["cemetery-landmark-labels"] });
-          const sections = map.queryRenderedFeatures([x, y], { layers: ["cemetery-sections"] });
-          if (labels.some(({ properties }) => properties.Full_Name === "President Chester A. Arthur") &&
-            sections.some(({ properties }) => String(properties.Section) === "24")) return { x, y };
-        }
-      }
-      return null;
+    const sectionPoint = await page.evaluate(() => {
+      const point = globalThis.testMap.project([-73.73362297435509, 42.707493868452055]);
+      return { x: point.x, y: point.y };
     });
-    expect(labelPoint).not.toBeNull();
-    await page.locator(".maplibregl-canvas").click({ position: labelPoint });
+    await page.locator(".maplibregl-canvas").click({ position: sectionPoint });
     await expect(page.getByRole("group", { name: "Section 24", exact: true })).toBeVisible();
     expect(new URL(page.url()).searchParams.has("tour")).toBe(false);
     expect(new URL(page.url()).searchParams.has("record")).toBe(false);

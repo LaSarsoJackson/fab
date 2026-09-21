@@ -164,6 +164,7 @@ export default function MapView({
   const selectedRecordRef = useRef(selectedRecord);
   const selectedSectionRef = useRef(selectedSection);
   const [readyMap, setReadyMap] = useState(null);
+  const [locationMessage, setLocationMessage] = useState("");
   const [preferences, setPreferences] = useState(readMapPreferences);
   const [visibleMarkerCount, setVisibleMarkerCount] = useState(null);
   const { hillshade, showSections } = preferences;
@@ -205,23 +206,38 @@ export default function MapView({
     });
     mapRef.current = map;
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
-    const addGeolocateControl = async () => {
-      if (!globalThis.navigator?.geolocation) return;
+    const geolocate = new GeolocateControl({
+      positionOptions: { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+      trackUserLocation: true,
+      showUserLocation: true,
+      showAccuracyCircle: true,
+      fitBoundsOptions: { maxZoom: 18 },
+    });
+    map.addControl(geolocate, "top-right");
+    geolocate.on("geolocate", () => setLocationMessage(""));
+    geolocate.on("outofmaxbounds", () => {
+      setLocationMessage("You are outside the cemetery map area. Live location appears when you are nearby.");
+    });
+    geolocate.on("error", ({ code }) => {
+      setLocationMessage(code === 1
+        ? "Location is blocked. Allow location for this site in your browser or app settings, then reload."
+        : "Your location could not be found. Check Location Services and try the location button again.");
+    });
+    const checkLocationPermission = async () => {
+      if (!globalThis.navigator?.geolocation) {
+        setLocationMessage("Live location is unavailable in this browser.");
+        return;
+      }
       try {
         const permission = await globalThis.navigator.permissions?.query({ name: "geolocation" });
-        if (permission?.state === "denied") return;
+        if (mapRef.current === map && permission?.state === "denied") {
+          setLocationMessage("Location is blocked. Allow location for this site in your browser or app settings, then reload.");
+        }
       } catch {
         // iOS can reject the Permissions API query while geolocation still works.
       }
-      if (mapRef.current !== map) return;
-      map.addControl(new GeolocateControl({
-        positionOptions: { enableHighAccuracy: true },
-        trackUserLocation: true,
-        showUserHeading: true,
-        fitBoundsOptions: { maxZoom: 18 },
-      }), "top-right");
     };
-    void addGeolocateControl();
+    void checkLocationPermission();
     map.addControl(new AttributionControl({ compact: true }), "bottom-right");
     const attribution = containerRef.current?.querySelector(".maplibregl-ctrl-attrib");
     const attributionButton = attribution?.querySelector(".maplibregl-ctrl-attrib-button");
@@ -319,7 +335,6 @@ export default function MapView({
     setLayerVisibility(map, MAP_LAYER_IDS.hillshade, hillshade);
     setLayerVisibility(map, MAP_LAYER_IDS.map, !hillshade);
     setLayerVisibility(map, "cemetery-road-labels", hillshade);
-    setLayerVisibility(map, MAP_LAYER_IDS.landmarkLabels, hillshade);
     const matchesSection = [
       "==",
       ["to-string", ["get", "Section"]],
@@ -331,7 +346,7 @@ export default function MapView({
     setLayerVisibility(map, MAP_LAYER_IDS.sectionOutlines, showSections);
     setLayerVisibility(map, MAP_LAYER_IDS.selectedSection, Boolean(selectedSection));
     map.setFilter(MAP_LAYER_IDS.selectedSection, matchesSection);
-    setLayerVisibility(map, MAP_LAYER_IDS.sectionLabels, showSections);
+    map.setLayerZoomRange(MAP_LAYER_IDS.sectionLabels, showSections ? 0 : 16, 24);
   }, [hillshade, readyMap, selectedSection, showSections]);
 
   useEffect(() => {
@@ -377,6 +392,12 @@ export default function MapView({
           Sections
         </label>
       </div>
+      {locationMessage ? (
+        <div className="map-location-message" role="status">
+          <span>{locationMessage}</span>
+          <button type="button" aria-label="Dismiss location message" onClick={() => setLocationMessage("")}>×</button>
+        </div>
+      ) : null}
       {selectedSection ? (
         <div className="map-section-context" role="group" aria-label={`Section ${selectedSection}`}>
           <strong>Section {selectedSection}</strong>
