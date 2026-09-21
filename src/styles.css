@@ -1362,7 +1362,7 @@ button.secondary-button {
 
 .map-location-message {
   position: absolute;
-  top: calc(max(10px, env(safe-area-inset-top)) + 52px);
+  top: calc(max(10px, env(safe-area-inset-top)) + 64px);
   left: max(10px, env(safe-area-inset-left));
   z-index: 6;
   width: min(330px, calc(100% - max(10px, env(safe-area-inset-left)) - max(72px, env(safe-area-inset-right))));
@@ -1384,5 +1384,5 @@ button.secondary-button {
 }
 
 .map-location-message ~ .map-section-context {
-  top: calc(max(10px, env(safe-area-inset-top)) + 164px);
+  top: calc(max(10px, env(safe-area-inset-top)) + 220px);
 }
