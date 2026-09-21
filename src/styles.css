@@ -1362,10 +1362,10 @@ button.secondary-button {
 
 .map-location-message {
   position: absolute;
-  top: 62px;
-  left: 10px;
+  top: calc(max(10px, env(safe-area-inset-top)) + 52px);
+  left: max(10px, env(safe-area-inset-left));
   z-index: 6;
-  width: min(330px, calc(100% - 82px));
+  width: min(330px, calc(100% - max(10px, env(safe-area-inset-left)) - max(72px, env(safe-area-inset-right))));
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -1384,5 +1384,5 @@ button.secondary-button {
 }
 
 .map-location-message ~ .map-section-context {
-  top: 174px;
+  top: calc(max(10px, env(safe-area-inset-top)) + 164px);
 }
