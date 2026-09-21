@@ -12,11 +12,13 @@ test("live GPS follows updates and survives destination changes", async ({ page,
   await expect(page.locator(".maplibregl-user-location-accuracy-circle")).toBeVisible();
   await context.setGeolocation({ latitude: 42.706, longitude: -73.734, accuracy: 12 });
   await expect(control).toHaveClass(/geolocate-active/);
+  await control.click();
+  await expect(marker).toHaveCount(0);
+  await control.click();
+  await expect(marker).toBeVisible();
   await page.getByRole("button", { name: "Burial Locator", exact: true }).click();
   await page.getByRole("button", { name: "Cemetery Map", exact: true }).click();
   await expect(marker).toBeVisible();
-  await control.click();
-  await expect(marker).toHaveCount(0);
 });
 
 test("denied GPS stays visible with recovery instructions", async ({ page }) => {
