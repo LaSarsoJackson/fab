@@ -335,7 +335,6 @@ export default function MapView({
     setLayerVisibility(map, MAP_LAYER_IDS.hillshade, hillshade);
     setLayerVisibility(map, MAP_LAYER_IDS.map, !hillshade);
     setLayerVisibility(map, "cemetery-road-labels", hillshade);
-    setLayerVisibility(map, MAP_LAYER_IDS.landmarkLabels, hillshade);
     const matchesSection = [
       "==",
       ["to-string", ["get", "Section"]],
@@ -347,7 +346,7 @@ export default function MapView({
     setLayerVisibility(map, MAP_LAYER_IDS.sectionOutlines, showSections);
     setLayerVisibility(map, MAP_LAYER_IDS.selectedSection, Boolean(selectedSection));
     map.setFilter(MAP_LAYER_IDS.selectedSection, matchesSection);
-    setLayerVisibility(map, MAP_LAYER_IDS.sectionLabels, showSections);
+    map.setLayerZoomRange(MAP_LAYER_IDS.sectionLabels, showSections ? 0 : 16, 24);
   }, [hillshade, readyMap, selectedSection, showSections]);
 
   useEffect(() => {

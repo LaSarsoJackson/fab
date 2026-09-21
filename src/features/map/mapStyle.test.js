@@ -28,12 +28,16 @@ describe("cartographic style contract", () => {
     expect(hillshadeIndex).toBeLessThan(boundaryIndex);
     expect(hillshadeIndex).toBeLessThan(roadsIndex);
     expect(hillshadeIndex).toBeLessThan(recordsIndex);
-    for (const id of ["cemetery-road-labels", MAP_LAYER_IDS.landmarkLabels, MAP_LAYER_IDS.sectionLabels]) {
+    for (const id of ["cemetery-road-labels", MAP_LAYER_IDS.sectionLabels]) {
       expect(style.layers.findIndex((candidate) => candidate.id === id)).toBeGreaterThan(roadsIndex);
     }
     // Labels use local fonts and stay independent of the raster's opacity.
     expect(style.glyphs).toBeUndefined();
-    expect(style.layers.find(({ id }) => id === MAP_LAYER_IDS.landmarkLabels).paint["text-opacity"] ?? 1).toBe(1);
+    expect(style.sources.landmarks).toBeUndefined();
+    expect(style.layers.some(({ source }) => source === "landmarks")).toBe(false);
+    const sectionLabels = style.layers.find(({ id }) => id === MAP_LAYER_IDS.sectionLabels);
+    expect(sectionLabels.minzoom).toBe(16);
+    expect(sectionLabels.layout.visibility).not.toBe("none");
   });
 
   test("distinguishes cemetery paths from map context", () => {

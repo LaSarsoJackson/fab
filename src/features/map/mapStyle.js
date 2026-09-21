@@ -1,7 +1,6 @@
 import boundary from "../../data/ARC_Boundary.json";
 import roads from "../../data/ARC_Roads.json";
 import sections from "../../data/ARC_Sections.json";
-import landmarks from "../../data/NotablesTour20.json";
 import { BOUNDARY_BBOX } from "./generatedBounds";
 
 const EMPTY_COLLECTION = { type: "FeatureCollection", features: [] };
@@ -19,7 +18,6 @@ export const MAP_LAYER_IDS = Object.freeze({
   sectionOutlines: "cemetery-section-outlines",
   sectionLabels: "cemetery-section-labels",
   selectedSection: "selected-section",
-  landmarkLabels: "cemetery-landmark-labels",
   records: "records",
   tourRecords: "tour-records",
   selectedRecord: "selected-record",
@@ -45,7 +43,6 @@ export const createMapStyle = () => ({
     boundary: { type: "geojson", data: boundary },
     roads: { type: "geojson", data: roads },
     sections: { type: "geojson", data: sections },
-    landmarks: { type: "geojson", data: landmarks },
     records: { type: "geojson", data: EMPTY_COLLECTION },
     "tour-records": { type: "geojson", data: EMPTY_COLLECTION },
     selected: { type: "geojson", data: EMPTY_COLLECTION },
@@ -164,9 +161,9 @@ export const createMapStyle = () => ({
     {
       id: MAP_LAYER_IDS.sectionLabels,
       type: "symbol",
+      minzoom: 16,
       source: "sections",
       layout: {
-        visibility: "none",
         "text-field": ["concat", "Section ", ["to-string", ["get", "Section"]]],
         "text-font": ["Arial"],
         "text-size": 13,
@@ -176,26 +173,6 @@ export const createMapStyle = () => ({
         "text-color": "#684818",
         "text-halo-color": "#fffdf7",
         "text-halo-width": 2,
-      },
-    },
-    {
-      id: MAP_LAYER_IDS.landmarkLabels,
-      type: "symbol",
-      source: "landmarks",
-      minzoom: 16.5,
-      layout: {
-        "text-field": ["get", "Full_Name"],
-        "text-font": ["Arial"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 16.5, 11.5, 18, 13],
-        "text-variable-anchor": ["top", "bottom", "left", "right"],
-        "text-radial-offset": 0.5,
-        "text-max-width": 10,
-        "text-padding": 16,
-      },
-      paint: {
-        "text-color": "#435548",
-        "text-halo-color": "#fffdf7",
-        "text-halo-width": 1,
       },
     },
     {
