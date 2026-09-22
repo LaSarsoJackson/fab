@@ -27,9 +27,10 @@ which renderer consumes it.
 3. optional section fill
 4. cemetery roads
 5. optional section boundaries and selected section
-6. road names, section numbers, and landmark names
-7. section burial points or active tour stops
-8. selected record
+6. road names and section numbers
+7. an optional local route and its endpoints
+8. section burial points or active tour stops
+9. selected record
 
 That order is the visual hierarchy. Do not solve prominence by raising every
 line width or adding more controls.
@@ -45,7 +46,8 @@ line width or adding more controls.
   the same action without requiring a canvas tap.
 - Fit every polygon belonging to the selected section. Sections such as 49
   consist of multiple features; using only one gives an incomplete extent.
-- Landmark names label the map. They do not start a tour or intercept section taps.
+- Section numbers appear on zoom; burial names are shown through selected records
+  and tours. The map has no background notable-burial label layer.
 - Curated tour stops are never proximity-clustered; every stop remains visible.
 - A selected record is rendered once in the dedicated selected source.
 - Tour stops remain directly selectable in an accessible HTML list; the canvas
@@ -55,14 +57,14 @@ line width or adding more controls.
 - Burial details keep the separate Close and Unpin behavior.
 - MapLibre credits start collapsed at bottom right, even before tiles finish
   loading. Panels leave space for both the closed and expanded control.
-- Geolocation uses MapLibre’s control; directions hand off to Apple or Google Maps.
+- Geolocation uses MapLibre’s control. Local routes use the bundled roads and
+  explicit start/destination picking; Apple or Google Maps remains available.
 
 ## Performance
 
 The map is lazy-loaded on the first visit to the map destination. After that,
 `App.jsx` keeps the one MapLibre instance mounted and hidden between destination
 changes so the user's camera and in-session map context do not reset. The
-cemetery-wide burial source is never added to MapLibre. The small Notables Tour
-dataset supplies background landmark names. Current tour stops and the selected
+cemetery-wide burial source is never added to MapLibre. Current tour stops and the selected
 section's burials use separate GeoJSON sources so the map does not hide a
 selected place. Fonts render locally without a glyph-service request.

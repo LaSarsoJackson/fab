@@ -8,7 +8,7 @@ import {
   setWorkerUrl,
 } from "maplibre-gl";
 import mapLibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import { isCoordinatePairValid } from "../../shared/geoJsonBounds";
+import { getGeoJsonBounds, isCoordinatePairValid } from "../../shared/geoJsonBounds";
 import { recordsToFeatureCollection } from "../locator/burialRecords";
 import { CEMETERY_VIEW, createMapStyle, MAP_LAYER_IDS } from "./mapStyle";
 import { getSectionBounds } from "./mapSections";
@@ -146,6 +146,9 @@ const focusMap = ({ map, records, selectedRecord, selectedSection, tourStopsPres
 
 export default function MapView({
   active = true,
+  routingDraft = null,
+  localRoute = null,
+  onRoutePoint,
   records = [],
   selectedRecord = null,
   selectedSection = "",
@@ -156,8 +159,10 @@ export default function MapView({
   onRecordsSelect,
   onSectionSelect,
 }) {
+  const routingActive = Boolean(routingDraft);
   const containerRef = useRef(null);
   const mapRef = useRef(null);
+  const routingRef = useRef({ draft: routingDraft, onRoutePoint });
   const recordsRef = useRef(records);
   const onRecordsSelectRef = useRef(onRecordsSelect);
   const onSectionSelectRef = useRef(onSectionSelect);
@@ -180,6 +185,8 @@ export default function MapView({
       return next;
     });
   };
+
+  useEffect(() => { routingRef.current = { draft: routingDraft, onRoutePoint }; }, [routingDraft, onRoutePoint]);
 
   useEffect(() => {
     recordsRef.current = records;
@@ -253,6 +260,10 @@ export default function MapView({
     });
 
     map.on("click", (event) => {
+      if (routingRef.current.draft) {
+        if (routingRef.current.draft.picking) routingRef.current.onRoutePoint?.([event.lngLat.lng, event.lngLat.lat]);
+        return;
+      }
       // A small touch tolerance also finds coincident graves without giant clusters.
       const pointFeatures = map.queryRenderedFeatures([
         [event.point.x - 6, event.point.y - 6],
@@ -284,8 +295,8 @@ export default function MapView({
     });
 
     INTERACTIVE_LAYER_IDS.forEach((layerId) => {
-      map.on("mouseenter", layerId, () => { map.getCanvas().style.cursor = "pointer"; });
-      map.on("mouseleave", layerId, () => { map.getCanvas().style.cursor = ""; });
+      map.on("mouseenter", layerId, () => { map.getCanvas().style.cursor = routingRef.current.draft?.picking ? "crosshair" : "pointer"; });
+      map.on("mouseleave", layerId, () => { map.getCanvas().style.cursor = routingRef.current.draft?.picking ? "crosshair" : ""; });
     });
 
     return () => {
@@ -304,7 +315,7 @@ export default function MapView({
   useEffect(() => {
     const map = readyMap;
     if (!map || mapRef.current !== map) return;
-    const visibleRecords = showRecordMarkers
+    const visibleRecords = showRecordMarkers && !routingActive
       ? records.filter(({ id }) => String(id) !== String(selectedRecord?.id))
       : [];
     const burialRecords = visibleRecords.filter(({ source }) => source !== "tour");
@@ -320,14 +331,14 @@ export default function MapView({
     };
     map.on("render", updateVisibleMarkerCount);
     return () => map.off("render", updateVisibleMarkerCount);
-  }, [readyMap, records, selectedRecord, showRecordMarkers]);
+  }, [readyMap, records, selectedRecord, showRecordMarkers, routingActive]);
 
   useEffect(() => {
     const map = readyMap;
     if (!map || mapRef.current !== map) return;
-    const data = selectedRecord ? recordsToFeatureCollection([selectedRecord]) : EMPTY_COLLECTION;
+    const data = selectedRecord && !routingActive ? recordsToFeatureCollection([selectedRecord]) : EMPTY_COLLECTION;
     map.getSource("selected")?.setData(data);
-  }, [readyMap, selectedRecord]);
+  }, [readyMap, selectedRecord, routingActive]);
 
   useEffect(() => {
     const map = readyMap;
@@ -351,7 +362,7 @@ export default function MapView({
 
   useEffect(() => {
     const map = readyMap;
-    if (!active || !map || mapRef.current !== map || !focusKey) return undefined;
+    if (!active || routingActive || !map || mapRef.current !== map || !focusKey) return undefined;
 
     // Route changes and responsive panels can resize the map in the same render.
     // Fit only after layout settles so MapLibre never uses stale canvas dimensions.
@@ -361,7 +372,35 @@ export default function MapView({
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [active, focusKey, readyMap, records, selectedRecord, selectedSection, tourStopsPresent]);
+  }, [active, focusKey, readyMap, records, selectedRecord, selectedSection, tourStopsPresent, routingActive]);
+
+  useEffect(() => {
+    if (!readyMap || mapRef.current !== readyMap) return;
+    readyMap.getSource("local-route")?.setData(routingDraft && localRoute ? localRoute.geojson : EMPTY_COLLECTION);
+    const features = ["start", "end"].flatMap((endpoint) => routingDraft?.[endpoint] ? [{
+      type: "Feature", properties: { endpoint },
+      geometry: { type: "Point", coordinates: routingDraft[endpoint].coordinates },
+    }] : []);
+    readyMap.getSource("route-endpoints")?.setData({ type: "FeatureCollection", features });
+    readyMap.getCanvas().style.cursor = routingDraft?.picking ? "crosshair" : "";
+  }, [readyMap, routingDraft, localRoute]);
+
+  useEffect(() => {
+    if (!active || !localRoute || !readyMap || mapRef.current !== readyMap) return;
+    readyMap.stop();
+    readyMap.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+    const [[south, west], [north, east]] = getGeoJsonBounds(localRoute.geojson);
+    const panel = containerRef.current.closest(".map-page").querySelector(".map-route-panel");
+    const panelBox = panel?.getBoundingClientRect();
+    const viewport = getViewportLayout(readyMap);
+    const padding = viewport.short && viewport.width >= 600
+      ? { top: 76, left: (panelBox?.width || 280) + 30, right: 64, bottom: 30 }
+      : { top: 90, left: 40, right: 64, bottom: Math.min((panelBox?.height || 220) + 50, viewport.height * 0.58) };
+    readyMap.fitBounds([[west, south], [east, north]], {
+      padding,
+      maxZoom: 18, duration: 500, retainPadding: false,
+    });
+  }, [active, localRoute, readyMap]);
 
   return (
     <div className="map-view">
@@ -398,7 +437,7 @@ export default function MapView({
           <button type="button" aria-label="Dismiss location message" onClick={() => setLocationMessage("")}>×</button>
         </div>
       ) : null}
-      {selectedSection ? (
+      {selectedSection && !routingDraft ? (
         <div className="map-section-context" role="group" aria-label={`Section ${selectedSection}`}>
           <strong>Section {selectedSection}</strong>
           <button type="button" onClick={() => onBrowseSection?.(selectedSection)}>

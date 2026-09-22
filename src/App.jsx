@@ -5,6 +5,8 @@ import RecordCard from "./components/RecordCard";
 import LocatorView from "./features/locator/LocatorView";
 import useBurialSearch from "./features/locator/useBurialSearch";
 import MapRecordPicker from "./features/map/MapRecordPicker";
+import RoutePanel from "./features/map/RoutePanel";
+import useLocalRouting from "./features/map/useLocalRouting";
 import { findTourDefinition, loadTour } from "./features/tours/loadTour";
 import { readTourProgress, writeTourProgress } from "./features/tours/tourProgress";
 import TourStopsPanel from "./features/tours/TourStopsPanel";
@@ -79,6 +81,14 @@ const LocatorDestination = ({ active, burialSearch, route, onRouteChange, onSele
   );
 };
 
+const MapRouteControls = ({ routing, detailsOpen, activeTour, pointRecords }) => {
+  if (routing.draft) return <RoutePanel routing={routing} />;
+  if (detailsOpen || activeTour || pointRecords.length) return null;
+  return <button type="button" className="secondary-button map-route-launch" onClick={() => routing.start()}>Plan route</button>;
+};
+
+const showTourPanel = (activeTour, loadingTour, routing) => activeTour && !loadingTour && !routing.draft;
+
 const MapDestination = ({
   activeTour,
   browseSection,
@@ -102,8 +112,9 @@ const MapDestination = ({
   tourContext,
   unpin,
 }) => {
-  if (!hasVisitedMap && route.view !== APP_VIEWS.MAP) return null;
   const active = route.view === APP_VIEWS.MAP;
+  const routing = useLocalRouting(active, `${route.tour}|${route.record}|${route.section}`);
+  if (!hasVisitedMap && !active) return null;
   const mapClassName = [
     "map-page",
     activeTour && (detailsOpen || pointRecords.length) ? "map-page--record-open" : "",
@@ -114,6 +125,9 @@ const MapDestination = ({
       <Suspense fallback={<p className="map-loading" role="status">Loading cemetery map…</p>}>
         <MapComponent
           active={active}
+          routingDraft={routing.draft}
+          localRoute={routing.result}
+          onRoutePoint={routing.choosePoint}
           records={records}
           selectedRecord={selectedRecord}
           selectedSection={route.section}
@@ -128,7 +142,7 @@ const MapDestination = ({
       {loadingTour ? <p className="map-status" role="status">Loading tour…</p> : null}
       {loadingSection ? <p className="map-status" role="status">Loading section burials…</p> : null}
       {loadError ? <p className="map-status map-status--error">{loadError}</p> : null}
-      {activeTour && !loadingTour ? (
+      {showTourPanel(activeTour, loadingTour, routing) ? (
         <TourStopsPanel
           tour={activeTour}
           records={records}
@@ -138,16 +152,18 @@ const MapDestination = ({
           onSelect={selectRecord}
         />
       ) : null}
-      <MapRecordPicker records={pointRecords} onSelect={selectRecord} onClose={clearPointRecords} />
+      {!routing.draft ? <MapRecordPicker records={pointRecords} onSelect={selectRecord} onClose={clearPointRecords} /> : null}
       <RecordCard
         key={selectedRecord?.id || "none"}
         record={selectedRecord}
-        open={detailsOpen}
+        open={detailsOpen && !routing.draft}
+        onRoute={() => routing.start(selectedRecord)}
         shareUrl={shareUrl}
         onClose={() => setDetailsOpen(false)}
         onUnpin={unpin}
         tourContext={tourContext}
       />
+      <MapRouteControls routing={routing} detailsOpen={detailsOpen} activeTour={activeTour} pointRecords={pointRecords} />
     </section>
   );
 };

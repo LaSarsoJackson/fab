@@ -56,7 +56,9 @@
 - Identify and highlight a tapped section even when section shading is off.
   Open its burial list only after the visitor chooses View burials.
 - Keep canonical coordinates. Several burial records may share one location.
-- Do not draw a walking route without reviewed pedestrian geometry.
+- Local route previews follow mapped roads. Show any off-road endpoint gap as a
+  dashed connector, with its meaning explained. Request map picks explicitly so
+  ordinary section and grave selection stays predictable.
 
 ## Loading
 

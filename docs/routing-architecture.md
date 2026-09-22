@@ -39,9 +39,9 @@ permission, and external links before a native release.
 
 External directions are built in [`src/shared/routing.js`](../src/shared/routing.js).
 Apple platforms open Apple Maps. Android and other platforms use Google Maps.
-FAB does not compute a walking line from `ARC_Roads.json`. That file describes
-road geometry but does not establish pedestrian access, crossings, closures, or
-a reviewed visit order.
+Cemetery routes are computed in the browser from `ARC_Roads.json`. That file
+describes road geometry; it does not establish current access, closures, or a
+reviewed tour order. External Maps directions remain available.
 
 Tour place-to-place navigation stays local and URL-backed. Selecting a place
 updates `record`. Previous and Next move through the bundled place list, and All
@@ -52,19 +52,33 @@ aid, not a pedestrian route or a safety claim. The app stores the last selected
 tour and place in `fab.tour-progress.v1`. The URL remains the shareable source
 of truth.
 
-## Reviewed walking routes
+## Local cemetery routes
 
-Do not infer pedestrian geometry, crossings, accessibility, or safety from the
-proximity order. When ARCE supplies a reviewed route, add the smallest durable
-data to the existing tour definition:
+`mapRouting.js` builds a graph on first use from the bundled cemetery roads.
+It joins shared vertices and export gaps of at most one metre. It does not join
+arbitrary crossings or bridge disconnected roads. Each calculation adds temporary
+start/end nodes on the nearest road segments and finds the shortest road path.
+The shared graph is unchanged. No routing service, API key, or new dependency is
+required. This does not make provider map tiles available offline.
 
-- an explicit ordered list of stable record IDs
-- optionally, one reviewed GeoJSON `LineString` for the intended walk
+Route here opens a plan for the selected grave. Plan route lets visitors choose
+both endpoints. Start can come from a fresh GPS fix or an explicit map-pick mode;
+the destination can also be changed on the map. Normal taps keep their section
+and grave-selection behavior outside the planner. Closing removes the route and
+returns to the selected record. Choosing another record or section clears the
+old plan. Route coordinates stay in memory, outside URLs and stored preferences.
 
-MapLibre can render that local line directly. It does not require a routing
-service, graph cache, worker, or new runtime dependency. Until ARCE supplies
-those facts, FAB shows every place and provides Previous, Next, and
-device-navigation actions without drawing a route line.
+GPS fixes older than one minute or less accurate than 100 metres are rejected.
+The start must be within 100 metres of the roads and the destination within 150
+metres. A route is a preview from the chosen fix; Use my location refreshes it.
+The blue solid line follows roads. Dashed endpoint gaps are shown separately and
+are not described as mapped paths. Distances report road length separately from
+the final gap to the destination. The panel asks visitors to check access on site.
 
-Changing a parameter or its meaning is a shared web/native contract change and
-requires both browser and wrapper acceptance.
+`useLocalRouting.js` owns draft endpoints, asynchronous loading, GPS requests,
+and cancellation. `MapView.jsx` owns map picking and source/layer updates;
+`RoutePanel.jsx` supplies the controls. Old GPS callbacks and route calculations
+cannot overwrite a later selection or reopen a closed plan.
+
+Changing a public URL parameter remains a shared web/native contract change.
+Local route planning adds no URL parameter or native bridge message.
