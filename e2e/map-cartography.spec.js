@@ -90,6 +90,10 @@ for (const width of [375, 1440]) {
     await expect(page.getByRole("article")).toBeVisible();
     expect(new URL(page.url()).searchParams.has("record")).toBe(true);
     await waitForMap(page);
+    // A grave-focused phone viewport can be entirely covered by sections and
+    // the details card. Zoom out before testing a tap outside all sections.
+    await page.evaluate(() => globalThis.testMap.jumpTo({ center: [-73.73198, 42.70418], zoom: 14 }));
+    await waitForMap(page);
     const blank = await page.evaluate(() => {
       const map = globalThis.testMap;
       const canvas = map.getCanvas().getBoundingClientRect();

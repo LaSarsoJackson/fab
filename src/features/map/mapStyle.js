@@ -21,6 +21,9 @@ export const MAP_LAYER_IDS = Object.freeze({
   records: "records",
   tourRecords: "tour-records",
   selectedRecord: "selected-record",
+  localRoute: "local-road-route",
+  routeGaps: "local-route-gaps",
+  routeEndpoints: "local-route-endpoints",
 });
 
 export const createMapStyle = () => ({
@@ -46,6 +49,8 @@ export const createMapStyle = () => ({
     records: { type: "geojson", data: EMPTY_COLLECTION },
     "tour-records": { type: "geojson", data: EMPTY_COLLECTION },
     selected: { type: "geojson", data: EMPTY_COLLECTION },
+    "local-route": { type: "geojson", data: EMPTY_COLLECTION },
+    "route-endpoints": { type: "geojson", data: EMPTY_COLLECTION },
   },
   layers: [
     {
@@ -176,6 +181,23 @@ export const createMapStyle = () => ({
       },
     },
     {
+      id: "local-route-casing", type: "line", source: "local-route",
+      filter: ["==", ["get", "kind"], "road"],
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": "#fff", "line-width": 8 },
+    },
+    {
+      id: MAP_LAYER_IDS.localRoute, type: "line", source: "local-route",
+      filter: ["==", ["get", "kind"], "road"],
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": "#246caa", "line-width": 5 },
+    },
+    {
+      id: MAP_LAYER_IDS.routeGaps, type: "line", source: "local-route",
+      filter: ["==", ["get", "kind"], "gap"],
+      paint: { "line-color": "#246caa", "line-width": 3, "line-dasharray": [2, 2] },
+    },
+    {
       id: MAP_LAYER_IDS.records,
       type: "circle",
       source: "records",
@@ -195,6 +217,13 @@ export const createMapStyle = () => ({
         "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 6, 18, 9],
         "circle-stroke-color": "#ffffff",
         "circle-stroke-width": 2,
+      },
+    },
+    {
+      id: MAP_LAYER_IDS.routeEndpoints, type: "circle", source: "route-endpoints",
+      paint: {
+        "circle-color": ["match", ["get", "endpoint"], "start", "#246caa", "#d04d35"],
+        "circle-radius": 7, "circle-stroke-color": "#fff", "circle-stroke-width": 2,
       },
     },
     {

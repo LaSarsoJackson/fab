@@ -61,11 +61,12 @@ const TourNavigation = ({ tourContext }) => {
   );
 };
 
-const RecordActions = ({ biographyUrl, directions, onUnpin, tourContext }) => (
+const RecordActions = ({ biographyUrl, directions, onRoute, onUnpin, tourContext }) => (
   <div className="record-card__actions">
+    {directions && onRoute ? <button id="record-route-launch" type="button" className="primary-button" onClick={onRoute}>Route here</button> : null}
     {directions ? (
       <a
-        className="primary-button"
+        className="secondary-button"
         href={directions.href}
         target={directions.target}
         rel={directions.target === "_blank" ? "noreferrer" : undefined}
@@ -88,6 +89,7 @@ export default function RecordCard({
   shareUrl,
   onClose,
   onUnpin,
+  onRoute,
   tourContext = null,
 }) {
   const [shareStatus, setShareStatus] = useState("");
@@ -150,6 +152,7 @@ export default function RecordCard({
         biographyUrl={biographyUrl}
         directions={directions}
         onUnpin={onUnpin}
+        onRoute={onRoute}
         tourContext={tourContext}
       />
     </article>
