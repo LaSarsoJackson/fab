@@ -43,6 +43,7 @@ test("route to a grave uses GPS, draws roads and gaps, and closes cleanly", asyn
   await panel.getByRole("button", { name: "Close route" }).click();
   await expect(panel).toHaveCount(0);
   await expect(page.locator(".record-card")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Route here", exact: true })).toBeFocused();
   await expect.poll(() => page.evaluate(() => globalThis.testMap.queryRenderedFeatures({ layers: ["local-road-route"] }).length)).toBe(0);
 });
 
@@ -65,6 +66,7 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 750, height: 342 }
     await expect(panel.getByRole("button", { name: "Close route" })).toBeInViewport();
     await testInfo.attach("local-route", { body: await page.screenshot(), contentType: "image/png" });
     await panel.getByRole("button", { name: "Close route" }).click();
+    await expect(page.getByRole("button", { name: "Plan route" })).toBeFocused();
     await page.locator(".maplibregl-canvas").click({ position: await mapPoint(page, [-73.73362297435509, 42.707493868452055]) });
     await expect(page.getByRole("group", { name: "Section 24", exact: true })).toBeVisible();
   });

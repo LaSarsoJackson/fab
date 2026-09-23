@@ -5,6 +5,7 @@ export default function useLocalRouting(active, contextKey) {
   const [draft, setDraft] = useState(null);
   const [calculation, setCalculation] = useState(null);
   const locationRequest = useRef(0);
+  const openerId = useRef("");
   if (draft && draft.contextKey !== contextKey) setDraft(null);
   const from = draft?.start?.coordinates;
   const to = draft?.end?.coordinates;
@@ -27,7 +28,8 @@ export default function useLocalRouting(active, contextKey) {
     setDraft((current) => current?.locating ? { ...current, locating: false } : current);
   }, [active, contextKey]);
 
-  const start = (record = null) => {
+  const start = (record = null, trigger = null) => {
+    openerId.current = trigger?.id || "";
     locationRequest.current += 1;
     setDraft({
       contextKey,
@@ -39,7 +41,13 @@ export default function useLocalRouting(active, contextKey) {
       error: "",
     });
   };
-  const close = () => { locationRequest.current += 1; setDraft(null); };
+  const close = () => {
+    locationRequest.current += 1;
+    const returnTo = openerId.current;
+    setDraft(null);
+    // The launch button is recreated when the planner unmounts.
+    requestAnimationFrame(() => document.getElementById(returnTo)?.focus({ preventScroll: true }));
+  };
   const pick = (endpoint) => {
     locationRequest.current += 1;
     setDraft((current) => ({ ...current, picking: endpoint, locating: false, error: "" }));

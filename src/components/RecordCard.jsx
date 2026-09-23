@@ -63,7 +63,7 @@ const TourNavigation = ({ tourContext }) => {
 
 const RecordActions = ({ biographyUrl, directions, onRoute, onUnpin, tourContext }) => (
   <div className="record-card__actions">
-    {directions && onRoute ? <button type="button" className="primary-button" onClick={onRoute}>Route here</button> : null}
+    {directions && onRoute ? <button id="record-route-launch" type="button" className="primary-button" onClick={onRoute}>Route here</button> : null}
     {directions ? (
       <a
         className="secondary-button"

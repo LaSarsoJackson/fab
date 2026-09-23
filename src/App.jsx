@@ -84,7 +84,7 @@ const LocatorDestination = ({ active, burialSearch, route, onRouteChange, onSele
 const MapRouteControls = ({ routing, detailsOpen, activeTour, pointRecords }) => {
   if (routing.draft) return <RoutePanel routing={routing} />;
   if (detailsOpen || activeTour || pointRecords.length) return null;
-  return <button type="button" className="secondary-button map-route-launch" onClick={() => routing.start()}>Plan route</button>;
+  return <button id="map-route-launch" type="button" className="secondary-button map-route-launch" onClick={(event) => routing.start(null, event.currentTarget)}>Plan route</button>;
 };
 
 const showTourPanel = (activeTour, loadingTour, routing) => activeTour && !loadingTour && !routing.draft;
@@ -157,7 +157,7 @@ const MapDestination = ({
         key={selectedRecord?.id || "none"}
         record={selectedRecord}
         open={detailsOpen && !routing.draft}
-        onRoute={() => routing.start(selectedRecord)}
+        onRoute={(event) => routing.start(selectedRecord, event.currentTarget)}
         shareUrl={shareUrl}
         onClose={() => setDetailsOpen(false)}
         onUnpin={unpin}
