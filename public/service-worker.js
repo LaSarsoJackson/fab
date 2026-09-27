@@ -1,4 +1,4 @@
-const CACHE_NAME = "fab-v6";
+const CACHE_NAME = "fab-v7";
 const SEARCH_DATA_PATH = "/data/Search_Burials.json";
 
 self.addEventListener("install", (event) => {
@@ -27,14 +27,20 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.endsWith(SEARCH_DATA_PATH)) return;
 
   if (request.mode === "navigate") {
+    const appPath = new URL(self.registration.scope).pathname;
+    const cacheKey = url.pathname === appPath || url.pathname === `${appPath}index.html`
+      ? self.registration.scope
+      : request;
     event.respondWith(
       fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(self.registration.scope, copy));
+        .then(async (response) => {
+          if (response.ok) {
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(cacheKey, response.clone());
+          }
           return response;
         })
-        .catch(() => caches.match(self.registration.scope))
+        .catch(() => caches.match(cacheKey))
     );
     return;
   }
