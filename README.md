@@ -1,5 +1,7 @@
 # Albany Rural Cemetery — Grave Finder
 
+**Product introduction:** [Albany Grave Finder](public/product.html). The app serves it at `/product.html`.
+
 **An interactive map, burial locator, and tour guide for Albany Rural Cemetery.**
 
 [Open the application](https://lasarsojackson.github.io/fab/) · [Search burial records](https://lasarsojackson.github.io/fab/?view=burials) · [Explore the cemetery map](https://lasarsojackson.github.io/fab/?view=map)
