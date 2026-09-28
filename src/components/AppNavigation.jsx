@@ -12,10 +12,10 @@ export default function AppNavigation({ activeView, embedded = false, onNavigate
 
   return (
     <nav className="app-navigation" aria-label="Primary">
-      <a className="app-navigation__brand" href={`${import.meta.env.BASE_URL}product.html`} aria-label="About Albany Grave Finder">
+      <div className="app-navigation__brand">
         <span className="app-navigation__eyebrow">Albany Rural Cemetery</span>
         <span className="app-navigation__name">Albany Grave Finder</span>
-      </a>
+      </div>
       <div className="app-navigation__destinations">
         {ITEMS.map(({ view, label, Icon }) => (
           <button
