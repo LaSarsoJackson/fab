@@ -5,9 +5,7 @@ Changes to routes, selection, or hosted assets can affect both.
 
 ## Start here
 
-1. [`README.md`](./README.md)
-2. [`AGENTS.md`](./AGENTS.md)
-3. [`docs/architecture-index.md`](./docs/architecture-index.md)
+Read the [README](README.md) for local setup and the [architecture guide](docs/architecture-index.md) for the code structure.
 
 ## Local workflow
 
