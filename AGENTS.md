@@ -69,3 +69,7 @@ Installed-iPhone acceptance remains separate from browser automation.
 `main` is the only long-lived branch. Focused PRs target `main`; a green merge
 deploys `dist/` to GitHub Pages. Do not create staging or promotion branches.
 GitHub publishing or human-directed comments require explicit user authorization.
+
+## Documentation
+
+Write the README and public pages for people using or evaluating the project. Explain what it does, show how to get started, and link to deeper guides. Keep agent workflow rules, editing history, and implementation constraints here. Preserve real limitations and exact commands. Avoid generic slogans, invented terminology, and repeated summaries.
