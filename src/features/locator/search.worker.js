@@ -9,7 +9,11 @@ const loadRows = async (dataUrl) => {
         if (!response.ok) throw new Error(`Burial index request failed (${response.status})`);
         return response.json();
       })
-      .then(prepareSearchRows);
+      .then(prepareSearchRows)
+      .catch((error) => {
+        preparedRowsPromise = null;
+        throw error;
+      });
   }
   return preparedRowsPromise;
 };

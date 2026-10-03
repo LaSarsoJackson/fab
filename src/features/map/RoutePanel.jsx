@@ -54,7 +54,7 @@ export default function RoutePanel({ routing }) {
             <button type="button" className="text-button" onClick={() => pick("end")}>Choose destination on map</button>
           </div>
           </> : <button type="button" className="text-button" onClick={() => setEditing(true)}>Change route points</button>}
-          {!result ? <p className="map-route-note">Plan along the cemetery roads. Pick a start on the map to plan before your visit.</p> : null}
+          {!result ? <p className="map-route-note">Routes follow mapped cemetery roads. Choose a start on the map, or use your location when you’re on site.</p> : null}
           {error ? <p role="alert">{error}</p> : null}
           {calculating ? <p role="status">Finding a route…</p> : null}
           {directions ? <a className="text-button" href={directions.href} target={directions.target} rel="noreferrer">Open in Maps</a> : null}

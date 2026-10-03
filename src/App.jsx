@@ -56,6 +56,7 @@ const ToursDestination = ({
   loadingTour,
   onContinueTour,
   onSelectTour,
+  onFindPerson,
 }) => {
   if (!active) return null;
   return (
@@ -64,6 +65,7 @@ const ToursDestination = ({
       loadingTour={loadingTour}
       onContinueTour={onContinueTour}
       onSelectTour={onSelectTour}
+      onFindPerson={onFindPerson}
     />
   );
 };
@@ -88,6 +90,17 @@ const MapRouteControls = ({ routing, detailsOpen, activeTour, pointRecords }) =>
 };
 
 const showTourPanel = (activeTour, loadingTour, routing) => activeTour && !loadingTour && !routing.draft;
+
+const MapLoadError = ({ tour, section, returnToTours, browseSection }) => (
+  <p className="map-status map-status--error" role="alert">
+    {tour
+      ? "This tour didn’t load. Check your connection, then choose it again from Search Tours."
+      : "Section burials didn’t load. Try again in Burial Locator."}{" "}
+    <button type="button" className="text-button" onClick={tour ? returnToTours : () => browseSection(section)}>
+      {tour ? "Search Tours" : "Burial Locator"}
+    </button>
+  </p>
+);
 
 const MapDestination = ({
   activeTour,
@@ -141,7 +154,7 @@ const MapDestination = ({
       </Suspense>
       {loadingTour ? <p className="map-status" role="status">Loading tour…</p> : null}
       {loadingSection ? <p className="map-status" role="status">Loading section burials…</p> : null}
-      {loadError ? <p className="map-status map-status--error">{loadError}</p> : null}
+      {loadError ? <MapLoadError tour={route.tour} section={route.section} returnToTours={returnToTours} browseSection={browseSection} /> : null}
       {showTourPanel(activeTour, loadingTour, routing) ? (
         <TourStopsPanel
           tour={activeTour}
@@ -285,6 +298,19 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
 
   const navigate = (view) => {
     if (view !== route.view) updateRoute({ view });
+  };
+
+  const findPerson = (query) => {
+    const handledLocally = updateRoute({
+      view: APP_VIEWS.LOCATOR,
+      query: query.trim(),
+      section: "",
+      record: "",
+      tour: "",
+    });
+    if (!handledLocally) return;
+    setSelectedRecord(null);
+    setDetailsOpen(false);
   };
 
   const rememberTour = (tourKey, record = null) => {
@@ -445,6 +471,7 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
           loadingTour={loadingTour}
           onContinueTour={continueSavedTour}
           onSelectTour={selectTour}
+          onFindPerson={findPerson}
         />
         <LocatorDestination
           active={route.view === APP_VIEWS.LOCATOR}
