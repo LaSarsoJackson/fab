@@ -61,19 +61,39 @@ start/end nodes on the nearest road segments and finds the shortest road path.
 The shared graph is unchanged. No routing service, API key, or new dependency is
 required. This does not make provider map tiles available offline.
 
-Route here opens a plan for the selected grave. Plan route lets visitors choose
-both endpoints. Start can come from a fresh GPS fix or an explicit map-pick mode;
-the destination can also be changed on the map. Normal taps keep their section
-and grave-selection behavior outside the planner. Closing removes the route and
-returns to the selected record. Choosing another record or section clears the
-old plan. Route coordinates stay in memory, outside URLs and stored preferences.
+Directions opens a plan for the selected grave, or an empty plan from the map.
+From and To are matching button rows with explicit options. Visitors can use a
+fresh location fix, choose on the map, or choose a current mapped grave or an
+approximate section center from an HTML list. In map-pick mode, arrow keys pan
+the map and the Set start/destination here button uses the visible crosshair.
+Normal taps keep their section and grave-selection behavior outside the planner.
+Closing removes the route and returns focus to the launch control. Choosing
+another record or section, or leaving Cemetery Map, clears the old plan.
 
-GPS fixes older than one minute or less accurate than 100 metres are rejected.
-The start must be within 100 metres of the roads and the destination within 150
-metres. A route is a preview from the chosen fix; Use my location refreshes it.
-The blue solid line follows roads. Dashed endpoint gaps are shown separately and
-are not described as mapped paths. Distances report road length separately from
-the final gap to the destination. The panel asks visitors to check access on site.
+Start from my location and Use my location request one fix. Follow my location
+starts a separate, explicit browser location watch. Stop following, Close route,
+manual point changes, pagehide, unmount, and destination/record/section changes
+clear that watch. Callbacks from cancelled requests cannot overwrite the plan.
+The map's existing location control is independent; Stop following ends only
+the directions watch. GPS coordinates remain in memory, outside URLs, stored
+preferences, and routing-service requests. Open in Maps transmits the chosen
+start and destination to the external maps app only when activated.
+
+GPS fixes older than one minute, invalid coordinates, or accuracy over 100 m are
+rejected. Following accepts fresh fixes without moving keyboard focus. The
+start marker updates with each accepted fix; route calculations occur at most
+once every two seconds and after at least 5–25 m of movement, adjusted for
+reported accuracy. A fix silence over 20 seconds marks the last position stale,
+dims its marker, and explains that the route uses that position. Imprecise fixes
+retain the last usable route. Permission denial stops the watch. Changes in
+live distance are outside the status region so they do not announce every step.
+
+The start must be within 100 m of the roads and the destination within 150 m.
+The blue solid line follows mapped roads. Dashed endpoint gaps are straight
+connections, not mapped paths; the panel reports both gaps and asks visitors to
+check signs and access on site. A valid live fix with no supported road route
+removes the line and reports the reason. Following does not move the camera;
+Show whole route frames it on request. Provider map tiles remain online-only.
 
 `useLocalRouting.js` owns draft endpoints, asynchronous loading, GPS requests,
 and cancellation. `MapView.jsx` owns map picking and source/layer updates;

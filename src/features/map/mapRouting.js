@@ -1,17 +1,9 @@
+import { distanceMeters } from "../../shared/distanceMeters";
 import roads from "../../data/ARC_Roads.json";
 import { isCoordinatePairValid } from "../../shared/geoJsonBounds";
 
-const RADIUS = 6371008.8;
 const radians = (value) => value * Math.PI / 180;
 const keyFor = (coordinate) => coordinate.map((value) => value.toFixed(6)).join(",");
-
-export const distanceMeters = (from, to) => {
-  const latitude = radians(to[1] - from[1]);
-  const longitude = radians(to[0] - from[0]);
-  const h = Math.sin(latitude / 2) ** 2 +
-    Math.cos(radians(from[1])) * Math.cos(radians(to[1])) * Math.sin(longitude / 2) ** 2;
-  return 2 * RADIUS * Math.asin(Math.min(1, Math.sqrt(h)));
-};
 
 const connect = (edges, from, to, distance) => {
   if (from === to) return;

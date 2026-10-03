@@ -83,10 +83,10 @@ const LocatorDestination = ({ active, burialSearch, route, onRouteChange, onSele
   );
 };
 
-const MapRouteControls = ({ routing, detailsOpen, activeTour, pointRecords }) => {
-  if (routing.draft) return <RoutePanel routing={routing} />;
+const MapRouteControls = ({ routing, detailsOpen, activeTour, pointRecords, records }) => {
+  if (routing.draft) return <RoutePanel routing={routing} records={records} />;
   if (detailsOpen || activeTour || pointRecords.length) return null;
-  return <button id="map-route-launch" type="button" className="secondary-button map-route-launch" onClick={(event) => routing.start(null, event.currentTarget)}>Plan route</button>;
+  return <button id="map-route-launch" type="button" className="secondary-button map-route-launch" onClick={(event) => routing.start(null, event.currentTarget)}>Directions</button>;
 };
 
 const showTourPanel = (activeTour, loadingTour, routing) => activeTour && !loadingTour && !routing.draft;
@@ -176,7 +176,7 @@ const MapDestination = ({
         onUnpin={unpin}
         tourContext={tourContext}
       />
-      <MapRouteControls routing={routing} detailsOpen={detailsOpen} activeTour={activeTour} pointRecords={pointRecords} />
+      <MapRouteControls routing={routing} records={records} detailsOpen={detailsOpen} activeTour={activeTour} pointRecords={pointRecords} />
     </section>
   );
 };

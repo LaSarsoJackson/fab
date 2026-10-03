@@ -1,12 +1,4 @@
 @font-face {
-  font-family: "Newsreader";
-  font-style: normal;
-  font-weight: 400 600;
-  font-display: swap;
-  src: url("./assets/fonts/newsreader-latin.woff2") format("woff2");
-}
-
-@font-face {
   font-family: "Public Sans";
   font-style: normal;
   font-weight: 400 700;
@@ -16,7 +8,6 @@
 
 :root {
   --font-body: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-display: "Newsreader", "Iowan Old Style", Georgia, serif;
   --accent: #285540;
   --accent-strong: #1e422f;
   --accent-ink: #fffdf8;
@@ -90,9 +81,9 @@ p {
 h1,
 h2 {
   color: var(--ink);
-  font-family: var(--font-display);
-  font-weight: 500;
-  letter-spacing: -0.02em;
+  font-family: var(--font-body);
+  font-weight: 650;
+  letter-spacing: 0;
   text-wrap: balance;
 }
 
@@ -233,7 +224,7 @@ p {
 
 .page-heading h1 {
   margin-bottom: 9px;
-  font-size: clamp(2.5rem, 5vw, 3.5rem);
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
   line-height: 1.08;
 }
 
@@ -1087,10 +1078,10 @@ button.secondary-button {
 
   .app-navigation__name {
     color: var(--ink);
-    font-family: var(--font-display);
-    font-size: 1.2rem;
-    font-weight: 500;
-    letter-spacing: -0.02em;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0;
   }
 
   .app-navigation__destinations {
@@ -1266,7 +1257,7 @@ button.secondary-button {
   }
 
   .page-heading h1 {
-    font-size: 2.5rem;
+    font-size: 1.75rem;
   }
 
   .tour-continue {
@@ -1402,7 +1393,7 @@ button.secondary-button {
   left: max(10px, env(safe-area-inset-left));
   z-index: 10;
   max-width: 430px;
-  max-height: min(46%, 370px);
+  max-height: min(60%, 520px);
   display: flex;
   flex-direction: column;
   padding: 12px;
@@ -1411,36 +1402,45 @@ button.secondary-button {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
-
-.map-route-panel header,
-.map-route-actions,
-.map-route-prompt {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.map-route-panel h2 { margin: 0; font-size: 1.25rem; }
+.map-route-panel header, .map-route-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .map-route-panel header { flex-shrink: 0; }
-.map-route-panel__content { overflow-y: auto; overscroll-behavior: contain; }
-.map-route-panel p { margin: 5px 0; font-size: 0.83rem; }
+.map-route-panel h2 { margin: 0; font-size: 1rem; }
+.map-route-panel__content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 3px; }
+.map-route-panel p { margin: 6px 0; font-size: 0.875rem; }
 .map-route-actions { justify-content: flex-start; flex-wrap: wrap; }
-.map-route-panel .secondary-button,
-.map-route-panel .text-button { min-height: 44px; padding: 7px; font-size: 0.78rem; }
-.map-route-endpoint + .map-route-endpoint { margin-top: 8px; }
-.map-route-result { display: grid; gap: 4px; margin: 8px 0; font-size: 0.8rem; }
-.map-route-note,
-.map-route-result span { color: var(--muted); }
-.map-route-prompt { font-size: 0.85rem; }
+.map-route-panel .secondary-button, .map-route-panel .text-button { min-height: 44px; padding: 8px; font-size: 0.875rem; }
+.map-route-endpoint { width: 100%; display: grid; grid-template-columns: 42px 1fr 16px; gap: 8px; align-items: center; min-height: 52px; padding: 10px; margin: 5px 0; border: 1px solid #718278; border-radius: var(--radius); color: var(--ink); background: #fff; text-align: left; cursor: pointer; }
+.map-route-endpoint:hover, .map-route-endpoint[aria-expanded="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.map-route-endpoint__label { font-size: 0.875rem; color: var(--muted); }
+.map-route-endpoint__value { font-size: 0.95rem; font-weight: 600; overflow-wrap: anywhere; }
+.map-route-options { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
+.map-route-result { display: grid; gap: 5px; margin: 8px 0; font-size: 0.875rem; }
+.map-route-note, .map-route-result span, .map-route-external p, .map-route-footer p { color: var(--muted); }
+.map-route-footer { flex-shrink: 0; border-top: 1px solid var(--border); margin-top: 6px; padding-top: 8px; }
+.map-route-footer .primary-button { width: 100%; min-height: 44px; font-size: 0.95rem; }
+.map-route-footer p { font-size: 0.75rem; line-height: 1.35; }
+.map-route-prompt { overflow-y: auto; }
 .map-route-panel--picking { max-height: 35%; }
-
-@media (max-height: 500px) and (min-width: 600px) {
-  .map-route-panel {
-    top: calc(max(10px, env(safe-area-inset-top)) + 70px);
-    bottom: max(30px, env(safe-area-inset-bottom));
-    width: 280px;
-    max-height: none;
-  }
-  .map-route-panel--picking { top: auto; max-height: 35%; }
+.map-route-places { display: grid; gap: 6px; }
+.map-route-places select { font: inherit; min-height: 44px; width: 100%; }
+.map-route-center-pick { position: absolute; z-index: 9; top: 35%; left: 50%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 8px; pointer-events: none; }
+.map-route-center-pick span { width: 28px; height: 28px; display: grid; place-items: center; background: #fff; border: 2px solid var(--accent); border-radius: 50%; font-size: 22px; line-height: 1; color: var(--accent); }
+.map-route-center-pick button { pointer-events: auto; }
+.route-note-short { display: none; }
+@media (max-height: 500px) and (min-width: 500px) {
+  .map-page:has(.map-route-panel) { --route-panel-w: clamp(280px, 46vw, 340px); --route-left: calc(max(10px, env(safe-area-inset-left)) + var(--route-panel-w) + 10px); }
+  .map-route-panel { top: max(6px, env(safe-area-inset-top)); bottom: 6px; left: max(10px, env(safe-area-inset-left)); right: auto; width: var(--route-panel-w); max-width: none; max-height: none; padding: 8px; }
+  .map-route-panel--picking { top: auto; max-height: calc(100% - 12px); }
+  .map-page:has(.map-route-panel) .map-toolbar { top: max(6px, env(safe-area-inset-top)); left: var(--route-left); }
+  .map-page:has(.map-route-panel) .map-location-message { left: var(--route-left); }
+  .map-route-panel h2 { font-size: 0.95rem; }
+  .map-route-panel .map-route-note { display: none; }
+  .map-route-panel p { margin: 4px 0; }
+  .map-route-endpoint { min-height: 44px; padding: 4px 8px; margin: 2px 0; }
+  .map-route-footer { margin-top: 4px; padding-top: 6px; }
+  .map-route-footer p { margin: 4px 0 0; }
+  .map-route-panel:has(.map-route-places) .map-route-footer { display: none; }
+  .route-note-full { display: none; }
+ .route-note-short { display: inline; }
+  .map-route-center-pick { left: calc((100% + var(--route-panel-w)) / 2); top: 42%; }
 }

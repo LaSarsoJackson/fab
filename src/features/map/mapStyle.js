@@ -224,6 +224,7 @@ export const createMapStyle = () => ({
       paint: {
         "circle-color": ["match", ["get", "endpoint"], "start", "#246caa", "#d04d35"],
         "circle-radius": 7, "circle-stroke-color": "#fff", "circle-stroke-width": 2,
+        "circle-opacity": ["case", ["boolean", ["get", "stale"], false], 0.4, 1],
       },
     },
     {
