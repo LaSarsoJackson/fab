@@ -1393,7 +1393,7 @@ button.secondary-button {
   left: max(10px, env(safe-area-inset-left));
   z-index: 10;
   max-width: 430px;
-  max-height: min(60%, 520px);
+  max-height: min(66%, 680px);
   display: flex;
   flex-direction: column;
   padding: 12px;
@@ -1444,3 +1444,13 @@ button.secondary-button {
  .route-note-short { display: inline; }
   .map-route-center-pick { left: calc((100% + var(--route-panel-w)) / 2); top: 42%; }
 }
+
+.map-route-distance { display: block; font-size: 0.75rem; line-height: 1.4; margin-top: 2px; }
+@media (min-width: 900px) and (min-height: 600px) { .map-route-panel { max-height: min(80%, 680px); } }
+@media (min-height: 501px) {
+  .map-route-panel__content { padding-bottom: 16px; mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent); }
+}
+
+.map-route-panel header > div { flex: 1; min-width: 0; }
+.map-route-panel header > button { flex-shrink: 0; white-space: nowrap; }
+.map-route-endpoint__value { line-height: 1.2; }

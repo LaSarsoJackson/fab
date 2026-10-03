@@ -5,7 +5,6 @@ const RoutePlaces = lazy(() => import("./RoutePlaces"));
 const metres = (distance) => `${Math.round(distance).toLocaleString()} m`;
 const RouteSummary = ({ result }) => (
   <div className="map-route-result">
-    <strong>{metres(result.roadDistance)} along mapped roads</strong>
     {result.startGap > 1 ? <span>Your start is {metres(result.startGap)} from the road.</span> : null}
     {result.endGap > 1 ? <span>Destination is {metres(result.endGap)} from the road.</span> : null}
     <span>Dashed lines are straight links, not mapped paths. Roads may not show closures; check signs and access on site.</span>
@@ -53,6 +52,7 @@ const RouteFooter = ({ routing, available }) => {
 export default function RoutePanel({ routing, records = [] }) {
   const { draft, result, error, calculating } = routing;
   const titleRef = useRef(null);
+  const contentRef = useRef(null);
   const promptRef = useRef(null);
   const previousPick = useRef(null);
   const [options, setOptions] = useState(null);
@@ -63,6 +63,7 @@ export default function RoutePanel({ routing, records = [] }) {
   const pick = (endpoint) => { setOptions(null); setList(null); routing.pick(endpoint); };
   const locate = () => { setOptions(null); routing.useLocation(); restore("start"); };
   useEffect(() => { titleRef.current?.focus({ preventScroll: true }); }, []);
+  useEffect(() => { if (draft.following && contentRef.current) contentRef.current.scrollTop = 0; }, [draft.following]);
   useEffect(() => {
     if (draft.picking) promptRef.current?.focus({ preventScroll: true });
     else if (previousPick.current) document.getElementById(`route-${previousPick.current}`)?.focus({ preventScroll: true });
@@ -83,7 +84,10 @@ export default function RoutePanel({ routing, records = [] }) {
       event.stopPropagation();
     }}>
       <header>
-        <h2 id="route-title" tabIndex={-1} ref={titleRef}>Cemetery directions</h2>
+        <div>
+          <h2 id="route-title" tabIndex={-1} ref={titleRef}>Cemetery directions</h2>
+          {result ? <strong className="map-route-distance">{metres(result.roadDistance)}<span className="route-note-full"> along mapped roads</span><span className="route-note-short"> · mapped roads</span></strong> : null}
+        </div>
         <button type="button" className="text-button" onClick={routing.close}>Close route</button>
       </header>
       {draft.picking ? (
@@ -92,8 +96,8 @@ export default function RoutePanel({ routing, records = [] }) {
           <button type="button" className="text-button" onClick={routing.cancelPick}>Cancel pick</button>
         </div>
       ) : <>
-        <div className="map-route-panel__content">
-          <p className="map-route-note">Approximate route on mapped cemetery roads.</p>
+        <div className="map-route-panel__content" ref={contentRef}>
+          {!result ? <p className="map-route-note">Approximate route on mapped cemetery roads.</p> : null}
           {list ? <Suspense fallback={<p>Loading mapped places…</p>}>
             <RoutePlaces records={records} endpoint={list} onChoose={(point) => { routing.setPoint(list, point); collapse(); }} onCancel={collapse} />
           </Suspense> : ["start", "end"].map((endpoint) => <div key={endpoint}>

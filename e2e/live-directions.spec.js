@@ -39,13 +39,13 @@ test("explicit following updates a local route without stealing focus or announc
   await expect(panel.getByRole("button", { name: "Stop following", exact: true })).toBeVisible();
   await expect(panel.getByRole("status")).toHaveText("Following your location.");
   const status = await panel.getByRole("status").innerText();
-  const initialDistance = await panel.locator(".map-route-result strong").innerText();
+  const initialDistance = await panel.locator(".map-route-distance").innerText();
   await panel.getByRole("button", { name: /^To / }).focus();
   await page.waitForTimeout(2100);
   await deliver(page, [-73.7263, 42.7093]);
   await expect(panel.getByRole("button", { name: /^To / })).toBeFocused();
   await expect(panel.getByRole("status")).toHaveText(status);
-  await expect(panel.locator(".map-route-result strong")).not.toHaveText(initialDistance);
+  await expect(panel.locator(".map-route-distance")).not.toHaveText(initialDistance);
   await expect(panel).toContainText("±8 m");
   await panel.getByRole("button", { name: "Stop following", exact: true }).click();
   expect(await page.evaluate(() => globalThis.routeGps.watches.size)).toBe(0);
@@ -180,6 +180,7 @@ test("a valid fix outside mapped roads removes the old route and keeps the desti
 for (const [width, height, visibleMapWidth] of [[750, 342, 400], [568, 320, 200]]) {
   test(`short landscape fully shows both endpoint rows at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height });
+    await installGps(page);
     const panel = await open(page);
     const content = await panel.locator(".map-route-panel__content").boundingBox();
     for (const row of [panel.getByRole("button", { name: /^From / }), panel.getByRole("button", { name: /^To / })]) {
@@ -200,6 +201,11 @@ for (const [width, height, visibleMapWidth] of [[750, 342, 400], [568, 320, 200]
       await expect(button).toBeInViewport({ ratio: 0.99 });
       expect((await button.boundingBox()).height).toBeGreaterThanOrEqual(44);
     }
+    await panel.getByRole("button", { name: "Start from my location", exact: true }).click();
+    await page.evaluate((coordinates) => globalThis.routeGps.fix({ coords: { longitude: coordinates[0], latitude: coordinates[1], accuracy: 8 }, timestamp: Date.now() }), START);
+    await panel.getByRole("button", { name: "Follow my location", exact: true }).click();
+    await deliver(page);
+    for (const row of [panel.getByRole("button", { name: /^From / }), panel.getByRole("button", { name: /^To / }), panel.locator(".map-route-distance")]) await expect(row).toBeInViewport({ ratio: 0.99 });
     await testInfo.attach(`landscape-visible-${width}`, { body: await page.screenshot(), contentType: "image/png" });
   });
 }
