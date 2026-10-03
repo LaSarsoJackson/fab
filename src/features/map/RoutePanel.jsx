@@ -12,6 +12,8 @@ const RouteSummary = ({ result }) => (
 );
 const statusMessage = (draft, result, calculating) => {
   if (draft.following) {
+    if (!draft.start && draft.signal === "stale") return "No location update for 20 seconds. Wait for a fix, or choose a start.";
+    if (!draft.start && draft.signal === "weak") return "GPS signal is weak or unavailable. Wait for a better fix, or choose a start.";
     if (draft.signal === "stale") return "Location isn't updating. The route uses your last position.";
     if (draft.signal === "weak") return "Your location is too imprecise or unavailable. The route uses your last position.";
     return draft.signal === "starting" ? "Finding your live location…" : "Following your location.";

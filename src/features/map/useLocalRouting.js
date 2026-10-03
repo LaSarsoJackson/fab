@@ -123,7 +123,8 @@ export default function useLocalRouting(active, contextKey) {
   const follow = () => {
     cancelLocation();
     const request = locationRequest.current;
-    setDraft((current) => ({ ...current, following: true, followStarted: Date.now(), fix: null, signal: "starting", error: "" }));
+    setCalculation(null);
+    setDraft((current) => ({ ...current, start: null, position: null, following: true, followStarted: Date.now(), fix: null, signal: "starting", error: "" }));
     const receive = (position) => {
       if (request !== locationRequest.current) return;
       const fix = readFix(position);

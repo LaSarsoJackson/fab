@@ -71,7 +71,10 @@ Closing removes the route and returns focus to the launch control. Choosing
 another record or section, or leaving Cemetery Map, clears the old plan.
 
 Start from my location and Use my location request one fix. Follow my location
-starts a separate, explicit browser location watch. Stop following, Close route,
+starts a separate, explicit browser location watch. It clears the previous start
+and route until the first usable live fix arrives. An inaccurate or unavailable
+first fix cannot leave a manual route displayed as the visitor's last position.
+Stop following, Close route,
 manual point changes, pagehide, unmount, and destination/record/section changes
 clear that watch. Callbacks from cancelled requests cannot overwrite the plan.
 The map's existing location control is independent; Stop following ends only

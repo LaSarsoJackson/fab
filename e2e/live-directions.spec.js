@@ -100,6 +100,31 @@ test("poor GPS and denied permission keep endpoint choices available", async ({ 
   await expect(panel.getByRole("button", { name: "Choose on map", exact: true })).toBeVisible();
 });
 
+test("following suspends a manual route until the first usable position", async ({ page }, testInfo) => {
+  await installGps(page);
+  const panel = await open(page);
+  await panel.getByRole("button", { name: /^From / }).click();
+  await panel.getByRole("button", { name: "Choose from list", exact: true }).click();
+  const places = panel.getByRole("combobox", { name: "Mapped place" });
+  const graveValue = await places.locator("option").filter({ hasText: "Chester" }).first().getAttribute("value");
+  await places.selectOption(graveValue);
+  await panel.getByRole("button", { name: "Set start", exact: true }).click();
+  await expect(panel.locator(".map-route-distance")).toBeVisible();
+  await panel.getByRole("button", { name: "Follow my location", exact: true }).click();
+  await expect(panel.locator(".map-route-distance")).toHaveCount(0);
+  await deliver(page, START, 200);
+  await expect(panel.getByRole("status")).not.toContainText("last position");
+  await expect(panel.locator(".map-route-distance")).toHaveCount(0);
+  await page.evaluate(() => globalThis.routeGps.last.failure({ code: 3 }));
+  await expect(panel.getByRole("status")).not.toContainText("last position");
+  await expect(panel.locator(".map-route-distance")).toHaveCount(0);
+  await expect(panel.getByRole("button", { name: /^To .*Chester/ })).toBeVisible();
+  await deliver(page);
+  await expect(panel.locator(".map-route-distance")).toBeVisible();
+  await expect(panel.getByRole("button", { name: /^From My location/ })).toBeVisible();
+  await testInfo.attach("first-usable-position", { body: await page.screenshot(), contentType: "image/png" });
+});
+
 test("stale following is disclosed and recovers only with a fresh accurate fix", async ({ page }) => {
   await installGps(page);
   const panel = await open(page);
