@@ -144,6 +144,22 @@ const focusMap = ({ map, records, selectedRecord, selectedSection, tourStopsPres
   focusRecords(map, records, tourStopsPresent, viewport);
 };
 
+const RouteMapPick = ({ draft, mapRef, onRoutePoint }) => {
+  const crosshairRef = useRef(null);
+  if (!draft?.picking) return null;
+  return <div className="map-route-center-pick">
+    <span ref={crosshairRef} aria-hidden="true">+</span>
+    <button type="button" className="secondary-button" onClick={() => {
+      const map = mapRef.current;
+      if (!map || !crosshairRef.current) return;
+      const target = crosshairRef.current.getBoundingClientRect();
+      const canvas = map.getCanvas().getBoundingClientRect();
+      const point = map.unproject([target.x + target.width / 2 - canvas.x, target.y + target.height / 2 - canvas.y]);
+      onRoutePoint?.([point.lng, point.lat]);
+    }}>Set {draft.picking === "start" ? "start" : "destination"} here</button>
+  </div>;
+};
+
 export default function MapView({
   active = true,
   routingDraft = null,
@@ -163,6 +179,7 @@ export default function MapView({
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const routingRef = useRef({ draft: routingDraft, onRoutePoint });
+  const framedRoute = useRef(null);
   const recordsRef = useRef(records);
   const onRecordsSelectRef = useRef(onRecordsSelect);
   const onSectionSelectRef = useRef(onSectionSelect);
@@ -378,8 +395,8 @@ export default function MapView({
     if (!readyMap || mapRef.current !== readyMap) return;
     readyMap.getSource("local-route")?.setData(routingDraft && localRoute ? localRoute.geojson : EMPTY_COLLECTION);
     const features = ["start", "end"].flatMap((endpoint) => routingDraft?.[endpoint] ? [{
-      type: "Feature", properties: { endpoint },
-      geometry: { type: "Point", coordinates: routingDraft[endpoint].coordinates },
+      type: "Feature", properties: { endpoint, stale: endpoint === "start" && routingDraft.signal === "stale" },
+      geometry: { type: "Point", coordinates: endpoint === "start" && routingDraft.position ? routingDraft.position : routingDraft[endpoint].coordinates },
     }] : []);
     readyMap.getSource("route-endpoints")?.setData({ type: "FeatureCollection", features });
     readyMap.getCanvas().style.cursor = routingDraft?.picking ? "crosshair" : "";
@@ -387,20 +404,25 @@ export default function MapView({
 
   useEffect(() => {
     if (!active || !localRoute || !readyMap || mapRef.current !== readyMap) return;
+    const frame = `${routingDraft.contextKey}:${routingDraft.viewRevision}`;
+    if (framedRoute.current === frame) return;
+    framedRoute.current = frame;
     readyMap.stop();
     readyMap.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
     const [[south, west], [north, east]] = getGeoJsonBounds(localRoute.geojson);
     const panel = containerRef.current.closest(".map-page").querySelector(".map-route-panel");
     const panelBox = panel?.getBoundingClientRect();
     const viewport = getViewportLayout(readyMap);
-    const padding = viewport.short && viewport.width >= 600
+    const padding = viewport.short && viewport.width >= 500
       ? { top: 76, left: (panelBox?.width || 280) + 30, right: 64, bottom: 30 }
       : { top: 90, left: 40, right: 64, bottom: Math.min((panelBox?.height || 220) + 50, viewport.height * 0.58) };
     readyMap.fitBounds([[west, south], [east, north]], {
       padding,
       maxZoom: 18, duration: 500, retainPadding: false,
     });
-  }, [active, localRoute, readyMap]);
+  }, [active, localRoute, readyMap, routingDraft]);
+
+  useEffect(() => { if (!routingDraft) framedRoute.current = null; }, [routingDraft]);
 
   return (
     <div className="map-view">
@@ -448,6 +470,7 @@ export default function MapView({
           </button>
         </div>
       ) : null}
+      <RouteMapPick draft={routingDraft} mapRef={mapRef} onRoutePoint={onRoutePoint} />
       <div ref={containerRef} className="map-canvas" role="region" aria-label="Albany Rural Cemetery map" />
     </div>
   );

@@ -4,9 +4,11 @@
 
 [Open the application](https://lasarsojackson.github.io/fab/) · [Search burial records](https://lasarsojackson.github.io/fab/?view=burials) · [Explore the cemetery map](https://lasarsojackson.github.io/fab/?view=map)
 
-![Albany Grave Finder on a desktop-width screen](docs/assets/screenshots/claude-ui-desktop.png)
+![Albany Grave Finder directions on a desktop-width screen](docs/assets/screenshots/claude-ui-desktop.png)
 
-![Albany Grave Finder on a phone-width screen](docs/assets/screenshots/claude-ui-mobile.png)
+![Albany Grave Finder directions on a phone-width screen](docs/assets/screenshots/claude-ui-mobile.png)
+
+Screenshots use a synthetic location for development.
 
 ## About the project
 
@@ -17,6 +19,19 @@ Visitors can search a 97,457-record burial index, locate graves on an interactiv
 | Cemetery Map | Explore cemetery roads, sections, tour stops, and selected graves. |
 | Search Tours | Find and open a curated tour. |
 | Burial Locator | Search burial records and open their mapped locations. |
+
+## Directions on site
+
+Choose **Directions** on a selected grave or the map. The **From** and **To**
+rows open choices for a location fix, a map point, or a mapped place from a list.
+**Start from my location** uses one fix; **Follow my location** updates the road
+route as you move. **Stop following** ends those updates. Position fixes stay
+on the device unless you choose the external **Open in Maps** link.
+
+Routes use the bundled cemetery-road data. Dashed connectors show gaps to those
+roads, not mapped paths. Check signs and access on site; the app does not confirm
+closures, path conditions, or accessible routes. Keyboard users can choose a
+place from the list or pan the map and confirm its crosshair point.
 
 ## Development overview
 

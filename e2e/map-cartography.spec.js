@@ -237,7 +237,7 @@ for (const viewport of [
   { width: 750, height: 342 },
   { width: 1280, height: 800 },
 ]) {
-  test(`selected grave and Navigate stay visible at ${viewport.width}×${viewport.height}`, async ({ page }) => {
+  test(`selected grave and Open in Maps stay visible at ${viewport.width}×${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await observeMap(page);
     await page.goto("./?view=map&tour=Notable");
@@ -266,7 +266,7 @@ for (const viewport of [
     expect(pin.y).toBeLessThan(viewport.height - 12);
     expect(pin.x + 12 < card.x || pin.x - 12 > card.x + card.width ||
       pin.y + 12 < card.y || pin.y - 12 > card.y + card.height).toBe(true);
-    const navigate = page.getByRole("link", { name: "Navigate", exact: true });
+    const navigate = page.getByRole("link", { name: "Open in Maps", exact: true });
     await expect(navigate).toBeInViewport({ ratio: 1 });
     await expect(page.getByRole("link", { name: "Read biography", exact: true }))
       .toBeInViewport({ ratio: 1 });
