@@ -61,24 +61,39 @@ export default function LocatorView({
           </label>
         </div>
 
-        <div className="locator-results" aria-live="polite">
+        <div className="locator-results">
           {search.status === "idle" && !normalizedQuery && !section ? (
             <div className="locator-empty">
               <h2>Search by name or section</h2>
               <p>Names can be partial. Use a section number on its own, or add it to narrow a name search.</p>
             </div>
           ) : null}
-          {search.status === "loading" ? <p className="status-message">Searching…</p> : null}
-          {search.status === "error" ? <p className="status-message status-message--error">{search.error}</p> : null}
+          {search.status === "loading" ? <p className="status-message" role="status">Searching…</p> : null}
+          {search.status === "error" ? (
+            <div className="status-message status-message--error" role="alert">
+              <p>Burial search isn’t available right now.</p>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => runSearch({ query: normalizedQuery, section: section.trim() })}
+              >
+                Try again
+              </button>
+            </div>
+          ) : null}
           {search.status === "idle" && normalizedQuery.length === 1 ? (
-            <p className="status-message">Type at least 2 letters.</p>
+            <p className="status-message" role="status">Type at least 2 letters.</p>
           ) : null}
           {search.status === "ready" && search.total === 0 ? (
-            <p className="status-message">No burials found.</p>
+            <p className="status-message" role="status">
+              {normalizedQuery
+                ? `No burials match “${normalizedQuery}”${section.trim() ? ` in section ${section.trim()}` : ""}. Try fewer letters, or search by last name only.`
+                : `No burials found in section ${section.trim()}. Check the section number.`}
+            </p>
           ) : null}
           {search.status === "ready" && search.total > 0 ? (
             <>
-              <p className="result-count">
+              <p className="result-count" role="status">
                 {search.total.toLocaleString()} {search.total === 1 ? "match" : "matches"}
                 {search.total > search.results.length ? ` · first ${search.results.length} shown` : ""}
               </p>

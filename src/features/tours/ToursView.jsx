@@ -7,6 +7,7 @@ export default function ToursView({
   loadingTour = "",
   onContinueTour,
   onSelectTour,
+  onFindPerson,
 }) {
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -83,7 +84,12 @@ export default function ToursView({
           })}
         </div>
       ) : (
-        <p className="status-message">No tours or groups match “{query}”.</p>
+        <p className="status-message">
+          No tours or groups match “{query}”. To find a person, use{" "}
+          <button type="button" className="text-button" onClick={() => onFindPerson(query)}>
+            Burial Locator
+          </button>.
+        </p>
       )}
     </section>
   );

@@ -4,6 +4,10 @@
 
 [Open the application](https://lasarsojackson.github.io/fab/) · [Search burial records](https://lasarsojackson.github.io/fab/?view=burials) · [Explore the cemetery map](https://lasarsojackson.github.io/fab/?view=map)
 
+![Albany Grave Finder on a desktop-width screen](docs/assets/screenshots/claude-ui-desktop.png)
+
+![Albany Grave Finder on a phone-width screen](docs/assets/screenshots/claude-ui-mobile.png)
+
 ## About the project
 
 Visitors can search a 97,457-record burial index, locate graves on an interactive map, and explore the cemetery through tours.
