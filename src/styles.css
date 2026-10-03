@@ -1428,12 +1428,15 @@ button.secondary-button {
 .map-route-center-pick button { pointer-events: auto; }
 .route-note-short { display: none; }
 @media (max-height: 500px) and (min-width: 500px) {
-  .map-page:has(.map-route-panel) { --route-panel-w: clamp(280px, 46vw, 340px); --route-left: calc(max(10px, env(safe-area-inset-left)) + var(--route-panel-w) + 10px); }
+  .map-page:has(.map-route-panel) { --route-panel-w: clamp(300px, 46vw, 340px); --route-left: calc(max(10px, env(safe-area-inset-left)) + var(--route-panel-w) + 10px); }
   .map-route-panel { top: max(6px, env(safe-area-inset-top)); bottom: 6px; left: max(10px, env(safe-area-inset-left)); right: auto; width: var(--route-panel-w); max-width: none; max-height: none; padding: 8px; }
   .map-route-panel--picking { top: auto; max-height: calc(100% - 12px); }
   .map-page:has(.map-route-panel) .map-toolbar { top: max(6px, env(safe-area-inset-top)); left: var(--route-left); }
   .map-page:has(.map-route-panel) .map-location-message { left: var(--route-left); }
   .map-route-panel h2 { font-size: 0.95rem; }
+  .map-route-panel header { align-items: flex-start; }
+  .map-route-panel header > div { padding-top: 5px; }
+  .map-route-panel header > button { padding-inline: 4px; }
   .map-route-panel .map-route-note { display: none; }
   .map-route-panel p { margin: 4px 0; }
   .map-route-endpoint { min-height: 44px; padding: 4px 8px; margin: 2px 0; }

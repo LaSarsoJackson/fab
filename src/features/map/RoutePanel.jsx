@@ -45,7 +45,7 @@ const RouteFooter = ({ routing, available }) => {
       {draft.following ? "Stop following" : draft.start ? "Follow my location" : "Start from my location"}
     </button> : <p>Location isn't available in this browser. Choose a start on the map or from the list.</p>}
     {!draft.following && available ? <FooterNote full={draft.start ? "Updates the line as you walk. Stops when you close directions or change a point." : "Your browser will ask for permission. Your position stays in FAB on this device."} short={draft.start ? "Updates as you walk; stops on close or edit." : "Ask first; position stays here."} /> : null}
-    {draft.following ? <FooterNote full="Your position stays on this device. Stop following ends updates for these directions." short="Position stays here; Stop ends route updates." /> : null}
+    {draft.following ? <FooterNote full="Your position stays on this device. Stop following ends updates for these directions." short="On this device; Stop ends updates." /> : null}
   </div>;
 };
 
