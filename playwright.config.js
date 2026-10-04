@@ -23,10 +23,15 @@ export default defineConfig({
     screenshot: "only-on-failure",
     viewport: { width: 1440, height: 960 },
   },
-  webServer: {
+  webServer: [{
     command: `PORT=${TEST_APP_PORT} bash ./scripts/start-test-server.sh`,
     url: TEST_BASE_URL,
     reuseExistingServer: process.env.PW_REUSE_EXISTING_SERVER === "1",
     timeout: 120_000,
-  },
+  }, {
+    command: `PORT=${Number(TEST_APP_PORT) + 1} TEST_PRODUCTION=1 bash ./scripts/start-test-server.sh`,
+    url: `http://127.0.0.1:${Number(TEST_APP_PORT) + 1}/fab/`,
+    reuseExistingServer: process.env.PW_REUSE_EXISTING_SERVER === "1",
+    timeout: 120_000,
+  }],
 });

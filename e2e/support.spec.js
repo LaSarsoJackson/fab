@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 
+const SUPPORT_BASE_URL = `http://127.0.0.1:${Number(process.env.PLAYWRIGHT_APP_PORT || "4173") + 1}/fab/`;
+test.use({ baseURL: SUPPORT_BASE_URL });
+
 test("visiting help and privacy preserves the offline app", async ({ page, context }, testInfo) => {
   await page.goto("?view=tours");
   await expect(page.getByRole("heading", { name: "Search Tours", exact: true })).toBeVisible();
@@ -27,7 +30,7 @@ for (const width of [320, 1440]) {
   test(`support and privacy pages work without scripts at ${width}px`, async ({ browser }, testInfo) => {
     const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width, height: 900 } });
     const page = await context.newPage();
-    const response = await page.goto(`${testInfo.project.use.baseURL}support.html`);
+    const response = await page.goto(`${SUPPORT_BASE_URL}support.html`);
     expect(response.status()).toBe(200);
     await expect(page.getByRole("heading", { name: "App help", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "geo.jrk1@gmail.com", exact: true })).toHaveAttribute("href", "mailto:geo.jrk1@gmail.com");
