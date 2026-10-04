@@ -14,6 +14,11 @@ Screenshots use a synthetic location for development.
 
 Visitors can search a 97,457-record burial index, locate graves on an interactive map, and explore the cemetery through tours.
 
+Burial Locator accepts a name, section, lot, or tier in any combination. Lot and
+tier filters match whole identifiers, including letters and punctuation. **Show more results** makes
+later matches available in groups of 80. Search filters stay in the URL when you
+reload or open a grave and return to the locator.
+
 | Destination | What visitors can do |
 | --- | --- |
 | Cemetery Map | Explore cemetery roads, sections, tour stops, and selected graves. |
@@ -90,7 +95,7 @@ Cemetery Map opens by default. The query string is the route contract:
 | Cemetery Map | `map` | View the cemetery, tour stops, sections, and pinned graves |
 | Burial Locator | `burials` | Search the generated burial index |
 
-Additional parameters are `q`, `section`, `tour`, and `record`. Old packed
+Additional parameters are `q`, `section`, `lot`, `tier`, `tour`, and `record`. Old packed
 `share` links remain readable, but new links use the smaller `record` contract.
 
 Load the same hosted app in FABFG with `embed=fabfg`. The native shell owns the

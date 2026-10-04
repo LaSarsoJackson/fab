@@ -419,8 +419,36 @@ p {
 
 .locator-fields {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(104px, 0.34fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
+}
+
+.locator-location-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.locator-location-fields legend {
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.locator-location-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.locator-clear {
+  justify-self: start;
+  min-height: 44px;
+}
+
+.locator-more {
+  margin-top: 20px;
 }
 
 .locator-field {
@@ -1181,10 +1209,6 @@ button.secondary-button {
     top: 0;
     grid-template-columns: minmax(0, 1fr);
     gap: 24px;
-  }
-
-  .locator-field--section {
-    max-width: 160px;
   }
 
   .record-card {

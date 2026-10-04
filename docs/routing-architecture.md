@@ -12,6 +12,8 @@ updates. `src/App.jsx` decides when a user action changes that route.
 - `view=tours|map|burials`
 - `q=<name query>`
 - `section=<section>`
+- `lot=<lot>`
+- `tier=<tier>`
 - `tour=<tour key>`
 - `record=<burial or tour record id>`
 - `embed=fabfg`
@@ -36,6 +38,18 @@ Initial loads do not post messages. Home clears the current tab's saved URL.
 FABFG supports iOS. Browser tests cover the hosted contract; an installed
 iPhone and iPad must also verify tab changes, Back, Home, Retry, location
 permission, and external links before a native release.
+
+Burial Locator combines name, section, lot, and tier filters. Lot and tier values
+match whole identifiers while preserving letters and punctuation. The route keeps
+the filters when a grave opens on the map so returning to Burial Locator restores
+the search. Choosing a different map section or a tour clears the old lot and
+tier. Shared grave links contain the record, without unrelated search filters.
+The existing native bridge carries the complete URL, including lot and tier.
+
+The locator initially shows up to 80 matches. Show more results requests a larger
+limit from the same worker and retains the existing rows while it waits. Keyboard
+focus then moves to the first new result. Changing any filter resets that limit.
+Expanded result counts are in-session state, not a new URL parameter.
 
 External directions are built in [`src/shared/routing.js`](../src/shared/routing.js).
 Apple platforms open Apple Maps. Android and other platforms use Google Maps.
