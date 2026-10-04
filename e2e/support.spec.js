@@ -4,7 +4,7 @@ test("visiting help and privacy preserves the offline app", async ({ page, conte
   await page.goto("?view=tours");
   await expect(page.getByRole("heading", { name: "Search Tours", exact: true })).toBeVisible();
   await page.evaluate(async () => {
-    // The repository's dev server does not auto-register the production worker.
+    // Wait for the production worker before warming assets for offline use.
     await navigator.serviceWorker.register("service-worker.js");
     await navigator.serviceWorker.ready;
     if (!navigator.serviceWorker.controller) {
