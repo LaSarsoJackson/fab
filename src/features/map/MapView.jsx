@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   AttributionControl,
   GeolocateControl,
@@ -160,6 +160,33 @@ const RouteMapPick = ({ draft, mapRef, onRoutePoint }) => {
   </div>;
 };
 
+function useLocationPrivacy(routingDraft, readyMap, mapRef) {
+  const [locationPrivate, setLocationPrivate] = useState(false);
+  const locationPrivateRef = useRef(false);
+  const protectLocation = useCallback(() => {
+    locationPrivateRef.current = true;
+    setLocationPrivate(true);
+    const map = mapRef.current;
+    if (map?.isStyleLoaded()) {
+      setLayerVisibility(map, MAP_LAYER_IDS.hillshade, false);
+      setLayerVisibility(map, MAP_LAYER_IDS.map, false);
+    }
+  }, [mapRef]);
+  const needsLocationPrivacy = Boolean(routingDraft?.locating || routingDraft?.following || routingDraft?.start?.gps);
+  if (needsLocationPrivacy && !locationPrivate) setLocationPrivate(true);
+  useLayoutEffect(() => {
+    if (!locationPrivate) return;
+    locationPrivateRef.current = true;
+    const map = readyMap;
+    if (map?.isStyleLoaded()) {
+      setLayerVisibility(map, MAP_LAYER_IDS.hillshade, false);
+      setLayerVisibility(map, MAP_LAYER_IDS.map, false);
+    }
+  }, [locationPrivate, readyMap]);
+
+  return { locationPrivate, locationPrivateRef, protectLocation };
+}
+
 export default function MapView({
   active = true,
   routingDraft = null,
@@ -176,8 +203,10 @@ export default function MapView({
   onSectionSelect,
 }) {
   const routingActive = Boolean(routingDraft);
+
   const containerRef = useRef(null);
   const mapRef = useRef(null);
+  const geolocateRef = useRef(null);
   const routingRef = useRef({ draft: routingDraft, onRoutePoint });
   const framedRoute = useRef(null);
   const recordsRef = useRef(records);
@@ -187,6 +216,7 @@ export default function MapView({
   const selectedSectionRef = useRef(selectedSection);
   const [readyMap, setReadyMap] = useState(null);
   const [locationMessage, setLocationMessage] = useState("");
+  const { locationPrivate, locationPrivateRef, protectLocation } = useLocationPrivacy(routingDraft, readyMap, mapRef);
   const [preferences, setPreferences] = useState(readMapPreferences);
   const [visibleMarkerCount, setVisibleMarkerCount] = useState(null);
   const { hillshade, showSections } = preferences;
@@ -237,6 +267,7 @@ export default function MapView({
       showAccuracyCircle: true,
       fitBoundsOptions: { maxZoom: 18 },
     });
+    geolocateRef.current = geolocate;
     map.addControl(geolocate, "top-right");
     geolocate.on("geolocate", () => setLocationMessage(""));
     geolocate.on("outofmaxbounds", () => {
@@ -324,6 +355,15 @@ export default function MapView({
 
   useEffect(() => {
     const map = readyMap;
+    const control = geolocateRef.current;
+    if (!map || mapRef.current !== map || !control) return;
+    if (active && !map.hasControl(control)) map.addControl(control, "top-right");
+    // onRemove clears MapLibre's geolocation watch through its public lifecycle.
+    if (!active && map.hasControl(control)) map.removeControl(control);
+  }, [active, readyMap]);
+
+  useEffect(() => {
+    const map = readyMap;
     if (!active || !map || mapRef.current !== map) return undefined;
     const frame = requestAnimationFrame(() => map.resize());
     return () => cancelAnimationFrame(frame);
@@ -360,8 +400,8 @@ export default function MapView({
   useEffect(() => {
     const map = readyMap;
     if (!map || mapRef.current !== map) return;
-    setLayerVisibility(map, MAP_LAYER_IDS.hillshade, hillshade);
-    setLayerVisibility(map, MAP_LAYER_IDS.map, !hillshade);
+    setLayerVisibility(map, MAP_LAYER_IDS.hillshade, hillshade && !locationPrivateRef.current);
+    setLayerVisibility(map, MAP_LAYER_IDS.map, !hillshade && !locationPrivateRef.current);
     setLayerVisibility(map, "cemetery-road-labels", hillshade);
     const matchesSection = [
       "==",
@@ -375,7 +415,7 @@ export default function MapView({
     setLayerVisibility(map, MAP_LAYER_IDS.selectedSection, Boolean(selectedSection));
     map.setFilter(MAP_LAYER_IDS.selectedSection, matchesSection);
     map.setLayerZoomRange(MAP_LAYER_IDS.sectionLabels, showSections ? 0 : 16, 24);
-  }, [hillshade, readyMap, selectedSection, showSections]);
+  }, [hillshade, readyMap, selectedSection, showSections, locationPrivate, locationPrivateRef]);
 
   useEffect(() => {
     const map = readyMap;
@@ -471,7 +511,10 @@ export default function MapView({
         </div>
       ) : null}
       <RouteMapPick draft={routingDraft} mapRef={mapRef} onRoutePoint={onRoutePoint} />
-      <div ref={containerRef} className="map-canvas" role="region" aria-label="Albany Rural Cemetery map" />
+      {locationPrivate && <p>Local map while using location</p>}
+      <div ref={containerRef} className="map-canvas" role="region" aria-label="Albany Rural Cemetery map" onClickCapture={(event) => {
+        if (event.target.closest(".maplibregl-ctrl-geolocate")) protectLocation();
+      }} />
     </div>
   );
 }

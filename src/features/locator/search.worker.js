@@ -18,10 +18,17 @@ const loadRows = async (dataUrl) => {
   return preparedRowsPromise;
 };
 
+let latestRequest = 0;
+
 self.onmessage = async ({ data }) => {
   const { dataUrl, requestId, ...criteria } = data || {};
+  latestRequest = requestId;
   try {
+    // Yield briefly so a burst of queued keystrokes collapses to the latest request.
+    await new Promise(resolve => setTimeout(resolve, 75));
+    if (requestId !== latestRequest) return;
     const preparedRows = await loadRows(dataUrl);
+    if (requestId !== latestRequest) return;
     self.postMessage({ requestId, ...searchPreparedRows(preparedRows, criteria) });
   } catch (error) {
     self.postMessage({ requestId, error: error instanceof Error ? error.message : "Search failed" });

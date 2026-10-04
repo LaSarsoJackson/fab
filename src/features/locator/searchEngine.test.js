@@ -31,3 +31,11 @@ describe("worker search engine", () => {
       .toHaveLength(2);
   });
 });
+
+// Limits protect the worker before an attacker-controlled URL triggers an index scan.
+test("rejects oversized search criteria instead of broadening or truncating them", () => {
+  const prepared = prepareSearchRows(rows);
+  for (const criteria of [{ query: "a".repeat(257) }, { query: "a ".repeat(17) }, { section: "1".repeat(257) }]) {
+    expect(() => searchPreparedRows(prepared, criteria)).toThrow("Search");
+  }
+});

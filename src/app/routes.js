@@ -31,7 +31,7 @@ const normalizeView = (value) => {
 
 const decodeLegacySelection = (value) => {
   const encoded = clean(value);
-  if (!encoded) return null;
+  if (!encoded || encoded.length > 16384) return null;
 
   try {
     const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
@@ -59,8 +59,8 @@ export const readAppRoute = (search = "") => {
     lot: clean(params.get(ROUTE_KEYS.lot)),
     tier: clean(params.get(ROUTE_KEYS.tier)),
     tour,
-    record,
-    legacySelection,
+    record: record || clean(legacySelection?.id),
+    legacySelection: null,
     embedded: clean(params.get(ROUTE_KEYS.embed)).toLowerCase() === "fabfg",
   };
 };

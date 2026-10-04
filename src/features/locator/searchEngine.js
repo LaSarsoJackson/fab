@@ -49,7 +49,13 @@ export const searchPreparedRows = (preparedRows, {
   recordId = "",
   limit = 80,
 } = {}) => {
+  if ([query, section, lot, tier, recordId].some((value) => clean(value).length > 256)) {
+    throw new Error("Search fields must be 256 characters or fewer.");
+  }
   const normalizedQuery = normalizeSearchText(query);
+  if (normalizedQuery.split(" ").filter(Boolean).length > 16) {
+    throw new Error("Search names must contain 16 words or fewer.");
+  }
   const normalizedSection = normalizeSearchText(section);
   const normalizedLot = normalizeLocationIdentifier(lot);
   const normalizedTier = normalizeLocationIdentifier(tier);

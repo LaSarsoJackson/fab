@@ -24,7 +24,7 @@ const statusMessage = (draft, result, calculating) => {
   return "Choose a start and destination.";
 };
 const EndpointRow = ({ endpoint, point, expanded, onClick }) => (
-  <button id={`route-${endpoint}`} type="button" className="map-route-endpoint" aria-expanded={expanded} aria-controls={`route-${endpoint}-options`} onClick={onClick}>
+  <button id={`route-${endpoint}`} type="button" className="map-route-endpoint" aria-label={`${endpoint === "start" ? "From" : "To"} ${point?.label || (endpoint === "start" ? "Choose start" : "Choose destination")}`} aria-expanded={expanded} aria-controls={`route-${endpoint}-options`} onClick={onClick}>
     <span className="map-route-endpoint__label">{endpoint === "start" ? "From" : "To"}</span>
     <span className="map-route-endpoint__value">{point?.label || (endpoint === "start" ? "Choose start" : "Choose destination")}</span>
     <span aria-hidden="true">⌄</span>
