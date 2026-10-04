@@ -76,6 +76,8 @@ const LocatorDestination = ({ active, burialSearch, route, onRouteChange, onSele
     <LocatorView
       initialQuery={route.query}
       initialSection={route.section}
+      initialLot={route.lot}
+      initialTier={route.tier}
       search={burialSearch}
       onRouteChange={onRouteChange}
       onSelect={onSelect}
@@ -305,6 +307,8 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
       view: APP_VIEWS.LOCATOR,
       query: query.trim(),
       section: "",
+      lot: "",
+      tier: "",
       record: "",
       tour: "",
     });
@@ -329,6 +333,8 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
       record: "",
       query: "",
       section: "",
+      lot: "",
+      tier: "",
     });
     if (!handledLocally) return;
 
@@ -382,6 +388,8 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
       view: APP_VIEWS.TOURS,
       query: "",
       section: "",
+      lot: "",
+      tier: "",
       tour: "",
       record: "",
     });
@@ -396,6 +404,8 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
       record: continueRecord?.id || savedRecord,
       query: "",
       section: "",
+      lot: "",
+      tier: "",
     });
   };
 
@@ -404,6 +414,8 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
     const handledLocally = updateRoute({
       view: APP_VIEWS.LOCATOR,
       section: normalizedSection,
+      lot: "",
+      tier: "",
       query: "",
       tour: "",
       record: "",
@@ -432,7 +444,7 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
     }
 
     setRecords([]);
-    updateRoute({ section: normalizedSection, tour: "", record: "", query: "" });
+    updateRoute({ section: normalizedSection, lot: "", tier: "", tour: "", record: "", query: "" });
   };
 
   const shareUrl = useMemo(() => selectedRecord
@@ -440,6 +452,8 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
       view: APP_VIEWS.MAP,
       query: "",
       section: "",
+      lot: "",
+      tier: "",
       record: selectedRecord.id,
       tour: selectedRecord.source === "tour" ? selectedRecord.tourKey : "",
       embedded: false,

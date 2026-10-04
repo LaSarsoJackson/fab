@@ -1,4 +1,9 @@
 const clean = (value) => String(value ?? "").trim();
+const normalizeLocationIdentifier = (value) => clean(value).toLocaleLowerCase();
+
+export const getSearchCriteriaKey = ({ query, section, lot, tier, recordId } = {}) => (
+  JSON.stringify([query, section, lot, tier, recordId].map(clean))
+);
 
 export const normalizeSearchText = (value) => clean(value)
   .normalize("NFD")
@@ -17,6 +22,8 @@ export const prepareSearchRows = (rows = []) => rows.map((row) => {
     name: `${first} ${last}`.trim(),
     reverseName: `${last} ${first}`.trim(),
     section: normalizeSearchText(row.s),
+    lot: normalizeLocationIdentifier(row.lo),
+    tier: normalizeLocationIdentifier(row.t),
   };
 });
 
@@ -28,23 +35,35 @@ const scoreMatch = (entry, query, tokens) => {
   return Number.POSITIVE_INFINITY;
 };
 
+const matchesLocation = (entry, section, lot, tier) => (
+  (!section || entry.section === section) &&
+  (!lot || entry.lot === lot) &&
+  (!tier || entry.tier === tier)
+);
+
 export const searchPreparedRows = (preparedRows, {
   query = "",
   section = "",
+  lot = "",
+  tier = "",
   recordId = "",
   limit = 80,
 } = {}) => {
   const normalizedQuery = normalizeSearchText(query);
   const normalizedSection = normalizeSearchText(section);
-  // An invalid section in a deep link must not become a cemetery-wide query.
-  if (section && !normalizedSection) return { total: 0, rows: [] };
+  const normalizedLot = normalizeLocationIdentifier(lot);
+  const normalizedTier = normalizeLocationIdentifier(tier);
+  // An invalid location in a deep link must not become a cemetery-wide query.
+  if ([section, lot, tier].some((value) => value && !normalizeSearchText(value))) {
+    return { total: 0, rows: [] };
+  }
   const normalizedId = clean(recordId);
   const tokens = normalizedQuery.split(" ").filter(Boolean);
   const matches = [];
 
   for (const entry of preparedRows) {
     if (normalizedId && clean(entry.row.i) !== normalizedId) continue;
-    if (normalizedSection && entry.section !== normalizedSection) continue;
+    if (!matchesLocation(entry, normalizedSection, normalizedLot, normalizedTier)) continue;
 
     const score = normalizedId || !normalizedQuery
       ? 0
