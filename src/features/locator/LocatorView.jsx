@@ -5,7 +5,7 @@ import { getSearchCriteriaKey } from "./searchEngine";
 const MIN_QUERY_LENGTH = 2;
 const PAGE_SIZE = 80;
 const LOCATION_FIELDS = [
-  { key: "section", label: "Section", placeholder: "e.g. 49" },
+  { key: "section", label: "Section", placeholder: "e.g. 49", inputMode: "numeric" },
   { key: "lot", label: "Lot", placeholder: "e.g. 30" },
   { key: "tier", label: "Tier", placeholder: "e.g. 2" },
 ];
@@ -14,10 +14,10 @@ const LocationFilters = ({ values, onChange }) => (
   <fieldset className="locator-location-fields">
     <legend>Location</legend>
     <div className="locator-location-grid">
-      {LOCATION_FIELDS.map(({ key, label, placeholder }) => (
+      {LOCATION_FIELDS.map(({ key, label, placeholder, inputMode }) => (
         <label key={key} className="locator-field" htmlFor={`burial-${key}`}>
           <span>{label}</span>
-          <input id={`burial-${key}`} type="search" value={values[key]} onChange={(event) => onChange({ [key]: event.target.value })} placeholder={placeholder} autoComplete="off" enterKeyHint="search" />
+          <input id={`burial-${key}`} type="search" inputMode={inputMode} value={values[key]} onChange={(event) => onChange({ [key]: event.target.value })} placeholder={placeholder} autoComplete="off" enterKeyHint="search" />
         </label>
       ))}
     </div>

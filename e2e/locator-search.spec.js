@@ -62,6 +62,7 @@ test.describe("synthetic burial index", () => {
       await page.setViewportSize({ width, height: 860 });
       await useLocations(page);
       await page.goto("./?view=burials");
+      await expect(page.getByLabel("Section", { exact: true })).toHaveAttribute("inputmode", "numeric");
       await page.getByLabel("Section", { exact: true }).fill("215");
       await page.getByLabel("Lot", { exact: true }).fill("100a");
       await page.getByLabel("Tier", { exact: true }).fill("2");
