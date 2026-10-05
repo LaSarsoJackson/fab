@@ -16,7 +16,7 @@ describe("routing contracts", () => {
     expect(result).toEqual({
       href: "https://maps.apple.com/?daddr=42.710119%2C-73.730294&dirflg=w&q=Ada+Lovelace",
       platform: "apple",
-      target: "self",
+      target: "_self",
     });
   });
 
@@ -33,7 +33,7 @@ describe("routing contracts", () => {
     expect(result).toEqual({
       href: "https://maps.apple.com/?daddr=42.710119%2C-73.730294&dirflg=w&saddr=42.70418%2C-73.73198&q=Ada+Lovelace",
       platform: "apple",
-      target: "self",
+      target: "_self",
     });
   });
 
@@ -48,7 +48,7 @@ describe("routing contracts", () => {
     expect(result).toEqual({
       href: "https://www.google.com/maps/dir/?api=1&destination=42.710119%2C-73.730294&travelmode=walking",
       platform: "android",
-      target: "self",
+      target: "_self",
     });
   });
 
@@ -63,7 +63,7 @@ describe("routing contracts", () => {
     expect(result).toEqual({
       href: "https://www.google.com/maps/dir/?api=1&destination=42.710119%2C-73.730294&travelmode=driving",
       platform: "android",
-      target: "self",
+      target: "_self",
     });
   });
 
@@ -78,7 +78,7 @@ describe("routing contracts", () => {
     expect(result).toEqual({
       href: "https://maps.apple.com/?daddr=42.710119%2C-73.730294&dirflg=d",
       platform: "apple",
-      target: "self",
+      target: "_self",
     });
   });
 

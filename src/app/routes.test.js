@@ -43,7 +43,8 @@ describe("app route contract", () => {
 
     expect(readAppRoute(`?share=${share}`)).toMatchObject({
       view: APP_VIEWS.MAP,
-      legacySelection: selectedRecord,
+      record: selectedRecord.id,
+      legacySelection: null,
     });
   });
 

@@ -30,8 +30,10 @@ reload or open a grave and return to the locator.
 Choose **Directions** on a selected grave or the map. The **From** and **To**
 rows open choices for a location fix, a map point, or a mapped place from a list.
 **Start from my location** uses one fix; **Follow my location** updates the road
-route as you move. **Stop following** ends those updates. Position fixes stay
-on the device unless you choose the external **Open in Maps** link.
+route as you move. **Stop following** ends those updates. Using location switches
+the map to bundled local data and stops requests to external tile providers until
+the app reloads. The app also stops its location watch when the map is hidden.
+Position fixes stay on the device unless you choose **Open in Maps**.
 
 Routes use the bundled cemetery-road data. Dashed connectors show gaps to those
 roads, not mapped paths. Check signs and access on site; the app does not confirm

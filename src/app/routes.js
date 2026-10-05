@@ -31,7 +31,7 @@ const normalizeView = (value) => {
 
 const decodeLegacySelection = (value) => {
   const encoded = clean(value);
-  if (!encoded) return null;
+  if (!encoded || encoded.length > 16384) return null;
 
   try {
     const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
@@ -51,6 +51,9 @@ export const readAppRoute = (search = "") => {
   const record = clean(params.get(ROUTE_KEYS.record));
   const tour = clean(params.get(ROUTE_KEYS.tour));
   const legacySelection = decodeLegacySelection(params.get(ROUTE_KEYS.legacyShare));
+  const legacyId = clean(legacySelection?.id);
+  const legacyBurialId = /^burial:(\d+)(?::|$)/.exec(legacyId)?.[1];
+  const legacyTour = /^tour:([^:]+):/.exec(legacyId)?.[1] || "";
 
   return {
     view: normalizeView(requestedView),
@@ -58,9 +61,9 @@ export const readAppRoute = (search = "") => {
     section: clean(params.get(ROUTE_KEYS.section)),
     lot: clean(params.get(ROUTE_KEYS.lot)),
     tier: clean(params.get(ROUTE_KEYS.tier)),
-    tour,
-    record,
-    legacySelection,
+    tour: tour || (!record ? legacyTour : ""),
+    record: record || legacyBurialId || legacyId,
+    legacySelection: null,
     embedded: clean(params.get(ROUTE_KEYS.embed)).toLowerCase() === "fabfg",
   };
 };

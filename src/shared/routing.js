@@ -69,7 +69,7 @@ export const buildDirectionsLink = ({
     return {
       href: `https://maps.apple.com/?${params.toString()}`,
       platform: "apple",
-      target: "self",
+      target: "_self",
     };
   }
 
@@ -87,7 +87,7 @@ export const buildDirectionsLink = ({
     return {
       href: `https://www.google.com/maps/dir/?${googleMapsDirectionsParams.toString()}`,
       platform: "android",
-      target: "self",
+      target: "_self",
     };
   }
 

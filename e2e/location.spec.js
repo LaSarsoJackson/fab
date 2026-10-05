@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
-test("live GPS follows updates and survives destination changes", async ({ page, context }) => {
+test("live GPS follows updates and requires restart after leaving the map", async ({ page, context }) => {
   await context.grantPermissions(["geolocation"]);
   await context.setGeolocation({ latitude: 42.705, longitude: -73.733, accuracy: 8 });
   await page.goto("./?view=map");
@@ -19,6 +19,9 @@ test("live GPS follows updates and survives destination changes", async ({ page,
   await expect(marker).toBeVisible();
   await page.getByRole("button", { name: "Burial Locator", exact: true }).click();
   await page.getByRole("button", { name: "Cemetery Map", exact: true }).click();
+  await expect(marker).toHaveCount(0);
+  await expect(control).toBeEnabled();
+  await control.click();
   await expect(marker).toBeVisible();
 });
 

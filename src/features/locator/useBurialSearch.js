@@ -27,8 +27,8 @@ export default function useBurialSearch() {
       workerRef.current = worker;
       worker.onmessage = ({ data }) => {
         const pending = pendingRef.current.get(data.requestId);
-        if (data.error) {
-          if (data.requestId === requestIdRef.current) {
+        if (data.error || data.cancelled) {
+          if (data.error && data.requestId === requestIdRef.current) {
             setState({ status: "error", results: [], total: 0, error: data.error });
           }
           pending?.resolve([]);
