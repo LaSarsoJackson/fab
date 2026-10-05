@@ -3,6 +3,28 @@ import { expect, test } from "@playwright/test";
 const SUPPORT_BASE_URL = `http://127.0.0.1:${Number(process.env.PLAYWRIGHT_APP_PORT || "4173") + 1}/fab/`;
 test.use({ baseURL: SUPPORT_BASE_URL });
 
+test("the default map remains available after an offline reload", async ({ page, context }, testInfo) => {
+  await page.goto("./");
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.register("service-worker.js");
+    await navigator.serviceWorker.ready;
+    if (!navigator.serviceWorker.controller) {
+      await new Promise(resolve => navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true }));
+    }
+  });
+  await page.reload();
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await expect.poll(() => page.evaluate(async () => {
+    const cache = await caches.open("fab-v8");
+    return (await cache.keys()).some(request => /\/MapView-[^/]+\.js$/.test(request.url));
+  })).toBe(true);
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("offline-default-map.png"), fullPage: true });
+});
+
 test("visiting help and privacy preserves the offline app", async ({ page, context }, testInfo) => {
   await page.goto("?view=tours");
   await expect(page.getByRole("heading", { name: "Search Tours", exact: true })).toBeVisible();

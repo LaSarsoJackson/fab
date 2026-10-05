@@ -71,12 +71,12 @@ function storeAsset(request, response) {
       const { done, value } = await reader.read();
       if (done) break;
       bytes += value.byteLength;
-      if (bytes > 1024 * 1024) { await reader.cancel(); return; }
+      if (bytes > 2 * 1024 * 1024) { await reader.cancel(); return; }
       chunks.push(value);
     }
     const cache = await caches.open(CACHE_NAME);
     const keys = await cache.keys();
-    // One shell plus at most 32 assets of at most 1 MiB each.
+    // One shell plus at most 32 assets of at most 2 MiB each, including MapView.
     const assets = keys.filter((key) => key.url !== self.registration.scope);
     for (const key of assets.slice(0, Math.max(0, assets.length - 31))) await cache.delete(key);
     await cache.put(request, new Response(new Blob(chunks), { status: response.status, headers: response.headers }));
