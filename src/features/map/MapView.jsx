@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   AttributionControl,
   GeolocateControl,
@@ -144,6 +144,49 @@ const focusMap = ({ map, records, selectedRecord, selectedSection, tourStopsPres
   focusRecords(map, records, tourStopsPresent, viewport);
 };
 
+const RouteMapPick = ({ draft, mapRef, onRoutePoint }) => {
+  const crosshairRef = useRef(null);
+  if (!draft?.picking) return null;
+  return <div className="map-route-center-pick">
+    <span ref={crosshairRef} aria-hidden="true">+</span>
+    <button type="button" className="secondary-button" onClick={() => {
+      const map = mapRef.current;
+      if (!map || !crosshairRef.current) return;
+      const target = crosshairRef.current.getBoundingClientRect();
+      const canvas = map.getCanvas().getBoundingClientRect();
+      const point = map.unproject([target.x + target.width / 2 - canvas.x, target.y + target.height / 2 - canvas.y]);
+      onRoutePoint?.([point.lng, point.lat]);
+    }}>Set {draft.picking === "start" ? "start" : "destination"} here</button>
+  </div>;
+};
+
+function useLocationPrivacy(routingDraft, readyMap, mapRef) {
+  const [locationPrivate, setLocationPrivate] = useState(false);
+  const locationPrivateRef = useRef(false);
+  const protectLocation = useCallback(() => {
+    locationPrivateRef.current = true;
+    setLocationPrivate(true);
+    const map = mapRef.current;
+    if (map?.isStyleLoaded()) {
+      setLayerVisibility(map, MAP_LAYER_IDS.hillshade, false);
+      setLayerVisibility(map, MAP_LAYER_IDS.map, false);
+    }
+  }, [mapRef]);
+  const needsLocationPrivacy = Boolean(routingDraft?.locating || routingDraft?.following || routingDraft?.start?.gps);
+  if (needsLocationPrivacy && !locationPrivate) setLocationPrivate(true);
+  useLayoutEffect(() => {
+    if (!locationPrivate) return;
+    locationPrivateRef.current = true;
+    const map = readyMap;
+    if (map?.isStyleLoaded()) {
+      setLayerVisibility(map, MAP_LAYER_IDS.hillshade, false);
+      setLayerVisibility(map, MAP_LAYER_IDS.map, false);
+    }
+  }, [locationPrivate, readyMap]);
+
+  return { locationPrivate, locationPrivateRef, protectLocation };
+}
+
 export default function MapView({
   active = true,
   routingDraft = null,
@@ -160,9 +203,12 @@ export default function MapView({
   onSectionSelect,
 }) {
   const routingActive = Boolean(routingDraft);
+
   const containerRef = useRef(null);
   const mapRef = useRef(null);
+  const geolocateRef = useRef(null);
   const routingRef = useRef({ draft: routingDraft, onRoutePoint });
+  const framedRoute = useRef(null);
   const recordsRef = useRef(records);
   const onRecordsSelectRef = useRef(onRecordsSelect);
   const onSectionSelectRef = useRef(onSectionSelect);
@@ -170,6 +216,7 @@ export default function MapView({
   const selectedSectionRef = useRef(selectedSection);
   const [readyMap, setReadyMap] = useState(null);
   const [locationMessage, setLocationMessage] = useState("");
+  const { locationPrivate, locationPrivateRef, protectLocation } = useLocationPrivacy(routingDraft, readyMap, mapRef);
   const [preferences, setPreferences] = useState(readMapPreferences);
   const [visibleMarkerCount, setVisibleMarkerCount] = useState(null);
   const { hillshade, showSections } = preferences;
@@ -220,6 +267,7 @@ export default function MapView({
       showAccuracyCircle: true,
       fitBoundsOptions: { maxZoom: 18 },
     });
+    geolocateRef.current = geolocate;
     map.addControl(geolocate, "top-right");
     geolocate.on("geolocate", () => setLocationMessage(""));
     geolocate.on("outofmaxbounds", () => {
@@ -307,6 +355,15 @@ export default function MapView({
 
   useEffect(() => {
     const map = readyMap;
+    const control = geolocateRef.current;
+    if (!map || mapRef.current !== map || !control) return;
+    if (active && !map.hasControl(control)) map.addControl(control, "top-right");
+    // onRemove clears MapLibre's geolocation watch through its public lifecycle.
+    if (!active && map.hasControl(control)) map.removeControl(control);
+  }, [active, readyMap]);
+
+  useEffect(() => {
+    const map = readyMap;
     if (!active || !map || mapRef.current !== map) return undefined;
     const frame = requestAnimationFrame(() => map.resize());
     return () => cancelAnimationFrame(frame);
@@ -343,8 +400,8 @@ export default function MapView({
   useEffect(() => {
     const map = readyMap;
     if (!map || mapRef.current !== map) return;
-    setLayerVisibility(map, MAP_LAYER_IDS.hillshade, hillshade);
-    setLayerVisibility(map, MAP_LAYER_IDS.map, !hillshade);
+    setLayerVisibility(map, MAP_LAYER_IDS.hillshade, hillshade && !locationPrivateRef.current);
+    setLayerVisibility(map, MAP_LAYER_IDS.map, !hillshade && !locationPrivateRef.current);
     setLayerVisibility(map, "cemetery-road-labels", hillshade);
     const matchesSection = [
       "==",
@@ -358,7 +415,7 @@ export default function MapView({
     setLayerVisibility(map, MAP_LAYER_IDS.selectedSection, Boolean(selectedSection));
     map.setFilter(MAP_LAYER_IDS.selectedSection, matchesSection);
     map.setLayerZoomRange(MAP_LAYER_IDS.sectionLabels, showSections ? 0 : 16, 24);
-  }, [hillshade, readyMap, selectedSection, showSections]);
+  }, [hillshade, readyMap, selectedSection, showSections, locationPrivate, locationPrivateRef]);
 
   useEffect(() => {
     const map = readyMap;
@@ -378,8 +435,8 @@ export default function MapView({
     if (!readyMap || mapRef.current !== readyMap) return;
     readyMap.getSource("local-route")?.setData(routingDraft && localRoute ? localRoute.geojson : EMPTY_COLLECTION);
     const features = ["start", "end"].flatMap((endpoint) => routingDraft?.[endpoint] ? [{
-      type: "Feature", properties: { endpoint },
-      geometry: { type: "Point", coordinates: routingDraft[endpoint].coordinates },
+      type: "Feature", properties: { endpoint, stale: endpoint === "start" && routingDraft.signal === "stale" },
+      geometry: { type: "Point", coordinates: endpoint === "start" && routingDraft.position ? routingDraft.position : routingDraft[endpoint].coordinates },
     }] : []);
     readyMap.getSource("route-endpoints")?.setData({ type: "FeatureCollection", features });
     readyMap.getCanvas().style.cursor = routingDraft?.picking ? "crosshair" : "";
@@ -387,20 +444,25 @@ export default function MapView({
 
   useEffect(() => {
     if (!active || !localRoute || !readyMap || mapRef.current !== readyMap) return;
+    const frame = `${routingDraft.contextKey}:${routingDraft.viewRevision}`;
+    if (framedRoute.current === frame) return;
+    framedRoute.current = frame;
     readyMap.stop();
     readyMap.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
     const [[south, west], [north, east]] = getGeoJsonBounds(localRoute.geojson);
     const panel = containerRef.current.closest(".map-page").querySelector(".map-route-panel");
     const panelBox = panel?.getBoundingClientRect();
     const viewport = getViewportLayout(readyMap);
-    const padding = viewport.short && viewport.width >= 600
+    const padding = viewport.short && viewport.width >= 500
       ? { top: 76, left: (panelBox?.width || 280) + 30, right: 64, bottom: 30 }
       : { top: 90, left: 40, right: 64, bottom: Math.min((panelBox?.height || 220) + 50, viewport.height * 0.58) };
     readyMap.fitBounds([[west, south], [east, north]], {
       padding,
       maxZoom: 18, duration: 500, retainPadding: false,
     });
-  }, [active, localRoute, readyMap]);
+  }, [active, localRoute, readyMap, routingDraft]);
+
+  useEffect(() => { if (!routingDraft) framedRoute.current = null; }, [routingDraft]);
 
   return (
     <div className="map-view">
@@ -448,7 +510,11 @@ export default function MapView({
           </button>
         </div>
       ) : null}
-      <div ref={containerRef} className="map-canvas" role="region" aria-label="Albany Rural Cemetery map" />
+      <RouteMapPick draft={routingDraft} mapRef={mapRef} onRoutePoint={onRoutePoint} />
+      {locationPrivate && <p>Local map while using location</p>}
+      <div ref={containerRef} className="map-canvas" role="region" aria-label="Albany Rural Cemetery map" onClickCapture={(event) => {
+        if (event.target.closest(".maplibregl-ctrl-geolocate")) protectLocation();
+      }} />
     </div>
   );
 }

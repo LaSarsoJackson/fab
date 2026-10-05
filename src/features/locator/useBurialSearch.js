@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { inflateBurialRow } from "./burialRecords";
+import { getSearchCriteriaKey } from "./searchEngine";
 
 const INITIAL_STATE = Object.freeze({
   status: "idle",
   results: [],
   total: 0,
   error: "",
+  criteriaKey: "",
 });
 
 export default function useBurialSearch() {
@@ -24,12 +26,12 @@ export default function useBurialSearch() {
       const worker = new Worker(new URL("./search.worker.js", import.meta.url), { type: "module" });
       workerRef.current = worker;
       worker.onmessage = ({ data }) => {
-        const resolve = pendingRef.current.get(data.requestId);
-        if (data.error) {
-          if (data.requestId === requestIdRef.current) {
+        const pending = pendingRef.current.get(data.requestId);
+        if (data.error || data.cancelled) {
+          if (data.error && data.requestId === requestIdRef.current) {
             setState({ status: "error", results: [], total: 0, error: data.error });
           }
-          resolve?.([]);
+          pending?.resolve([]);
           pendingRef.current.delete(data.requestId);
           return;
         }
@@ -40,9 +42,10 @@ export default function useBurialSearch() {
             results,
             total: data.total,
             error: "",
+            criteriaKey: pending?.criteriaKey || "",
           });
         }
-        resolve?.(results);
+        pending?.resolve(results);
         pendingRef.current.delete(data.requestId);
       };
       worker.onerror = (event) => {
@@ -53,7 +56,7 @@ export default function useBurialSearch() {
           total: 0,
           error: event.message || "Burial search could not start",
         });
-        pendingRef.current.forEach((resolve) => resolve([]));
+        pendingRef.current.forEach(({ resolve }) => resolve([]));
         pendingRef.current.clear();
         workerRef.current = null;
         worker.terminate();
@@ -69,7 +72,7 @@ export default function useBurialSearch() {
       dataUrl: `${import.meta.env.BASE_URL}data/Search_Burials.json`,
     });
     return new Promise((resolve) => {
-      pendingRef.current.set(requestId, resolve);
+      pendingRef.current.set(requestId, { resolve, criteriaKey: getSearchCriteriaKey(criteria) });
     });
   }, []);
 
@@ -77,7 +80,7 @@ export default function useBurialSearch() {
     const worker = workerRef.current;
     workerRef.current = null;
     requestIdRef.current += 1;
-    pendingRef.current.forEach((resolve) => resolve([]));
+    pendingRef.current.forEach(({ resolve }) => resolve([]));
     pendingRef.current.clear();
     worker?.terminate();
   }, []);

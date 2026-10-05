@@ -11,8 +11,8 @@
 
 ## Visual hierarchy
 
-- Use Newsreader for headings and Public Sans for controls and record lists.
-  Serve both fonts with the app; keep their open-source licenses in `public/fonts`.
+- Use Public Sans for headings, controls, and record lists. Serve the font
+  with the app; keep its open-source license in `public/fonts`.
 - Use green for navigation and selected controls, warm backgrounds, and lines
   between list rows. Shared type and color tokens live in `src/styles.css`.
 - Separate tours from sections and groups. Use selectable rows and keep long
@@ -20,7 +20,7 @@
 - Place desktop search fields beside their results. Stack them on phones.
 - Show one map panel at a time: the place list or the selected grave's details.
   Keep the selected location clear of that panel, including in landscape.
-- Keep Navigate and Read biography visible while record details scroll. Omit
+- Keep Directions, Open in Maps, and Read biography visible while record details scroll. Omit
   the portrait on short screens so the name and grave location have room.
 - Use vertical place lists on every screen. Limit the height of phone panels
   to leave room for the map. Return keyboard focus to the chosen place after

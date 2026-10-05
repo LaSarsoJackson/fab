@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import roads from "../../data/ARC_Roads.json";
-import { buildRoadGraph, calculateRoadRoute, distanceMeters } from "./mapRouting";
+import { buildRoadGraph, calculateRoadRoute } from "./mapRouting";
+import { distanceMeters } from "../../shared/distanceMeters";
 
 const feature = (coordinates) => ({ type: "Feature", geometry: { type: "LineString", coordinates } });
 const graphOf = (...lines) => buildRoadGraph({ type: "FeatureCollection", features: lines.map(feature) });

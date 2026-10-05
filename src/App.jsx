@@ -56,6 +56,7 @@ const ToursDestination = ({
   loadingTour,
   onContinueTour,
   onSelectTour,
+  onFindPerson,
 }) => {
   if (!active) return null;
   return (
@@ -64,6 +65,7 @@ const ToursDestination = ({
       loadingTour={loadingTour}
       onContinueTour={onContinueTour}
       onSelectTour={onSelectTour}
+      onFindPerson={onFindPerson}
     />
   );
 };
@@ -74,6 +76,8 @@ const LocatorDestination = ({ active, burialSearch, route, onRouteChange, onSele
     <LocatorView
       initialQuery={route.query}
       initialSection={route.section}
+      initialLot={route.lot}
+      initialTier={route.tier}
       search={burialSearch}
       onRouteChange={onRouteChange}
       onSelect={onSelect}
@@ -81,13 +85,24 @@ const LocatorDestination = ({ active, burialSearch, route, onRouteChange, onSele
   );
 };
 
-const MapRouteControls = ({ routing, detailsOpen, activeTour, pointRecords }) => {
-  if (routing.draft) return <RoutePanel routing={routing} />;
+const MapRouteControls = ({ routing, detailsOpen, activeTour, pointRecords, records }) => {
+  if (routing.draft) return <RoutePanel routing={routing} records={records} />;
   if (detailsOpen || activeTour || pointRecords.length) return null;
-  return <button id="map-route-launch" type="button" className="secondary-button map-route-launch" onClick={(event) => routing.start(null, event.currentTarget)}>Plan route</button>;
+  return <button id="map-route-launch" type="button" className="secondary-button map-route-launch" onClick={(event) => routing.start(null, event.currentTarget)}>Directions</button>;
 };
 
 const showTourPanel = (activeTour, loadingTour, routing) => activeTour && !loadingTour && !routing.draft;
+
+const MapLoadError = ({ tour, section, returnToTours, browseSection }) => (
+  <p className="map-status map-status--error" role="alert">
+    {tour
+      ? "This tour didn’t load. Check your connection, then choose it again from Search Tours."
+      : "Section burials didn’t load. Try again in Burial Locator."}{" "}
+    <button type="button" className="text-button" onClick={tour ? returnToTours : () => browseSection(section)}>
+      {tour ? "Search Tours" : "Burial Locator"}
+    </button>
+  </p>
+);
 
 const MapDestination = ({
   activeTour,
@@ -141,7 +156,7 @@ const MapDestination = ({
       </Suspense>
       {loadingTour ? <p className="map-status" role="status">Loading tour…</p> : null}
       {loadingSection ? <p className="map-status" role="status">Loading section burials…</p> : null}
-      {loadError ? <p className="map-status map-status--error">{loadError}</p> : null}
+      {loadError ? <MapLoadError tour={route.tour} section={route.section} returnToTours={returnToTours} browseSection={browseSection} /> : null}
       {showTourPanel(activeTour, loadingTour, routing) ? (
         <TourStopsPanel
           tour={activeTour}
@@ -163,7 +178,7 @@ const MapDestination = ({
         onUnpin={unpin}
         tourContext={tourContext}
       />
-      <MapRouteControls routing={routing} detailsOpen={detailsOpen} activeTour={activeTour} pointRecords={pointRecords} />
+      <MapRouteControls routing={routing} records={records} detailsOpen={detailsOpen} activeTour={activeTour} pointRecords={pointRecords} />
     </section>
   );
 };
@@ -287,6 +302,21 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
     if (view !== route.view) updateRoute({ view });
   };
 
+  const findPerson = (query) => {
+    const handledLocally = updateRoute({
+      view: APP_VIEWS.LOCATOR,
+      query: query.trim(),
+      section: "",
+      lot: "",
+      tier: "",
+      record: "",
+      tour: "",
+    });
+    if (!handledLocally) return;
+    setSelectedRecord(null);
+    setDetailsOpen(false);
+  };
+
   const rememberTour = (tourKey, record = null) => {
     const next = writeTourProgress({
       tourKey,
@@ -303,6 +333,8 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
       record: "",
       query: "",
       section: "",
+      lot: "",
+      tier: "",
     });
     if (!handledLocally) return;
 
@@ -356,6 +388,8 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
       view: APP_VIEWS.TOURS,
       query: "",
       section: "",
+      lot: "",
+      tier: "",
       tour: "",
       record: "",
     });
@@ -370,6 +404,8 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
       record: continueRecord?.id || savedRecord,
       query: "",
       section: "",
+      lot: "",
+      tier: "",
     });
   };
 
@@ -378,6 +414,8 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
     const handledLocally = updateRoute({
       view: APP_VIEWS.LOCATOR,
       section: normalizedSection,
+      lot: "",
+      tier: "",
       query: "",
       tour: "",
       record: "",
@@ -406,7 +444,7 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
     }
 
     setRecords([]);
-    updateRoute({ section: normalizedSection, tour: "", record: "", query: "" });
+    updateRoute({ section: normalizedSection, lot: "", tier: "", tour: "", record: "", query: "" });
   };
 
   const shareUrl = useMemo(() => selectedRecord
@@ -414,6 +452,8 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
       view: APP_VIEWS.MAP,
       query: "",
       section: "",
+      lot: "",
+      tier: "",
       record: selectedRecord.id,
       tour: selectedRecord.source === "tour" ? selectedRecord.tourKey : "",
       embedded: false,
@@ -445,6 +485,7 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
           loadingTour={loadingTour}
           onContinueTour={continueSavedTour}
           onSelectTour={selectTour}
+          onFindPerson={findPerson}
         />
         <LocatorDestination
           active={route.view === APP_VIEWS.LOCATOR}
