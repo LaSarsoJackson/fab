@@ -6,6 +6,20 @@ contract releases.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-04
+
+- Added on-site directions using bundled cemetery roads, with map-picked and
+  named places, one-time location fixes, and optional live route updates.
+- Kept location fixes on the device, switched to local map data during location
+  use, and stopped location watches when the map is hidden.
+- Added exact section, lot, and tier filters, retained search filters in shared
+  URLs, and made later burial matches available in groups of 80.
+- Restored legacy burial and tour links through canonical records and settled
+  cancelled searches without interrupting section and record restoration.
+- Bounded search-worker results and service-worker storage while retaining
+  offline app and map reloads. Preserved caches owned by other applications.
+- Updated visitor and contributor documentation and pinned the CI and release
+  toolchain and workflow actions.
 - Restored Esri World Hillshade as the default basemap, with Streets as a
   separate choice, and removed duplicate reference and section labels.
 - Kept map credits collapsed on first load at the bottom-right corner,

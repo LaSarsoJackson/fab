@@ -1,8 +1,8 @@
-# Albany Rural Cemetery — Grave Finder
+# Albany Rural Cemetery Grave Finder
 
-**An interactive map, burial locator, and tour guide for Albany Rural Cemetery.**
+Find a burial, locate it on the cemetery map, or explore Albany Rural Cemetery through a curated tour. The app combines burial records with cemetery roads, sections, and historic information.
 
-[Open the application](https://lasarsojackson.github.io/fab/) · [Search burial records](https://lasarsojackson.github.io/fab/?view=burials) · [Explore the cemetery map](https://lasarsojackson.github.io/fab/?view=map)
+[Open the map](https://lasarsojackson.github.io/fab/) · [Search burial records](https://lasarsojackson.github.io/fab/?view=burials) · [Browse tours](https://lasarsojackson.github.io/fab/?view=tours)
 
 ![Albany Grave Finder directions on a desktop-width screen](docs/assets/screenshots/claude-ui-desktop.png)
 
@@ -10,20 +10,16 @@
 
 Screenshots use a synthetic location for development.
 
-## About the project
+## Using the app
 
-Visitors can search a 97,457-record burial index, locate graves on an interactive map, and explore the cemetery through tours.
+**Cemetery Map** opens by default. Select a section or a grave to see its location. **Burial Locator** searches the burial index. **Search Tours** opens curated stops with their history and map locations.
 
 Burial Locator accepts a name, section, lot, or tier in any combination. Lot and
 tier filters match whole identifiers, including letters and punctuation. **Show more results** makes
 later matches available in groups of 80. Search filters stay in the URL when you
 reload or open a grave and return to the locator.
 
-| Destination | What visitors can do |
-| --- | --- |
-| Cemetery Map | Explore cemetery roads, sections, tour stops, and selected graves. |
-| Search Tours | Find and open a curated tour. |
-| Burial Locator | Search burial records and open their mapped locations. |
+The terrain map uses Esri World Hillshade, with OpenStreetMap Streets available as another basemap. Cemetery roads, sections, and selected graves appear above it. Map attribution remains visible in the app.
 
 ## Directions on site
 
@@ -40,32 +36,9 @@ roads, not mapped paths. Check signs and access on site; the app does not confir
 closures, path conditions, or accessible routes. Keyboard users can choose a
 place from the list or pan the map and confirm its crosshair point.
 
-## Development overview
+## Run locally
 
-FAB is the shared Albany Grave Finder web app. It owns the map, data delivery,
-and deep-link contract. `FABFG` is a thin native shell around those hosted
-destinations; it must not recreate the web app’s map or search state.
-
-## Stack
-
-- React 19
-- Vite 8
-- MapLibre GL JS 6
-- plain semantic HTML and CSS
-- a Web Worker for the 97,457-record burial index
-- Bun tests, Vitest/jsdom component tests, and Playwright browser tests
-
-There is one map renderer and one burial source path. The checked-in
-`src/data/Geo_Burials.json` is the source of truth; `public/data/Search_Burials.json`
-is its generated runtime delivery artifact. Map overlays use the checked-in
-boundary, roads, and sections GeoJSON directly.
-
-## Quickstart
-
-Requirements:
-
-- Node 22.12 or newer from [`.nvmrc`](./.nvmrc)
-- Bun 1.3.8 from [`package.json`](./package.json)
+Use Node.js 22.12 or newer and Bun. The pinned Bun version is in `package.json`.
 
 ```bash
 bun install
@@ -73,95 +46,35 @@ bun run doctor
 bun run start
 ```
 
-Vite serves the app at [http://localhost:5173/fab/](http://localhost:5173/fab/).
-No Python image server or geospatial Python environment is required.
+Open [localhost:5173/fab](http://localhost:5173/fab/). The app uses React, Vite, and MapLibre GL JS. It does not need a backend or a geospatial Python environment.
 
-## Commands
+## Data and maps
 
-- `bun run start`: run the Vite development server
-- `bun run lint`: run ESLint, Oxlint complexity checks, and project-specific lint rules
-- `bun run test`: run Bun unit/data tests and Vitest component tests
-- `bun run test:e2e`: run the Playwright product flows
-- `bun run build`: generate tour aliases and build `dist/`
-- `bun run build:data`: regenerate tour matches, the compact burial index, and map bounds
-- `bun run check`: run the local release-quality gate
-- `bun run release:check`: verify SemVer and changelog metadata
+Burial records are stored in [`src/data/Geo_Burials.json`](src/data/Geo_Burials.json). The browser searches a smaller generated index in a Web Worker. Roads, sections, and the cemetery boundary use the GeoJSON files in `src/data/`.
 
-## Product routes and FABFG
+After updating source records or tour data, regenerate the browser files:
 
-Cemetery Map opens by default. The query string is the route contract:
+```bash
+bun run build:data
+```
 
-| Destination | `view` value | Purpose |
-| --- | --- | --- |
-| Search Tours | `tours` | Find and open a curated tour |
-| Cemetery Map | `map` | View the cemetery, tour stops, sections, and pinned graves |
-| Burial Locator | `burials` | Search the generated burial index |
+See [Contributing](CONTRIBUTING.md) for data checks and [Cartography](docs/cartography.md) for the map design and attribution.
 
-Additional parameters are `q`, `section`, `lot`, `tier`, `tour`, and `record`. Old packed
-`share` links remain readable, but new links use the smaller `record` contract.
+## Development
 
-Load the same hosted app in FABFG with `embed=fabfg`. The native shell owns the
-tabs, and the web app does not draw a duplicate navigation bar:
+```bash
+bun run lint
+bun run test
+bun run build
+bun run test:e2e
+```
 
-- `?view=tours&embed=fabfg`
-- `?view=map&embed=fabfg`
-- `?view=burials&embed=fabfg`
+`bun run check` runs the local release checks. The [architecture guide](docs/architecture-index.md) covers the map, search, tours, and shared links.
 
-Use Cemetery Map, Search Tours, and Burial Locator for the native tab labels.
-Keep the ARCE website as a separate external action.
+Shared links use `q`, `section`, `lot`, `tier`, `tour`, and `record`. Old packed `share` links remain readable; new links identify canonical records.
 
-## Cartography
+The [FABFG repository](https://github.com/LaSarsoJackson/FABFG) contains the native mobile app that displays these hosted pages. Its embedded routes use `embed=fabfg` so the mobile app supplies the navigation. See the [routing guide](docs/routing-architecture.md) for URL parameters and deep links.
 
-The map uses provider tiles instead of repository-built orthophoto exports:
+## Hosting
 
-- Esri World Hillshade by default, with a separate OpenStreetMap Streets choice
-- road names and Notables Tour landmarks in local fonts on Terrain
-- local cemetery boundary and roads above the terrain context
-- section boundaries and numbers on request, with section taps always available
-- small burial points in the selected section, with a name picker for overlaps
-
-Provider attribution stays visible. The design follows figure-ground and visual
-hierarchy guidance: the basemap recedes, cemetery structure reads next, and the
-active burial or tour stop is dominant. See [`docs/cartography.md`](./docs/cartography.md).
-
-## Data
-
-Source-of-truth files:
-
-- [`src/data/Geo_Burials.json`](./src/data/Geo_Burials.json)
-- [`src/data/ARC_Sections.json`](./src/data/ARC_Sections.json)
-- [`src/data/ARC_Roads.json`](./src/data/ARC_Roads.json)
-- [`src/data/ARC_Boundary.json`](./src/data/ARC_Boundary.json)
-- tour datasets declared in [`src/features/fab/tours.js`](./src/features/fab/tours.js)
-
-Generated files:
-
-- [`public/data/Search_Burials.json`](./public/data/Search_Burials.json)
-- [`src/data/TourMatches.json`](./src/data/TourMatches.json)
-- [`src/data/TourBiographyAliases.json`](./src/data/TourBiographyAliases.json)
-- [`src/features/map/generatedBounds.js`](./src/features/map/generatedBounds.js)
-
-Run `bun run build:data` after source-data changes. Do not hand-edit generated files.
-
-The old local ortho exports, GeoParquet copy, and PMTiles experiment are retired.
-They have been removed from the repository and are not part of the runtime.
-
-## Deployment
-
-`main` is the only long-lived branch. CI installs with the frozen Bun lockfile,
-runs lint/tests/build/browser checks, uploads `dist/`, and deploys GitHub Pages.
-The app is served under `/fab`, so use `import.meta.env.BASE_URL` for public assets.
-
-GitHub Pages is repository-controlled. Promotion to `albany.edu/arce` remains a
-separate institutional operation. A green repository build does not prove that
-host or the installed iPhone wrapper has been updated.
-
-## Architecture
-
-Start with:
-
-- [`CONTRIBUTING.md`](./CONTRIBUTING.md)
-- [`docs/architecture-index.md`](./docs/architecture-index.md)
-- [`docs/map-architecture.md`](./docs/map-architecture.md)
-- [`docs/routing-architecture.md`](./docs/routing-architecture.md)
-- [`docs/ui-principles.md`](./docs/ui-principles.md)
+The web app is published to GitHub Pages from `main` after its checks pass. Moving it to the Albany Rural Cemetery Explorer site requires a separate institutional deployment. Native app releases are managed in FABFG.
