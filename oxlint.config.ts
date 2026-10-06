@@ -15,6 +15,8 @@ export default defineConfig({
     ".roo/**",
     ".windsurf/**",
     "build/**",
+    "arce-upload/**",
+      "arce-dev-upload/**",
     "coverage/**",
     "dist/**",
     "node_modules/**",

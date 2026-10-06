@@ -6,6 +6,14 @@ contract releases.
 
 ## [Unreleased]
 
+- Added the ARCE website and interactive screenshot guides, using its original
+  typography and imagery, with Ewa Wdzieczak-Smering's contributor credit.
+- Default university builds target `/arce/dev/`, with FAB 0.5.0 under
+  `/arce/dev/app/` and a same-tab return to the matching website on phones and
+  desktops. Production builds use `/arce/` and separate service-worker caches.
+- Website links and tutorials use the current app. Existing production
+  biographies, historical introductions and the old standalone tool are retained.
+
 ## [0.5.0] - 2026-10-04
 
 - Added on-site directions using bundled cemetery roads, with map-picked and

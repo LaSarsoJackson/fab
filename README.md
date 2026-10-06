@@ -78,3 +78,11 @@ The [FABFG repository](https://github.com/LaSarsoJackson/FABFG) contains the nat
 ## Hosting
 
 The web app is published to GitHub Pages from `main` after its checks pass. Moving it to the Albany Rural Cemetery Explorer site requires a separate institutional deployment. Native app releases are managed in FABFG.
+
+The ARCE website source and current visitor guides are under `arce/`.
+`bun run build:arce` prepares the website at `/arce/dev/` and the app at
+`/arce/dev/app/`, with a file manifest. The app returns to the matching website
+in the same tab. Run `bun run check:arce` and `bun run test:arce` before publishing.
+Use the explicit `production` target for a later `/arce/` package. See the
+[ARCE upload procedure](docs/arce-upload-instructions.md) for backups, upload
+order, preservation of existing biographies and Grave Finder, and rollback.

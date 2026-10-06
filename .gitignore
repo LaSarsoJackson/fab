@@ -44,3 +44,6 @@ build.zip
 /.playwright-cli
 /.clawpatch
 /.playwright-mcp
+
+arce-upload/
+arce-dev-upload/

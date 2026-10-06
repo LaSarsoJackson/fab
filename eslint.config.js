@@ -7,6 +7,8 @@ export default [
   {
     ignores: [
       "build/**",
+      "arce-upload/**",
+      "arce-dev-upload/**",
       "coverage/**",
       "dist/**",
       "node_modules/**",
@@ -18,7 +20,7 @@ export default [
   },
   js.configs.recommended,
   {
-    files: ["**/*.{js,jsx}"],
+    files: ["**/*.{js,jsx,mjs}"],
     languageOptions: {
       ecmaVersion: "latest",
       globals: {

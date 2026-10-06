@@ -475,7 +475,7 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
   };
 
   return (
-    <div className={["app-shell", route.embedded ? "app-shell--embedded" : ""].filter(Boolean).join(" ")}>
+    <div className={["app-shell", route.embedded ? "app-shell--embedded" : "", import.meta.env.VITE_ARCE_WEBSITE_URL && !route.embedded ? "app-shell--arce" : ""].filter(Boolean).join(" ")}>
       <a className="skip-link" href="#main-content">Skip to content</a>
       <AppNavigation activeView={route.view} embedded={route.embedded} onNavigate={navigate} />
       <main id="main-content" className="app-content" tabIndex={-1}>

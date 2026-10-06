@@ -174,6 +174,26 @@ p {
   display: none;
 }
 
+.app-shell--arce .app-content {
+  padding-top: calc(44px + env(safe-area-inset-top));
+}
+
+.app-navigation__website--return {
+  position: fixed;
+  inset: 0 0 auto;
+  height: calc(44px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-strong);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .app-navigation__destinations {
   width: 100%;
   display: grid;
@@ -1165,6 +1185,17 @@ button.secondary-button {
 
   .app-navigation__website-icon {
     width: 17px;
+  }
+
+  .app-shell--arce .app-content {
+    padding-top: var(--navigation-height);
+  }
+
+  .app-navigation__website--return {
+    position: static;
+    height: auto;
+    padding: 0 10px;
+    border: 0;
   }
 
   .catalogue-heading {
