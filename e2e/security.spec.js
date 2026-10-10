@@ -56,22 +56,26 @@ test("search bursts settle every request and retain concurrent route hydration",
   }
 });
 
-test("GPS routes use local map data without requesting provider tiles", async ({ page }) => {
+for (const basemap of ["Terrain", "Aerial"]) test(`GPS routes use local map data without requesting ${basemap} provider tiles`, async ({ page }) => {
   await page.addInitScript(() => {
-    navigator.geolocation.getCurrentPosition = (success) => { globalThis.locationFix = success; };
+    navigator.geolocation.watchPosition = (success) => { globalThis.locationFix = success; };
   });
   const tiles = [];
-  await page.route(/https:\/\/(tile\.openstreetmap\.org|services\.arcgisonline\.com)\//, route => {
+  await page.route(/https:\/\/(tile\.openstreetmap\.org|services\.arcgisonline\.com|orthos\.its\.ny\.gov)\//, route => {
     tiles.push(route.request().url());
     return route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=", "base64") });
   });
   await page.goto("./?view=map&tour=Notable&record=tour%3ANotable%3A18%3A24%3A8");
+  await page.getByRole("button", { name: "Map layers", exact: true }).click();
+  await page.getByRole("radio", { name: basemap, exact: true }).check();
+  await page.getByRole("button", { name: "Map layers", exact: true }).press("Escape");
   await page.getByRole("button", { name: "Directions", exact: true }).click();
-  await page.getByRole("button", { name: "Start from my location", exact: true }).click();
-  await expect(page.getByText("Local map while using location", {exact:true})).toBeVisible();
+  await page.getByRole("button", { name: "Use my location", exact: true }).click();
   await page.waitForTimeout(1000);
   tiles.length = 0;
   await page.evaluate(() => globalThis.locationFix({ coords: {longitude:-73.72586398734407,latitude:42.709358811485714,accuracy:8},timestamp:Date.now() }));
   await page.waitForTimeout(2000);
   expect(tiles).toEqual([]);
+  await page.getByRole("button", { name: "Map layers", exact: true }).click();
+  await expect(page.getByRole("radio", { name: "Aerial", exact: true })).toBeDisabled();
 });

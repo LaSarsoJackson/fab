@@ -1,69 +1,75 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { CloseIcon, EditIcon } from "../../app/icons";
 import { buildDirectionsLink } from "../../shared/routing";
 
 const RoutePlaces = lazy(() => import("./RoutePlaces"));
+const endpointTitles = { start: "From", end: "To" };
 const metres = (distance) => `${Math.round(distance).toLocaleString()} m`;
-const RouteSummary = ({ result }) => (
-  <div className="map-route-result">
-    {result.startGap > 1 ? <span>Your start is {metres(result.startGap)} from the road.</span> : null}
-    {result.endGap > 1 ? <span>Destination is {metres(result.endGap)} from the road.</span> : null}
-    <span>Dashed lines are straight links, not mapped paths. Roads may not show closures; check signs and access on site.</span>
-  </div>
-);
 const statusMessage = (draft, result, calculating) => {
   if (draft.following) {
-    if (!draft.start && draft.signal === "stale") return "No location update for 20 seconds. Wait for a fix, or choose a start.";
-    if (!draft.start && draft.signal === "weak") return "GPS signal is weak or unavailable. Wait for a better fix, or choose a start.";
-    if (draft.signal === "stale") return "Location isn't updating. The route uses your last position.";
-    if (draft.signal === "weak") return "Your location is too imprecise or unavailable. The route uses your last position.";
-    return draft.signal === "starting" ? "Finding your live location…" : "Following your location.";
+    if (!draft.start && draft.signal === "stale") return "No location update. Choose a start or wait for GPS.";
+    if (!draft.start && draft.signal === "weak") return "Waiting for a more accurate location…";
+    if (draft.signal === "stale") return "Location isn't updating. Showing last position.";
+    if (draft.signal === "weak") return "Location is too imprecise. Showing last position.";
+    return draft.signal === "starting" ? "Finding your location…" : "Following your location.";
   }
   if (draft.locating) return "Finding your location…";
   if (calculating) return "Finding a route…";
-  if (result) return "Route ready. Approximate, along mapped roads.";
-  return "Choose a start and destination.";
+  if (result) return "Route ready, along mapped roads.";
+  return "";
 };
-const EndpointRow = ({ endpoint, point, expanded, onClick }) => (
-  <button id={`route-${endpoint}`} type="button" className="map-route-endpoint" aria-label={`${endpoint === "start" ? "From" : "To"} ${point?.label || (endpoint === "start" ? "Choose start" : "Choose destination")}`} aria-expanded={expanded} aria-controls={`route-${endpoint}-options`} onClick={onClick}>
+const RouteStatus = ({ draft, result, calculating }) => {
+  const settled = result && (!draft.following || draft.signal === "good") && !draft.locating && !calculating;
+  return <p role="status" className={settled ? "visually-hidden" : "map-route-status"}>{statusMessage(draft, result, calculating)}</p>;
+};
+const EndpointRow = ({ endpoint, point, onClick }) => (
+  <button id={`route-${endpoint}`} type="button" className="map-route-endpoint" aria-label={`${endpoint === "start" ? "From" : "To"} ${point?.label || (endpoint === "start" ? "Choose start" : "Choose destination")}`} onClick={onClick}>
     <span className="map-route-endpoint__label">{endpoint === "start" ? "From" : "To"}</span>
     <span className="map-route-endpoint__value">{point?.label || (endpoint === "start" ? "Choose start" : "Choose destination")}</span>
-    <span aria-hidden="true">⌄</span>
+    <EditIcon />
   </button>
 );
-const EndpointOptions = ({ endpoint, available, onLocate, onPick, onList }) => {
-  const firstRef = useRef(null);
-  useEffect(() => { firstRef.current?.focus({ preventScroll: true }); }, []);
-  return <div id={`route-${endpoint}-options`} className="map-route-options">
-    {endpoint === "start" && available ? <button ref={firstRef} type="button" className="secondary-button" onClick={onLocate}>Use my location</button> : null}
-    <button ref={endpoint === "start" && available ? undefined : firstRef} type="button" className="secondary-button" onClick={onPick}>Choose on map</button>
-    <button type="button" className="secondary-button" onClick={onList}>Choose from list</button>
-  </div>;
-};
-const FooterNote = ({ full, short }) => <p><span className="route-note-full">{full}</span><span className="route-note-short">{short}</span></p>;
-const RouteFooter = ({ routing, available }) => {
+const EndpointOptions = ({ endpoint, records, available, onLocate, onPick, onChoose }) => (
+  <div id={`route-${endpoint}-options`} className="map-route-options">
+    {endpoint === "start" && available ? <button type="button" className="secondary-button" onClick={onLocate}>Use my location</button> : null}
+    <button type="button" className="secondary-button" onClick={onPick}>Choose on map</button>
+    <Suspense fallback={<p>Loading places…</p>}><RoutePlaces records={records} onChoose={onChoose} /></Suspense>
+  </div>
+);
+const RouteFooter = ({ routing, available, options }) => {
   const { draft } = routing;
+  if (!available || options || (draft.start && !draft.following)) return null;
   return <div className="map-route-footer">
-    {available ? <button type="button" className="primary-button" disabled={draft.locating} onClick={draft.following ? routing.stopFollowing : draft.start ? routing.follow : routing.useLocation}>
-      {draft.following ? "Stop following" : draft.start ? "Follow my location" : "Start from my location"}
-    </button> : <p>Location isn't available in this browser. Choose a start on the map or from the list.</p>}
-    {!draft.following && available ? <FooterNote full={draft.start ? "Updates the line as you walk. Stops when you close directions or change a point." : "Your browser will ask for permission. Your position stays in FAB on this device."} short={draft.start ? "Updates as you walk; stops on close or edit." : "Ask first; position stays here."} /> : null}
-    {draft.following ? <FooterNote full="Your position stays on this device. Stop following ends updates for these directions." short="On this device; Stop ends updates." /> : null}
+    <button type="button" className={draft.following ? "text-button" : "primary-button"} onClick={draft.following ? routing.stopFollowing : routing.follow}>
+      {draft.following ? "Stop following" : "Use my location"}
+    </button>
   </div>;
 };
+const RouteDetails = ({ result, fix, directions }) => <details className="map-route-details">
+  <summary>Route details</summary>
+  {result ? <>
+    <p>Solid lines follow mapped roads. Dashed lines connect to your start or destination.</p>
+    {result.startGap > 1 ? <p>Start: {metres(result.startGap)} from the road.</p> : null}
+    {result.endGap > 1 ? <p>Destination: {metres(result.endGap)} from the road.</p> : null}
+    <p>Check signs and access on arrival. Section locations mark their centers.</p>
+  </> : null}
+  {fix ? <p>Location accuracy: ±{Math.ceil(fix.accuracy)} m</p> : null}
+  {fix ? <p>Location stays on this device and stops updating when you close directions.</p> : null}
+  {directions ? <a className="text-button" href={directions.href} target={directions.target} rel="noreferrer">Open in Maps ↗</a> : null}
+</details>;
 
-export default function RoutePanel({ routing, records = [] }) {
+export default function RoutePanel({ routing, records = [], allowLocation = true }) {
   const { draft, result, error, calculating } = routing;
   const titleRef = useRef(null);
   const contentRef = useRef(null);
   const promptRef = useRef(null);
   const previousPick = useRef(null);
   const [options, setOptions] = useState(null);
-  const [list, setList] = useState(null);
-  const available = Boolean(navigator.geolocation);
+  const available = allowLocation && Boolean(navigator.geolocation);
   const restore = (endpoint) => requestAnimationFrame(() => document.getElementById(`route-${endpoint}`)?.focus({ preventScroll: true }));
-  const collapse = () => { const endpoint = options || list; setOptions(null); setList(null); restore(endpoint); };
-  const pick = (endpoint) => { setOptions(null); setList(null); routing.pick(endpoint); };
-  const locate = () => { setOptions(null); routing.useLocation(); restore("start"); };
+  const collapse = () => { setOptions(null); restore(options); };
+  const pick = (endpoint) => { setOptions(null); routing.pick(endpoint); };
+  const locate = () => { setOptions(null); routing.follow(); restore("start"); };
   useEffect(() => { titleRef.current?.focus({ preventScroll: true }); }, []);
   useEffect(() => { if (draft.following && contentRef.current) contentRef.current.scrollTop = 0; }, [draft.following]);
   useEffect(() => {
@@ -78,45 +84,40 @@ export default function RoutePanel({ routing, records = [] }) {
   }) : null;
 
   return (
-    <aside className={`map-route-panel${draft.picking ? " map-route-panel--picking" : ""}`} aria-labelledby="route-title" onKeyDown={(event) => {
+    <aside className={`map-route-panel${draft.picking ? " map-route-panel--picking" : ""}`} aria-label="Cemetery directions" onKeyDown={(event) => {
       if (event.key !== "Escape") return;
       if (draft.picking) routing.cancelPick();
-      else if (options || list) collapse();
+      else if (options) collapse();
       else routing.close();
       event.stopPropagation();
     }}>
       <header>
         <div>
-          <h2 id="route-title" tabIndex={-1} ref={titleRef}>Cemetery directions</h2>
-          {result ? <strong className="map-route-distance">{metres(result.roadDistance)}<span className="route-note-full"> along mapped roads</span><span className="route-note-short"> · mapped roads</span></strong> : null}
+          <h2 id="route-title" tabIndex={-1} ref={titleRef}>{endpointTitles[options] || "Directions"}</h2>
+          {result && !options ? <strong className="map-route-distance">{metres(result.roadDistance)} · mapped roads</strong> : null}
         </div>
-        <button type="button" className="text-button" onClick={routing.close}>Close route</button>
+        <button type="button" className="icon-button" aria-label="Close route" onClick={routing.close}><CloseIcon /></button>
       </header>
       {draft.picking ? (
         <div className="map-route-prompt" tabIndex={-1} ref={promptRef}>
-          <p>Tap the map to choose {draft.picking === "start" ? "your start" : "a destination"}. Or use arrow keys to move the map, then press Set {draft.picking === "start" ? "start" : "destination"} here at the crosshair.</p>
-          <button type="button" className="text-button" onClick={routing.cancelPick}>Cancel pick</button>
+          <p>Tap the map to set {draft.picking === "start" ? "your start" : "the destination"}.</p>
+          <span className="visually-hidden">Or move the map with arrow keys and choose Set {draft.picking === "start" ? "start" : "destination"} here at the crosshair.</span>
+          <button type="button" className="text-button" onClick={routing.cancelPick}>Cancel</button>
         </div>
       ) : <>
         <div className="map-route-panel__content" ref={contentRef}>
-          {!result ? <p className="map-route-note">Approximate route on mapped cemetery roads.</p> : null}
-          {list ? <Suspense fallback={<p>Loading mapped places…</p>}>
-            <RoutePlaces records={records} endpoint={list} onChoose={(point) => { routing.setPoint(list, point); collapse(); }} onCancel={collapse} />
-          </Suspense> : ["start", "end"].map((endpoint) => <div key={endpoint}>
-            <EndpointRow endpoint={endpoint} point={draft[endpoint]} expanded={options === endpoint} onClick={() => setOptions(options === endpoint ? null : endpoint)} />
-            {options === endpoint ? <EndpointOptions endpoint={endpoint} available={available} onLocate={locate} onPick={() => pick(endpoint)} onList={() => { setList(endpoint); setOptions(null); }} /> : null}
-          </div>)}
-          <p role="status" className="map-route-status">{statusMessage(draft, result, calculating)}</p>
-          {draft.following && draft.fix ? <p className="map-route-note">Approximate position (±{Math.ceil(draft.fix.accuracy)} m)</p> : null}
-          {result ? <RouteSummary result={result} /> : null}
+          {options ? <>
+            <button type="button" className="text-button map-route-back" aria-label="Back to directions" onClick={collapse}>← Back</button>
+            <EndpointOptions endpoint={options} records={records} available={available} onLocate={locate} onPick={() => pick(options)} onChoose={(point) => { routing.setPoint(options, point); collapse(); }} />
+          </> : ["start", "end"].map((endpoint) => <EndpointRow key={endpoint} endpoint={endpoint} point={draft[endpoint]} onClick={() => setOptions(endpoint)} />)}
+          <RouteStatus draft={draft} result={result} calculating={calculating} />
           {error ? <p role="alert">{error}</p> : null}
-          {result ? <button type="button" className="text-button" onClick={routing.showWholeRoute}>Show whole route</button> : null}
-          {directions ? <div className="map-route-external">
-            <a className="text-button" href={directions.href} target={directions.target} rel="noreferrer">Open in Maps ↗</a>
-            <p>Sends your chosen points to your maps app when you tap it.</p>
+          {!options && (result || draft.fix) ? <div className="map-route-actions">
+            <RouteDetails result={result} fix={draft.fix} directions={directions} />
+            {result ? <button type="button" className="text-button" onClick={routing.showWholeRoute}>Show whole route</button> : null}
           </div> : null}
         </div>
-        <RouteFooter routing={routing} available={available} />
+        <RouteFooter routing={routing} available={available} options={options} />
       </>}
     </aside>
   );

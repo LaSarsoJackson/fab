@@ -21,6 +21,11 @@ const expectNoOverlap = async (first, second) => {
   ).toBe(true);
 };
 
+const openLayers = async (page) => {
+  const trigger = page.getByRole("button", { name: "Map layers", exact: true });
+  if (await trigger.getAttribute("aria-expanded") !== "true") await trigger.click();
+};
+
 const openAttribution = async (page) => {
   const attribution = page.locator(".maplibregl-ctrl-attrib");
   await expect(attribution).toHaveClass(/maplibregl-compact$/);
@@ -86,18 +91,23 @@ test("tour selection opens one MapLibre map", async ({ page }) => {
   await expect(page).toHaveURL(/view=map.*tour=Notable/);
   await expect(page.getByRole("region", { name: "Albany Rural Cemetery map" })).toBeVisible();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
-  const terrain = page.getByLabel("Basemap", { exact: true });
-  await expect(terrain).toHaveValue("terrain");
+  await openLayers(page);
+  const terrain = page.getByRole("radio", { name: "Terrain", exact: true });
+  await expect(terrain).toBeChecked();
   await openAttribution(page);
   await expect(page.getByRole("link", { name: "U.S. Geological Survey" })).toBeVisible();
-  await terrain.selectOption("streets");
+  await openLayers(page);
+  await page.getByRole("radio", { name: "Streets", exact: true }).check();
   await expect(page.getByRole("link", { name: "U.S. Geological Survey" })).toHaveCount(0);
-  await terrain.selectOption("terrain");
+  await openLayers(page);
+  await terrain.check();
   await expect(page.getByRole("link", { name: "U.S. Geological Survey" })).toBeVisible();
   await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
     .toBe(38);
+  await openLayers(page);
   await page.getByLabel("Sections", { exact: true }).check();
   await expect(page.getByLabel("Sections", { exact: true })).toBeChecked();
+  await page.getByRole("button", { name: "Map layers", exact: true }).press("Escape");
 
   const placesPanel = page.getByRole("complementary", { name: "Notables Tour 2020" });
   await expect(placesPanel).toBeVisible();
@@ -151,19 +161,25 @@ test("map context and appearance survive destination changes and reload", async 
   await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
     .toBe(38);
 
-  await page.getByLabel("Basemap", { exact: true }).selectOption("streets");
+  await openLayers(page);
+  await page.getByRole("radio", { name: "Streets", exact: true }).check();
+  await openLayers(page);
   await page.getByLabel("Sections", { exact: true }).check();
   await page.getByRole("button", { name: "Search Tours", exact: true }).click();
   await expect.poll(() => new URL(page.url()).searchParams.get("tour")).toBe("Notable");
 
   await page.getByRole("button", { name: "Cemetery Map", exact: true }).click();
   await expect(page.locator(".maplibregl-canvas")).toHaveCount(1);
-  await expect(page.getByLabel("Basemap", { exact: true })).toHaveValue("streets");
+  await openLayers(page);
+  await expect(page.getByRole("radio", { name: "Streets", exact: true })).toBeChecked();
   await expect(page.getByLabel("Sections", { exact: true })).toBeChecked();
+  await page.getByRole("button", { name: "Map layers", exact: true }).press("Escape");
 
   await page.reload();
-  await expect(page.getByLabel("Basemap", { exact: true })).toHaveValue("streets");
+  await openLayers(page);
+  await expect(page.getByRole("radio", { name: "Streets", exact: true })).toBeChecked();
   await expect(page.getByLabel("Sections", { exact: true })).toBeChecked();
+  await page.getByRole("button", { name: "Map layers", exact: true }).press("Escape");
   await expect.poll(async () => Number(await page.locator("[data-visible-marker-count]").getAttribute("data-visible-marker-count")))
     .toBe(38);
 });
@@ -218,7 +234,9 @@ for (const { viewport, sectionPoint } of [
   test(`section taps work with section shading off at ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto("./?view=map");
+    await openLayers(page);
     await expect(page.getByLabel("Sections", { exact: true })).not.toBeChecked();
+    await page.getByRole("button", { name: "Map layers", exact: true }).press("Escape");
     await expect(page.locator("[data-visible-marker-count]")).toHaveAttribute("data-visible-marker-count", "0");
 
     const canvas = page.locator(".maplibregl-canvas");
@@ -241,7 +259,7 @@ test("selected sections highlight the map and keep the useful burial list one ac
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("./?view=map&section=18");
 
-  const appearance = page.getByLabel("Map options");
+  const appearance = page.getByRole("button", { name: "Map layers", exact: true });
   const section = page.getByRole("group", { name: "Section 18" });
   await expect(section).toBeVisible();
   await expect.poll(() => new URL(page.url()).searchParams.get("view")).toBe("map");
@@ -288,7 +306,7 @@ test("narrow WebViews keep appearance and map controls separate", async ({ page 
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto("./?view=map&tour=Notable");
 
-  const appearance = page.getByLabel("Map options");
+  const appearance = page.getByRole("button", { name: "Map layers", exact: true });
   const controls = page.locator(".maplibregl-ctrl-top-right");
   const attribution = await openAttribution(page);
   const placesPanel = page.getByRole("complementary", { name: "Notables Tour 2020" });

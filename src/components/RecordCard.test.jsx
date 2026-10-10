@@ -28,7 +28,7 @@ describe("RecordCard", () => {
 
   it("keeps sharing behind the secondary disclosure", () => {
     render(<RecordCard record={record} open shareUrl="https://example.test/" onClose={() => {}} onUnpin={() => {}} />);
-    expect(screen.getByText("Share pinned grave")).toBeInTheDocument();
+    expect(screen.getByText("Share")).toBeInTheDocument();
   });
 
   it("preserves tour portrait and ARCE biography presentation", () => {

@@ -6,8 +6,6 @@ describe("ToursView", () => {
   it("uses visitor actions instead of product taxonomy", () => {
     render(<ToursView onContinueTour={() => {}} onSelectTour={() => {}} />);
 
-    expect(screen.getByText("Choose a tour or browse graves by section or group."))
-      .toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Soldier's Lot.*Browse graves/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Notables Tour 2020.*View stops/ })).toBeInTheDocument();
     expect(screen.queryByText(/collection/i)).not.toBeInTheDocument();

@@ -6,6 +6,7 @@ const ITEMS = [
   { view: APP_VIEWS.TOURS, label: "Search Tours", Icon: ToursIcon },
   { view: APP_VIEWS.LOCATOR, label: "Burial Locator", Icon: SearchIcon },
 ];
+const websiteUrl = import.meta.env.VITE_ARCE_WEBSITE_URL;
 
 export default function AppNavigation({ activeView, embedded = false, onNavigate }) {
   if (embedded) return null;
@@ -31,13 +32,13 @@ export default function AppNavigation({ activeView, embedded = false, onNavigate
         ))}
       </div>
       <a
-        className="app-navigation__website"
-        href="https://www.albany.edu/arce/"
-        target="_blank"
-        rel="noreferrer"
+        className={`app-navigation__website${websiteUrl ? ' app-navigation__website--return' : ''}`}
+        href={websiteUrl || 'https://www.albany.edu/arce/'}
+        target={websiteUrl ? undefined : '_blank'}
+        rel={websiteUrl ? undefined : 'noreferrer'}
       >
-        <ExternalIcon className="app-navigation__website-icon" />
-        <span>ARCE website</span>
+        {websiteUrl ? <span className="app-navigation__website-icon" aria-hidden="true">←</span> : <ExternalIcon className="app-navigation__website-icon" />}
+        <span>{websiteUrl ? 'Back to ARCE' : 'ARCE website'}</span>
       </a>
     </nav>
   );

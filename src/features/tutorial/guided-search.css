@@ -1,0 +1,22 @@
+@font-face {
+  font-family: "ARCE Raleway";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("../../../arce/assets/fonts/raleway-latin.woff2") format("woff2");
+}
+.guided-search { position: absolute; z-index: 15; bottom: max(10px, env(safe-area-inset-bottom)); right: max(10px, env(safe-area-inset-right)); }
+.app-content > .guided-search { bottom: calc(var(--navigation-height) + env(safe-area-inset-bottom) + 10px); }
+.guided-search > button { width: 44px; height: 44px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); }
+.guided-search__content { position: absolute; bottom: 54px; right: 0; width: min(300px, calc(100vw - 20px)); max-height: calc(100dvh - 180px); overflow-y: auto; padding: 12px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.guided-search__content header { display: flex; align-items: center; justify-content: space-between; }
+.guided-search__content h2 { font-size: 1rem; margin: 0; }
+.guided-search__content p { margin: 6px 0; font-size: .9rem; line-height: 1.5; }
+.guided-search__links { display: flex; flex-wrap: wrap; gap: 16px; }
+.guided-search__links button, .guided-search__links a { min-height: 44px; display: inline-flex; align-items: center; font-size: .85rem; }
+.guided-search__links button { padding: 0; color: var(--accent); background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.guided-search__links a { color: var(--accent); }
+.map-stage { position: relative; width: 100%; height: 100%; }
+@media (min-width: 720px) and (min-height: 500px) {
+  .app-content > .guided-search { bottom: max(10px, env(safe-area-inset-bottom)); }
+}

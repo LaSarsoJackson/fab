@@ -15,6 +15,7 @@
     "build:tour-data": "bun run scripts/generate-tour-biography-aliases.js",
     "build:data": "bun run build:tour-data && bun run scripts/precalculate-metadata.js",
     "build": "bash ./scripts/build-production.sh",
+    "build:pages": "bash ./scripts/build-github-pages.sh",
     "preview": "vite preview --host 0.0.0.0",
     "doctor": "bash ./scripts/dev-doctor.sh",
     "lint": "eslint . && oxlint .",
@@ -25,7 +26,10 @@
     "test:dom": "vitest run --config vitest.config.js",
     "test:watch": "vitest --config vitest.config.js",
     "test:e2e": "playwright test",
-    "test:coverage": "vitest run --coverage --config vitest.config.js"
+    "test:coverage": "vitest run --coverage --config vitest.config.js",
+    "build:arce": "bash scripts/build-arce-upload.sh",
+    "check:arce": "node scripts/check-arce-upload.mjs",
+    "test:arce": "playwright test --config arce/playwright.config.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

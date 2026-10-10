@@ -20,6 +20,13 @@ const waitForMap = async (page) => {
   ));
 };
 
+const setBasemap = async (page, value) => {
+  const trigger = page.getByRole("button", { name: "Map layers", exact: true });
+  await trigger.click();
+  await page.getByRole("radio", { name: value === "terrain" ? "Terrain" : "Streets", exact: true }).check();
+  await trigger.click();
+};
+
 const canvasPixels = (page) => page.evaluate(() => new Promise((resolve) => {
   const map = globalThis.testMap;
   map.once("render", () => {
@@ -135,6 +142,9 @@ for (const width of [375, 1440]) {
     await observeMap(page);
     await page.goto("./?view=map&section=49");
     await waitForMap(page);
+    await page.getByRole("button", { name: "Map layers", exact: true }).click();
+    await page.getByLabel("Sections", { exact: true }).check();
+    await page.getByRole("button", { name: "Map layers", exact: true }).click();
     await page.evaluate(() => globalThis.testMap.jumpTo({ zoom: 16 }));
     await waitForMap(page);
     expect(await page.evaluate(() => globalThis.testMap.getLayer("cemetery-landmark-labels"))).toBeUndefined();
@@ -142,8 +152,9 @@ for (const width of [375, 1440]) {
       layers: ["cemetery-section-labels"],
     }).length)).toBeGreaterThan(0);
     const credits = await page.getByLabel("Map credits", { exact: true }).boundingBox();
+    const help = await page.getByRole("button", { name: "Help", exact: true }).boundingBox();
     const mapBox = await page.locator(".maplibregl-map").boundingBox();
-    expect(mapBox.x + mapBox.width - credits.x - credits.width).toBeLessThanOrEqual(12);
+    expect(credits.x + credits.width).toBeLessThanOrEqual(help.x);
     expect(mapBox.y + mapBox.height - credits.y - credits.height).toBeLessThanOrEqual(12);
     await expect(page.locator(".maplibregl-ctrl-attrib")).not.toHaveAttribute("open", "");
     await page.evaluate(() => globalThis.testMap.jumpTo({
@@ -157,14 +168,14 @@ for (const width of [375, 1440]) {
     expect(externalFontRequests).toEqual([]);
 
     const terrainPixels = await canvasPixels(page);
-    await page.getByLabel("Basemap", { exact: true }).selectOption("streets");
+    await setBasemap(page, "streets");
     await waitForMap(page);
     const flatPixels = await canvasPixels(page);
     const meanDifference = terrainPixels.reduce((sum, value, index) => (
       index % 4 === 3 ? sum : sum + Math.abs(value - flatPixels[index])
     ), 0) / (120 * 120 * 3);
     expect(meanDifference, "terrain must change the rendered relief, not just its checkbox").toBeGreaterThan(4);
-    await page.getByLabel("Basemap", { exact: true }).selectOption("terrain");
+    await setBasemap(page, "terrain");
     await waitForMap(page);
     await testInfo.attach("terrain-and-sections", { body: await page.screenshot(), contentType: "image/png" });
 
@@ -219,8 +230,10 @@ test("Section 49 fits every polygon and section numbers remain available with te
     expect(corner.y).toBeGreaterThanOrEqual(110);
     expect(corner.y).toBeLessThanOrEqual(extent.height - 50);
   }
-  await page.getByLabel("Basemap", { exact: true }).selectOption("streets");
+  await setBasemap(page, "streets");
+  await page.getByRole("button", { name: "Map layers", exact: true }).click();
   await page.getByLabel("Sections", { exact: true }).check();
+  await page.getByRole("button", { name: "Map layers", exact: true }).click();
   await expect.poll(() => page.evaluate(() => (
     globalThis.testMap.queryRenderedFeatures({ layers: ["cemetery-section-labels"] })
       .map(({ properties }) => String(properties.Section))

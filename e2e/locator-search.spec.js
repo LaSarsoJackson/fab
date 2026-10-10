@@ -153,6 +153,8 @@ test.describe("synthetic burial index", () => {
     await page.getByRole("button", { name: "Burial Locator", exact: true }).click();
     await expect(page.getByLabel("Lot", { exact: true })).toHaveValue("");
     await expect(page.getByLabel("Tier", { exact: true })).toHaveValue("");
-    await expect(page.locator(".locator-empty")).toBeVisible();
+    await expect(page.getByLabel("Name", { exact: true })).toHaveValue("");
+    await expect(page.getByLabel("Section", { exact: true })).toHaveValue("");
+    await expect(page.locator(".record-row")).toHaveCount(0);
   });
 });

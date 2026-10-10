@@ -105,8 +105,8 @@ export const calculateRoadRoute = (graph, from, to) => {
   const start = nearestRoad(from, graph);
   const end = nearestRoad(to, graph);
   if (!start || !end) throw new Error("Cemetery road data is unavailable.");
-  if (start.distance > 100) throw new Error("Choose a start within 100 m of a cemetery road, or use Maps for directions to the cemetery.");
-  if (end.distance > 150) throw new Error("The destination is too far from the mapped roads. Choose a closer point.");
+  if (start.distance > 100) throw new Error("Start within 100 m of a cemetery road. Use Maps to reach the cemetery.");
+  if (end.distance > 150) throw new Error("Destination is too far from a mapped road. Choose a closer point.");
 
   // Virtual endpoints let a route start mid-segment without changing the graph.
   const nodes = new Map(graph.nodes);
@@ -120,7 +120,7 @@ export const calculateRoadRoute = (graph, from, to) => {
   }
   if (start.segment === end.segment) connect(edges, "start", "end", distanceMeters(start.coordinate, end.coordinate));
   const route = shortestPath(edges, "start", "end");
-  if (!route) throw new Error("These points are on disconnected roads. Choose another point; FAB will not draw a shortcut between them.");
+  if (!route) throw new Error("These roads are disconnected. Choose another point.");
   const features = [lineFeature("road", route.path.map((key) => nodes.get(key)))];
   if (start.distance > 1) features.push(lineFeature("gap", [from, start.coordinate]));
   if (end.distance > 1) features.push(lineFeature("gap", [end.coordinate, to]));

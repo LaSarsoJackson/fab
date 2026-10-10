@@ -4,12 +4,6 @@ import { createMapStyle, MAP_LAYER_IDS } from "./mapStyle";
 describe("cartographic style contract", () => {
   const style = createMapStyle();
 
-  test("uses one provider reference map rather than a basemap gallery", () => {
-    expect(style.sources["osm-map"].tiles[0]).toContain("openstreetmap.org");
-    expect(style.sources.imagery).toBeUndefined();
-    expect(JSON.stringify(style)).not.toContain("/basemaps/");
-  });
-
   test("restores the earlier terrain source and draws cemetery labels above it", () => {
     const layer = style.layers.find(({ id }) => id === MAP_LAYER_IDS.hillshade);
     const mapIndex = style.layers.findIndex(({ id }) => id === MAP_LAYER_IDS.map);
@@ -35,9 +29,6 @@ describe("cartographic style contract", () => {
     expect(style.glyphs).toBeUndefined();
     expect(style.sources.landmarks).toBeUndefined();
     expect(style.layers.some(({ source }) => source === "landmarks")).toBe(false);
-    const sectionLabels = style.layers.find(({ id }) => id === MAP_LAYER_IDS.sectionLabels);
-    expect(sectionLabels.minzoom).toBe(16);
-    expect(sectionLabels.layout.visibility).not.toBe("none");
   });
 
   test("distinguishes cemetery paths from map context", () => {

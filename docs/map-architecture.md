@@ -22,7 +22,7 @@ which renderer consumes it.
 
 ## Layer order
 
-1. Esri World Hillshade or OpenStreetMap Streets
+1. Esri World Hillshade, OpenStreetMap Streets, or NYS orthoimagery
 2. cemetery boundary
 3. optional section fill
 4. cemetery roads
@@ -46,8 +46,8 @@ line width or adding more controls.
   the same action without requiring a canvas tap.
 - Fit every polygon belonging to the selected section. Sections such as 49
   consist of multiple features; using only one gives an incomplete extent.
-- Section numbers appear on zoom; burial names are shown through selected records
-  and tours. The map has no background notable-burial label layer.
+- The Sections control governs section fill, boundaries, and numbers at every zoom;
+  burial names are shown through selected records and tours. The map has no background notable-burial label layer.
 - Curated tour stops are never proximity-clustered; every stop remains visible.
 - A selected record is rendered once in the dedicated selected source.
 - Tour stops remain directly selectable in an accessible HTML list; the canvas

@@ -12,7 +12,7 @@ const LOCATION_FIELDS = [
 
 const LocationFilters = ({ values, onChange }) => (
   <fieldset className="locator-location-fields">
-    <legend>Location</legend>
+    <legend className="visually-hidden">Location</legend>
     <div className="locator-location-grid">
       {LOCATION_FIELDS.map(({ key, label, placeholder, inputMode }) => (
         <label key={key} className="locator-field" htmlFor={`burial-${key}`}>
@@ -43,7 +43,7 @@ const withLimit = (criteria, limit) => {
   return request;
 };
 
-const LocatorStatus = ({ search, loadingMore, hasSearch, hasLocation, query, section, lot, tier, onRetry }) => {
+const LocatorStatus = ({ search, loadingMore, hasLocation, query, section, lot, tier, onRetry }) => {
   if (search.status === "loading") return loadingMore ? null : <p className="status-message" role="status">Searching…</p>;
   if (search.status === "error") return <div className="status-message status-message--error" role="alert">
     <p>Burial search isn’t available right now.</p>
@@ -52,11 +52,7 @@ const LocatorStatus = ({ search, loadingMore, hasSearch, hasLocation, query, sec
   if (search.status === "ready" && search.total === 0) return <p className="status-message" role="status">{noMatchesMessage(query, section.trim(), lot.trim(), tier.trim())}</p>;
   if (search.status !== "idle") return null;
   if (query.length === 1 && !hasLocation) return <p className="status-message" role="status">Type at least 2 letters.</p>;
-  if (hasSearch) return null;
-  return <div className="locator-empty">
-    <h2>Search by name or location</h2>
-    <p>Names can be partial. Use any section, lot, or tier you know to narrow the search.</p>
-  </div>;
+  return null;
 };
 
 const LocatorResults = ({ search, loadingMore, onSelect, onMore }) => <>
@@ -66,7 +62,7 @@ const LocatorResults = ({ search, loadingMore, onSelect, onMore }) => <>
   </p>
   <ol className="record-list">
     {search.results.map((record) => <li key={record.id}>
-      <button type="button" className="record-row" onClick={() => onSelect(record)}>
+      <button type="button" id={`locator-result-${record.id}`} className="record-row" onClick={() => onSelect(record)}>
         <span className="record-row__name">{record.displayName}</span>
         <span className="record-row__location">{formatRecordLocation(record) || "Location not recorded"}</span>
         {(record.birth || record.death) ? <span className="record-row__dates">{record.birth || "?"} – {record.death || "?"}</span> : null}
@@ -141,7 +137,6 @@ export default function LocatorView({
     <section className="locator-view" aria-labelledby="locator-title">
       <header className="page-heading">
         <h1 id="locator-title">Burial Locator</h1>
-        <p>Find a grave in Albany Rural Cemetery.</p>
       </header>
 
       <div className="locator-layout">
@@ -163,7 +158,7 @@ export default function LocatorView({
         </div>
 
         <div className="locator-results" ref={resultsRef}>
-          <LocatorStatus search={search} loadingMore={loadingMore} hasSearch={hasSearch} hasLocation={hasLocation} query={normalizedQuery} section={section} lot={lot} tier={tier} onRetry={() => runSearch(withLimit(criteria, limit))} />
+          <LocatorStatus search={search} loadingMore={loadingMore} hasLocation={hasLocation} query={normalizedQuery} section={section} lot={lot} tier={tier} onRetry={() => runSearch(withLimit(criteria, limit))} />
           {showResults ? <LocatorResults search={search} loadingMore={loadingMore} onSelect={onSelect} onMore={showMore} /> : null}
         </div>
       </div>

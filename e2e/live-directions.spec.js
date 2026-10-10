@@ -31,10 +31,7 @@ test("explicit following updates a local route without stealing focus or announc
   page.on("request", (r) => requests.push(r.url()));
   const panel = await open(page);
   expect(await page.evaluate(() => globalThis.routeGps.watches.size)).toBe(0);
-  await panel.getByRole("button", { name: "Start from my location", exact: true }).click();
-  await page.evaluate((coordinates) => globalThis.routeGps.fix({ coords: { longitude: coordinates[0], latitude: coordinates[1], accuracy: 8 }, timestamp: Date.now() }), START);
-  await expect(panel).toContainText("along mapped roads");
-  await panel.getByRole("button", { name: "Follow my location", exact: true }).click();
+  await panel.getByRole("button", { name: "Use my location", exact: true }).click();
   await deliver(page);
   await expect(panel.getByRole("button", { name: "Stop following", exact: true })).toBeVisible();
   await expect(panel.getByRole("status")).toHaveText("Following your location.");
@@ -46,7 +43,9 @@ test("explicit following updates a local route without stealing focus or announc
   await expect(panel.getByRole("button", { name: /^To / })).toBeFocused();
   await expect(panel.getByRole("status")).toHaveText(status);
   await expect(panel.locator(".map-route-distance")).not.toHaveText(initialDistance);
+  await panel.locator(".map-route-details summary").click();
   await expect(panel).toContainText("±8 m");
+  await panel.locator(".map-route-details summary").click();
   await panel.getByRole("button", { name: "Stop following", exact: true }).click();
   expect(await page.evaluate(() => globalThis.routeGps.watches.size)).toBe(0);
   await deliver(page, [-73.73, 42.707]);
@@ -63,10 +62,7 @@ for (const action of ["close", "manual start", "manual destination", "leave map"
   test(`following stops on ${action} and ignores late GPS callbacks`, async ({ page }) => {
     await installGps(page);
     const panel = await open(page);
-    await panel.getByRole("button", { name: /^From / }).click();
     await panel.getByRole("button", { name: "Use my location", exact: true }).click();
-    await page.evaluate((coordinates) => globalThis.routeGps.fix({ coords: { longitude: coordinates[0], latitude: coordinates[1], accuracy: 8 }, timestamp: Date.now() }), START);
-    await panel.getByRole("button", { name: "Follow my location", exact: true }).click();
     await deliver(page);
     if (action === "close") await panel.getByRole("button", { name: "Close route", exact: true }).click();
     if (action === "leave map") await page.getByRole("button", { name: "Burial Locator", exact: true }).click();
@@ -84,12 +80,10 @@ for (const action of ["close", "manual start", "manual destination", "leave map"
 test("poor GPS and denied permission keep endpoint choices available", async ({ page }) => {
   await installGps(page);
   const panel = await open(page);
-  await panel.getByRole("button", { name: "Start from my location", exact: true }).click();
-  await page.evaluate(() => globalThis.routeGps.failFix({ code: 1 }));
+  await panel.getByRole("button", { name: "Use my location", exact: true }).click();
+  await page.evaluate(() => globalThis.routeGps.last.failure({ code: 1 }));
   await expect(panel.getByRole("alert")).toContainText("Location is blocked");
-  await panel.getByRole("button", { name: "Start from my location", exact: true }).click();
-  await page.evaluate((coordinates) => globalThis.routeGps.fix({ coords: { longitude: coordinates[0], latitude: coordinates[1], accuracy: 8 }, timestamp: Date.now() }), START);
-  await panel.getByRole("button", { name: "Follow my location", exact: true }).click();
+  await panel.getByRole("button", { name: "Use my location", exact: true }).click();
   await deliver(page);
   await deliver(page, [-73.73, 42.707], 200);
   await expect(panel.getByRole("status")).toContainText("too imprecise");
@@ -104,13 +98,11 @@ test("following suspends a manual route until the first usable position", async 
   await installGps(page);
   const panel = await open(page);
   await panel.getByRole("button", { name: /^From / }).click();
-  await panel.getByRole("button", { name: "Choose from list", exact: true }).click();
-  const places = panel.getByRole("combobox", { name: "Mapped place" });
-  const graveValue = await places.locator("option").filter({ hasText: "Chester" }).first().getAttribute("value");
-  await places.selectOption(graveValue);
-  await panel.getByRole("button", { name: "Set start", exact: true }).click();
+  await panel.getByRole("searchbox", { name: "Section or burial" }).fill("Chester");
+  await panel.getByRole("button", { name: /Chester/ }).first().click();
   await expect(panel.locator(".map-route-distance")).toBeVisible();
-  await panel.getByRole("button", { name: "Follow my location", exact: true }).click();
+  await panel.getByRole("button", { name: /^From / }).click();
+  await panel.getByRole("button", { name: "Use my location", exact: true }).click();
   await expect(panel.locator(".map-route-distance")).toHaveCount(0);
   await deliver(page, START, 200);
   await expect(panel.getByRole("status")).not.toContainText("last position");
@@ -128,9 +120,7 @@ test("following suspends a manual route until the first usable position", async 
 test("stale following is disclosed and recovers only with a fresh accurate fix", async ({ page }) => {
   await installGps(page);
   const panel = await open(page);
-  await panel.getByRole("button", { name: "Start from my location", exact: true }).click();
-  await page.evaluate((coordinates) => globalThis.routeGps.fix({ coords: { longitude: coordinates[0], latitude: coordinates[1], accuracy: 8 }, timestamp: Date.now() }), START);
-  await panel.getByRole("button", { name: "Follow my location", exact: true }).click();
+  await panel.getByRole("button", { name: "Use my location", exact: true }).click();
   await deliver(page);
   await page.waitForTimeout(25000);
   await expect(panel.getByRole("status")).toContainText("isn't updating");
@@ -145,18 +135,15 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 750, height: 342 }
     const to = panel.getByRole("button", { name: /^To / });
     await to.focus();
     await to.press("Enter");
-    await expect(to).toHaveAttribute("aria-expanded", "true");
+    await expect(panel.getByRole("searchbox", { name: "Section or burial" })).toBeVisible();
     await panel.getByRole("button", { name: "Choose on map", exact: true }).press("Escape");
     await expect(to).toBeFocused();
     await panel.getByRole("button", { name: /^From / }).press("Enter");
-    await panel.getByRole("button", { name: "Choose from list", exact: true }).press("Enter");
-    const places = panel.getByRole("combobox", { name: "Mapped place" });
-    const graveValue = await places.locator("option").filter({ hasText: "Chester" }).first().getAttribute("value");
-    await places.selectOption(graveValue);
-    await panel.getByRole("button", { name: "Set start", exact: true }).press("Enter");
-    await expect(panel).toContainText("along mapped roads");
+    await panel.getByRole("searchbox", { name: "Section or burial" }).fill("Chester");
+    await panel.getByRole("button", { name: /Chester/ }).first().click();
+    await expect(panel.locator(".map-route-distance")).toBeVisible();
     await expect(panel.getByRole("button", { name: "Close route", exact: true })).toBeInViewport();
-    await expect(panel.getByRole("button", { name: "Follow my location", exact: true })).toBeInViewport();
+    await expect(panel.getByRole("button", { name: "Use my location", exact: true })).toHaveCount(0);
     expect(await page.locator("h2").first().evaluate((h) => getComputedStyle(h).fontFamily)).not.toMatch(/Newsreader|Georgia/);
     await testInfo.attach(`keyboard-${viewport.width}`, { body: await page.screenshot(), contentType: "image/png" });
   });
@@ -165,9 +152,7 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 750, height: 342 }
 test("pagehide clears live directions and late positions cannot restart them", async ({ page }) => {
   await installGps(page);
   const panel = await open(page);
-  await panel.getByRole("button", { name: "Start from my location", exact: true }).click();
-  await page.evaluate((coordinates) => globalThis.routeGps.fix({ coords: { longitude: coordinates[0], latitude: coordinates[1], accuracy: 8 }, timestamp: Date.now() }), START);
-  await panel.getByRole("button", { name: "Follow my location", exact: true }).click();
+  await panel.getByRole("button", { name: "Use my location", exact: true }).click();
   await deliver(page);
   await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide")));
   expect(await page.evaluate(() => globalThis.routeGps.watches.size)).toBe(0);
@@ -177,7 +162,7 @@ test("pagehide clears live directions and late positions cannot restart them", a
 
 test("keyboard map picking confirms the visible crosshair and restores endpoint focus", async ({ page }, testInfo) => {
   const panel = await open(page);
-  await panel.getByRole("button", { name: /^From / }).press("Enter");
+  await panel.getByRole("button", { name: /^From / }).click();
   await panel.getByRole("button", { name: "Choose on map", exact: true }).press("Enter");
   const canvas = page.locator(".maplibregl-canvas");
   await canvas.focus();
@@ -192,13 +177,13 @@ test("keyboard map picking confirms the visible crosshair and restores endpoint 
 test("a valid fix outside mapped roads removes the old route and keeps the destination", async ({ page }) => {
   await installGps(page);
   const panel = await open(page);
-  await panel.getByRole("button", { name: "Start from my location", exact: true }).click();
-  await page.evaluate((coordinates) => globalThis.routeGps.fix({ coords: { longitude: coordinates[0], latitude: coordinates[1], accuracy: 8 }, timestamp: Date.now() }), START);
-  await expect(panel).toContainText("along mapped roads");
-  await panel.getByRole("button", { name: "Follow my location", exact: true }).click();
+  await panel.getByRole("button", { name: "Use my location", exact: true }).click();
+  await deliver(page);
+  await expect(panel.locator(".map-route-distance")).toBeVisible();
+  await page.waitForTimeout(2100);
   await deliver(page, [-74, 43]);
   await expect(panel.getByRole("alert")).toContainText("within 100 m");
-  await expect(panel.locator(".map-route-result")).toHaveCount(0);
+  await expect(panel.locator(".map-route-distance")).toHaveCount(0);
   await expect(panel.getByRole("button", { name: /^To .*Chester/ })).toBeVisible();
 });
 
@@ -222,13 +207,11 @@ for (const [width, height, visibleMapWidth] of [[750, 342, 400], [568, 320, 200]
     expect(box.y + box.height).toBeLessThanOrEqual(map.y + map.height);
     expect(toolbar.x).toBeGreaterThanOrEqual(box.x + box.width);
     expect(map.width - (box.x + box.width - map.x)).toBeGreaterThanOrEqual(visibleMapWidth);
-    for (const button of [panel.getByRole("button", { name: "Start from my location", exact: true }), panel.getByRole("button", { name: "Close route", exact: true })]) {
+    for (const button of [panel.getByRole("button", { name: "Use my location", exact: true }), panel.getByRole("button", { name: "Close route", exact: true })]) {
       await expect(button).toBeInViewport({ ratio: 0.99 });
       expect((await button.boundingBox()).height).toBeGreaterThanOrEqual(44);
     }
-    await panel.getByRole("button", { name: "Start from my location", exact: true }).click();
-    await page.evaluate((coordinates) => globalThis.routeGps.fix({ coords: { longitude: coordinates[0], latitude: coordinates[1], accuracy: 8 }, timestamp: Date.now() }), START);
-    await panel.getByRole("button", { name: "Follow my location", exact: true }).click();
+    await panel.getByRole("button", { name: "Use my location", exact: true }).click();
     await deliver(page);
     for (const row of [panel.getByRole("button", { name: /^From / }), panel.getByRole("button", { name: /^To / }), panel.locator(".map-route-distance")]) await expect(row).toBeInViewport({ ratio: 0.99 });
     await testInfo.attach(`landscape-visible-${width}`, { body: await page.screenshot(), contentType: "image/png" });

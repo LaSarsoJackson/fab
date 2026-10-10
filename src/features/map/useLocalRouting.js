@@ -4,8 +4,8 @@ import { isCoordinatePairValid } from "../../shared/geoJsonBounds";
 
 const LOCATION_OPTIONS = { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 };
 const locationError = (code) => code === 1
-  ? "Location is blocked. Choose a start on the map, or allow location in your browser settings."
-  : "Your location could not be found. Try again or choose a start on the map.";
+  ? "Location is blocked. Choose on the map or allow location in browser settings."
+  : "Location not found. Try again or choose on the map.";
 const readFix = ({ coords, timestamp }) => {
   const coordinates = [coords.longitude, coords.latitude];
   const age = Date.now() - timestamp;
@@ -102,24 +102,6 @@ export default function useLocalRouting(active, contextKey) {
       picking: null, error: "", viewRevision: current.viewRevision + 1,
     } : current);
   }, []);
-  const useLocation = () => {
-    cancelLocation();
-    const request = locationRequest.current;
-    setDraft((current) => ({ ...stoppedDraft(current), picking: null, locating: true, error: "" }));
-    const fail = (message) => {
-      if (request === locationRequest.current) setDraft((current) => current ? { ...current, locating: false, error: message } : current);
-    };
-    if (!navigator.geolocation) { fail("Location is unavailable. Choose a start on the map."); return; }
-    navigator.geolocation.getCurrentPosition((position) => {
-      if (request !== locationRequest.current) return;
-      const fix = readFix(position);
-      if (!fix) { fail("Your location is too imprecise or out of date. Try again or choose a start on the map."); return; }
-      setDraft((current) => current ? { ...current, locating: false, fix,
-        start: { coordinates: fix.coordinates, label: "My location", gps: true },
-        viewRevision: current.viewRevision + 1,
-      } : current);
-    }, (error) => fail(locationError(error.code)), LOCATION_OPTIONS);
-  };
   const follow = () => {
     cancelLocation();
     const request = locationRequest.current;
@@ -136,7 +118,7 @@ export default function useLocalRouting(active, contextKey) {
       const moved = !previous || (Date.now() - previous.routedAt >= 2000 && distanceMeters(previous.coordinates, fix.coordinates) >= Math.max(5, Math.min(25, fix.accuracy / 2)));
       if (moved) lastRoutedFix.current = { ...fix, routedAt: Date.now() };
       setDraft((current) => current ? { ...current, fix, position: fix.coordinates, signal: "good",
-        start: moved ? { coordinates: fix.coordinates, label: "My location · following", gps: true } : current.start,
+        start: moved ? { coordinates: fix.coordinates, label: "My location", gps: true } : current.start,
       } : current);
     };
     const fail = (error) => {
@@ -153,7 +135,7 @@ export default function useLocalRouting(active, contextKey) {
     else navigator.geolocation.clearWatch(id);
   };
   return {
-    draft, start, close, pick, choosePoint, setPoint, useLocation, follow, stopFollowing,
+    draft, start, close, pick, choosePoint, setPoint, follow, stopFollowing,
     showWholeRoute: () => setDraft((value) => ({ ...value, viewRevision: value.viewRevision + 1 })),
     cancelPick: () => setDraft((value) => ({ ...value, picking: null })),
     ...calculationState(calculation, input, draft),

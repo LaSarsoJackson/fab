@@ -9,7 +9,10 @@ FAB has one long-lived branch and one delivery path.
   review and checks.
 - The single `CI / Quality` job runs lint, Bun and Vitest tests, a production
   build, and Playwright browser regression tests.
-- On `main`, the same workflow uploads the validated build and runs its Pages
+- `bun run build:pages` builds the existing app at `/fab/`, the ARCE website at
+  `/fab/arce/`, and its matching app at `/fab/arce/app/`. ARCE browser checks
+  verify website links, guides, search, and the return to the matching website.
+- On `main`, the same workflow uploads that build and runs its Pages
   deployment job only after `Quality` succeeds.
 - Do not add `dev`, `staging`, automated promotion branches, or branch-name
   policy checks. They add handoffs without changing the deployed artifact.
@@ -34,10 +37,12 @@ builds the app, and creates the GitHub Release. Tags do not control deployment;
 
 ## Release checklist
 
-1. Run `bun run check` and `bun run test:e2e`.
+1. Run `bun run check`, `bun run build:pages`, and
+   `ARCE_TARGET=github-pages bun run test:arce`, then `bun run test:e2e`.
 2. Verify the browser flows affected by the change.
 3. Merge the focused pull request to `main`.
-4. Verify the public GitHub Pages route after CI passes.
+4. Verify `/fab/` and the website-to-app-to-website path under `/fab/arce/` after
+   CI passes. GitHub Pages publishing does not upload anything to UAlbany.
 5. For a numbered release, update the version and changelog before tagging the
    merged commit.
 
