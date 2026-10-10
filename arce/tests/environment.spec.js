@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { getArceDeployment } from '../deployment.js';
 
-const websitePath = process.env.ARCE_TARGET === 'production' ? '/arce/' : '/arce/dev/';
+const websitePath = getArceDeployment(process.env.ARCE_TARGET).sitePath;
 const site = `http://127.0.0.1:4183${websitePath}`;
 
 for (const width of [390, 844, 1440]) {

@@ -19,14 +19,6 @@ const worker = (await readFile(workerFile, 'utf8'))
   .replace('/^(?:fab-v|fab-static-v|fab-runtime-v)\\d+$/', `/^${deployment.cachePrefix}\\d+$/`);
 await writeFile(workerFile, worker);
 
-const privacyFile = `${destination}/app/privacy.html`;
-const privacy = (await readFile(privacyFile, 'utf8'))
-  .replace('The web experience and burial index are hosted on GitHub Pages.',
-    'This ARCE deployment and its burial index are hosted by the University at Albany. The separately maintained GitHub Pages deployment is hosted by GitHub.')
-  .replace('Updated October 3, 2026', 'Updated October 6, 2026');
-await writeFile(privacyFile, privacy);
-
-
 for (const [file, view] of [['tours.html', 'tours'], ['Burial_Locator/index.html', 'burials']]) {
   const prefix = file.includes('/') ? '../' : './';
   const url = `${prefix}app/?view=${view}`;
@@ -55,8 +47,8 @@ await writeFile(`${root}/UPLOAD-MANIFEST.json`, JSON.stringify({
   version, websiteRevision: '2026-10-06', sourceCommit,
   target: deployment.target,
   websitePath: deployment.sitePath,
-  websiteUrl: `https://www.albany.edu${deployment.sitePath}`,
-  appUrl: `https://www.albany.edu${deployment.sitePath}app/`,
+  websiteUrl: `${deployment.origin}${deployment.sitePath}`,
+  appUrl: `${deployment.origin}${deployment.sitePath}app/`,
   preserved: ['arce/Grave_Finder/',
     'existing biography pages, image collections and historical data'],
   files,

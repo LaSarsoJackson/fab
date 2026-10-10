@@ -5,7 +5,8 @@ target=${1:-dev}
 case "$target" in
   dev) site_path=/arce/dev/; output_dir=arce-dev-upload ;;
   production) site_path=/arce/; output_dir=arce-upload ;;
-  *) echo 'ARCE target must be dev or production.' >&2; exit 1 ;;
+  github-pages) site_path=/fab/arce/; output_dir=arce-pages-build ;;
+  *) echo 'ARCE target must be dev, production or github-pages.' >&2; exit 1 ;;
 esac
 export ARCE_TARGET="$target"
 # Remove only this target's generated package, so obsolete hashes are not re-shipped.

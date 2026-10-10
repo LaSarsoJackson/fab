@@ -9,6 +9,7 @@ export default [
       "build/**",
       "arce-upload/**",
       "arce-dev-upload/**",
+      "arce-pages-build/**",
       "coverage/**",
       "dist/**",
       "node_modules/**",

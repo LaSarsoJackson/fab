@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-const site = process.env.ARCE_TARGET === 'production' ? '/arce/' : '/arce/dev/';
+import { getArceDeployment } from '../deployment.js';
+const site = getArceDeployment(process.env.ARCE_TARGET).sitePath;
 const app = `${site}app/?view=burials&tutorial=burial-search`;
 const help = page => page.getByRole('dialog', { name: 'Help', exact: true });
 const openHelp = async page => { await page.getByRole('button', { name: 'Help', exact: true }).click(); };

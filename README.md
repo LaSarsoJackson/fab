@@ -76,7 +76,12 @@ The [FABFG repository](https://github.com/LaSarsoJackson/FABFG) contains the nat
 
 ## Hosting
 
-The web app is published to GitHub Pages from `main` after its checks pass. Moving it to the Albany Rural Cemetery Explorer site requires a separate institutional deployment. Native app releases are managed in FABFG.
+GitHub Pages publishes the app at `/fab/` and the ARCE website and guides at
+[/fab/arce/](https://lasarsojackson.github.io/fab/arce/) from `main` after checks
+pass. The website opens its matching app at `/fab/arce/app/`; both app entries
+return to the GitHub-hosted ARCE site. `bun run build:pages` builds the complete
+Pages artifact. University publishing uses a separate SFTP deployment. Native
+app releases are managed in FABFG.
 
 The ARCE website source and current visitor guides are under `arce/`.
 `bun run build:arce` prepares the website at `/arce/dev/` and the app at

@@ -15,6 +15,7 @@
     "build:tour-data": "bun run scripts/generate-tour-biography-aliases.js",
     "build:data": "bun run build:tour-data && bun run scripts/precalculate-metadata.js",
     "build": "bash ./scripts/build-production.sh",
+    "build:pages": "bash ./scripts/build-github-pages.sh",
     "preview": "vite preview --host 0.0.0.0",
     "doctor": "bash ./scripts/dev-doctor.sh",
     "lint": "eslint . && oxlint .",

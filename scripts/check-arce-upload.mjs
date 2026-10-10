@@ -17,8 +17,8 @@ for (const file of manifest.files) {
   }
   if (!file.path.endsWith('.html') || file.path.includes('/app/')) continue;
   for (const match of bytes.toString().matchAll(/(?:href|src|srcset)="([^"]+)"/g)) {
-    const url = new URL(match[1].replaceAll('&amp;', '&'), `https://www.albany.edu/${file.path}`);
-    if (url.origin !== 'https://www.albany.edu') continue;
+    const url = new URL(match[1].replaceAll('&amp;', '&'), `${deployment.origin}/${file.path}`);
+    if (url.origin !== deployment.origin) continue;
     let target = decodeURIComponent(url.pathname.slice(1));
     if (target.endsWith('/')) target += 'index.html';
     if (target.startsWith('arce/Grave_Finder/')) throw new Error(`Website links to the retired tool: ${file.path}`);
@@ -28,7 +28,7 @@ for (const file of manifest.files) {
 }
 if (paths.has('arce/Grave_Finder/index.html')) throw new Error('Standalone Grave Finder must be preserved.');
 const index = await readFile(`${root}${deployment.sitePath}app/index.html`, 'utf8');
-if (index.includes('src="/fab/') || !index.includes(`${deployment.sitePath}app/assets/`)) throw new Error('Wrong app asset base.');
+if (!index.includes(`${deployment.sitePath}app/assets/`)) throw new Error('Wrong app asset base.');
 const worker = await readFile(`${root}${deployment.sitePath}app/service-worker.js`, 'utf8');
 if (!worker.includes(`${deployment.cachePrefix}8`) || worker.includes('fab-static-v')) throw new Error('Worker cache namespace is not isolated.');
 console.log(JSON.stringify({ version: manifest.version, sourceCommit: manifest.sourceCommit,
