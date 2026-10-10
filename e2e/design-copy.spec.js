@@ -37,7 +37,7 @@ test("a failed burial download gives a retry that preserves the search", async (
 test("a person searched in tours can continue in Burial Locator", async ({ page }) => {
   await page.goto("./?view=tours");
   await page.getByLabel("Search tours", { exact: true }).fill("smith");
-  await expect(page.locator(".tours-view")).toContainText("To find a person");
+  await expect(page.locator(".tours-view")).toContainText("No tours match");
   await page.locator(".tours-view").getByRole("button", { name: "Burial Locator", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Burial Locator", exact: true })).toBeVisible();
   await expect(page.getByLabel("Name", { exact: true })).toHaveValue("smith");

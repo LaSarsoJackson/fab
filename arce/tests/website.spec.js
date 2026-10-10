@@ -16,7 +16,7 @@ for (const width of [390, 1440]) {
     for (const file of pages) {
       await page.goto(`${site}${encodeURIComponent(file)}`);
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
-      if (file.includes('tutorial')) await expect(page.locator('.steps > li:visible')).toHaveCount(4);
+      if (file.includes('tutorial')) await expect(page.locator('.steps > details:visible')).toHaveCount(4);
       await expect(page).not.toHaveTitle(/Generic|TEMPLATED/);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
       if (file === 'index.html' || file === 'about.html') {
@@ -84,16 +84,13 @@ test('website retains its historical browsing and illustrated guides', async ({ 
   await page.getByRole('link', { name: 'Biographies', exact: true }).first().click();
   await expect(page.getByRole('link', { name: 'Thomas Elkins', exact: true })).toHaveAttribute('href', 'https://www.albany.edu/arce/Elkins111.html');
   await page.goto(`${site}Burial_Locator_tutorial.html`);
-  await expect(page.getByRole('status')).toHaveText('Step 1 of 4');
-  await page.getByRole('button', { name: 'Next step', exact: true }).focus();
+  const topics = page.locator('.guide-slide');
+  await expect(topics).toHaveCount(4);
+  await topics.last().locator('summary').focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('status')).toHaveText('Step 2 of 4');
-  await page.getByRole('button', { name: 'Previous step', exact: true }).click();
-  await expect(page.getByRole('status')).toHaveText('Step 1 of 4');
-  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Next step', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Next step', exact: true })).toBeDisabled();
-  await page.getByRole('button', { name: 'Start again' }).click();
-  await expect(page.getByRole('status')).toHaveText('Step 1 of 4');
+  await expect(topics.last().locator('img')).toBeVisible();
+  await topics.first().locator('summary').click();
+  await expect(topics.first().locator('img')).toBeVisible();
   await page.screenshot({ path: '../evidence/arce-interactive-guide.png', fullPage: true });
 });
 
@@ -106,36 +103,24 @@ for (const width of [360, 390, 1440]) {
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
     for (const filename of ['tutorial.html', 'Burial_Locator_tutorial.html', 'Grave_Finder_tutorial.html']) {
       await page.goto(`${site}${filename}`);
-      await expect(page.locator('.guide-slide:visible')).toHaveCount(1);
-      await expect(page.locator('.guide-slide:visible img')).toBeVisible();
-      expect(await page.locator('.guide-controls').evaluate(el => getComputedStyle(el).position)).toBe('static');
-      for (let step = 1; step <= 4; step++) {
-        await expect(page.getByRole('status')).toHaveText(`Step ${step} of 4`);
-        const slide = page.locator('.guide-slide:visible');
+      const topics = page.locator('.guide-slide');
+      await expect(topics).toHaveCount(4);
+      for (const index of [3, 1, 2, 0]) {
+        const slide = topics.nth(index);
+        if (await slide.getAttribute('open') === null) await slide.locator('summary').click();
         const highlight = slide.locator('.guide-highlight');
         await expect(highlight).toBeVisible();
         await expect(highlight).toBeEmpty();
         expect(await highlight.evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
-        await expect(slide.locator('.guide-image button')).toHaveCount(0);
         const photo = await slide.locator('img').boundingBox();
         const copy = await slide.locator('.guide-copy').boundingBox();
-        const controls = await page.locator('.guide-controls').boundingBox();
         expect(photo.y).toBeGreaterThanOrEqual(copy.y + copy.height);
-        expect(photo.y).toBeGreaterThanOrEqual(controls.y + controls.height);
         expect(photo.width).toBeGreaterThanOrEqual(width < 600 ? width - 45 : 850);
         await expect(slide.getByRole('link', { name: 'View full-size screenshot', exact: true })).toHaveCount(1);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
-        await page.screenshot({ path: `../evidence/clear-${width}-${filename}-step-${step}.png`, fullPage: true });
-        if (step < 4) {
-          const next = page.getByRole('button', { name: 'Next step', exact: true });
-          if (width < 600) await next.tap();
-          else await next.click();
-        }
       }
-      await expect(page.locator('.guide-complete')).toBeVisible();
-      await page.getByRole('button', { name: 'Start again' }).click();
-      await expect(page.getByRole('status')).toHaveText('Step 1 of 4');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+      for (const topic of await topics.all()) await topic.locator('summary').click();
       await page.evaluate(() => scrollTo(0, 0));
       await page.screenshot({ path: `../evidence/illustrated-${width}-${filename}.png`, fullPage: true });
     }
@@ -158,5 +143,5 @@ test('website promotes only the current app', async ({ page }) => {
   }
   await page.goto(`${site}Grave_Finder_tutorial.html`);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Search by section, lot or tier');
-  await expect(page.getByRole('link', { name: 'Open Burial Locator', exact: true }).first()).toHaveAttribute('href', 'app/?view=burials');
+  await expect(page.getByRole('link', { name: 'Open Burial Locator', exact: true }).first()).toHaveAttribute('href', 'app/?view=burials&tutorial=burial-search');
 });

@@ -23,7 +23,6 @@ export default function ToursView({
       <div className="catalogue-heading">
         <header className="page-heading">
           <h1 id="tours-title">Search Tours</h1>
-          <p>Choose a tour or browse graves by section or group.</p>
         </header>
         <label className="tour-search" htmlFor="tour-query">
           <SearchIcon />
@@ -85,7 +84,7 @@ export default function ToursView({
         </div>
       ) : (
         <p className="status-message">
-          No tours or groups match “{query}”. To find a person, use{" "}
+          No tours match “{query}”. Search names in{" "}
           <button type="button" className="text-button" onClick={() => onFindPerson(query)}>
             Burial Locator
           </button>.

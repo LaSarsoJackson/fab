@@ -52,3 +52,16 @@ export const ArrowRightIcon = (props) => (
     <path d="M4 12h16m-6-6 6 6-6 6" />
   </Icon>
 );
+
+export const LayersIcon = (props) => <Icon {...props}>
+  <path d="m3 8 9-5 9 5-9 5-9-5ZM3 12l9 5 9-5M3 16l9 5 9-5" />
+</Icon>;
+
+export const HelpIcon = (props) => <Icon {...props}>
+  <circle cx="12" cy="12" r="9" />
+  <path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 16h.01" />
+</Icon>;
+
+export const EditIcon = (props) => <Icon {...props}>
+  <path d="m16 3 5 5-12 12-6 1 1-6L16 3ZM13 6l5 5" />
+</Icon>;

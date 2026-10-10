@@ -143,7 +143,7 @@ export default function RecordCard({
         </div>
         <TourNavigation tourContext={tourContext} />
         <details className="record-card__share">
-          <summary>Share pinned grave</summary>
+          <summary>Share</summary>
           <button type="button" className="text-button" onClick={share}>Share link</button>
           {shareStatus ? <span role="status">{shareStatus}</span> : null}
         </details>

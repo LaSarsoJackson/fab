@@ -19,14 +19,13 @@ tier filters match whole identifiers, including letters and punctuation. **Show 
 later matches available in groups of 80. Search filters stay in the URL when you
 reload or open a grave and return to the locator.
 
-The terrain map uses Esri World Hillshade, with OpenStreetMap Streets available as another basemap. Cemetery roads, sections, and selected graves appear above it. Map attribution remains visible in the app.
+Choose Terrain, Streets, or Aerial in Map layers. Terrain uses Esri World Hillshade; Streets uses OpenStreetMap; Aerial uses New York State orthoimagery. Cemetery roads, sections, and selected graves appear above the background. Map credits remain available beside Help.
 
 ## Directions on site
 
 Choose **Directions** on a selected grave or the map. The **From** and **To**
-rows open choices for a location fix, a map point, or a mapped place from a list.
-**Start from my location** uses one fix; **Follow my location** updates the road
-route as you move. **Stop following** ends those updates. Using location switches
+rows let you search for a section or burial, or choose a point on the map.
+**Use my location** updates the road route as you move. **Stop following** ends those updates. Using location switches
 the map to bundled local data and stops requests to external tile providers until
 the app reloads. The app also stops its location watch when the map is hidden.
 Position fixes stay on the device unless you choose **Open in Maps**.

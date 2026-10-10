@@ -16,38 +16,38 @@ graves distinct.
 - The [OpenStreetMap tile policy](https://operations.osmfoundation.org/policies/tiles/)
   requires visible attribution and forbids bulk or offline preloading from the
   standard tile service.
+- [NYS orthoimagery](https://gis.ny.gov/orthoimagery) is available through public
+  web services for map applications. Aerial uses the state's Latest service
+  and credits NYS ITS Geospatial Services.
 
 ## FAB rules
 
 - Default to Esri World Hillshade, as in Ewa's June 2026 map contribution.
-  Keep OpenStreetMap available as the separate Streets choice. Do not blend
+  Keep OpenStreetMap Streets and NYS Aerial available as separate choices. Do not blend
   the street raster over hillshade; its colors and labels obscure the relief.
-- Omit canopy imagery. Visitors need terrain, paths, and cemetery landmarks.
 - Draw the cemetery boundary and roads above terrain context.
 - Draw cemetery paths in red with a pale casing so they remain distinct from
   streets, terrain, and section boundaries.
 - Keep all-section shading off until requested. Section taps still identify and
   highlight the selected section.
 - When sections are on, use a warm fill beneath the cemetery roads and draw
-  section boundaries and numbers above them. With shading off, section numbers
-  appear from zoom 16 so visitors can orient themselves without selecting a tour.
+  section boundaries and numbers above them. Turning Sections off hides the fill, boundaries, and numbers at every zoom.
 - Show every stop in the active tour; do not collapse curated stops into
   proximity clusters.
 - Load the selected section's burial points. Keep points small, and offer a
   name list when a tap hits overlapping graves. View burials opens the full
   section inventory in Burial Locator. A blank map tap clears the selection.
 - Use one warm section highlight and one strong selected-record color.
-- Label roads from `ARC_Roads.json` on Terrain and sections from `ARC_Sections.json`
-  in both map modes. Use local fonts, pale halos, and collision handling. Do not
+- Label roads from `ARC_Roads.json` on Terrain and Aerial, and sections from `ARC_Sections.json`
+  in all three map modes. Use local fonts, pale halos, and collision handling. Do not
   add unsolicited burial-name labels as visitors zoom; selected records and tour
   stops provide individual identification. Streets retains its provider labels.
-- Keep provider credits collapsed at the map's bottom-right corner on first
+- Keep provider credits collapsed beside Help at the map's bottom-right corner on first
   load. Opening credits must leave them readable and clear of record panels.
 
 ## What is deliberately absent
 
 - no local ortho tiling or export grid
-- no imagery basemap control
 - no pitch, terrain exaggeration, or 3D monuments
 - no decorative map textures
 - no separate color per burial category
@@ -56,5 +56,5 @@ graves distinct.
 Ewa's August 2026 screenshots show faint terrain, unreadable landmark names,
 and oversized burial groups. Validate these concerns in the rendered map:
 the cemetery overview, Chester Arthur's grave, a crowded section, and
-all-section shading on desktop and a small phone. Repeat in Streets mode.
+all-section shading on desktop and a small phone. Repeat in Streets and Aerial modes.
 Source presence and passing interaction tests alone do not establish legibility.

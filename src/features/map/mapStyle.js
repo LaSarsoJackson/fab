@@ -14,6 +14,7 @@ export const CEMETERY_VIEW = Object.freeze({
 export const MAP_LAYER_IDS = Object.freeze({
   map: "basemap-map",
   hillshade: "terrain-hillshade",
+  aerial: "aerial-imagery",
   sections: "cemetery-sections",
   sectionOutlines: "cemetery-section-outlines",
   sectionLabels: "cemetery-section-labels",
@@ -43,6 +44,13 @@ export const createMapStyle = () => ({
       attribution: "Terrain sources: Esri, Vantor, Airbus DS, <a href=\"https://www.usgs.gov/3d-elevation-program\">U.S. Geological Survey</a>, NGA, NASA, CGIAR, N Robinson, NCEAS, NLS, OS, NMA, Geodatastyrelsen, Rijkswaterstaat, GSA, Geoland, FEMA, Intermap, and the GIS user community",
       maxzoom: 16,
     },
+    aerial: {
+      type: "raster",
+      tiles: ["https://orthos.its.ny.gov/arcgis/rest/services/wms/Latest/MapServer/export?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=jpg&f=image"],
+      tileSize: 256,
+      attribution: "Aerial imagery: <a href=\"https://gis.ny.gov/orthoimagery\">NYS ITS Geospatial Services</a>",
+      maxzoom: 20,
+    },
     boundary: { type: "geojson", data: boundary },
     roads: { type: "geojson", data: roads },
     sections: { type: "geojson", data: sections },
@@ -71,6 +79,12 @@ export const createMapStyle = () => ({
       id: MAP_LAYER_IDS.map,
       type: "raster",
       source: "osm-map",
+      layout: { visibility: "none" },
+    },
+    {
+      id: MAP_LAYER_IDS.aerial,
+      type: "raster",
+      source: "aerial",
       layout: { visibility: "none" },
     },
     {
@@ -166,9 +180,10 @@ export const createMapStyle = () => ({
     {
       id: MAP_LAYER_IDS.sectionLabels,
       type: "symbol",
-      minzoom: 16,
+      minzoom: 13,
       source: "sections",
       layout: {
+        visibility: "none",
         "text-field": ["concat", "Section ", ["to-string", ["get", "Section"]]],
         "text-font": ["Arial"],
         "text-size": 13,

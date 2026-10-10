@@ -5,7 +5,7 @@
         "image": "guides/burial-1-desktop.png",
         "rect": [
           2.18,
-          31.86,
+          27.73,
           27.27,
           6
         ],
@@ -16,7 +16,7 @@
         "image": "guides/burial-1-mobile.png",
         "rect": [
           3.59,
-          21,
+          17.09,
           92.82,
           5.69
         ],
@@ -29,7 +29,7 @@
         "image": "guides/burial-2-desktop.png",
         "rect": [
           35.27,
-          43.23,
+          39.11,
           62.55,
           11.13
         ],
@@ -40,7 +40,7 @@
         "image": "guides/burial-2-mobile.png",
         "rect": [
           3.59,
-          64.48,
+          57.26,
           92.82,
           10.55
         ],
@@ -53,7 +53,7 @@
         "image": "guides/burial-3-desktop.png",
         "rect": [
           69,
-          80.13,
+          77.63,
           9.71,
           5.5
         ],
@@ -64,7 +64,7 @@
         "image": "guides/burial-3-mobile.png",
         "rect": [
           6.15,
-          72.99,
+          70.62,
           27.38,
           5.21
         ],
@@ -76,10 +76,10 @@
       "desktop": {
         "image": "guides/burial-4-desktop.png",
         "rect": [
-          2.36,
-          54.95,
-          36.18,
-          6.5
+          2.09,
+          84.88,
+          36.73,
+          5.5
         ],
         "width": 1100,
         "height": 800
@@ -87,10 +87,10 @@
       "mobile": {
         "image": "guides/burial-4-mobile.png",
         "rect": [
-          6.67,
-          46.88,
-          86.67,
-          6.16
+          5.9,
+          77.13,
+          88.21,
+          5.21
         ],
         "width": 390,
         "height": 844
@@ -103,7 +103,7 @@
         "image": "guides/tour-1-desktop.png",
         "rect": [
           2.18,
-          34.73,
+          31.75,
           55.27,
           7.5
         ],
@@ -114,7 +114,7 @@
         "image": "guides/tour-1-mobile.png",
         "rect": [
           3.59,
-          68.27,
+          62.59,
           92.82,
           7.11
         ],
@@ -138,7 +138,7 @@
         "image": "guides/tour-2-mobile.png",
         "rect": [
           5.13,
-          70.73,
+          68.36,
           89.74,
           7.11
         ],
@@ -151,7 +151,7 @@
         "image": "guides/tour-3-desktop.png",
         "rect": [
           69,
-          86.63,
+          84.13,
           15.52,
           5.5
         ],
@@ -162,7 +162,7 @@
         "image": "guides/tour-3-mobile.png",
         "rect": [
           6.15,
-          79.15,
+          76.78,
           43.76,
           5.21
         ],
@@ -175,7 +175,7 @@
         "image": "guides/tour-4-desktop.png",
         "rect": [
           87.91,
-          65.13,
+          62.63,
           8.91,
           5.5
         ],
@@ -186,7 +186,7 @@
         "image": "guides/tour-4-mobile.png",
         "rect": [
           65.13,
-          58.78,
+          56.41,
           28.72,
           5.21
         ],
@@ -201,9 +201,9 @@
         "image": "guides/grave-1-desktop.png",
         "rect": [
           2.18,
-          40.86,
+          36.73,
           27.27,
-          12.5
+          9
         ],
         "width": 1100,
         "height": 800
@@ -212,9 +212,9 @@
         "image": "guides/grave-1-mobile.png",
         "rect": [
           3.59,
-          28.58,
+          24.67,
           92.82,
-          11.85
+          8.53
         ],
         "width": 390,
         "height": 844
@@ -225,9 +225,9 @@
         "image": "guides/grave-2-desktop.png",
         "rect": [
           2.18,
-          40.86,
+          36.73,
           27.27,
-          12.5
+          9
         ],
         "width": 1100,
         "height": 800
@@ -236,9 +236,9 @@
         "image": "guides/grave-2-mobile.png",
         "rect": [
           3.59,
-          28.58,
+          24.67,
           92.82,
-          11.85
+          8.53
         ],
         "width": 390,
         "height": 844
@@ -249,7 +249,7 @@
         "image": "guides/grave-3-desktop.png",
         "rect": [
           35.27,
-          32.11,
+          27.98,
           62.55,
           11.13
         ],
@@ -260,7 +260,7 @@
         "image": "guides/grave-3-mobile.png",
         "rect": [
           3.59,
-          53.94,
+          46.71,
           92.82,
           10.55
         ],
@@ -273,7 +273,7 @@
         "image": "guides/grave-4-desktop.png",
         "rect": [
           69,
-          80.13,
+          77.63,
           9.71,
           5.5
         ],
@@ -284,7 +284,7 @@
         "image": "guides/grave-4-mobile.png",
         "rect": [
           6.15,
-          72.99,
+          70.62,
           27.38,
           5.21
         ],

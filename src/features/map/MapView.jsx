@@ -12,11 +12,12 @@ import { getGeoJsonBounds, isCoordinatePairValid } from "../../shared/geoJsonBou
 import { recordsToFeatureCollection } from "../locator/burialRecords";
 import { CEMETERY_VIEW, createMapStyle, MAP_LAYER_IDS } from "./mapStyle";
 import { getSectionBounds } from "./mapSections";
+import MapLayers from "./MapLayers";
 
 const EMPTY_COLLECTION = { type: "FeatureCollection", features: [] };
 const MAP_PREFERENCES_KEY = "fab.map-preferences.v1";
 const DEFAULT_MAP_PREFERENCES = Object.freeze({
-  hillshade: true,
+  basemap: "terrain",
   showSections: false,
 });
 // Grave points take precedence over the underlying section.
@@ -35,7 +36,8 @@ const readMapPreferences = () => {
   try {
     const stored = JSON.parse(globalThis.localStorage?.getItem(MAP_PREFERENCES_KEY) || "null");
     return {
-      hillshade: parseStoredBoolean(stored?.hillshade, true),
+      basemap: ["terrain", "streets", "aerial"].includes(stored?.basemap)
+        ? stored.basemap : stored?.hillshade === false ? "streets" : "terrain",
       showSections: parseStoredBoolean(stored?.showSections, false),
     };
   } catch {
@@ -170,6 +172,7 @@ function useLocationPrivacy(routingDraft, readyMap, mapRef) {
     if (map?.isStyleLoaded()) {
       setLayerVisibility(map, MAP_LAYER_IDS.hillshade, false);
       setLayerVisibility(map, MAP_LAYER_IDS.map, false);
+      setLayerVisibility(map, MAP_LAYER_IDS.aerial, false);
     }
   }, [mapRef]);
   const needsLocationPrivacy = Boolean(routingDraft?.locating || routingDraft?.following || routingDraft?.start?.gps);
@@ -181,6 +184,7 @@ function useLocationPrivacy(routingDraft, readyMap, mapRef) {
     if (map?.isStyleLoaded()) {
       setLayerVisibility(map, MAP_LAYER_IDS.hillshade, false);
       setLayerVisibility(map, MAP_LAYER_IDS.map, false);
+      setLayerVisibility(map, MAP_LAYER_IDS.aerial, false);
     }
   }, [locationPrivate, readyMap]);
 
@@ -189,6 +193,7 @@ function useLocationPrivacy(routingDraft, readyMap, mapRef) {
 
 export default function MapView({
   active = true,
+  allowLocation = true,
   routingDraft = null,
   localRoute = null,
   onRoutePoint,
@@ -201,6 +206,7 @@ export default function MapView({
   onBrowseSection,
   onRecordsSelect,
   onSectionSelect,
+  onReadyChange,
 }) {
   const routingActive = Boolean(routingDraft);
 
@@ -219,7 +225,7 @@ export default function MapView({
   const { locationPrivate, locationPrivateRef, protectLocation } = useLocationPrivacy(routingDraft, readyMap, mapRef);
   const [preferences, setPreferences] = useState(readMapPreferences);
   const [visibleMarkerCount, setVisibleMarkerCount] = useState(null);
-  const { hillshade, showSections } = preferences;
+  const { basemap, showSections } = preferences;
 
   const updatePreference = (key, value) => {
     setPreferences((current) => {
@@ -268,15 +274,14 @@ export default function MapView({
       fitBoundsOptions: { maxZoom: 18 },
     });
     geolocateRef.current = geolocate;
-    map.addControl(geolocate, "top-right");
     geolocate.on("geolocate", () => setLocationMessage(""));
     geolocate.on("outofmaxbounds", () => {
-      setLocationMessage("You are outside the cemetery map area. Live location appears when you are nearby.");
+      setLocationMessage("You are outside the cemetery map area.");
     });
     geolocate.on("error", ({ code }) => {
       setLocationMessage(code === 1
-        ? "Location is blocked. Allow location for this site in your browser or app settings, then reload."
-        : "Your location could not be found. Check Location Services and try the location button again.");
+        ? "Location is blocked. Allow it in browser or app settings."
+        : "Location not found. Check Location Services and try again.");
     });
     const checkLocationPermission = async () => {
       if (!globalThis.navigator?.geolocation) {
@@ -286,7 +291,7 @@ export default function MapView({
       try {
         const permission = await globalThis.navigator.permissions?.query({ name: "geolocation" });
         if (mapRef.current === map && permission?.state === "denied") {
-          setLocationMessage("Location is blocked. Allow location for this site in your browser or app settings, then reload.");
+          setLocationMessage("Location is blocked. Allow it in browser or app settings.");
         }
       } catch {
         // iOS can reject the Permissions API query while geolocation still works.
@@ -357,10 +362,10 @@ export default function MapView({
     const map = readyMap;
     const control = geolocateRef.current;
     if (!map || mapRef.current !== map || !control) return;
-    if (active && !map.hasControl(control)) map.addControl(control, "top-right");
+    if (active && allowLocation && !map.hasControl(control)) map.addControl(control, "top-right");
     // onRemove clears MapLibre's geolocation watch through its public lifecycle.
-    if (!active && map.hasControl(control)) map.removeControl(control);
-  }, [active, readyMap]);
+    if ((!active || !allowLocation) && map.hasControl(control)) map.removeControl(control);
+  }, [active, allowLocation, readyMap]);
 
   useEffect(() => {
     const map = readyMap;
@@ -400,9 +405,10 @@ export default function MapView({
   useEffect(() => {
     const map = readyMap;
     if (!map || mapRef.current !== map) return;
-    setLayerVisibility(map, MAP_LAYER_IDS.hillshade, hillshade && !locationPrivateRef.current);
-    setLayerVisibility(map, MAP_LAYER_IDS.map, !hillshade && !locationPrivateRef.current);
-    setLayerVisibility(map, "cemetery-road-labels", hillshade);
+    setLayerVisibility(map, MAP_LAYER_IDS.hillshade, basemap === "terrain" && !locationPrivateRef.current);
+    setLayerVisibility(map, MAP_LAYER_IDS.map, basemap === "streets" && !locationPrivateRef.current);
+    setLayerVisibility(map, MAP_LAYER_IDS.aerial, basemap === "aerial" && !locationPrivateRef.current);
+    setLayerVisibility(map, "cemetery-road-labels", basemap !== "streets");
     const matchesSection = [
       "==",
       ["to-string", ["get", "Section"]],
@@ -414,8 +420,9 @@ export default function MapView({
     setLayerVisibility(map, MAP_LAYER_IDS.sectionOutlines, showSections);
     setLayerVisibility(map, MAP_LAYER_IDS.selectedSection, Boolean(selectedSection));
     map.setFilter(MAP_LAYER_IDS.selectedSection, matchesSection);
-    map.setLayerZoomRange(MAP_LAYER_IDS.sectionLabels, showSections ? 0 : 16, 24);
-  }, [hillshade, readyMap, selectedSection, showSections, locationPrivate, locationPrivateRef]);
+    setLayerVisibility(map, MAP_LAYER_IDS.sectionLabels, showSections);
+    map.setLayerZoomRange(MAP_LAYER_IDS.sectionLabels, 13, 24);
+  }, [basemap, readyMap, selectedSection, showSections, locationPrivate, locationPrivateRef]);
 
   useEffect(() => {
     const map = readyMap;
@@ -464,6 +471,10 @@ export default function MapView({
 
   useEffect(() => { if (!routingDraft) framedRoute.current = null; }, [routingDraft]);
 
+  useEffect(() => {
+    onReadyChange?.(Boolean(active && readyMap));
+  }, [active, readyMap, onReadyChange]);
+
   return (
     <div className="map-view">
       <p
@@ -473,26 +484,7 @@ export default function MapView({
       >
         {(visibleMarkerCount ?? 0).toLocaleString()} {tourStopsPresent && showRecordMarkers ? "tour stops" : "graves"} shown on the map
       </p>
-      <div className="map-toolbar" aria-label="Map options">
-        <label className="toggle-control">
-          <select
-            aria-label="Basemap"
-            value={hillshade ? "terrain" : "streets"}
-            onChange={(event) => updatePreference("hillshade", event.target.value === "terrain")}
-          >
-            <option value="terrain">Terrain</option>
-            <option value="streets">Streets</option>
-          </select>
-        </label>
-        <label className="toggle-control">
-          <input
-            type="checkbox"
-            checked={showSections}
-            onChange={(event) => updatePreference("showSections", event.target.checked)}
-          />
-          Sections
-        </label>
-      </div>
+      <MapLayers basemap={basemap} showSections={showSections} locationPrivate={locationPrivate} onChange={updatePreference} />
       {locationMessage ? (
         <div className="map-location-message" role="status">
           <span>{locationMessage}</span>
@@ -511,7 +503,6 @@ export default function MapView({
         </div>
       ) : null}
       <RouteMapPick draft={routingDraft} mapRef={mapRef} onRoutePoint={onRoutePoint} />
-      {locationPrivate && <p>Local map while using location</p>}
       <div ref={containerRef} className="map-canvas" role="region" aria-label="Albany Rural Cemetery map" onClickCapture={(event) => {
         if (event.target.closest(".maplibregl-ctrl-geolocate")) protectLocation();
       }} />

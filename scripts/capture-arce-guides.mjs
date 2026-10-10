@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { getArceDeployment } from '../arce/deployment.js';
 
 // Screenshots show real controls; rectangles locate the responsive annotations.
-const base = `http://127.0.0.1:4182${getArceDeployment(process.env.ARCE_TARGET).sitePath}`;
+const base = process.env.ARCE_PREVIEW_URL || `http://127.0.0.1:4182${getArceDeployment(process.env.ARCE_TARGET).sitePath}`;
 const shots = { burial: [], tour: [], grave: [] };
 const browser = await chromium.launch();
 try {
@@ -38,7 +38,7 @@ try {
     await burialResult.click();
     await capture('burial', 3, page.getByRole('button', { name: 'Directions', exact: true }));
     await page.getByRole('button', { name: 'Directions', exact: true }).click();
-    await capture('burial', 4, page.getByRole('button', { name: /^From / }));
+    await capture('burial', 4, page.getByRole('button', { name: 'Use my location', exact: true }));
 
     await page.goto(`${base}app/?view=tours`);
     const notables = page.getByRole('button', { name: /Notables Tour 2020/ });

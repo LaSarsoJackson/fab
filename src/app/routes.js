@@ -14,6 +14,7 @@ export const ROUTE_KEYS = Object.freeze({
   record: "record",
   legacyShare: "share",
   embed: "embed",
+  tutorial: "tutorial",
 });
 
 export const FABFG_ROUTE_MESSAGE_TYPE = "fab.route-change.v1";
@@ -57,7 +58,8 @@ export const readAppRoute = (search = "") => {
 
   return {
     view: normalizeView(requestedView),
-    query: clean(params.get(ROUTE_KEYS.query)),
+    tutorial: clean(params.get(ROUTE_KEYS.embed)).toLowerCase() !== "fabfg" && params.get(ROUTE_KEYS.tutorial) === "burial-search" ? "burial-search" : "",
+    query: params.get(ROUTE_KEYS.query) || "",
     section: clean(params.get(ROUTE_KEYS.section)),
     lot: clean(params.get(ROUTE_KEYS.lot)),
     tier: clean(params.get(ROUTE_KEYS.tier)),
@@ -81,12 +83,15 @@ export const buildAppUrl = (currentUrl, changes = {}) => {
     else url.searchParams.delete(key);
   };
 
-  setOptional(ROUTE_KEYS.query, next.query);
+  // Keep the space just typed between name parts. Search normalizes its input.
+  if (next.query) url.searchParams.set(ROUTE_KEYS.query, String(next.query));
+  else url.searchParams.delete(ROUTE_KEYS.query);
   setOptional(ROUTE_KEYS.section, next.section);
   setOptional(ROUTE_KEYS.lot, next.lot);
   setOptional(ROUTE_KEYS.tier, next.tier);
   setOptional(ROUTE_KEYS.tour, next.tour);
   setOptional(ROUTE_KEYS.record, next.record);
+  setOptional(ROUTE_KEYS.tutorial, next.embedded ? "" : next.tutorial);
 
   if (changes.record !== undefined || changes.tour !== undefined) {
     url.searchParams.delete(ROUTE_KEYS.legacyShare);
@@ -115,7 +120,7 @@ export const postFabfgRouteChange = (nextUrl, bridge = globalThis.ReactNativeWeb
 };
 
 export const getFabfgUrls = (rootUrl) => ({
-  tours: buildAppUrl(rootUrl, { view: APP_VIEWS.TOURS, embedded: true, query: "", section: "", lot: "", tier: "", tour: "", record: "" }),
-  map: buildAppUrl(rootUrl, { view: APP_VIEWS.MAP, embedded: true, query: "", section: "", lot: "", tier: "", tour: "", record: "" }),
-  burials: buildAppUrl(rootUrl, { view: APP_VIEWS.LOCATOR, embedded: true, query: "", section: "", lot: "", tier: "", tour: "", record: "" }),
+  tours: buildAppUrl(rootUrl, { view: APP_VIEWS.TOURS, embedded: true, tutorial: "", query: "", section: "", lot: "", tier: "", tour: "", record: "" }),
+  map: buildAppUrl(rootUrl, { view: APP_VIEWS.MAP, embedded: true, tutorial: "", query: "", section: "", lot: "", tier: "", tour: "", record: "" }),
+  burials: buildAppUrl(rootUrl, { view: APP_VIEWS.LOCATOR, embedded: true, tutorial: "", query: "", section: "", lot: "", tier: "", tour: "", record: "" }),
 });

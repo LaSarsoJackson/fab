@@ -438,7 +438,7 @@ describe("App product shell", () => {
 
     renderApp();
     expect(await screen.findByRole("heading", { name: "James Hall" })).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Share pinned grave"));
+    fireEvent.click(screen.getByText("Share"));
     fireEvent.click(screen.getByRole("button", { name: "Share link" }));
 
     await waitFor(() => expect(share).toHaveBeenCalledOnce());

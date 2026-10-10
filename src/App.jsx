@@ -11,6 +11,7 @@ import { findTourDefinition, loadTour } from "./features/tours/loadTour";
 import { readTourProgress, writeTourProgress } from "./features/tours/tourProgress";
 import TourStopsPanel from "./features/tours/TourStopsPanel";
 import ToursView from "./features/tours/ToursView";
+import GuidedBurialSearch, { TutorialMapBoundary } from "./features/tutorial/GuidedBurialSearch";
 
 const MapView = lazy(() => import("./features/map/MapView"));
 
@@ -104,6 +105,19 @@ const MapLoadError = ({ tour, section, returnToTours, browseSection }) => (
   </p>
 );
 
+const MapFrame = ({ route, activeTour, pointRecords, selectedRecord, detailsOpen, mapStatus, routing, tutorialActions, children }) => {
+  const active = route.view === APP_VIEWS.MAP;
+  const mapClassName = [
+    "map-page",
+    activeTour && (detailsOpen || pointRecords.length) ? "map-page--record-open" : "",
+  ].filter(Boolean).join(" ");
+
+  return <section className={mapClassName} aria-label="Cemetery Map" hidden={!active}>
+    {!route.embedded && active ? <GuidedBurialSearch route={route} selectedRecord={selectedRecord} detailsOpen={detailsOpen} mapStatus={mapStatus} routing={routing} {...tutorialActions} /> : null}
+    <div className="map-stage">{children}</div>
+  </section>;
+};
+
 const MapDestination = ({
   activeTour,
   browseSection,
@@ -126,19 +140,17 @@ const MapDestination = ({
   shareUrl,
   tourContext,
   unpin,
+  tutorialActions,
 }) => {
   const active = route.view === APP_VIEWS.MAP;
+  const [mapStatus, setMapStatus] = useState("loading");
+  const onMapReady = useCallback(ready => setMapStatus(ready ? "ready" : "loading"), []);
   const routing = useLocalRouting(active, `${route.tour}|${route.record}|${route.section}`);
   if (!hasVisitedMap && !active) return null;
-  const mapClassName = [
-    "map-page",
-    activeTour && (detailsOpen || pointRecords.length) ? "map-page--record-open" : "",
-  ].filter(Boolean).join(" ");
 
-  return (
-    <section className={mapClassName} aria-label="Cemetery Map" hidden={!active}>
-      <Suspense fallback={<p className="map-loading" role="status">Loading cemetery map…</p>}>
+  const map = <Suspense fallback={<p className="map-loading" role="status">Loading cemetery map…</p>}>
         <MapComponent
+          onReadyChange={onMapReady}
           active={active}
           routingDraft={routing.draft}
           localRoute={routing.result}
@@ -153,7 +165,10 @@ const MapDestination = ({
           onSectionSelect={selectSection}
           onBrowseSection={browseSection}
         />
-      </Suspense>
+      </Suspense>;
+  return (
+    <MapFrame route={route} activeTour={activeTour} pointRecords={pointRecords} selectedRecord={selectedRecord} detailsOpen={detailsOpen} mapStatus={mapStatus} routing={routing} tutorialActions={tutorialActions}>
+      <TutorialMapBoundary onError={() => setMapStatus("error")}>{map}</TutorialMapBoundary>
       {loadingTour ? <p className="map-status" role="status">Loading tour…</p> : null}
       {loadingSection ? <p className="map-status" role="status">Loading section burials…</p> : null}
       {loadError ? <MapLoadError tour={route.tour} section={route.section} returnToTours={returnToTours} browseSection={browseSection} /> : null}
@@ -179,7 +194,7 @@ const MapDestination = ({
         tourContext={tourContext}
       />
       <MapRouteControls routing={routing} records={records} detailsOpen={detailsOpen} activeTour={activeTour} pointRecords={pointRecords} />
-    </section>
+    </MapFrame>
   );
 };
 
@@ -457,6 +472,7 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
       record: selectedRecord.id,
       tour: selectedRecord.source === "tour" ? selectedRecord.tourKey : "",
       embedded: false,
+      tutorial: "",
     })
     : "", [selectedRecord]);
 
@@ -474,11 +490,17 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
     updateRoute(changes, { replace: true });
   };
 
+  const focusSearch = () => requestAnimationFrame(() => document.getElementById("burial-query")?.focus());
+  const tutorialActions = {
+    onExampleSearch: () => { findPerson("Thomas LaMont"); focusSearch(); },
+  };
+
   return (
     <div className={["app-shell", route.embedded ? "app-shell--embedded" : "", import.meta.env.VITE_ARCE_WEBSITE_URL && !route.embedded ? "app-shell--arce" : ""].filter(Boolean).join(" ")}>
       <a className="skip-link" href="#main-content">Skip to content</a>
       <AppNavigation activeView={route.view} embedded={route.embedded} onNavigate={navigate} />
       <main id="main-content" className="app-content" tabIndex={-1}>
+        {!route.embedded && route.view !== APP_VIEWS.MAP ? <GuidedBurialSearch key={route.view} route={route} {...tutorialActions} /> : null}
         <ToursDestination
           active={route.view === APP_VIEWS.TOURS}
           continueTour={continueTourDetails}
@@ -516,6 +538,7 @@ export default function App({ MapComponent = MapView, useBurialSearchHook = useB
           shareUrl={shareUrl}
           tourContext={tourContext}
           unpin={unpin}
+          tutorialActions={tutorialActions}
         />
       </main>
     </div>

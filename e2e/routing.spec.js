@@ -35,8 +35,8 @@ test("route to a grave uses GPS, draws roads and gaps, and closes cleanly", asyn
   await expect(panel).toBeVisible();
   await expect(panel).toContainText("Chester");
   await expect(page.locator(".record-card")).toHaveCount(0);
-  await panel.getByRole("button", { name: "Start from my location", exact: true }).click();
-  await expect(panel.getByRole("status")).toContainText("along mapped roads");
+  await panel.getByRole("button", { name: "Use my location", exact: true }).click();
+  await expect(panel.locator(".map-route-distance")).toBeVisible();
   await expect.poll(() => page.evaluate(() => globalThis.testMap.queryRenderedFeatures({ layers: ["local-road-route"] }).length)).toBeGreaterThan(0);
   await expect.poll(() => page.evaluate(() => globalThis.testMap.queryRenderedFeatures({ layers: ["local-route-gaps"] }).length)).toBeGreaterThan(0);
   expect(new URL(page.url()).searchParams.has("from")).toBe(false);
@@ -63,7 +63,7 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 750, height: 342 }
     await panel.getByRole("button", { name: /^To / }).click();
     await panel.getByRole("button", { name: "Choose on map", exact: true }).click();
     await page.locator(".maplibregl-canvas").click({ position: await mapPoint(page, [-73.73362297435509, 42.707493868452055]) });
-    await expect(panel.getByRole("status")).toContainText("along mapped roads");
+    await expect(panel.locator(".map-route-distance")).toBeVisible();
     await expect(page).toHaveURL(before);
     await expect(panel.getByRole("button", { name: "Close route" })).toBeInViewport();
     await testInfo.attach("local-route", { body: await page.screenshot(), contentType: "image/png" });
@@ -76,18 +76,18 @@ for (const viewport of [{ width: 375, height: 812 }, { width: 750, height: 342 }
 
 test("denied and imprecise GPS leave map-picking available", async ({ page }) => {
   await page.addInitScript(() => {
-    navigator.geolocation.getCurrentPosition = (_success, failure) => failure({ code: 1 });
+    navigator.geolocation.watchPosition = (_success, failure) => failure({ code: 1 });
   });
   await page.goto(GRAVE);
   await page.getByRole("button", { name: "Directions", exact: true }).click();
   const panel = page.getByRole("complementary", { name: "Cemetery directions" });
-  await panel.getByRole("button", { name: "Start from my location", exact: true }).click();
+  await panel.getByRole("button", { name: "Use my location", exact: true }).click();
   await expect(panel.getByRole("alert")).toContainText("Location is blocked");
   await page.evaluate(() => {
-    navigator.geolocation.getCurrentPosition = (success) => success({ coords: { latitude: 42.70749, longitude: -73.73362, accuracy: 200 }, timestamp: Date.now() });
+    navigator.geolocation.watchPosition = (success) => success({ coords: { latitude: 42.70749, longitude: -73.73362, accuracy: 200 }, timestamp: Date.now() });
   });
-  await panel.getByRole("button", { name: "Start from my location", exact: true }).click();
-  await expect(panel.getByRole("alert")).toContainText("too imprecise");
+  await panel.getByRole("button", { name: "Use my location", exact: true }).click();
+  await expect(panel.getByRole("status")).toContainText("accurate location");
   await panel.getByRole("button", { name: /^From / }).click();
     await panel.getByRole("button", { name: "Choose on map", exact: true }).click();
   await expect(panel).toContainText("Tap the map");
@@ -95,12 +95,12 @@ test("denied and imprecise GPS leave map-picking available", async ({ page }) =>
 
 test("a late GPS result cannot overwrite a map-pick or reopen a closed route", async ({ page }) => {
   await page.addInitScript(() => {
-    navigator.geolocation.getCurrentPosition = (success) => { globalThis.deliverRouteLocation = success; };
+    navigator.geolocation.watchPosition = (success) => { globalThis.deliverRouteLocation = success; };
   });
   await page.goto(GRAVE);
   await page.getByRole("button", { name: "Directions", exact: true }).click();
   const panel = page.getByRole("complementary", { name: "Cemetery directions" });
-  await panel.getByRole("button", { name: "Start from my location", exact: true }).click();
+  await panel.getByRole("button", { name: "Use my location", exact: true }).click();
   await panel.getByRole("button", { name: /^From / }).click();
     await panel.getByRole("button", { name: "Choose on map", exact: true }).click();
   await page.evaluate(() => globalThis.deliverRouteLocation({ coords: { latitude: 42.70749, longitude: -73.73362, accuracy: 5 }, timestamp: Date.now() }));

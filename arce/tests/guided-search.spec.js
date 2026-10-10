@@ -1,0 +1,167 @@
+import { expect, test } from '@playwright/test';
+const site = process.env.ARCE_TARGET === 'production' ? '/arce/' : '/arce/dev/';
+const app = `${site}app/?view=burials&tutorial=burial-search`;
+const help = page => page.getByRole('dialog', { name: 'Help', exact: true });
+const openHelp = async page => { await page.getByRole('button', { name: 'Help', exact: true }).click(); };
+const closeHelp = async page => { await help(page).getByRole('button', { name: 'Close help', exact: true }).click(); };
+const expectSeparate = async (first, second) => {
+  const [a, b] = await Promise.all([first.boundingBox(), second.boundingBox()]);
+  expect(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y).toBe(true);
+};
+test.use({ serviceWorkers: 'block' });
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.helpLocationRequests = 0;
+    navigator.geolocation.getCurrentPosition = () => { window.helpLocationRequests += 1; };
+    navigator.geolocation.watchPosition = () => { window.helpLocationRequests += 1; return 0; };
+  });
+});
+for (const width of [390, 1440]) {
+  test(`own search, selection and route with optional help at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto(`${site}Burial_Locator_tutorial.html`);
+    await page.getByRole('link', { name: 'Open Burial Locator', exact: true }).click();
+    await expect(help(page)).toHaveCount(0);
+    const searchHelp = await page.getByRole('button', { name: 'Help', exact: true }).boundingBox();
+    expect(searchHelp.y).toBeGreaterThan(700);
+    await openHelp(page);
+    await expect(help(page)).toContainText('Part of a name is enough');
+    await closeHelp(page);
+    await page.screenshot({ path: `../evidence/live-tutorial/flexible-start-${width}.png`, fullPage: true });
+    await page.getByLabel('Name', { exact: true }).fill('William Roe');
+    await page.getByRole('button', { name: /^William G Roe/ }).click();
+    await expect(page.getByRole('heading', { name: 'William G Roe', exact: true })).toBeVisible();
+    await expectSeparate(page.getByRole('button', { name: 'Help', exact: true }), page.getByRole('article', { name: 'William G Roe', exact: true }));
+    await openHelp(page);
+    await expect(help(page)).toContainText('recorded location');
+    await closeHelp(page);
+    await page.getByRole('button', { name: 'Directions', exact: true }).click();
+    const directions = page.getByRole('complementary', { name: 'Cemetery directions' });
+    await expect(directions.getByRole('button', { name: 'Use my location', exact: true })).toBeVisible();
+    await expect(directions.getByRole('button', { name: 'Choose on map', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('searchbox', { name: 'Section or burial', exact: true })).toHaveCount(0);
+    await expect(directions.getByRole('button', { name: 'Follow my location', exact: true })).toHaveCount(0);
+    await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+    await page.screenshot({ path: `../evidence/live-tutorial/directions-start-${width}.png`, fullPage: true });
+    await directions.getByRole('button', { name: /^From / }).click();
+    await page.getByRole('searchbox', { name: 'Section or burial' }).fill('214');
+    await page.screenshot({ path: `../evidence/live-tutorial/map-place-search-${width}.png`, fullPage: true });
+    await directions.getByRole('button', { name: 'Section 214', exact: true }).click();
+    await expect(directions.getByRole('status')).toContainText('Route ready');
+    await expect(help(page)).toHaveCount(0);
+    expect(await page.evaluate(() => window.helpLocationRequests)).toBe(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `../evidence/live-tutorial/flexible-route-${width}.png`, fullPage: true });
+    await testInfo.attach('own route', { path: `../evidence/live-tutorial/flexible-route-${width}.png`, contentType: 'image/png' });
+    await expect(directions.locator('.map-route-details')).not.toHaveAttribute('open', '');
+    await directions.locator('.map-route-details summary').click();
+    await expect(directions.locator('.map-route-details')).toContainText('from the road');
+    await directions.locator('.map-route-details summary').click();
+    const record = new URL(page.url()).searchParams.get('record');
+    await openHelp(page);
+    await help(page).press('Escape');
+    await expect(page.getByRole('button', { name: 'Help', exact: true })).toBeFocused();
+    await expect(help(page)).toHaveCount(0);
+    expect(new URL(page.url()).searchParams.get('record')).toBe(record);
+    await expect(directions).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+}
+test('help opens on request, closes with Escape, and stays out of the layout', async ({ page }) => {
+  await page.goto(app);
+  const before = await page.getByLabel('Name', { exact: true }).boundingBox();
+  await expect(help(page)).toHaveCount(0);
+  await openHelp(page);
+  const after = await page.getByLabel('Name', { exact: true }).boundingBox();
+  expect(after).toEqual(before);
+  await help(page).getByRole('button', { name: 'Try an example', exact: true }).click();
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Thomas LaMont');
+  await expect(help(page)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Search Tours', exact: true }).click();
+  await openHelp(page);
+  await expect(help(page)).toContainText('tour stop');
+  await help(page).press('Escape');
+  await expect(page.getByRole('button', { name: 'Help', exact: true })).toBeFocused();
+  await openHelp(page);
+  await page.getByRole('button', { name: 'Burial Locator', exact: true }).click();
+  await page.getByRole('button', { name: 'Search Tours', exact: true }).click();
+  await expect(help(page)).toHaveCount(0);
+  for (const suffix of ['?view=burials', '?view=burials&tutorial=unknown', '?view=map&tutorial=burial-search']) {
+    await page.goto(`${site}app/${suffix}`);
+    await expect(help(page)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Help', exact: true })).toBeVisible();
+  }
+  await page.goto(`${site}app/?view=burials&tutorial=burial-search&embed=fabfg`);
+  await expect(page.getByRole('button', { name: 'Help', exact: true })).toHaveCount(0);
+});
+test('data errors and no matches keep ordinary recovery and never force an example', async ({ page }) => {
+  let fail = true;
+  await page.route('**/data/Search_Burials.json', route => fail ? route.fulfill({ status: 503, body: 'Unavailable' }) : route.continue());
+  await page.goto(app);
+  await page.getByLabel('Name', { exact: true }).fill('William Roe');
+  await expect(page.getByRole('alert')).toContainText('Burial search isn’t available');
+  await openHelp(page);
+  await expect(help(page).getByRole('link', { name: 'Illustrated guide' })).toHaveAttribute('href', /Burial_Locator_tutorial.html/);
+  await closeHelp(page);
+  fail = false;
+  await page.getByRole('button', { name: 'Try again', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^William G Roe/ })).toBeVisible();
+  await page.getByLabel('Name', { exact: true }).fill('NoSuchBurialZZZZ');
+  await expect(page.getByRole('status')).toContainText('No burials match');
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('NoSuchBurialZZZZ');
+  await expect(help(page)).toHaveCount(0);
+});
+test('map failure leaves a usable illustrated fallback', async ({ page }) => {
+  await page.route('**/assets/MapView-*.js', route => route.fulfill({ status: 503, body: 'Unavailable' }));
+  await page.goto(app);
+  await page.getByLabel('Name', { exact: true }).fill('William Roe');
+  await page.getByRole('button', { name: /^William G Roe/ }).click();
+  await openHelp(page);
+  await expect(help(page)).toContainText('The map did not load');
+  await help(page).getByRole('link', { name: 'Illustrated guide', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Illustrated walkthrough', exact: true })).toBeVisible();
+  await page.getByText('Choose a route start', { exact: true }).click();
+  await expect(page.locator('.guide-slide').last().locator('img')).toBeVisible();
+});
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 568, height: 320 }, { width: 1440, height: 900 }]) {
+  test(`question mark and map layers clear the map controls at ${viewport.width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport);
+    await page.goto(`${site}app/?view=map&tutorial=burial-search`);
+    await expect(help(page)).toHaveCount(0);
+    const layers = page.getByRole('button', { name: 'Map layers', exact: true });
+    const question = page.getByRole('button', { name: 'Help', exact: true });
+    await expect(layers).toBeInViewport();
+    await expect(page.locator('.maplibregl-ctrl-geolocate')).toBeInViewport({ ratio: 1 });
+    const layerBox = await layers.boundingBox();
+    const helpBox = await question.boundingBox();
+    const zoomBox = await page.locator('.maplibregl-ctrl-zoom-in').boundingBox();
+    expect(helpBox.x).toBeGreaterThan(viewport.width - 70);
+    expect(helpBox.y).toBeGreaterThan(viewport.height - 150);
+    await expectSeparate(question, page.getByRole('navigation', { name: 'Primary' }));
+    await expectSeparate(question, page.locator('.maplibregl-ctrl-attrib'));
+    await page.getByLabel('Map credits', { exact: true }).click();
+    await expectSeparate(question, page.locator('.maplibregl-ctrl-attrib'));
+    await page.getByLabel('Map credits', { exact: true }).click();
+    expect(zoomBox.y).toBeGreaterThanOrEqual(layerBox.y + layerBox.height);
+    await layers.click();
+    await expect(page.getByRole('radio', { name: 'Terrain', exact: true })).toBeChecked();
+    const options = await page.getByRole('region', { name: 'Map layers', exact: true }).boundingBox();
+    expect(options.y + options.height).toBeLessThanOrEqual(viewport.height - 72);
+    await page.getByLabel('Sections', { exact: true }).check();
+    await page.screenshot({ path: `../evidence/live-tutorial/map-layers-${viewport.width}.png`, fullPage: true });
+    await question.click();
+    await expect(page.getByRole('region', { name: 'Map layers', exact: true })).toHaveCount(0);
+    await expect(help(page)).toBeVisible();
+    const panelBox = await help(page).boundingBox();
+    expect(panelBox.y).toBeGreaterThanOrEqual(44);
+    expect(panelBox.y + panelBox.height).toBeLessThanOrEqual(helpBox.y);
+    await page.screenshot({ path: `../evidence/live-tutorial/map-help-${viewport.width}.png`, fullPage: true });
+    await help(page).press('Escape');
+    await expect(question).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await testInfo.attach('map controls', { path: `../evidence/live-tutorial/map-layers-${viewport.width}.png`, contentType: 'image/png' });
+  });
+}
