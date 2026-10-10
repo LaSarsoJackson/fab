@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { inflateBurialRow } from "./burialRecords";
 import { getSearchCriteriaKey } from "./searchEngine";
+import { requestBurialSearch, retainBurialSearchWorker } from "./burialSearchClient";
 
 const INITIAL_STATE = Object.freeze({
   status: "idle",
@@ -11,7 +12,6 @@ const INITIAL_STATE = Object.freeze({
 });
 
 export default function useBurialSearch() {
-  const workerRef = useRef(null);
   const pendingRef = useRef(new Map());
   const requestIdRef = useRef(0);
   const [state, setState] = useState(INITIAL_STATE);
@@ -22,67 +22,44 @@ export default function useBurialSearch() {
   }, []);
 
   const runSearch = useCallback((criteria = {}) => {
-    if (!workerRef.current) {
-      const worker = new Worker(new URL("./search.worker.js", import.meta.url), { type: "module" });
-      workerRef.current = worker;
-      worker.onmessage = ({ data }) => {
-        const pending = pendingRef.current.get(data.requestId);
+    requestIdRef.current += 1;
+    setState((current) => ({ ...current, status: "loading", error: "" }));
+    const requestId = requestIdRef.current;
+    return new Promise((resolve) => {
+      const cancel = requestBurialSearch(criteria, (data) => {
+        pendingRef.current.delete(requestId);
         if (data.error || data.cancelled) {
-          if (data.error && data.requestId === requestIdRef.current) {
+          if (data.error && requestId === requestIdRef.current) {
             setState({ status: "error", results: [], total: 0, error: data.error });
           }
-          pending?.resolve([]);
-          pendingRef.current.delete(data.requestId);
+          resolve([]);
           return;
         }
         const results = data.rows.map(inflateBurialRow);
-        if (data.requestId === requestIdRef.current) {
+        if (requestId === requestIdRef.current) {
           setState({
             status: "ready",
             results,
             total: data.total,
             error: "",
-            criteriaKey: pending?.criteriaKey || "",
+            criteriaKey: getSearchCriteriaKey(criteria),
           });
         }
-        pending?.resolve(results);
-        pendingRef.current.delete(data.requestId);
-      };
-      worker.onerror = (event) => {
-        if (workerRef.current !== worker) return;
-        setState({
-          status: "error",
-          results: [],
-          total: 0,
-          error: event.message || "Burial search could not start",
-        });
-        pendingRef.current.forEach(({ resolve }) => resolve([]));
-        pendingRef.current.clear();
-        workerRef.current = null;
-        worker.terminate();
-      };
-    }
-
-    requestIdRef.current += 1;
-    setState((current) => ({ ...current, status: "loading", error: "" }));
-    const requestId = requestIdRef.current;
-    workerRef.current.postMessage({
-      ...criteria,
-      requestId,
-      dataUrl: `${import.meta.env.BASE_URL}data/Search_Burials.json`,
-    });
-    return new Promise((resolve) => {
-      pendingRef.current.set(requestId, { resolve, criteriaKey: getSearchCriteriaKey(criteria) });
+        resolve(results);
+      });
+      pendingRef.current.set(requestId, cancel);
     });
   }, []);
 
-  useEffect(() => () => {
-    const worker = workerRef.current;
-    workerRef.current = null;
-    requestIdRef.current += 1;
-    pendingRef.current.forEach(({ resolve }) => resolve([]));
-    pendingRef.current.clear();
-    worker?.terminate();
+  useEffect(() => {
+    const release = retainBurialSearchWorker();
+    const pendingRequests = pendingRef.current;
+    return () => {
+      requestIdRef.current += 1;
+      pendingRequests.forEach(cancel => cancel());
+      pendingRequests.clear();
+      release();
+    };
   }, []);
 
   return { ...state, clear, runSearch };

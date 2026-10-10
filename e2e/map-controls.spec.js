@@ -56,15 +56,19 @@ test("route places are searched and chosen with the keyboard", async ({ page }, 
   await page.goto("./?view=map&tour=Notable&record=tour%3ANotable%3A18%3A24%3A8");
   await page.getByRole("button", { name: "Directions", exact: true }).click();
   const panel = page.getByRole("complementary", { name: "Cemetery directions" });
-  await panel.getByRole("button", { name: /^From / }).click();
+  await panel.getByRole("button", { name: /^From / }).focus();
+  await page.keyboard.press("Enter");
   const search = panel.getByRole("searchbox", { name: "Section or burial" });
+  await expect(search).toBeFocused();
   await search.fill("214");
   await expect(panel.getByRole("button", { name: "Section 214", exact: true })).toBeVisible();
   await search.press("Tab");
   await page.keyboard.press("Enter");
   await expect(panel.getByRole("button", { name: /^From Section 214/ })).toBeFocused();
   await expect(panel.locator(".map-route-distance")).toBeVisible();
-  await panel.getByRole("button", { name: /^To / }).click();
+  await panel.getByRole("button", { name: /^To / }).focus();
+  await page.keyboard.press("Enter");
+  await expect(search).toBeFocused();
   await panel.getByRole("searchbox", { name: "Section or burial" }).fill("NoSuchPlaceZZZ");
   await expect(panel.locator(".map-route-places").getByRole("status")).toContainText("No places found");
   await panel.getByRole("searchbox", { name: "Section or burial" }).press("Escape");
@@ -75,6 +79,30 @@ test("route places are searched and chosen with the keyboard", async ({ page }, 
   await expect(panel.getByRole("button", { name: /^To William G Roe/ })).toBeFocused();
   await expect(panel.locator(".map-route-distance")).toBeVisible();
   await testInfo.attach("route-search-mobile", { body: await page.screenshot(), contentType: "image/png" });
+});
+
+test("route edits reuse the burial index loaded by Locator", async ({ page }, testInfo) => {
+  const workers = [];
+  const downloads = [];
+  page.on("worker", worker => { if (worker.url().includes("search.worker")) workers.push(worker.url()); });
+  page.on("request", request => { if (request.url().includes("/data/Search_Burials.json")) downloads.push(request.url()); });
+  await page.goto("./?view=burials&q=Thomas+LaMont");
+  await page.getByRole("button", { name: /Thomas E LaMont/ }).click();
+  await page.getByRole("button", { name: "Directions", exact: true }).click();
+  const panel = page.getByRole("complementary", { name: "Cemetery directions" });
+  for (const endpoint of ["From", "To", "From"]) {
+    await panel.getByRole("button", { name: new RegExp(`^${endpoint} `) }).click();
+    await panel.getByRole("searchbox", { name: "Section or burial" }).fill("William G Roe");
+    await panel.getByRole("button", { name: "William G Roe", exact: true }).click();
+  }
+  await panel.getByRole("button", { name: "Close route", exact: true }).click();
+  await page.getByRole("button", { name: "Directions", exact: true }).click();
+  await panel.getByRole("button", { name: /^From / }).click();
+  await panel.getByRole("searchbox", { name: "Section or burial" }).fill("William G Roe");
+  await expect(panel.getByRole("button", { name: "William G Roe", exact: true })).toBeVisible();
+  await testInfo.attach("search-worker-reuse", { body: JSON.stringify({ workers, downloads }), contentType: "application/json" });
+  expect(workers).toHaveLength(1);
+  expect(downloads).toHaveLength(1);
 });
 
 for (const width of [390, 1440]) {

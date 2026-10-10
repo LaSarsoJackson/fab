@@ -35,7 +35,7 @@ export default function RoutePlaces({ records, onChoose }) {
   const choices = [...matches, ...uniqueGraves];
   return <div className="map-route-places">
     <label className="visually-hidden" htmlFor="route-place">Section or burial</label>
-    <input id="route-place" type="search" value={value} onChange={event => setValue(event.target.value)} placeholder="Section or name" autoComplete="off" />
+    <input id="route-place" type="search" value={value} onChange={event => setValue(event.target.value)} placeholder="Section or name" autoComplete="off" autoFocus />
     {choices.length ? <ul className="map-route-place-results">{choices.map(point => <li key={point.id}>
       <button type="button" aria-label={point.label} onClick={() => onChoose(point)}><strong>{point.label}</strong>{point.detail ? <span>{point.detail}</span> : null}</button>
     </li>)}</ul> : null}
